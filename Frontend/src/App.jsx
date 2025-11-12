@@ -1,20 +1,17 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { Home, About, Products, Contact, NotFound } from './pages'
-import ChatPage from './pages/ChatPage'
 import './App.css'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Home, Seller, Master, NotFound } from './pages'
 
 function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/seller" element={<Seller />} />
+        <Route path="/master" element={<Master />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </Router>
+    </BrowserRouter>
   )
 }
 

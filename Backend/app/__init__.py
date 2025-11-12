@@ -37,7 +37,7 @@ def create_app(config_class=Config):
     
     # Initialize CORS
     cors.init_app(app, resources={
-        r"/api/*": {
+        r"/*": {
             "origins": app.config['CORS_ORIGINS']
         }
     })
@@ -56,14 +56,12 @@ def create_app(config_class=Config):
     with app.app_context():
         create_indexes()
     
-    # Register blueprints
-    from app.routes.auth import auth_bp
+    # Register blueprints - only root route
     from app.routes.api import api_bp
     
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(api_bp)
     
-    # Register Socket.IO events
+    # Register Socket.IO events (keeping configuration but minimal)
     from app.sockets import register_socket_events
     register_socket_events(socketio)
     
