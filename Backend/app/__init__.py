@@ -76,6 +76,12 @@ def create_indexes():
         mongo.db.users.create_index([('email', ASCENDING)], unique=True)
         mongo.db.users.create_index([('username', ASCENDING)], unique=True)
         mongo.db.users.create_index([('created_at', ASCENDING)])
+        
+        # Create indexes for master collection
+        mongo.db.master.create_index([('email', ASCENDING)], unique=True)
+        mongo.db.master.create_index([('username', ASCENDING)], unique=True)
+        mongo.db.master.create_index([('created_at', ASCENDING)])
+        
         print("Database indexes created successfully")
     except Exception as e:
         print(f"Error creating indexes: {e}")

@@ -1,14 +1,31 @@
-import './App.css'
+
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { Home, Seller, Master, NotFound } from './pages'
+import { Home, Seller, Master, SellerLogin, MasterLogin, NotFound } from './pages'
+import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/seller" element={<Seller />} />
-        <Route path="/master" element={<Master />} />
+        <Route path="/seller/login" element={<SellerLogin />} />
+        <Route path="/master/login" element={<MasterLogin />} />
+        <Route 
+          path="/seller" 
+          element={
+            <ProtectedRoute requiredUserType="seller">
+              <Seller />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/master" 
+          element={
+            <ProtectedRoute requiredUserType="master">
+              <Master />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

@@ -2,64 +2,51 @@
  * 404 Not Found Page Component
  */
 import { useNavigate } from 'react-router-dom'
-import { Button } from '../components'
+import pagenotfoundIcon from '../assets/External_images/pagenotfoundicon.png'
 
 function NotFound() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 flex items-center justify-center px-4 py-12">
-      <div className="max-w-2xl w-full text-center">
-        {/* Animated 404 Text */}
-        <div className="mb-8">
-          <h1 className="text-9xl md:text-[12rem] font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 animate-pulse">
-            404
-          </h1>
+    <div className="min-h-screen bg-black flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12">
+      <div className="max-w-5xl w-full flex flex-col md:flex-row items-center justify-center gap-6 sm:gap-8 md:gap-12">
+        {/* Character Image */}
+        <div className="flex-shrink-0 order-1">
+          <img 
+            src={pagenotfoundIcon} 
+            alt="404 Error Character" 
+            className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 object-contain"
+          />
         </div>
 
-        {/* Error Message */}
-        <div className="mb-8 space-y-4">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Page Not Found
-          </h2>
-          <p className="text-xl text-gray-600 max-w-md mx-auto">
-            Oops! The page you're looking for doesn't exist or has been moved to a different location.
+        {/* Error Content */}
+        <div className="flex flex-col items-center md:items-start text-center md:text-left order-2">
+          {/* 404 ERROR! Text */}
+          <div className="mb-3 sm:mb-4">
+            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold text-orange-500 leading-tight">
+              404
+            </h1>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-orange-500">
+              ERROR!
+            </h2>
+          </div>
+
+          {/* Message */}
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-orange-500 mb-6 sm:mb-8">
+            Sorry, the page not found
           </p>
-        </div>
 
-        {/* Decorative Elements */}
-        <div className="mb-12 flex justify-center space-x-2">
-          <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-          <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-          <div className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Button
-            variant="primary"
-            size="lg"
+          {/* Back to Home Button */}
+          <button
             onClick={() => navigate('/')}
-            className="w-full sm:w-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+            className="bg-orange-500 text-white px-6 py-2.5 sm:px-8 sm:py-3 rounded-lg font-semibold text-base sm:text-lg hover:bg-orange-600 active:bg-orange-700 transition-colors duration-200 shadow-lg w-full sm:w-auto"
           >
-            Go to Home
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => navigate(-1)}
-            className="w-full sm:w-auto min-w-[200px] shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
-          >
-            Go Back
-          </Button>
+            BACK TO HOME
+          </button>
         </div>
-
-        {/* Helpful Links */}
-        
       </div>
     </div>
   )
 }
 
 export default NotFound
-

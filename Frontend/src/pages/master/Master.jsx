@@ -1,10 +1,40 @@
 /**
- * Master Page Component
+ * Master Dashboard Page Component
  */
+import { useDispatch, useSelector } from 'react-redux'
+import { logout } from '../../store/authSlice'
+import { Button } from '../../components'
+
 function Master() {
+  const dispatch = useDispatch()
+  const { user } = useSelector((state) => state.auth)
+
+  const handleLogout = () => {
+    dispatch(logout())
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <h1 className="text-4xl font-bold text-gray-900">Master</h1>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-900">Master Dashboard</h1>
+          <div className="flex items-center gap-4">
+            <span className="text-gray-600">Welcome, {user?.username || 'Master'}</span>
+            <Button variant="outline" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="text-center">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">Master Dashboard</h2>
+          <p className="text-xl text-gray-600">Manage the entire BBHC Bazar platform</p>
+        </div>
+      </div>
     </div>
   )
 }
