@@ -1,69 +1,122 @@
 /**
- * API Service for making HTTP requests
+ * API Service for making HTTP requests using axios
  */
+import axios from 'axios'
 import { API_ENDPOINTS } from '../config/api'
 
-/**
- * Make API request
- * @param {string} url - API endpoint URL
- * @param {object} options - Fetch options
- * @returns {Promise} Response data
- */
-async function apiRequest(url, options = {}) {
-  const defaultHeaders = {
+// Create axios instance
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:5000'
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
     'Content-Type': 'application/json',
-  }
+  },
+})
 
-  // Add Authorization header if token exists
-  const token = localStorage.getItem('token')
-  if (token) {
-    defaultHeaders['Authorization'] = `Bearer ${token}`
-  }
-
-  const config = {
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-  }
-
-  try {
-    const response = await fetch(url, config)
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.error || data.message || 'Request failed')
+// Add request interceptor to include token
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
 
-    return data
+// Add response interceptor for error handling
+apiClient.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Request failed'
+    throw new Error(message)
+  }
+)
+
+/**
+ * Master login - Step 1: Validate credentials and get OTP session
+ * @param {string} username - Master username
+ * @param {string} password - Master password
+ * @returns {Promise} Login response with OTP session ID
+ */
+export const masterLogin = async (username, password) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.MASTER_LOGIN, {
+      username,
+      password,
+    })
+
+    return {
+      otp_session_id: response.otp_session_id,
+      otp: response.otp, // Only for development
+      message: response.message,
+    }
   } catch (error) {
-    throw error
+    throw new Error(error.message || 'Login failed')
   }
 }
 
 /**
- * Login user
- * @param {string} email - User email
- * @param {string} password - User password
- * @param {string} userType - 'seller' or 'master'
- * @returns {Promise} Login response with token and user data
+ * Seller login - Step 1: Validate credentials and get OTP session
+ * @param {string} username - Seller username
+ * @param {string} password - Seller password
+ * @returns {Promise} Login response with OTP session ID
  */
-export const loginUser = async (email, password, userType) => {
+export const sellerLogin = async (username, password) => {
   try {
-    const response = await apiRequest(API_ENDPOINTS.AUTH.LOGIN, {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.SELLER_LOGIN, {
+      username,
+      password,
     })
+
+    return {
+      otp_session_id: response.otp_session_id,
+      otp: response.otp, // Only for development
+      message: response.message,
+    }
+  } catch (error) {
+    throw new Error(error.message || 'Login failed')
+  }
+}
+
+/**
+ * Verify OTP - Step 2: Verify OTP and get JWT tokens
+ * @param {string} otp_session_id - OTP session ID from login
+ * @param {string} otp - OTP code
+ * @returns {Promise} Response with access token, refresh token, and user data
+ */
+export const verifyOTP = async (otp_session_id, otp) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.VERIFY_OTP, {
+      otp_session_id,
+      otp,
+    })
+
+    // Store token in localStorage
+    if (response.access_token) {
+      localStorage.setItem('token', response.access_token)
+      if (response.refresh_token) {
+        localStorage.setItem('refresh_token', response.refresh_token)
+      }
+      if (response.user) {
+        localStorage.setItem('user', JSON.stringify(response.user))
+      }
+      if (response.userType) {
+        localStorage.setItem('userType', response.userType)
+      }
+    }
 
     return {
       user: response.user,
       token: response.access_token,
       refreshToken: response.refresh_token,
-      userType: userType,
+      userType: response.userType,
     }
   } catch (error) {
-    throw new Error(error.message || 'Login failed')
+    throw new Error(error.message || 'OTP verification failed')
   }
 }
 
@@ -74,10 +127,7 @@ export const loginUser = async (email, password, userType) => {
  */
 export const registerUser = async (userData) => {
   try {
-    const response = await apiRequest(API_ENDPOINTS.AUTH.REGISTER, {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    })
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.REGISTER, userData)
 
     return {
       user: response.user,
@@ -95,9 +145,7 @@ export const registerUser = async (userData) => {
  */
 export const getCurrentUser = async () => {
   try {
-    const response = await apiRequest(API_ENDPOINTS.AUTH.ME, {
-      method: 'GET',
-    })
+    const response = await apiClient.get(API_ENDPOINTS.AUTH.ME)
 
     return response.user
   } catch (error) {
@@ -112,8 +160,7 @@ export const getCurrentUser = async () => {
  */
 export const refreshToken = async (refreshToken) => {
   try {
-    const response = await apiRequest(API_ENDPOINTS.AUTH.REFRESH, {
-      method: 'POST',
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.REFRESH, {}, {
       headers: {
         Authorization: `Bearer ${refreshToken}`,
       },

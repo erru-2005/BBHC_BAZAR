@@ -56,10 +56,12 @@ def create_app(config_class=Config):
     with app.app_context():
         create_indexes()
     
-    # Register blueprints - only root route
+    # Register blueprints
     from app.routes.api import api_bp
+    from app.routes.auth import auth_bp
     
     app.register_blueprint(api_bp)
+    app.register_blueprint(auth_bp)
     
     # Register Socket.IO events (keeping configuration but minimal)
     from app.sockets import register_socket_events

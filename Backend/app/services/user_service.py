@@ -45,6 +45,12 @@ class UserService:
             if 'password' in user_data:
                 user_data['password_hash'] = User.set_password(user_data.pop('password'))
             
+            # Validate required fields
+            required_fields = ['username', 'email', 'password_hash']
+            for field in required_fields:
+                if field not in user_data:
+                    raise ValueError(f"Missing required field: {field}")
+            
             # Create user instance
             user = User(
                 username=user_data.get('username'),
@@ -56,11 +62,20 @@ class UserService:
                 is_admin=user_data.get('is_admin', False)
             )
             
+            # Check if email or username already exists
+            if UserService.get_user_by_email(user.email):
+                raise ValueError("User with this email already exists")
+            
+            if UserService.get_user_by_username(user.username):
+                raise ValueError("User with this username already exists")
+            
             # Insert into MongoDB
             result = mongo.db.users.insert_one(user.to_bson())
             user._id = result.inserted_id
             
             return user
+        except ValueError as e:
+            raise e
         except Exception as e:
             raise Exception(f"Error creating user: {str(e)}")
     
