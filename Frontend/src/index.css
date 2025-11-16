@@ -6,3 +6,8 @@ html, body {
   margin: 0;
   padding: 0;
 }
+
+/* Hide scrollbar for webkit browsers */
+.overflow-x-auto::-webkit-scrollbar {
+  display: none;
+}

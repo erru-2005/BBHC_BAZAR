@@ -24,10 +24,11 @@ const authSlice = createSlice({
       state.token = action.payload.token
       state.userType = action.payload.userType
       state.error = null
-      // Store in localStorage
+      // Only store token in localStorage (not user data - use Redux for that)
       localStorage.setItem('token', action.payload.token)
-      localStorage.setItem('user', JSON.stringify(action.payload.user))
-      localStorage.setItem('userType', action.payload.userType)
+      if (action.payload.refresh_token) {
+        localStorage.setItem('refresh_token', action.payload.refresh_token)
+      }
     },
     loginFailure(state, action) {
       state.loading = false
@@ -43,26 +44,37 @@ const authSlice = createSlice({
       state.token = null
       state.userType = null
       state.error = null
-      // Clear localStorage
+      // Clear localStorage (only token stored there)
       localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      localStorage.removeItem('userType')
+      localStorage.removeItem('refresh_token')
     },
     checkAuth(state) {
+      // Only check for token - user data will be fetched from backend if token exists
       const token = localStorage.getItem('token')
-      const user = localStorage.getItem('user')
-      const userType = localStorage.getItem('userType')
       
-      if (token && user && userType) {
-        state.isAuthenticated = true
+      if (token && !state.token) {
         state.token = token
-        state.user = JSON.parse(user)
-        state.userType = userType
+        // User data will be fetched from backend on app load if token exists
+        // Don't set isAuthenticated here - it will be set after user data is loaded
+      }
+    },
+    restoreUser(state, action) {
+      // Restore user data from backend (called when app loads with token)
+      state.user = action.payload.user
+      state.userType = action.payload.userType
+      if (state.token) {
+        state.isAuthenticated = true
+      }
+    },
+    setUser(state, action) {
+      state.user = action.payload
+      if (state.token) {
+        state.isAuthenticated = true
       }
     }
   }
 })
 
-export const { loginStart, loginSuccess, loginFailure, logout, checkAuth } = authSlice.actions
+export const { loginStart, loginSuccess, loginFailure, logout, checkAuth, setUser, restoreUser } = authSlice.actions
 export default authSlice.reducer
 

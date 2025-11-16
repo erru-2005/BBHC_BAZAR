@@ -58,8 +58,9 @@ class UserService:
                 password_hash=user_data.get('password_hash'),
                 first_name=user_data.get('first_name'),
                 last_name=user_data.get('last_name'),
-                is_active=user_data.get('is_active', True),
-                is_admin=user_data.get('is_admin', False)
+                is_active=user_data.get('is_active', False),
+                is_admin=user_data.get('is_admin', False),
+                created_at=user_data.get('created_at')
             )
             
             # Check if email or username already exists
@@ -69,8 +70,22 @@ class UserService:
             if UserService.get_user_by_username(user.username):
                 raise ValueError("User with this username already exists")
             
+            # Store additional metadata in BSON
+            user_bson = user.to_bson()
+            # Add metadata fields
+            if 'created_by' in user_data:
+                user_bson['created_by'] = user_data['created_by']
+            if 'created_by_user_id' in user_data:
+                user_bson['created_by_user_id'] = user_data['created_by_user_id']
+            if 'created_by_user_type' in user_data:
+                user_bson['created_by_user_type'] = user_data['created_by_user_type']
+            if 'registration_ip' in user_data:
+                user_bson['registration_ip'] = user_data['registration_ip']
+            if 'registration_user_agent' in user_data:
+                user_bson['registration_user_agent'] = user_data['registration_user_agent']
+            
             # Insert into MongoDB
-            result = mongo.db.users.insert_one(user.to_bson())
+            result = mongo.db.users.insert_one(user_bson)
             user._id = result.inserted_id
             
             return user

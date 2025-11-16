@@ -3,6 +3,22 @@ Configuration settings for the Flask application
 """
 import os
 from datetime import timedelta
+from dotenv import load_dotenv
+
+# Get the directory where this config.py file is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Load environment variables from .env file in the Backend directory
+env_path = os.path.join(BASE_DIR, '.env')
+load_dotenv(dotenv_path=env_path)
+
+# Debug: Print if .env file exists (only in development)
+if os.path.exists(env_path):
+    print(f"✓ Loading .env file from: {env_path}")
+else:
+    print(f"⚠ Warning: .env file not found at: {env_path}")
+    print(f"  Current working directory: {os.getcwd()}")
+    print(f"  Looking for .env in: {BASE_DIR}")
 
 
 class Config:
@@ -16,8 +32,8 @@ class Config:
     
     # MongoDB Configuration
     MONGODB_URI = os.environ.get('MONGODB_URI') or \
-        'mongodb://localhost:27017/'
-    MONGODB_DB = os.environ.get('MONGODB_DB') or 'bbhc_bazar'
+        'mongodb+srv://errualmeida2005:LPeUzlZepxpVqT5q@cluster0.czrkk.mongodb.net/BBHC-BAZAR?retryWrites=true&w=majority&appName=Cluster0'
+    MONGODB_DB = os.environ.get('MONGODB_DB') or 'BBHC-BAZAR'
     MONGODB_HOST = os.environ.get('MONGODB_HOST') or 'localhost'
     MONGODB_PORT = int(os.environ.get('MONGODB_PORT', 27017))
     
@@ -39,6 +55,22 @@ class Config:
     
     # Pagination
     POSTS_PER_PAGE = 20
+    
+    # Twilio SMS Configuration
+    TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
+    TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
+    TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')  # Format: +1234567890
+    
+    # Debug: Print Twilio configuration status
+    if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER:
+        print(f"✓ Twilio credentials loaded successfully")
+        print(f"  Account SID: {TWILIO_ACCOUNT_SID[:10]}...")
+        print(f"  Phone Number: {TWILIO_PHONE_NUMBER}")
+    else:
+        print("⚠ Twilio credentials not fully configured:")
+        print(f"  TWILIO_ACCOUNT_SID: {'✓ Set' if TWILIO_ACCOUNT_SID else '✗ Missing'}")
+        print(f"  TWILIO_AUTH_TOKEN: {'✓ Set' if TWILIO_AUTH_TOKEN else '✗ Missing'}")
+        print(f"  TWILIO_PHONE_NUMBER: {'✓ Set' if TWILIO_PHONE_NUMBER else '✗ Missing'}")
 
 
 class DevelopmentConfig(Config):

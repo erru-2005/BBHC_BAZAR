@@ -11,6 +11,14 @@ export const API_ENDPOINTS = {
     REGISTER: `${API_BASE_URL}/api/auth/register`,
     REFRESH: `${API_BASE_URL}/api/auth/refresh`,
     ME: `${API_BASE_URL}/api/auth/me`
+  },
+  API: {
+    REGISTER_MASTER: `${API_BASE_URL}/api/register_master`,
+    REGISTER_SELLER: `${API_BASE_URL}/api/register_seller`,
+    GET_SELLERS: `${API_BASE_URL}/api/sellers`,
+    GET_MASTERS: `${API_BASE_URL}/api/masters`,
+    UPDATE_SELLER: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}`,
+    BLACKLIST_SELLER: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}/blacklist`
   }
 }
 

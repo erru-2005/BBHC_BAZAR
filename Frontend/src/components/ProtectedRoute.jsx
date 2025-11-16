@@ -6,9 +6,10 @@ import { Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 
 function ProtectedRoute({ children, requiredUserType }) {
-  const { isAuthenticated, userType } = useSelector((state) => state.auth)
+  const { isAuthenticated, userType, token } = useSelector((state) => state.auth)
 
-  if (!isAuthenticated) {
+  // If not authenticated in Redux, redirect to login
+  if (!isAuthenticated || !token) {
     // Redirect to appropriate login page
     const loginPath = requiredUserType === 'master' ? '/master/login' : '/seller/login'
     return <Navigate to={loginPath} replace />

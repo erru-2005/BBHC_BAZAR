@@ -26,6 +26,9 @@ python-dateutil==2.8.2
 requests==2.31.0
 # Note: bson is included with pymongo, no need to install separately
 
+# SMS Service
+twilio==9.0.0
+
 # Development
 pytest==7.4.3
 pytest-flask==1.3.0

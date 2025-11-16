@@ -56,8 +56,8 @@ class MasterService:
                 raise ValueError("Status must be 'active' or 'not_active'")
             
             # Set defaults
-            master_data.setdefault('status', 'active')
-            master_data.setdefault('created_by', 'bazar@bbhc')
+            master_data.setdefault('status', 'not_active')
+            master_data.setdefault('created_by', 'system')
             
             # Create master instance
             master = Master(
@@ -67,9 +67,22 @@ class MasterService:
                 password_hash=master_data.get('password_hash'),
                 phone_number=master_data.get('phone_number'),
                 address=master_data.get('address'),
-                status=master_data.get('status', 'active'),
-                created_by=master_data.get('created_by', 'bazar@bbhc')
+                status=master_data.get('status', 'not_active'),
+                created_by=master_data.get('created_by', 'system'),
+                created_at=master_data.get('created_at')
             )
+            
+            # Store additional metadata in BSON
+            master_bson = master.to_bson()
+            # Add metadata fields
+            if 'created_by_user_id' in master_data:
+                master_bson['created_by_user_id'] = master_data['created_by_user_id']
+            if 'created_by_user_type' in master_data:
+                master_bson['created_by_user_type'] = master_data['created_by_user_type']
+            if 'registration_ip' in master_data:
+                master_bson['registration_ip'] = master_data['registration_ip']
+            if 'registration_user_agent' in master_data:
+                master_bson['registration_user_agent'] = master_data['registration_user_agent']
             
             # Check if email or username already exists
             if MasterService.get_master_by_email(master.email):
@@ -79,7 +92,7 @@ class MasterService:
                 raise ValueError("Master with this username already exists")
             
             # Insert into MongoDB
-            result = mongo.db.master.insert_one(master.to_bson())
+            result = mongo.db.master.insert_one(master_bson)
             master._id = result.inserted_id
             
             return master

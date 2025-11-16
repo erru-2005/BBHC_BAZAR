@@ -8,6 +8,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import { loginStart, loginSuccess, loginFailure } from '../../store/authSlice'
 import { sellerLogin, verifyOTP } from '../../services/api'
 import { Button } from '../../components'
+import { getOrCreateDeviceId, getDeviceToken, setDeviceToken } from '../../utils/device'
+import { initSocket } from '../../utils/socket'
 
 function SellerLogin() {
   const navigate = useNavigate()
@@ -15,13 +17,14 @@ function SellerLogin() {
   const { loading, error } = useSelector((state) => state.auth)
   
   const [formData, setFormData] = useState({
-    username: '',
+    trade_id: '',
     password: ''
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showOTP, setShowOTP] = useState(false)
   const [otp, setOtp] = useState('')
   const [otpSessionId, setOtpSessionId] = useState(null)
+  const [phoneNumber, setPhoneNumber] = useState(null)
 
   const handleChange = (e) => {
     setFormData({
@@ -35,23 +38,70 @@ function SellerLogin() {
     dispatch(loginStart())
     
     try {
-      if (!formData.username || !formData.password) {
-        dispatch(loginFailure('Username and password are required'))
+      if (!formData.trade_id || !formData.password) {
+        dispatch(loginFailure('Trade ID and password are required'))
         return
       }
 
-      // Step 1: Validate credentials and get OTP session
-      const response = await sellerLogin(formData.username, formData.password)
+      // Get or create device ID
+      const deviceId = getOrCreateDeviceId()
+      // Only use device token if it's for seller user type
+      const storedUserType = localStorage.getItem('bbhc_device_user_type')
+      const deviceToken = (storedUserType === 'seller') ? getDeviceToken() : null
+
+      // Step 1: Validate credentials and check device token
+      console.log('Attempting seller login with:', { 
+        trade_id: formData.trade_id, 
+        deviceId, 
+        hasDeviceToken: !!deviceToken,
+        storedUserType,
+        deviceToken: deviceToken ? deviceToken.substring(0, 20) + '...' : null
+      })
+      const response = await sellerLogin(formData.trade_id, formData.password, deviceId, deviceToken)
+      console.log('Seller login response:', {
+        hasAccessToken: !!response.access_token,
+        skipOtp: response.skip_otp,
+        hasOtpSessionId: !!response.otp_session_id,
+        response: response
+      })
       
-      // Show OTP input field
+      // Check if device token was valid (skip OTP) - check for access_token presence
+      if (response.access_token && (response.skip_otp || !response.otp_session_id)) {
+        console.log('Skipping OTP, navigating to seller dashboard')
+        
+        // Save device token if returned from backend (for device_id-only login)
+        if (response.device_token) {
+          setDeviceToken(response.device_token, deviceId, 'seller')
+        }
+        
+        // Device token valid, login directly
+        dispatch(loginSuccess({
+          user: response.user,
+          token: response.access_token,
+          userType: response.userType || 'seller',
+          refresh_token: response.refresh_token
+        }))
+        
+        // Initialize socket connection and notify server (this will save socket_id to DB)
+        const socket = initSocket(response.access_token)
+        socket.on('connect', () => {
+          console.log('Socket connected, emitting user_authenticated')
+          socket.emit('user_authenticated', {
+            user_id: response.user.id,
+            user_type: 'seller'
+          })
+        })
+        
+        navigate('/seller')
+        return
+      }
+      
+      // Device token invalid or not present, proceed with OTP flow
       setOtpSessionId(response.otp_session_id)
+      setPhoneNumber(response.phone_number || null)
       setShowOTP(true)
       dispatch(loginFailure(null)) // Clear any previous errors
       
-      // In development, you can log the OTP (remove in production)
-      if (response.otp) {
-        console.log('OTP (dev only):', response.otp)
-      }
     } catch (error) {
       dispatch(loginFailure(error.message || 'Login failed. Please check your credentials.'))
     }
@@ -67,14 +117,28 @@ function SellerLogin() {
         return
       }
 
+      // Get device ID for device token creation
+      const deviceId = getOrCreateDeviceId()
+
       // Step 2: Verify OTP and get JWT tokens
-      const response = await verifyOTP(otpSessionId, otp)
+      const response = await verifyOTP(otpSessionId, otp, deviceId)
       
       dispatch(loginSuccess({
         user: response.user,
         token: response.token,
-        userType: response.userType
+        userType: response.userType,
+        refresh_token: response.refreshToken
       }))
+      
+      // Initialize socket connection and notify server (this will save socket_id to DB)
+      const socket = initSocket(response.token)
+      socket.on('connect', () => {
+        console.log('Socket connected after OTP, emitting user_authenticated')
+        socket.emit('user_authenticated', {
+          user_id: response.user.id,
+          user_type: 'seller'
+        })
+      })
       
       navigate('/seller')
     } catch (error) {
@@ -117,18 +181,19 @@ function SellerLogin() {
           {/* Form */}
           {!showOTP ? (
             <form onSubmit={handleSubmit}>
-              {/* Username Field */}
+              {/* Trade ID Field */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Username
+                  Trade ID
                 </label>
                 <div className="relative">
                   <input
                     type="text"
-                    name="username"
-                    value={formData.username}
+                    name="trade_id"
+                    value={formData.trade_id}
                     onChange={handleChange}
-                    placeholder="Username"
+                    placeholder="Trade ID"
+                    pattern="[A-Za-z0-9_-]+"
                     className="w-full px-4 py-3 rounded-xl bg-gray-100 shadow-[inset_4px_4px_8px_#bebebe,inset_-4px_-4px_8px_#ffffff] border-none outline-none text-gray-800 placeholder-gray-400 focus:shadow-[inset_6px_6px_12px_#bebebe,inset_-6px_-6px_12px_#ffffff] transition-all"
                     required
                     disabled={loading}
@@ -191,7 +256,11 @@ function SellerLogin() {
             <form onSubmit={handleOTPSubmit}>
               {/* Success Message */}
               <div className="mb-6 p-3 rounded-lg bg-green-50 text-green-600 text-sm text-center">
-                OTP sent successfully! Please enter the 6-digit code below.
+                {phoneNumber ? (
+                  <>OTP sent successfully to {phoneNumber}! Please enter the 6-digit code below.</>
+                ) : (
+                  <>OTP sent successfully! Please enter the 6-digit code below.</>
+                )}
               </div>
 
               {/* OTP Field */}
@@ -241,6 +310,7 @@ function SellerLogin() {
                   setShowOTP(false)
                   setOtp('')
                   setOtpSessionId(null)
+                  setPhoneNumber(null)
                   dispatch(loginFailure(null))
                 }}
                 className="w-full py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
