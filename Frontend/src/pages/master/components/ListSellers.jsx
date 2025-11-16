@@ -1,16 +1,17 @@
 /**
  * List Sellers Component
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import 'react-loading-skeleton/dist/skeleton.css'
 import { getSellers, updateSeller, blacklistSeller } from '../../../services/api'
-import { FiEdit2, FiTrash2 } from 'react-icons/fi'
+import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi'
 
 function ListSellers() {
   const [sellers, setSellers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [editingSeller, setEditingSeller] = useState(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -98,6 +99,39 @@ function ListSellers() {
       [name]: type === 'checkbox' ? checked : value
     }))
   }
+
+  // Filter sellers based on search query
+  const filteredSellers = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return sellers
+    }
+
+    const query = searchQuery.toLowerCase().trim()
+    return sellers.filter(seller => {
+      // Search across all attributes
+      const tradeId = (seller.trade_id || '').toLowerCase()
+      const email = (seller.email || '').toLowerCase()
+      const phone = (seller.phone_number || '').toLowerCase()
+      const firstName = (seller.first_name || '').toLowerCase()
+      const lastName = (seller.last_name || '').toLowerCase()
+      const fullName = `${firstName} ${lastName}`.trim().toLowerCase()
+      const status = seller.is_active ? 'active' : 'inactive'
+      const createdDate = seller.created_at 
+        ? new Date(seller.created_at).toLocaleDateString().toLowerCase()
+        : ''
+
+      return (
+        tradeId.includes(query) ||
+        email.includes(query) ||
+        phone.includes(query) ||
+        firstName.includes(query) ||
+        lastName.includes(query) ||
+        fullName.includes(query) ||
+        status.includes(query) ||
+        createdDate.includes(query)
+      )
+    })
+  }, [sellers, searchQuery])
 
   if (loading) {
     return (
@@ -188,6 +222,36 @@ function ListSellers() {
         </button>
       </div>
 
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
+          <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            placeholder="Search sellers by trade ID, name, email, phone, status..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent text-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              title="Clear search"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="mt-2 text-sm text-gray-600">
+            Found {filteredSellers.length} seller{filteredSellers.length !== 1 ? 's' : ''} matching "{searchQuery}"
+          </p>
+        )}
+      </div>
+
       {error && (
         <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200">
           <p className="text-red-800 text-sm">{error}</p>
@@ -197,6 +261,16 @@ function ListSellers() {
       {sellers.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
           <p className="text-gray-600 text-lg">No sellers found</p>
+        </div>
+      ) : filteredSellers.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
+          <p className="text-gray-600 text-lg">No sellers match your search "{searchQuery}"</p>
+          <button
+            onClick={() => setSearchQuery('')}
+            className="mt-4 px-4 py-2 text-sm text-black hover:underline"
+          >
+            Clear search
+          </button>
         </div>
       ) : (
         <>
@@ -229,7 +303,7 @@ function ListSellers() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {sellers.map((seller) => (
+                {filteredSellers.map((seller) => (
                   <tr key={seller._id || seller.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                       {seller.trade_id}
@@ -285,7 +359,7 @@ function ListSellers() {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-4">
-            {sellers.map((seller) => (
+            {filteredSellers.map((seller) => (
               <div key={seller._id || seller.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-start">
