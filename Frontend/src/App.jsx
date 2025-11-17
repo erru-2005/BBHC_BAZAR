@@ -1,6 +1,6 @@
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { Home, Seller, Master, SellerLogin, MasterLogin, NotFound } from './pages'
+import { Home, ProductDetail, Seller, Master, SellerLogin, MasterLogin, NotFound } from './pages'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -10,6 +10,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/seller/login" element={<SellerLogin />} />
         <Route path="/master/login" element={<MasterLogin />} />
+        <Route path="/product/:productId" element={<ProductDetail />} />
         <Route 
           path="/seller" 
           element={

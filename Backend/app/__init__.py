@@ -107,6 +107,26 @@ def create_indexes():
     """Create database indexes for better performance"""
     try:
         from pymongo import ASCENDING
+        
+        # Drop old username index from sellers collection if it exists (legacy index)
+        # Check all indexes and drop any that reference username
+        try:
+            indexes = mongo.db.sellers.list_indexes()
+            for index in indexes:
+                index_name = index.get('name', '')
+                index_keys = index.get('key', {})
+                # Drop index if it's a username index (could be username_1, username_-1, etc.)
+                if 'username' in index_keys and index_name != '_id_':
+                    try:
+                        mongo.db.sellers.drop_index(index_name)
+                        print(f"Dropped old username index '{index_name}' from sellers collection")
+                    except Exception:
+                        # Index might have been dropped already or doesn't exist
+                        pass
+        except Exception:
+            # Collection might not exist yet, which is fine
+            pass
+        
         # Create indexes for sellers collection
         mongo.db.sellers.create_index([('email', ASCENDING)], unique=True)
         mongo.db.sellers.create_index([('trade_id', ASCENDING)], unique=True)
@@ -121,6 +141,10 @@ def create_indexes():
         mongo.db.device_tokens.create_index([('user_id', ASCENDING), ('user_type', ASCENDING), ('device_id', ASCENDING)])
         mongo.db.device_tokens.create_index([('expires_at', ASCENDING)])
         mongo.db.device_tokens.create_index([('token', ASCENDING)])
+        
+        # Create indexes for products collection
+        mongo.db.products.create_index([('product_name', ASCENDING)])
+        mongo.db.products.create_index([('created_at', ASCENDING)])
         
         print("Database indexes created successfully")
     except Exception as e:

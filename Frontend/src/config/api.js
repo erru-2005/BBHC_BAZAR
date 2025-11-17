@@ -17,8 +17,10 @@ export const API_ENDPOINTS = {
     REGISTER_SELLER: `${API_BASE_URL}/api/register_seller`,
     GET_SELLERS: `${API_BASE_URL}/api/sellers`,
     GET_MASTERS: `${API_BASE_URL}/api/masters`,
+    GET_BLACKLISTED_SELLERS: `${API_BASE_URL}/api/sellers/blacklisted`,
     UPDATE_SELLER: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}`,
-    BLACKLIST_SELLER: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}/blacklist`
+    BLACKLIST_SELLER: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}/blacklist`,
+    PRODUCTS: `${API_BASE_URL}/api/products`
   }
 }
 

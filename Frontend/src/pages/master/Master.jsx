@@ -10,11 +10,15 @@ import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
 import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
-import { MdList } from 'react-icons/md'
+import { MdList, MdBlock } from 'react-icons/md'
+import { FaBox, FaThList } from 'react-icons/fa'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
 import ListSellers from './components/ListSellers'
 import ListMasters from './components/ListMasters'
+import AddProduct from './components/AddProduct'
+import BlacklistedSellers from './components/BlacklistedSellers'
+import ListProducts from './components/ListProducts'
 
 function Master() {
   const dispatch = useDispatch()
@@ -32,8 +36,11 @@ function Master() {
     { id: 'home', label: 'Home', icon: HiHome },
     { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
     { id: 'add-master', label: 'Add Master', icon: IoMdPersonAdd },
+    { id: 'add-product', label: 'Add Product', icon: FaBox },
+    { id: 'list-products', label: 'List Products', icon: FaThList },
     { id: 'list-sellers', label: 'List Sellers', icon: MdList },
-    { id: 'list-masters', label: 'List Masters', icon: MdList }
+    { id: 'list-masters', label: 'List Masters', icon: MdList },
+    { id: 'blacklisted-sellers', label: 'Blacklisted', icon: MdBlock }
   ]
 
   // Initialize tab order from localStorage or use default
@@ -408,10 +415,10 @@ function Master() {
             <div className="flex items-center gap-3">
               <img 
                 src={logoImage} 
-                alt="BBHC Bazar Logo" 
+                alt="BBHCBazaar Logo" 
                 className="h-10 w-10 object-contain"
               />
-              <h1 className="text-2xl font-bold text-gray-900">BBHC BAZAR</h1>
+              <h1 className="text-2xl font-bold text-gray-900">BBHCBazaar</h1>
             </div>
             
             {/* Logout Icon */}
@@ -510,7 +517,7 @@ function Master() {
         {activeTab === 'home' && (
           <div className="text-center">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Master Dashboard</h2>
-            <p className="text-xl text-gray-600">Manage the entire BBHC Bazar platform</p>
+            <p className="text-xl text-gray-600">Manage the entire BBHCBazaar platform</p>
           </div>
         )}
         
@@ -518,9 +525,15 @@ function Master() {
         
         {activeTab === 'add-master' && <AddMaster />}
         
+        {activeTab === 'add-product' && <AddProduct />}
+        
         {activeTab === 'list-sellers' && <ListSellers />}
         
         {activeTab === 'list-masters' && <ListMasters />}
+
+        {activeTab === 'blacklisted-sellers' && <BlacklistedSellers />}
+
+        {activeTab === 'list-products' && <ListProducts />}
       </div>
 
     </div>

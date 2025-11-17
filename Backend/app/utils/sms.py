@@ -68,7 +68,7 @@ class SMSService:
             client = Client(account_sid, auth_token)
             
             # Create message
-            message_body = f"Your BBHC Bazar OTP code is: {otp}. This code will expire in 10 minutes. Do not share this code with anyone."
+            message_body = f"Your BBHCBazaar OTP code is: {otp}. This code will expire in 10 minutes. Do not share this code with anyone."
             
             # Send SMS
             message = client.messages.create(

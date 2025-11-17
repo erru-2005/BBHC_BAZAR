@@ -72,3 +72,12 @@ class BlacklistService:
         except Exception:
             return []
 
+    @staticmethod
+    def get_all_blacklisted_entries():
+        """Get full blacklist entries"""
+        try:
+            blacklist_docs = mongo.db.blacklist.find()
+            return [Blacklist.from_bson(doc) for doc in blacklist_docs]
+        except Exception:
+            return []
+

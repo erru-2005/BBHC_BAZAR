@@ -25,6 +25,8 @@ function SellerLogin() {
   const [otp, setOtp] = useState('')
   const [otpSessionId, setOtpSessionId] = useState(null)
   const [phoneNumber, setPhoneNumber] = useState(null)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState(null)
 
   const handleChange = (e) => {
     setFormData({
@@ -146,6 +148,55 @@ function SellerLogin() {
     }
   }
 
+  const handleResendOtp = async () => {
+    if (!formData.trade_id || !formData.password) {
+      dispatch(loginFailure('Enter trade ID and password before resending OTP'))
+      return
+    }
+    setResendLoading(true)
+    setResendMessage(null)
+    try {
+      const deviceId = getOrCreateDeviceId()
+      const response = await sellerLogin(formData.trade_id, formData.password, deviceId, null)
+
+      if (response.access_token && (response.skip_otp || !response.otp_session_id)) {
+        if (response.device_token) {
+          setDeviceToken(response.device_token, deviceId, 'seller')
+        }
+        dispatch(loginSuccess({
+          user: response.user,
+          token: response.access_token,
+          userType: response.userType || 'seller',
+          refresh_token: response.refresh_token
+        }))
+        const socket = initSocket(response.access_token)
+        socket.on('connect', () => {
+          socket.emit('user_authenticated', {
+            user_id: response.user.id,
+            user_type: 'seller'
+          })
+        })
+        navigate('/seller')
+        return
+      }
+
+      if (!response.otp_session_id) {
+        dispatch(loginFailure('Unable to resend OTP. Please try again.'))
+        return
+      }
+
+      setOtpSessionId(response.otp_session_id)
+      setPhoneNumber(response.phone_number || phoneNumber)
+      setOtp('')
+      setResendMessage('A new OTP has been sent. Please check your phone.')
+      dispatch(loginFailure(null))
+    } catch (error) {
+      dispatch(loginFailure(error.message || 'Failed to resend OTP. Please try again.'))
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
       <div className="max-w-md sm:max-w-lg md:max-w-xl lg:w-[600px] xl:w-[700px]">
@@ -175,7 +226,7 @@ function SellerLogin() {
             SELLER LOGIN
           </h1>
           <p className="text-sm text-gray-600 text-center mb-8">
-            Secure access for BBHC Bazar Seller Dashboard
+            Secure access for BBHCBazaar Seller Dashboard
           </p>
 
           {/* Form */}
@@ -311,22 +362,42 @@ function SellerLogin() {
                   setOtp('')
                   setOtpSessionId(null)
                   setPhoneNumber(null)
+                  setResendMessage(null)
                   dispatch(loginFailure(null))
                 }}
                 className="w-full py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
               >
                 ← Back to login
               </button>
+
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={resendLoading}
+                  className="text-pink-500 hover:text-pink-600 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {resendLoading ? 'Resending OTP...' : 'Resend OTP'}
+                </button>
+                {resendMessage ? (
+                  <p className="text-xs text-green-600 mt-2">{resendMessage}</p>
+                ) : null}
+              </div>
             </form>
           )}
 
-          {/* Footer Links */}
-          <div className="text-center space-x-2">
-            <button className="text-pink-500 hover:text-pink-600 text-sm font-medium transition-colors">
-              Forgot password?
-            </button>
-           
-          </div>
+          {!showOTP ? (
+            <div className="text-center text-xs sm:text-sm text-slate-500">
+              <a
+                href="https://bbhcbazar.com/signup"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-[#c53688] hover:underline"
+              >
+                Sign up
+              </a>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
