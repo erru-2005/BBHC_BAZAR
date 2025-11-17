@@ -10,13 +10,15 @@ import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
 import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
-import { MdList } from 'react-icons/md'
-import { FaBox } from 'react-icons/fa'
+import { MdList, MdBlock } from 'react-icons/md'
+import { FaBox, FaThList } from 'react-icons/fa'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
 import ListSellers from './components/ListSellers'
 import ListMasters from './components/ListMasters'
 import AddProduct from './components/AddProduct'
+import BlacklistedSellers from './components/BlacklistedSellers'
+import ListProducts from './components/ListProducts'
 
 function Master() {
   const dispatch = useDispatch()
@@ -35,8 +37,10 @@ function Master() {
     { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
     { id: 'add-master', label: 'Add Master', icon: IoMdPersonAdd },
     { id: 'add-product', label: 'Add Product', icon: FaBox },
+    { id: 'list-products', label: 'List Products', icon: FaThList },
     { id: 'list-sellers', label: 'List Sellers', icon: MdList },
-    { id: 'list-masters', label: 'List Masters', icon: MdList }
+    { id: 'list-masters', label: 'List Masters', icon: MdList },
+    { id: 'blacklisted-sellers', label: 'Blacklisted', icon: MdBlock }
   ]
 
   // Initialize tab order from localStorage or use default
@@ -526,6 +530,10 @@ function Master() {
         {activeTab === 'list-sellers' && <ListSellers />}
         
         {activeTab === 'list-masters' && <ListMasters />}
+
+        {activeTab === 'blacklisted-sellers' && <BlacklistedSellers />}
+
+        {activeTab === 'list-products' && <ListProducts />}
       </div>
 
     </div>

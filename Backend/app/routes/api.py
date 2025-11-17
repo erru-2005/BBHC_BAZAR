@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
 from app.services.blacklist_service import BlacklistService
+from app.services.product_service import ProductService
 from app.utils.validators import validate_email
 from datetime import datetime
 
@@ -281,6 +282,62 @@ def blacklist_seller(seller_id):
         return jsonify({'error': f'Failed to blacklist seller: {str(e)}'}), 500
 
 
+@api_bp.route('/sellers/<seller_id>/blacklist', methods=['DELETE'])
+@jwt_required()
+def unblacklist_seller(seller_id):
+    """Remove seller from blacklist (masters only)"""
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can modify blacklist'}), 403
+
+        if not BlacklistService.is_blacklisted(seller_id):
+            return jsonify({'error': 'Seller is not blacklisted'}), 404
+
+        success = BlacklistService.unblacklist_seller(seller_id)
+        if not success:
+            return jsonify({'error': 'Failed to remove seller from blacklist'}), 500
+
+        return jsonify({
+            'message': 'Seller removed from blacklist successfully',
+            'seller_id': seller_id
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to unblacklist seller: {str(e)}'}), 500
+
+
+@api_bp.route('/sellers/blacklisted', methods=['GET'])
+@jwt_required()
+def get_blacklisted_sellers():
+    """List blacklisted sellers"""
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can view blacklisted sellers'}), 403
+
+        entries = BlacklistService.get_all_blacklisted_entries()
+        result = []
+        for entry in entries:
+            seller = SellerService.get_seller_by_id(str(entry.seller_id), include_blacklisted=True)
+            if seller:
+                seller_dict = seller.to_dict()
+                seller_dict['blacklist'] = entry.to_dict()
+                result.append(seller_dict)
+
+        return jsonify({
+            'blacklisted_sellers': result,
+            'count': len(result)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get blacklisted sellers: {str(e)}'}), 500
+
+
 @api_bp.route('/masters', methods=['GET'])
 @jwt_required()
 def get_masters():
@@ -309,3 +366,90 @@ def get_masters():
     
     except Exception as e:
         return jsonify({'error': f'Failed to get masters: {str(e)}'}), 500
+
+
+@api_bp.route('/products', methods=['POST'])
+@jwt_required()
+def create_product():
+    """Create a new product (masters only)"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+        current_username = claims.get('username') or 'system'
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can create products'}), 403
+
+        required_fields = ['product_name', 'specification', 'points', 'thumbnail']
+        for field in required_fields:
+            if field not in data or data.get(field) in (None, '', []):
+                return jsonify({'error': f'{field} is required'}), 400
+
+        points = data.get('points', [])
+        if not isinstance(points, list) or not points:
+            return jsonify({'error': 'Points must be a non-empty list'}), 400
+
+        normalized_points = [str(point).strip() for point in points if str(point).strip()]
+        if not normalized_points:
+            return jsonify({'error': 'Provide at least one bullet point'}), 400
+
+        categories = data.get('categories', [])
+        if categories and not isinstance(categories, list):
+            return jsonify({'error': 'categories must be a list'}), 400
+
+        product_data = {
+            'product_name': data['product_name'],
+            'specification': data['specification'],
+            'points': normalized_points,
+            'thumbnail': data['thumbnail'],
+            'gallery': data.get('gallery', []),
+            'categories': categories,
+            'created_by': current_username,
+            'created_by_user_id': str(current_user_id),
+            'created_by_user_type': current_user_type,
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow(),
+            'registration_ip': request.remote_addr,
+            'registration_user_agent': request.headers.get('User-Agent')
+        }
+
+        product = ProductService.create_product(product_data)
+
+        return jsonify({
+            'message': 'Product created successfully',
+            'product': product.to_dict()
+        }), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to create product: {str(e)}'}), 500
+
+
+@api_bp.route('/products', methods=['GET'])
+@jwt_required()
+def get_products():
+    """Get all products (masters only)"""
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can view products'}), 403
+
+        skip = request.args.get('skip', 0, type=int)
+        limit = request.args.get('limit', 100, type=int)
+
+        products = ProductService.get_all_products(skip=skip, limit=limit)
+
+        return jsonify({
+            'products': [product.to_dict() for product in products],
+            'count': len(products)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get products: {str(e)}'}), 500

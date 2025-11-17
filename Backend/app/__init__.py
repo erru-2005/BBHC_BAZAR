@@ -142,6 +142,10 @@ def create_indexes():
         mongo.db.device_tokens.create_index([('expires_at', ASCENDING)])
         mongo.db.device_tokens.create_index([('token', ASCENDING)])
         
+        # Create indexes for products collection
+        mongo.db.products.create_index([('product_name', ASCENDING)])
+        mongo.db.products.create_index([('created_at', ASCENDING)])
+        
         print("Database indexes created successfully")
     except Exception as e:
         print(f"Error creating indexes: {e}")

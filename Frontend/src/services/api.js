@@ -298,6 +298,63 @@ export const getMasters = async () => {
 }
 
 /**
+ * Get blacklisted sellers
+ * @returns {Promise<Array>} Blacklisted sellers
+ */
+export const getBlacklistedSellers = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.GET_BLACKLISTED_SELLERS)
+    return response.blacklisted_sellers || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load blacklisted sellers')
+  }
+}
+
+/**
+ * Unblacklist seller
+ * @param {string} sellerId
+ * @returns {Promise<string>} success message
+ */
+export const unblacklistSeller = async (sellerId) => {
+  try {
+    const response = await apiClient.delete(API_ENDPOINTS.API.BLACKLIST_SELLER(sellerId))
+    return response.message || 'Seller removed from blacklist'
+  } catch (error) {
+    throw new Error(error.message || 'Failed to remove seller from blacklist')
+  }
+}
+
+/**
+ * Create a product
+ * @param {object} productData - Product payload
+ * @returns {Promise} Created product response
+ */
+export const createProduct = async (productData) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.PRODUCTS, productData)
+    return {
+      message: response.message,
+      product: response.product
+    }
+  } catch (error) {
+    throw new Error(error.message || 'Failed to create product')
+  }
+}
+
+/**
+ * Get all products
+ * @returns {Promise<Array>} List of products
+ */
+export const getProducts = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.PRODUCTS)
+    return response.products || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load products')
+  }
+}
+
+/**
  * Update a seller
  * @param {string} sellerId - Seller ID
  * @param {object} sellerData - Seller data to update
