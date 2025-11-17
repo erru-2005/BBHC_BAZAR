@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const heroSlides = [
   {
@@ -128,6 +128,7 @@ const spotlightProducts = [
 
 function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [spotlightIndex, setSpotlightIndex] = useState(0)
   const today = useMemo(
     () =>
       new Intl.DateTimeFormat('en-IN', {
@@ -137,6 +138,13 @@ function Home() {
       }).format(new Date()),
     []
   )
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSpotlightIndex((prev) => (prev + 1) % spotlightProducts.length)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900">
@@ -355,30 +363,27 @@ function Home() {
 
         {/* Spotlight slider */}
         <section className="py-4">
-          <div className="space-y-4">
-            {spotlightProducts.map((product, idx) => (
-              <div
-                key={product.title}
-                className="bg-white rounded-[28px] shadow overflow-hidden relative"
-              >
-                <img src={product.image} alt={product.title} className="w-full h-60 object-cover" />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-6 text-white">
-                  <p className="uppercase text-sm tracking-[0.2em]">{product.title}</p>
-                  <p className="text-3xl font-black">{product.subtitle}</p>
-                  <p className="text-sm text-gray-200 mt-2">{product.cta}</p>
-                </div>
-                <div className="absolute bottom-4 right-4 flex gap-1">
-                  {spotlightProducts.map((_, dotIndex) => (
-                    <span
-                      key={dotIndex}
-                      className={`w-2 h-2 rounded-full ${
-                        dotIndex === idx ? 'bg-white' : 'bg-white/40'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+          <div className="bg-white rounded-[28px] shadow overflow-hidden relative h-80 lg:h-96">
+            <img
+              src={spotlightProducts[spotlightIndex].image}
+              alt={spotlightProducts[spotlightIndex].title}
+              className="w-full h-full object-cover transition-opacity duration-700"
+            />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-6 text-white">
+              <p className="uppercase text-sm tracking-[0.2em]">{spotlightProducts[spotlightIndex].title}</p>
+              <p className="text-3xl lg:text-4xl font-black">{spotlightProducts[spotlightIndex].subtitle}</p>
+              <p className="text-sm lg:text-base text-gray-200 mt-2">{spotlightProducts[spotlightIndex].cta}</p>
+            </div>
+            <div className="absolute bottom-4 right-4 flex gap-1">
+              {spotlightProducts.map((_, dotIndex) => (
+                <button
+                  key={dotIndex}
+                  className={`w-2 h-2 rounded-full ${dotIndex === spotlightIndex ? 'bg-white' : 'bg-white/40'}`}
+                  onClick={() => setSpotlightIndex(dotIndex)}
+                  aria-label={`Show spotlight ${dotIndex + 1}`}
+                />
+              ))}
+            </div>
           </div>
         </section>
 
