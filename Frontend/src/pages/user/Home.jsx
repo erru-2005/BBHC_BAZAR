@@ -11,8 +11,7 @@ import CuratedCollectionsGrid from './components/CuratedCollectionsGrid'
 import RecommendationRow from './components/RecommendationRow'
 import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
-
-const circleLabels = ['Men', 'Women', 'Kids', 'Footwear', 'Accessories', 'Beauty']
+import WishlistCarousel from './components/WishlistCarousel'
 
 function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -34,8 +33,20 @@ function Home() {
     recommendationRows,
     spotlightProducts,
     mobileQuickLinks,
-    bottomNavItems
+    bottomNavItems,
+    wishlist,
   } = homeData
+
+  const wishlistProducts = useMemo(() => {
+    if (!wishlist?.length) return []
+    const map = {}
+    recommendationRows.forEach((row) => {
+      row.products.forEach((p) => {
+        map[p.id] = p
+      })
+    })
+    return wishlist.map((id) => map[id]).filter(Boolean)
+  }, [wishlist, recommendationRows])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900">
@@ -51,9 +62,10 @@ function Home() {
       />
 
       <main className="max-w-7xl mx-auto px-4 lg:px-8 pb-24 lg:pb-0">
-        <HeroBanner slide={heroSlides[0]} updatedText={today} />
-        <CircleCategoryScroller labels={circleLabels} />
+        <WishlistCarousel products={wishlistProducts} />
         <SpotlightSlider slides={spotlightProducts} />
+        <HeroBanner slide={heroSlides[0]} updatedText={today} />
+        <CircleCategoryScroller labels={quickCategories} />
         <CategoryGrid title="Shop by interest" actionLabel="View all" categories={quickCategories} />
         <CuratedCollectionsGrid collections={curatedCollections} />
         {recommendationRows.map((row) => (
