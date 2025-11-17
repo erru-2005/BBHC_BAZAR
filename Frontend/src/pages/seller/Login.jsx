@@ -175,7 +175,7 @@ function SellerLogin() {
             SELLER LOGIN
           </h1>
           <p className="text-sm text-gray-600 text-center mb-8">
-            Secure access for BBHC Bazar Seller Dashboard
+            Secure access for BBHCBazaar Seller Dashboard
           </p>
 
           {/* Form */}

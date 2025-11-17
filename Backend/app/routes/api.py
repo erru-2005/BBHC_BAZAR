@@ -16,7 +16,7 @@ api_bp = Blueprint('api', __name__)
 def welcome():
     """Welcome endpoint"""
     return jsonify({
-        'message': 'Welcome to BBHC Bazar API'
+        'message': 'Welcome to BBHCBazaar API'
     }), 200
 
 

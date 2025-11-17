@@ -181,7 +181,7 @@ function MasterLogin() {
             MASTER LOGIN
           </h1>
           <p className="text-sm text-gray-600 text-center mb-8">
-            Secure access for BBHC Bazar master administrators
+            Secure access for BBHCBazaar master administrators
           </p>
 
           {/* Form */}
