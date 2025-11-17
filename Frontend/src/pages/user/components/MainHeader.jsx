@@ -47,9 +47,24 @@ function MainHeader({ onOpenMenu, children }) {
             <button className="hidden sm:block hover:text-amber-300 transition">Sign in</button>
             <button className="hidden sm:block hover:text-amber-300 transition">Orders</button>
             <button className="flex items-center gap-2 hover:text-amber-300 transition">
-              <span>Cart</span>
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M6 2a1 1 0 00-1 1v1H3a1 1 0 000 2h1l1 9h10l1-9h1a1 1 0 100-2h-2V3a1 1 0 00-1-1H6zm2 2h4v1H8V4z" />
+              <span>Bag</span>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 7h12l-1 11H7L6 7z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 10V6a3 3 0 016 0v4"
+                />
               </svg>
             </button>
           </div>
