@@ -33,14 +33,14 @@ function ProductMediaViewer({ thumbnail, gallery = [], productName }) {
   const activeMedia = mediaList[activeIndex] || mediaList[0]
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4">
-      <div className="lg:w-20 order-2 lg:order-1 flex lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto">
+    <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 w-full">
+      <div className="lg:w-20 order-2 lg:order-1 flex lg:flex-col gap-2 sm:gap-3 overflow-x-auto lg:overflow-y-auto pb-2 lg:pb-0">
         {mediaList.map((media, index) => (
           <button
             key={`${media.src}-${index}`}
             type="button"
             onClick={() => setActiveIndex(index)}
-            className={`w-16 h-16 flex-shrink-0 rounded-xl border ${
+            className={`w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 flex-shrink-0 rounded-lg sm:rounded-xl border ${
               index === activeIndex ? 'border-gray-900' : 'border-gray-200'
             } overflow-hidden focus:outline-none focus:ring-2 focus:ring-black`}
           >
@@ -49,8 +49,8 @@ function ProductMediaViewer({ thumbnail, gallery = [], productName }) {
         ))}
       </div>
 
-      <div className="flex-1 order-1 lg:order-2 rounded-2xl border border-gray-200 bg-white p-4 flex items-center justify-center min-h-[320px]">
-        <img src={activeMedia.src} alt={activeMedia.alt} className="max-h-[520px] w-auto object-contain" />
+      <div className="flex-1 order-1 lg:order-2 w-full flex items-center justify-center min-h-[240px] sm:min-h-[280px] lg:min-h-[320px]">
+        <img src={activeMedia.src} alt={activeMedia.alt} className="max-h-[240px] sm:max-h-[400px] lg:max-h-[520px] w-full h-auto object-contain" />
       </div>
     </div>
   )

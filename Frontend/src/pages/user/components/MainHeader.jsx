@@ -1,66 +1,119 @@
+import { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
-
-const navItems = [
-  'Home',
-  'Fresh Finds',
-  'Deals',
-  'Stores',
-  'Electronics',
-  'Fashion',
-  'Books',
-  'BBHC Smart Living',
-  'Customer Care'
-]
+import { useSelector } from 'react-redux'
+import { getCategories } from '../../../services/api'
+import { FaUser, FaMagnifyingGlass, FaLocationDot, FaBagShopping } from 'react-icons/fa6'
 
 function MainHeader({ onOpenMenu, children }) {
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
+  const { isAuthenticated, user } = useSelector((state) => state.auth)
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoading(true)
+        const fetchedCategories = await getCategories()
+        setCategories(fetchedCategories || [])
+      } catch (error) {
+        console.error('Failed to fetch categories:', error)
+        setCategories([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCategories()
+  }, [])
+
   return (
     <header className="bg-[#131921] text-white shadow-lg w-full">
       <div className="w-full px-4 lg:px-8">
         <div className="flex items-center justify-between py-3 gap-4">
           <div className="flex items-center gap-3">
-            <button className="lg:hidden text-2xl" onClick={onOpenMenu} aria-label="Open navigation menu">
-              ☰
-            </button>
             <div className="bg-white text-[#131921] font-black tracking-tight text-xl px-3 py-1 rounded-sm shadow">
               BBHC<span className="text-pink-500">Bazaar</span>
-            </div>
-            <div className="hidden md:flex flex-col">
-              <span className="text-xs text-gray-300">Delivering to</span>
-              <span className="font-semibold">BBHC Smart Campus 560001</span>
             </div>
           </div>
 
           <div className="flex-1 hidden md:block">
             <div className="flex bg-white rounded-md overflow-hidden shadow-inner">
-              <select className="bg-gray-100 text-sm text-gray-700 px-3 border-r border-gray-200 outline-none">
-                <option>All</option>
-                <option>Home</option>
-                <option>Electronics</option>
-                <option>BBHC Organic</option>
-              </select>
+              <div className="flex items-center px-3 border-r border-gray-200">
+                <FaMagnifyingGlass className="text-gray-400 w-4 h-4" />
+              </div>
               <input type="text" placeholder="Search BBHCBazaar" className="flex-1 px-4 py-2 text-gray-800 outline-none" />
               <button className="px-4 bg-amber-400 hover:bg-amber-300 text-gray-900 font-semibold">Search</button>
             </div>
           </div>
 
-          <div className="flex items-center gap-6 text-sm font-medium">
-            <button className="hidden sm:block hover:text-amber-300 transition">Sign in</button>
-            <button className="hidden sm:block hover:text-amber-300 transition">Orders</button>
+          <div className="flex items-center gap-4 text-sm font-medium">
+            <button className="hidden md:flex items-center gap-2 hover:text-amber-300 transition">
+              <FaBagShopping className="w-5 h-5" />
+            </button>
             <button className="flex items-center gap-2 hover:text-amber-300 transition">
-              <span>Cart</span>
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M6 2a1 1 0 00-1 1v1H3a1 1 0 000 2h1l1 9h10l1-9h1a1 1 0 100-2h-2V3a1 1 0 00-1-1H6zm2 2h4v1H8V4z" />
-              </svg>
+              {isAuthenticated && user ? (
+                <>
+                  <span className="text-white">{user.first_name || user.trade_id || user.username || 'User'}</span>
+                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white">
+                    <FaUser className="w-4 h-4" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="text-white">Sign in</span>
+                  <span className="text-white">{'>'}</span>
+                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white">
+                    <FaUser className="w-4 h-4" />
+                  </div>
+                </>
+              )}
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-6 text-sm text-gray-200 py-2 overflow-x-auto scrollbar-hide">
-          {navItems.map((item) => (
-            <button key={item} className="hover:text-white whitespace-nowrap">
-              {item}
+        <div className="flex flex-col">
+          <div className="flex items-center gap-4 sm:gap-6 text-sm text-gray-200 py-2 overflow-x-auto scrollbar-hide">
+            <button 
+              className="hover:text-white flex items-center flex-shrink-0" 
+              onClick={onOpenMenu} 
+              aria-label="Open navigation menu"
+            >
+              <span className="text-xl">☰</span>
             </button>
-          ))}
+            {loading ? (
+              <span className="text-gray-400 flex-shrink-0">Loading categories...</span>
+            ) : categories.length > 0 ? (
+              categories.map((category) => (
+                <button 
+                  key={category.id || category._id} 
+                  className="hover:text-white whitespace-nowrap flex-shrink-0"
+                >
+                  {category.name}
+                </button>
+              ))
+            ) : (
+              <span className="text-gray-400 flex-shrink-0">No categories available</span>
+            )}
+          </div>
+          <div className="hidden md:flex items-center text-sm text-gray-200 pb-2">
+            <button 
+              className="hover:text-white flex items-center flex-shrink-0 pointer-events-none"
+              aria-hidden="true"
+              tabIndex={-1}
+            >
+              <span className="text-xl opacity-0">☰</span>
+            </button>
+            <a 
+              href="https://maps.app.goo.gl/VxcqFH7aferTNzPx8" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 hover:text-white transition whitespace-nowrap overflow-x-auto"
+            >
+              <FaLocationDot className="text-pink-500 w-4 h-4 flex-shrink-0" />
+              <span className="text-xs text-gray-300">Delivering to</span>
+              <span className="font-semibold text-sm">BBHCBazaar Outlet, kundapura 576201</span>
+            </a>
+          </div>
         </div>
 
         {children}

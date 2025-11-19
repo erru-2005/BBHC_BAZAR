@@ -111,11 +111,11 @@ const initialState = {
       { label: 'Bag', icon: '🛒' }
     ],
     bottomNavItems: [
-      { label: 'Home', icon: '🏠' },
-      { label: 'Categories', icon: '🗂️' },
-      { label: 'Deals', icon: '⚡' },
-      { label: 'Cart', icon: '🛒' },
-      { label: 'Account', icon: '👤' }
+      { label: 'Product', icon: 'product' },
+      { label: 'Service', icon: 'service' },
+      { label: 'Home', icon: 'home', isActive: true },
+      { label: 'Bag', icon: 'bag' },
+      { label: 'Me', icon: 'me' }
     ],
     // Products from backend and wishlist IDs
     products: [],

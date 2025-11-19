@@ -7,16 +7,19 @@ import { useSelector } from 'react-redux'
 
 function ProtectedRoute({ children, requiredUserType }) {
   const { isAuthenticated, userType, token } = useSelector((state) => state.auth)
+  
+  // Also check localStorage as fallback
+  const localToken = localStorage.getItem('token')
 
-  // If not authenticated in Redux, redirect to login
-  if (!isAuthenticated || !token) {
+  // If not authenticated in Redux and no token in localStorage, redirect to login
+  if ((!isAuthenticated || !token) && !localToken) {
     // Redirect to appropriate login page
     const loginPath = requiredUserType === 'master' ? '/master/login' : '/seller/login'
     return <Navigate to={loginPath} replace />
   }
 
   // Check if user type matches required type
-  if (requiredUserType && userType !== requiredUserType) {
+  if (requiredUserType && userType && userType !== requiredUserType) {
     // Redirect to home if user type doesn't match
     return <Navigate to="/" replace />
   }

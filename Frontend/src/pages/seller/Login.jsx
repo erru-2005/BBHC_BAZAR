@@ -389,12 +389,12 @@ function SellerLogin() {
           {!showOTP ? (
             <div className="text-center text-xs sm:text-sm text-slate-500">
               <a
-                href="https://bbhcbazar.com/signup"
+                href="#"
                 target="_blank"
                 rel="noreferrer"
                 className="font-medium text-[#c53688] hover:underline"
               >
-                Sign up
+                Forgot Password?
               </a>
             </div>
           ) : null}

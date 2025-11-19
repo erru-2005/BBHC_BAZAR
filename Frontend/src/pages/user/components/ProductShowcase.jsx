@@ -2,7 +2,7 @@ import PropTypes from 'prop-types'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { FaHeart, FaStar, FaStarHalfAlt } from 'react-icons/fa'
+import { FaHeart, FaStar, FaStarHalfAlt, FaShoppingBag } from 'react-icons/fa'
 import { motionVariants, transitions } from '../../../utils/animations'
 
 const getImageSrc = (image) => image?.preview || image?.data_url || image?.url || image || null
@@ -123,7 +123,7 @@ function ProductShowcase({ products = [], loading, error }) {
               </div>
 
               <div className="flex-1 space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-gray-400">Sponsored</p>
+              
                 <h3 className="text-base font-semibold text-gray-900 line-clamp-2 min-h-[48px]">{product.product_name}</h3>
                 <div className="flex items-center gap-2">
                   <p className="text-lg font-black text-gray-900">₹{sellingPrice.toLocaleString('en-IN')}</p>
@@ -134,8 +134,20 @@ function ProductShowcase({ products = [], loading, error }) {
                     <span className="text-xs font-semibold text-green-600">↓{discountPercentage}%</span>
                   )}
                 </div>
-                <div className="text-xs text-gray-500">
-                  ₹{Math.ceil(sellingPrice / 12).toLocaleString('en-IN')} /mo • WOW! {Math.max(2, Math.round(Math.random() * 5))} offers
+                {/* Action: Add to Bag (replaces monthly offers/promo line) */}
+                <div className="pt-1">
+                  <button
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // TODO: wire up add-to-bag/cart action
+                    }}
+                    aria-label="Add to bag"
+                  >
+                    <FaShoppingBag className="w-4 h-4 text-pink-500" />
+                    Add to Bag
+                  </button>
                 </div>
                 <div className="flex items-center gap-1 text-xs text-green-600">
                   <FaStar className="w-3.5 h-3.5" />

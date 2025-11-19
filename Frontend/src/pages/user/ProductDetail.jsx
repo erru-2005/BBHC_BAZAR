@@ -64,7 +64,7 @@ function ProductDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900 pb-20 lg:pb-16">
       <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
         <MobileSearchBar />
       </MainHeader>
@@ -76,32 +76,32 @@ function ProductDetail() {
         categories={quickCategories}
       />
 
-      <main className="max-w-6xl mx-auto px-4 lg:px-8 py-8 pb-28 lg:pb-16">
+      <main className="w-full px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20 lg:pb-16">
         <button
           onClick={() => navigate(-1)}
-          className="text-sm font-semibold text-amber-600 mb-4"
+          className="text-xs sm:text-sm font-semibold text-amber-600 mb-3 sm:mb-4"
         >
           ← Back to results
         </button>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <div className="rounded-[28px] bg-white shadow overflow-hidden transform-gpu transition duration-500 hover:shadow-2xl">
-              {activeImage && (
+        <div className="grid md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 w-full">
+          <div className="space-y-3 sm:space-y-4 w-full">
+            {activeImage && (
+              <div className="w-full overflow-hidden">
                 <img
                   src={activeImage}
                   alt={product.name}
-                  className="w-full h-[360px] md:h-[480px] object-cover"
+                  className="w-full h-[280px] sm:h-[360px] md:h-[480px] object-cover"
                 />
-              )}
-            </div>
+              </div>
+            )}
             {imageList.length > 1 && (
-              <div className="flex gap-3 mt-4 overflow-x-auto">
+              <div className="flex gap-2 sm:gap-3 mt-2 sm:mt-4 overflow-x-auto pb-2">
                 {imageList.map((img, idx) => (
                   <button
                     key={img}
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`w-16 h-16 rounded-xl border-2 overflow-hidden ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex-shrink-0 rounded-lg sm:rounded-xl border-2 overflow-hidden ${
                       idx === activeImageIndex ? 'border-amber-500' : 'border-transparent'
                     }`}
                   >
@@ -112,33 +112,34 @@ function ProductDetail() {
             )}
           </div>
 
-          <div className="bg-white rounded-3xl shadow p-6 space-y-4 transform-gpu transition duration-500 hover:-translate-y-1">
+          <div className="space-y-3 sm:space-y-4 w-full">
             <div className="space-y-1">
-              <p className="text-sm uppercase tracking-wide text-slate-500">{product.brand}</p>
-              <h1 className="text-2xl font-black text-slate-900">{product.name}</h1>
-              <div className="flex items-center gap-3 text-sm text-slate-600">
+              <p className="text-xs sm:text-sm uppercase tracking-wide text-slate-500">{product.brand}</p>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 capitalize">{product.name}</h1>
+              <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-slate-600">
                 <span className="font-semibold text-slate-900">{product.rating}★</span>
                 <span>{product.reviews} ratings</span>
               </div>
             </div>
 
             <div>
-              <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-bold text-slate-900">{product.price}</span>
-                <span className="line-through text-slate-400">{product.mrp}</span>
-                <span className="text-sm font-semibold text-emerald-600">{product.discount}</span>
+              <div className="flex items-baseline gap-2 sm:gap-3 flex-wrap">
+                <span className="text-2xl sm:text-3xl font-bold text-slate-900">{product.price}</span>
+                <span className="line-through text-sm sm:text-base text-slate-400">{product.mrp}</span>
+                <span className="text-xs sm:text-sm font-semibold text-emerald-600">{product.discount}</span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">inclusive of all taxes</p>
+              <p className="text-[10px] sm:text-xs text-slate-500 mt-1">inclusive of all taxes</p>
+              <p className="text-xs sm:text-sm text-slate-700 mt-1">or ₹{Math.ceil(parseFloat(product.price.replace(/[^\d.]/g, ''))/6)} /month</p>
             </div>
 
             {product.sizes?.length ? (
               <div>
-                <p className="text-sm font-semibold mb-2">Select size</p>
+                <p className="text-xs sm:text-sm font-semibold mb-2">Select size</p>
                 <div className="flex gap-2 flex-wrap">
                   {product.sizes.map((size) => (
                     <span
                       key={size}
-                      className="text-sm px-4 py-2 border rounded-full bg-slate-50 text-slate-700"
+                      className="text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 border rounded-full bg-slate-50 text-slate-700"
                     >
                       {size}
                     </span>
@@ -147,24 +148,19 @@ function ProductDetail() {
               </div>
             ) : null}
 
-            <div className="flex flex-col gap-3 md:flex-row">
-              <button className="flex-1 px-4 py-3 bg-[#131921] text-white font-semibold rounded-full shadow hover:bg-slate-900 transition">
-                Add to bag
+            <div className="flex flex-col gap-2 sm:gap-3 pt-2">
+              <button className="w-full px-4 py-2.5 sm:py-3 bg-emerald-700 text-white text-sm sm:text-base font-semibold rounded-full shadow hover:bg-emerald-600 transition">
+                Buy Now
               </button>
-              <button
-                className={`flex-1 px-4 py-3 rounded-full border font-semibold transition ${
-                  isWishlisted ? 'border-pink-500 text-pink-500' : 'border-slate-200 text-slate-700'
-                }`}
-                onClick={() => dispatch(toggleWishlist(product.id))}
-              >
-                {isWishlisted ? 'Wishlisted' : 'Wishlist'}
+              <button className="w-full px-4 py-2.5 sm:py-3 rounded-full border border-gray-300 text-sm sm:text-base font-semibold text-gray-800 hover:bg-gray-50 transition">
+                Add to bag
               </button>
             </div>
 
             {product.highlights?.length ? (
               <div>
-                <p className="text-sm font-semibold mb-2">Highlights</p>
-                <ul className="list-disc list-inside text-sm text-slate-600 space-y-1">
+                <p className="text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">Highlights</p>
+                <ul className="list-disc list-inside text-xs sm:text-sm text-slate-600 space-y-0.5 sm:space-y-1">
                   {product.highlights.map((point) => (
                     <li key={point}>{point}</li>
                   ))}
@@ -174,17 +170,17 @@ function ProductDetail() {
 
             {product.description ? (
               <div>
-                <p className="text-sm font-semibold mb-2">Description</p>
-                <p className="text-sm text-slate-600 leading-relaxed">{product.description}</p>
+                <p className="text-xs sm:text-sm font-semibold mb-1.5 sm:mb-2">Description</p>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{product.description}</p>
               </div>
             ) : null}
           </div>
         </div>
       </main>
 
-      <section className="max-w-6xl mx-auto px-4 lg:px-8 pb-28 lg:pb-16">
-        <h3 className="text-xl font-bold text-slate-900 mb-3">You might also like</h3>
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+      <section className="w-full px-3 sm:px-4 lg:px-8 pb-20 lg:pb-16">
+        <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-3">You might also like</h3>
+        <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide">
           {relatedProducts.map((item) => (
             <ProductCard
               key={item.id}

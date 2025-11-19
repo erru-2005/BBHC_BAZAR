@@ -9,6 +9,7 @@ import MobileBottomNav from './components/MobileBottomNav'
 import ProductMediaViewer from '../../components/ProductMediaViewer'
 import { setHomeProducts } from '../../store/dataSlice'
 import { getProducts } from '../../services/api'
+import { FaStar } from 'react-icons/fa'
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null) return '—'
@@ -68,65 +69,78 @@ function PublicProductDetail() {
       : null
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900 pb-16">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900 pb-20 lg:pb-16">
       <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
         <MobileSearchBar />
       </MainHeader>
 
       <MobileMenu open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} quickLinks={home.mobileQuickLinks} categories={home.quickCategories} />
 
-      <main className="max-w-6xl mx-auto px-4 lg:px-8 py-8 space-y-8">
+      <main className="w-full px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-black transition-colors"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 hover:text-black transition-colors"
         >
           ← Back
         </button>
 
-        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-6 lg:p-10 space-y-8">
-          <div className="grid lg:grid-cols-2 gap-10">
-            <ProductMediaViewer thumbnail={product.thumbnail} gallery={product.gallery} productName={product.product_name} />
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 w-full">
+          <ProductMediaViewer thumbnail={product.thumbnail} gallery={product.gallery} productName={product.product_name} />
 
-            <div className="space-y-6">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-gray-500">Product</p>
-                <h1 className="text-3xl font-bold text-gray-900 leading-tight">{product.product_name}</h1>
-                {product.categories && (
-                  <span className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full bg-gray-100 text-sm font-semibold text-gray-700">
-                    {Array.isArray(product.categories) ? product.categories[0] : product.categories}
-                  </span>
+          <div className="space-y-4 sm:space-y-5 lg:space-y-6 w-full">
+            <div>
+              <p className="text-[10px] sm:text-xs uppercase tracking-widest text-gray-500">Product</p>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight capitalize mt-1">{product.product_name}</h1>
+              {product.categories && (
+                <span className="inline-flex items-center gap-2 mt-2 sm:mt-3 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gray-100 text-xs sm:text-sm font-semibold text-gray-700">
+                  {Array.isArray(product.categories) ? product.categories[0] : product.categories}
+                </span>
+              )}
+            </div>
+
+            {product.rating && (
+              <div className="flex items-center gap-1 text-xs text-emerald-600">
+                {[...Array(5)].map((_, i) => (
+                  <FaStar key={i} className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                ))}
+                <span className="text-[10px] sm:text-[11px] text-gray-600 ml-1">{Number(product.rating).toFixed(1)} ({product.reviews || 0} reviews)</span>
+              </div>
+            )}
+
+            {(product.selling_price || product.max_price) && (
+              <div className="space-y-1.5 sm:space-y-2">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  <p className="text-2xl sm:text-3xl font-black text-gray-900">{formatCurrency(product.selling_price || product.max_price)}</p>
+                  {discount && <span className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-red-600 text-white text-[10px] sm:text-xs font-bold">{discount}% OFF</span>}
+                </div>
+                {product.selling_price && product.max_price && discount && (
+                  <p className="text-xs sm:text-sm text-gray-500">
+                    MRP: <span className="line-through">{formatCurrency(product.max_price)}</span>
+                  </p>
                 )}
+                <p className="text-xs sm:text-sm text-gray-700">or {formatCurrency(Math.ceil((product.selling_price || product.max_price) / 6))}/month</p>
               </div>
+            )}
 
-              {(product.selling_price || product.max_price) && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <p className="text-3xl font-black text-gray-900">{formatCurrency(product.selling_price || product.max_price)}</p>
-                    {discount && <span className="px-3 py-1 rounded-full bg-red-600 text-white text-xs font-bold">{discount}% OFF</span>}
-                  </div>
-                  {product.selling_price && product.max_price && discount && (
-                    <p className="text-sm text-gray-500">
-                      MRP: <span className="line-through">{formatCurrency(product.max_price)}</span>
-                    </p>
-                  )}
-                </div>
-              )}
+            <div>
+              <p className="text-[10px] sm:text-xs uppercase tracking-widest text-gray-500 mb-1.5 sm:mb-2">Specification</p>
+              <p className="text-xs sm:text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{product.specification}</p>
+            </div>
 
+            {product.points?.length > 0 && (
               <div>
-                <p className="text-xs uppercase tracking-widest text-gray-500 mb-2">Specification</p>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{product.specification}</p>
+                <p className="text-[10px] sm:text-xs uppercase tracking-widest text-gray-500 mb-1.5 sm:mb-2">Highlights</p>
+                <ul className="list-disc list-inside text-xs sm:text-sm text-gray-700 space-y-0.5 sm:space-y-1">
+                  {product.points.map((point, idx) => (
+                    <li key={`${product.id}-point-${idx}`}>{point}</li>
+                  ))}
+                </ul>
               </div>
+            )}
 
-              {product.points?.length > 0 && (
-                <div>
-                  <p aclassName="text-xs uppercase tracking-widest text-gray-500 mb-2">Highlights</p>
-                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-                    {product.points.map((point, idx) => (
-                      <li key={`${product.id}-point-${idx}`}>{point}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            <div className="flex flex-col gap-2 sm:gap-3 pt-2">
+              <button className="w-full px-4 py-2.5 sm:py-3 bg-emerald-700 text-white text-sm sm:text-base font-semibold rounded-full shadow hover:bg-emerald-600 transition">Buy Now</button>
+              <button className="w-full px-4 py-2.5 sm:py-3 rounded-full border border-gray-300 text-sm sm:text-base font-semibold text-gray-800 hover:bg-gray-50 transition">Add to bag</button>
             </div>
           </div>
         </div>

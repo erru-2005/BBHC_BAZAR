@@ -1,20 +1,38 @@
 import PropTypes from 'prop-types'
+import { useEffect } from 'react'
 
 function MobileMenu({ open, onClose, quickLinks, categories }) {
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
+  if (!open) {
+    return null
+  }
+
   return (
-    <div className={`lg:hidden fixed inset-0 z-50 transition ${open ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!open}>
+    <div className="lg:hidden fixed inset-0 z-50">
       <div
-        className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'}`}
+        className="absolute inset-0 bg-black/50 transition-opacity duration-300"
         onClick={onClose}
+        aria-hidden="true"
       ></div>
       <div
-        className={`absolute right-0 top-0 h-full w-72 max-w-sm bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ${
-          open ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className="absolute right-0 top-0 h-full w-72 max-w-sm bg-white shadow-2xl flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation menu"
       >
         <div className="flex items-center justify-between px-4 py-4 border-b">
           <span className="font-semibold text-lg text-[#131921]">Hello, BBHC Member</span>
-          <button onClick={onClose} className="text-2xl text-gray-600" aria-label="Close navigation">
+          <button onClick={onClose} className="text-2xl text-gray-600 hover:text-gray-800" aria-label="Close navigation">
             ×
           </button>
         </div>
