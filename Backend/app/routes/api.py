@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
 from app.services.blacklist_service import BlacklistService
+from app.services.category_service import CategoryService
 from app.services.product_service import ProductService
 from app.utils.validators import validate_email
 from datetime import datetime
@@ -385,7 +386,7 @@ def create_product():
         if current_user_type != 'master':
             return jsonify({'error': 'Only masters can create products'}), 403
 
-        required_fields = ['product_name', 'specification', 'points', 'thumbnail']
+        required_fields = ['product_name', 'specification', 'points', 'thumbnail', 'selling_price', 'max_price']
         for field in required_fields:
             if field not in data or data.get(field) in (None, '', []):
                 return jsonify({'error': f'{field} is required'}), 400
@@ -409,6 +410,8 @@ def create_product():
             'thumbnail': data['thumbnail'],
             'gallery': data.get('gallery', []),
             'categories': categories,
+            'selling_price': data.get('selling_price'),
+            'max_price': data.get('max_price'),
             'created_by': current_username,
             'created_by_user_id': str(current_user_id),
             'created_by_user_type': current_user_type,
@@ -431,17 +434,9 @@ def create_product():
 
 
 @api_bp.route('/products', methods=['GET'])
-@jwt_required()
 def get_products():
-    """Get all products (masters only)"""
+    """Get all products (public endpoint)"""
     try:
-        current_user_id = get_jwt_identity()
-        claims = get_jwt()
-        current_user_type = claims.get('user_type')
-
-        if current_user_type != 'master':
-            return jsonify({'error': 'Only masters can view products'}), 403
-
         skip = request.args.get('skip', 0, type=int)
         limit = request.args.get('limit', 100, type=int)
 
@@ -453,3 +448,98 @@ def get_products():
         }), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get products: {str(e)}'}), 500
+
+
+@api_bp.route('/products/<product_id>', methods=['PUT'])
+@jwt_required()
+def update_product(product_id):
+    """Update product (masters only)"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+        current_username = claims.get('username') or 'system'
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can update products'}), 403
+
+        data['updated_by'] = current_username
+        data['updated_by_user_id'] = str(current_user_id)
+        data['updated_by_user_type'] = current_user_type
+
+        product = ProductService.update_product(product_id, data)
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+
+        return jsonify({
+            'message': 'Product updated successfully',
+            'product': product.to_dict()
+        }), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to update product: {str(e)}'}), 500
+
+
+@api_bp.route('/products/<product_id>', methods=['DELETE'])
+@jwt_required()
+def delete_product(product_id):
+    """Delete product (masters only)"""
+    try:
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can delete products'}), 403
+
+        success = ProductService.delete_product(product_id)
+        if not success:
+            return jsonify({'error': 'Product not found'}), 404
+
+        return jsonify({'message': 'Product deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to delete product: {str(e)}'}), 500
+
+
+@api_bp.route('/categories', methods=['GET'])
+def get_categories():
+    """Public endpoint to get all product categories"""
+    try:
+        categories = CategoryService.get_all_categories()
+        return jsonify({
+            'categories': [category.to_dict() for category in categories],
+            'count': len(categories)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get categories: {str(e)}'}), 500
+
+
+@api_bp.route('/categories', methods=['POST'])
+@jwt_required()
+def create_category():
+    """Create new category (masters only)"""
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'error': 'Category name is required'}), 400
+
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+        current_username = claims.get('username') or 'system'
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can create categories'}), 403
+
+        category = CategoryService.create_category(data['name'], created_by=current_username)
+        return jsonify({
+            'message': 'Category created successfully',
+            'category': category.to_dict()
+        }), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to create category: {str(e)}'}), 500

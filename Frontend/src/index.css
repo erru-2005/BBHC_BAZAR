@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import 'reactjs-popup/dist/index.css';
 
 html, body {
   width: 100%;

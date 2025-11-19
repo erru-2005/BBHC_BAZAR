@@ -14,6 +14,8 @@ class Product:
         specification,
         points,
         thumbnail,
+        selling_price=None,
+        max_price=None,
         gallery=None,
         categories=None,
         created_by='system',
@@ -30,6 +32,8 @@ class Product:
         self.specification = specification
         self.points = points or []
         self.thumbnail = thumbnail
+        self.selling_price = selling_price
+        self.max_price = max_price
         self.gallery = gallery or []
         self.categories = categories or []
         self.created_by = created_by
@@ -47,6 +51,8 @@ class Product:
             'specification': self.specification,
             'points': self.points,
             'thumbnail': self.thumbnail,
+            'selling_price': self.selling_price,
+            'max_price': self.max_price,
             'gallery': self.gallery,
             'categories': self.categories,
             'created_by': self.created_by,
@@ -65,6 +71,8 @@ class Product:
             'specification': self.specification,
             'points': self.points,
             'thumbnail': self.thumbnail,
+            'selling_price': self.selling_price,
+            'max_price': self.max_price,
             'gallery': self.gallery,
             'categories': self.categories,
             'created_by': self.created_by,
@@ -87,6 +95,8 @@ class Product:
             specification=bson_doc.get('specification'),
             points=bson_doc.get('points', []),
             thumbnail=bson_doc.get('thumbnail'),
+            selling_price=bson_doc.get('selling_price'),
+            max_price=bson_doc.get('max_price'),
             gallery=bson_doc.get('gallery', []),
             categories=bson_doc.get('categories', []),
             created_by=bson_doc.get('created_by', 'system'),

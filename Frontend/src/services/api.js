@@ -355,6 +355,83 @@ export const getProducts = async () => {
 }
 
 /**
+ * Get a single product by ID
+ * Note: Fetches from backend and resolves the matching product.
+ * @param {string} productId
+ * @returns {Promise<object>} Product object
+ */
+export const getProductById = async (productId) => {
+  if (!productId) {
+    throw new Error('Product ID is required')
+  }
+
+  try {
+    const products = await getProducts()
+    const match = products.find(
+      (prod) => String(prod.id || prod._id) === String(productId)
+    )
+
+    if (!match) {
+      throw new Error('Product not found')
+    }
+
+    return match
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load product')
+  }
+}
+
+/**
+ * Update a product
+ * @param {string} productId
+ * @param {object} productData
+ * @returns {Promise<object>} Updated product
+ */
+export const updateProduct = async (productId, productData) => {
+  try {
+    const response = await apiClient.put(`${API_ENDPOINTS.API.PRODUCTS}/${productId}`, productData)
+    return response.product
+  } catch (error) {
+    throw new Error(error.message || 'Failed to update product')
+  }
+}
+
+/**
+ * Delete a product
+ * @param {string} productId
+ * @returns {Promise<string>} Success message
+ */
+export const deleteProduct = async (productId) => {
+  try {
+    const response = await apiClient.delete(`${API_ENDPOINTS.API.PRODUCTS}/${productId}`)
+    return response.message || 'Product deleted successfully'
+  } catch (error) {
+    throw new Error(error.message || 'Failed to delete product')
+  }
+}
+
+/**
+ * Categories
+ */
+export const getCategories = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.CATEGORIES)
+    return response.categories || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load categories')
+  }
+}
+
+export const createCategory = async (name) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.CATEGORIES, { name })
+    return response.category
+  } catch (error) {
+    throw new Error(error.message || 'Failed to create category')
+  }
+}
+
+/**
  * Update a seller
  * @param {string} sellerId - Seller ID
  * @param {object} sellerData - Seller data to update

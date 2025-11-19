@@ -24,6 +24,8 @@ function Master() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { user, token } = useSelector((state) => state.auth)
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [productsRefreshKey, setProductsRefreshKey] = useState(0)
   
   // Initialize activeTab from localStorage or default to 'home'
   const [activeTab, setActiveTab] = useState(() => {
@@ -525,7 +527,16 @@ function Master() {
         
         {activeTab === 'add-master' && <AddMaster />}
         
-        {activeTab === 'add-product' && <AddProduct />}
+        {activeTab === 'add-product' && (
+          <AddProduct
+            editingProduct={editingProduct}
+            onProductSaved={() => {
+              setEditingProduct(null)
+              setProductsRefreshKey((prev) => prev + 1)
+            }}
+            onCancelEdit={() => setEditingProduct(null)}
+          />
+        )}
         
         {activeTab === 'list-sellers' && <ListSellers />}
         
@@ -533,7 +544,15 @@ function Master() {
 
         {activeTab === 'blacklisted-sellers' && <BlacklistedSellers />}
 
-        {activeTab === 'list-products' && <ListProducts />}
+        {activeTab === 'list-products' && (
+          <ListProducts
+            refreshSignal={productsRefreshKey}
+            onEditProduct={(product) => {
+              setActiveTab('add-product')
+              setEditingProduct(product)
+            }}
+          />
+        )}
       </div>
 
     </div>

@@ -20,7 +20,8 @@ export const API_ENDPOINTS = {
     GET_BLACKLISTED_SELLERS: `${API_BASE_URL}/api/sellers/blacklisted`,
     UPDATE_SELLER: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}`,
     BLACKLIST_SELLER: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}/blacklist`,
-    PRODUCTS: `${API_BASE_URL}/api/products`
+    PRODUCTS: `${API_BASE_URL}/api/products`,
+    CATEGORIES: `${API_BASE_URL}/api/categories`
   }
 }
 

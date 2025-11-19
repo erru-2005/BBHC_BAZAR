@@ -146,6 +146,9 @@ def create_indexes():
         mongo.db.products.create_index([('product_name', ASCENDING)])
         mongo.db.products.create_index([('created_at', ASCENDING)])
         
+        # Create indexes for categories collection
+        mongo.db.categories.create_index([('name', ASCENDING)], unique=True)
+        
         print("Database indexes created successfully")
     except Exception as e:
         print(f"Error creating indexes: {e}")

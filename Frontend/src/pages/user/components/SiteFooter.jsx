@@ -1,7 +1,7 @@
 function SiteFooter() {
   return (
-    <footer className="mt-12 bg-[#131921] text-gray-200 py-10">
-      <div className="max-w-7xl mx-auto px-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-8 text-sm">
+    <footer className="mt-12 bg-[#131921] text-gray-200 py-10 w-full">
+      <div className="w-full px-4 lg:px-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-8 text-sm">
         <div>
           <h4 className="font-bold text-white mb-3">Get to know BBHCBazaar</h4>
           <ul className="space-y-2 text-gray-300">

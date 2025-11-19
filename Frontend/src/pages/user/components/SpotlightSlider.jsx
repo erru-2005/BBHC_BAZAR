@@ -16,23 +16,19 @@ function SpotlightSlider({ slides }) {
   const activeSlide = slides[index]
 
   return (
-    <section className="pt-4 pb-6">
-      <div className="bg-white rounded-[28px] shadow overflow-hidden relative h-80 lg:h-[28rem]">
-        <img
-          src={activeSlide.image}
-          alt={activeSlide.title}
-          className="w-full h-full object-cover transition-opacity duration-700"
-        />
+    <section className="py-4">
+      <div className="bg-white rounded-[28px] shadow overflow-hidden relative h-80 lg:h-96">
+        <img src={activeSlide.image} alt={activeSlide.title} className="w-full h-full object-cover transition-opacity duration-700" />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-6 text-white">
           <p className="uppercase text-sm tracking-[0.2em]">{activeSlide.title}</p>
           <p className="text-3xl lg:text-4xl font-black">{activeSlide.subtitle}</p>
           <p className="text-sm lg:text-base text-gray-200 mt-2">{activeSlide.cta}</p>
         </div>
-        <div className="absolute bottom-4 inset-x-0 flex justify-center gap-2">
+        <div className="absolute bottom-4 right-4 flex gap-1">
           {slides.map((slide, dotIndex) => (
             <button
               key={slide.id}
-              className={`w-2.5 h-2.5 rounded-full ${dotIndex === index ? 'bg-white' : 'bg-white/40'}`}
+              className={`w-2 h-2 rounded-full ${dotIndex === index ? 'bg-white' : 'bg-white/40'}`}
               onClick={() => setIndex(dotIndex)}
               aria-label={`Show spotlight ${dotIndex + 1}`}
             />
