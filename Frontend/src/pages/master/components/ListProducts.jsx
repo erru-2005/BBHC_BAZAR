@@ -96,8 +96,18 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
           const max = Number(product.max_price || product.mrp || selling)
           const discount = max > selling ? Math.round(((max - selling) / max) * 100) : null
           const sellerName =
-            product.seller_name || product.created_by || 'Unknown seller'
-          const sellerTradeId = product.seller_trade_id || product.created_by_user_id || '—'
+            product.seller_name ||
+            product.created_by ||
+            product.created_by_user_id ||
+            product.seller_trade_id ||
+            'Unknown seller'
+          const sellerTradeId = product.seller_trade_id || product.created_by_user_id || product.created_by || '—'
+          const quantityValue =
+            product.quantity ||
+            product.stock ||
+            product.available_quantity ||
+            product.inventory ||
+            0
           const productId = product.id || product._id || productName
 
           return (
@@ -150,6 +160,8 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
                     <span className="font-semibold">{sellerName}</span>
                     <span className="text-gray-400">•</span>
                     <span className="text-gray-500 text-xs uppercase">Trade ID: {sellerTradeId}</span>
+                    <span className="text-gray-400">•</span>
+                    <span className="text-gray-600 text-xs uppercase">Qty: {quantityValue}</span>
                   </div>
 
                   {categories.length > 0 && (

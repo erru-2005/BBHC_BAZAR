@@ -71,7 +71,12 @@ function MasterProductDetail() {
     )
   }
 
-  const sellerFullName = [product.seller_name].filter(Boolean).join(' ')
+  const sellerFullName = [product.seller_name || product.seller_trade_id].filter(Boolean).join(' ')
+  const sellerTradeId = product.seller_trade_id || product.created_by_user_id || product.created_by || '—'
+  const sellerEmail = product.seller_email || product.created_by_email || '—'
+  const sellerPhone = product.seller_phone || product.seller_phone_number || '—'
+  const quantityValue =
+    product.quantity || product.stock || product.available_quantity || product.inventory || null
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900 pb-16">
@@ -118,6 +123,11 @@ function MasterProductDetail() {
                       MRP: <span className="line-through">{formatCurrency(product.max_price)}</span>
                     </p>
                   )}
+                  {quantityValue !== null && (
+                    <p className="text-sm font-medium text-gray-700">
+                      Available quantity: <span className="text-gray-900">{quantityValue}</span>
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -127,9 +137,9 @@ function MasterProductDetail() {
                   <>
                     <p className="text-lg font-semibold text-gray-900">{sellerFullName}</p>
                     <div className="text-sm text-gray-600 space-y-1">
-                      {product.seller_trade_id && <p>Trade ID: {product.seller_trade_id}</p>}
-                      {product.seller_email && <p>Email: {product.seller_email}</p>}
-                      {product.seller_phone && <p>Phone: {product.seller_phone}</p>}
+                      {sellerTradeId && <p>Trade ID: {sellerTradeId}</p>}
+                      {sellerEmail && sellerEmail !== '—' && <p>Email: {sellerEmail}</p>}
+                      {sellerPhone && sellerPhone !== '—' && <p>Phone: {sellerPhone}</p>}
                     </div>
                   </>
                 ) : (

@@ -1,29 +1,41 @@
 /**
  * Add Product Component
  */
-import { useEffect, useRef, useState } from 'react'
-import { createCategory, createProduct, getCategories, updateProduct } from '../../../services/api'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createCategory, createProduct, getCategories, getSellers, updateProduct } from '../../../services/api'
 
 const INITIAL_POINTS = ['', '', '']
 
 function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancelEdit = () => {} }) {
-  const [form, setForm] = useState({ productName: '', specification: '', sellingPrice: '', maxPrice: '' })
+  const [form, setForm] = useState({ productName: '', specification: '', sellingPrice: '', maxPrice: '', quantity: '' })
   const [media, setMedia] = useState({ thumbnail: null, gallery: [] })
   const [points, setPoints] = useState(INITIAL_POINTS)
   const [status, setStatus] = useState({ type: null, message: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [availableCategories, setAvailableCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [availableSellers, setAvailableSellers] = useState([])
+  const [selectedSellerId, setSelectedSellerId] = useState('')
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryStatus, setCategoryStatus] = useState({ type: null, message: '' })
   const statusRef = useRef(null)
 
+  const selectedSeller = useMemo(() => {
+    if (!selectedSellerId) return null
+    return (
+      availableSellers.find(
+        (seller) => String(seller.id || seller._id || seller.trade_id) === String(selectedSellerId)
+      ) || null
+    )
+  }, [selectedSellerId, availableSellers])
+
   const resetForm = () => {
-    setForm({ productName: '', specification: '', sellingPrice: '', maxPrice: '' })
+    setForm({ productName: '', specification: '', sellingPrice: '', maxPrice: '', quantity: '' })
     setPoints(INITIAL_POINTS)
     setMedia({ thumbnail: null, gallery: [] })
     setSelectedCategory('')
+    setSelectedSellerId('')
   }
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -132,15 +144,16 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   }
 
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadCategoriesAndSellers = async () => {
       try {
-        const categories = await getCategories()
+        const [categories, sellers] = await Promise.all([getCategories(), getSellers()])
         setAvailableCategories(categories)
+        setAvailableSellers(sellers)
       } catch (error) {
-        console.error('Failed to load categories', error)
+        console.error('Failed to load categories or sellers', error)
       }
     }
-    loadCategories()
+    loadCategoriesAndSellers()
   }, [])
 
   useEffect(() => {
@@ -151,7 +164,13 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
         productName: editingProduct.product_name || '',
         specification: editingProduct.specification || '',
         sellingPrice: editingProduct.selling_price || editingProduct.price || '',
-        maxPrice: editingProduct.max_price || editingProduct.mrp || ''
+        maxPrice: editingProduct.max_price || editingProduct.mrp || '',
+        quantity:
+          editingProduct.quantity ||
+          editingProduct.stock ||
+          editingProduct.available_quantity ||
+          editingProduct.inventory ||
+          ''
       })
       setPoints(
         Array.isArray(editingProduct.points) && editingProduct.points.length
@@ -171,6 +190,13 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
           : []
       })
       setStatus({ type: null, message: '' })
+      const sellerIdFromProduct =
+        editingProduct.created_by_user_id ||
+        editingProduct.seller_id ||
+        editingProduct.created_by ||
+        editingProduct.seller_trade_id ||
+        ''
+      setSelectedSellerId(sellerIdFromProduct ? String(sellerIdFromProduct) : '')
     } else {
       setIsEditing(false)
       setEditingId(null)
@@ -178,6 +204,30 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingProduct])
+
+  useEffect(() => {
+    if (!editingProduct || !availableSellers.length) return
+
+    const sellerIdFromProduct =
+      editingProduct.created_by_user_id ||
+      editingProduct.seller_id ||
+      editingProduct.created_by ||
+      editingProduct.seller_trade_id ||
+      ''
+
+    if (!sellerIdFromProduct) return
+
+    const matchingSeller =
+      availableSellers.find(
+        (seller) =>
+          String(seller.id || seller._id || seller.trade_id) === String(sellerIdFromProduct) ||
+          seller.trade_id === sellerIdFromProduct
+      ) || null
+
+    if (matchingSeller) {
+      setSelectedSellerId(String(matchingSeller.id || matchingSeller._id || matchingSeller.trade_id))
+    }
+  }, [editingProduct, availableSellers])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -197,14 +247,29 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       return
     }
 
+    if (!selectedSellerId) {
+      setStatus({ type: 'error', message: 'Please select a seller for this product.' })
+      return
+    }
+
+    if (!selectedSeller) {
+      setStatus({ type: 'error', message: 'Selected seller is no longer available. Please refresh and try again.' })
+      return
+    }
+
     const selling = Number(form.sellingPrice)
     const max = Number(form.maxPrice)
+    const quantity = Number(form.quantity)
     if (!selling || !max) {
       setStatus({ type: 'error', message: 'Please enter both selling price and MRP.' })
       return
     }
-    if (selling <= 0 || max <= 0) {
-      setStatus({ type: 'error', message: 'Price values must be greater than zero.' })
+    if (!quantity) {
+      setStatus({ type: 'error', message: 'Please enter product quantity.' })
+      return
+    }
+    if (selling <= 0 || max <= 0 || quantity <= 0) {
+      setStatus({ type: 'error', message: 'Price and quantity values must be greater than zero.' })
       return
     }
     if (max < selling) {
@@ -220,7 +285,15 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       gallery: serializeGalleryForPayload(media.gallery),
       selling_price: selling,
       max_price: max,
-      categories: selectedCategory ? [selectedCategory] : []
+      quantity,
+      categories: selectedCategory ? [selectedCategory] : [],
+      created_by: selectedSeller.trade_id || `${selectedSeller.first_name || ''} ${selectedSeller.last_name || ''}`.trim() || selectedSeller.email,
+      created_by_user_id: selectedSeller.id || selectedSeller._id || selectedSeller.trade_id,
+      created_by_user_type: 'seller',
+      seller_trade_id: selectedSeller.trade_id,
+      seller_name: `${selectedSeller.first_name || ''} ${selectedSeller.last_name || ''}`.trim() || selectedSeller.trade_id,
+      seller_email: selectedSeller.email || '',
+      seller_phone: selectedSeller.phone_number || ''
     }
 
     setIsSubmitting(true)
@@ -267,6 +340,54 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
         )}
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+          <div>
+            <label className="block text-sm font-semibold text-gray-800 mb-1">
+              Assign Seller <span className="text-red-500">*</span>
+            </label>
+            <p className="text-xs text-gray-500 mb-3">Select the seller account that owns this product listing.</p>
+            {availableSellers.length === 0 ? (
+              <div className="w-full rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                Loading sellers... Please ensure sellers are registered.
+              </div>
+            ) : (
+              <select
+                value={selectedSellerId}
+                onChange={(e) => {
+                  setSelectedSellerId(e.target.value)
+                  setStatus({ type: null, message: '' })
+                }}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white"
+                required
+              >
+                <option value="">Select seller</option>
+                {availableSellers.map((seller) => {
+                  const sellerId = String(seller.id || seller._id || seller.trade_id)
+                  const sellerName = `${seller.first_name || ''} ${seller.last_name || ''}`.trim()
+                  return (
+                    <option key={sellerId} value={sellerId}>
+                      {seller.trade_id}{sellerName ? ` — ${sellerName}` : ''}
+                    </option>
+                  )
+                })}
+              </select>
+            )}
+            {selectedSeller && (
+              <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                <div className="font-semibold text-gray-900">
+                  {selectedSeller.trade_id}
+                  {selectedSeller.first_name || selectedSeller.last_name ? (
+                    <span className="text-gray-500">
+                      {' '}
+                      • {(selectedSeller.first_name || '') + ' ' + (selectedSeller.last_name || '')}
+                    </span>
+                  ) : null}
+                </div>
+                {selectedSeller.email && <div>Email: {selectedSeller.email}</div>}
+                {selectedSeller.phone_number && <div>Phone: {selectedSeller.phone_number}</div>}
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-1">
               Start with media <span className="text-xs text-gray-500">(upload first, then fill details)</span>
@@ -366,7 +487,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Selling Price (₹) <span className="text-red-500">*</span>
@@ -397,6 +518,23 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
                 placeholder="Enter MRP (maximum price)"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Quantity <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                name="quantity"
+                value={form.quantity}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+                placeholder="Enter available quantity"
                 required
               />
             </div>

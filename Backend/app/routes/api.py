@@ -386,7 +386,7 @@ def create_product():
         if current_user_type != 'master':
             return jsonify({'error': 'Only masters can create products'}), 403
 
-        required_fields = ['product_name', 'specification', 'points', 'thumbnail', 'selling_price', 'max_price']
+        required_fields = ['product_name', 'specification', 'points', 'thumbnail', 'selling_price', 'max_price', 'quantity', 'seller_trade_id']
         for field in required_fields:
             if field not in data or data.get(field) in (None, '', []):
                 return jsonify({'error': f'{field} is required'}), 400
@@ -398,6 +398,13 @@ def create_product():
         normalized_points = [str(point).strip() for point in points if str(point).strip()]
         if not normalized_points:
             return jsonify({'error': 'Provide at least one bullet point'}), 400
+
+        try:
+            quantity = int(data.get('quantity', 0))
+            if quantity <= 0:
+                return jsonify({'error': 'quantity must be greater than zero'}), 400
+        except (TypeError, ValueError):
+            return jsonify({'error': 'quantity must be a positive integer'}), 400
 
         categories = data.get('categories', [])
         if categories and not isinstance(categories, list):
@@ -412,9 +419,14 @@ def create_product():
             'categories': categories,
             'selling_price': data.get('selling_price'),
             'max_price': data.get('max_price'),
-            'created_by': current_username,
-            'created_by_user_id': str(current_user_id),
-            'created_by_user_type': current_user_type,
+            'quantity': quantity,
+            'seller_trade_id': data.get('seller_trade_id'),
+            'seller_name': data.get('seller_name'),
+            'seller_email': data.get('seller_email'),
+            'seller_phone': data.get('seller_phone'),
+            'created_by': data.get('created_by') or current_username,
+            'created_by_user_id': data.get('created_by_user_id') or str(current_user_id),
+            'created_by_user_type': data.get('created_by_user_type') or current_user_type,
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow(),
             'registration_ip': request.remote_addr,

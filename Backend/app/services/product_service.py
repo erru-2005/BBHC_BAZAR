@@ -14,7 +14,7 @@ class ProductService:
     @staticmethod
     def create_product(product_data):
         try:
-            required_fields = ['product_name', 'specification', 'points', 'thumbnail', 'selling_price', 'max_price']
+            required_fields = ['product_name', 'specification', 'points', 'thumbnail', 'selling_price', 'max_price', 'quantity', 'seller_trade_id']
             for field in required_fields:
                 if field not in product_data or product_data[field] in (None, '', []):
                     raise ValueError(f"Missing required field: {field}")
@@ -35,6 +35,10 @@ class ProductService:
             if max_price < selling_price:
                 raise ValueError("Max price (MRP) must be greater than or equal to selling price")
 
+            quantity = int(product_data.get('quantity'))
+            if quantity <= 0:
+                raise ValueError("Quantity must be greater than zero")
+
             categories = product_data.get('categories', [])
             if categories and not isinstance(categories, list):
                 raise ValueError("Categories must be a list")
@@ -52,6 +56,11 @@ class ProductService:
                 created_by=product_data.get('created_by', 'system'),
                 created_by_user_id=product_data.get('created_by_user_id'),
                 created_by_user_type=product_data.get('created_by_user_type'),
+                quantity=quantity,
+                seller_trade_id=product_data.get('seller_trade_id'),
+                seller_name=product_data.get('seller_name'),
+                seller_email=product_data.get('seller_email'),
+                seller_phone=product_data.get('seller_phone'),
                 created_at=product_data.get('created_at') or datetime.utcnow(),
                 updated_at=product_data.get('updated_at') or datetime.utcnow(),
                 registration_ip=product_data.get('registration_ip'),
@@ -93,9 +102,14 @@ class ProductService:
         try:
             update_fields = {}
 
-            for field in ['product_name', 'specification', 'thumbnail', 'selling_price', 'max_price']:
+            for field in ['product_name', 'specification', 'thumbnail', 'selling_price', 'max_price', 'quantity', 'seller_trade_id', 'seller_name', 'seller_email', 'seller_phone']:
                 if field in product_data and product_data[field] not in (None, ''):
-                    update_fields[field] = product_data[field] if field not in ['selling_price', 'max_price'] else float(product_data[field])
+                    if field in ['selling_price', 'max_price']:
+                        update_fields[field] = float(product_data[field])
+                    elif field == 'quantity':
+                        update_fields[field] = int(product_data[field])
+                    else:
+                        update_fields[field] = product_data[field]
 
             if 'points' in product_data:
                 points = product_data['points']
