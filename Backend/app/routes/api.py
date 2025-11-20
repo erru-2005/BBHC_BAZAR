@@ -8,6 +8,7 @@ from app.services.seller_service import SellerService
 from app.services.blacklist_service import BlacklistService
 from app.services.category_service import CategoryService
 from app.services.product_service import ProductService
+from app.sockets.emitter import emit_product_event
 from app.utils.validators import validate_email
 from datetime import datetime
 
@@ -434,10 +435,12 @@ def create_product():
         }
 
         product = ProductService.create_product(product_data)
+        product_dict = product.to_dict()
+        emit_product_event('product_created', product_dict)
 
         return jsonify({
             'message': 'Product created successfully',
-            'product': product.to_dict()
+            'product': product_dict
         }), 201
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
@@ -487,9 +490,85 @@ def update_product(product_id):
         if not product:
             return jsonify({'error': 'Product not found'}), 404
 
+        product_dict = product.to_dict()
+        emit_product_event('product_updated', product_dict)
+
         return jsonify({
             'message': 'Product updated successfully',
-            'product': product.to_dict()
+            'product': product_dict
+        }), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to update product: {str(e)}'}), 500
+
+
+@api_bp.route('/seller/products', methods=['POST'])
+@jwt_required()
+def seller_create_product():
+    """Seller-facing endpoint to create a product."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'seller':
+            return jsonify({'error': 'Only sellers can access this endpoint'}), 403
+
+        seller_trade_id = claims.get('trade_id')
+        seller_user_id = str(get_jwt_identity())
+
+        data['seller_trade_id'] = seller_trade_id
+        data['created_by'] = seller_trade_id
+        data['created_by_user_id'] = seller_user_id
+        data['created_by_user_type'] = 'seller'
+
+        product = ProductService.create_product(data)
+        product_dict = product.to_dict()
+        emit_product_event('product_created', product_dict)
+
+        return jsonify({
+            'message': 'Product created successfully',
+            'product': product_dict
+        }), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to create product: {str(e)}'}), 500
+
+
+@api_bp.route('/seller/products/<product_id>', methods=['PUT'])
+@jwt_required()
+def seller_update_product(product_id):
+    """Seller-facing endpoint to update owned product."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'seller':
+            return jsonify({'error': 'Only sellers can access this endpoint'}), 403
+
+        seller_trade_id = claims.get('trade_id')
+        seller_user_id = str(get_jwt_identity())
+
+        data['seller_trade_id'] = seller_trade_id
+        data['updated_by'] = seller_trade_id
+        data['updated_by_user_id'] = seller_user_id
+        data['updated_by_user_type'] = 'seller'
+
+        product = ProductService.update_product(product_id, data)
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+
+        product_dict = product.to_dict()
+        emit_product_event('product_updated', product_dict)
+
+        return jsonify({
+            'message': 'Product updated successfully',
+            'product': product_dict
         }), 200
     except ValueError as e:
         return jsonify({'error': str(e)}), 400

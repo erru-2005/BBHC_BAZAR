@@ -396,6 +396,24 @@ export const updateProduct = async (productId, productData) => {
   }
 }
 
+export const createSellerProduct = async (productData) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.SELLER_PRODUCTS, productData)
+    return response.product
+  } catch (error) {
+    throw new Error(error.message || 'Failed to create product')
+  }
+}
+
+export const updateSellerProduct = async (productId, productData) => {
+  try {
+    const response = await apiClient.put(API_ENDPOINTS.API.SELLER_PRODUCT(productId), productData)
+    return response.product
+  } catch (error) {
+    throw new Error(error.message || 'Failed to update product')
+  }
+}
+
 /**
  * Delete a product
  * @param {string} productId

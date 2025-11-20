@@ -10,6 +10,7 @@ import ProductMediaViewer from '../../components/ProductMediaViewer'
 import { setHomeProducts } from '../../store/dataSlice'
 import { getProducts } from '../../services/api'
 import { FaStar } from 'react-icons/fa'
+import useProductSocket from '../../hooks/useProductSocket'
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null) return '—'
@@ -46,6 +47,16 @@ function PublicProductDetail() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [productId])
+
+  useProductSocket((updatedProduct) => {
+    if (
+      updatedProduct &&
+      product &&
+      String(updatedProduct.id || updatedProduct._id) === String(product.id || product._id)
+    ) {
+      setProduct(updatedProduct)
+    }
+  })
 
   if (!product) {
     return (

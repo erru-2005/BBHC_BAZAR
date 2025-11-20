@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { deleteProduct, getProducts } from '../../../services/api'
 import { FaSyncAlt, FaTag } from 'react-icons/fa'
 import { FiEdit, FiTrash2 } from 'react-icons/fi'
+import useProductSocket from '../../../hooks/useProductSocket'
 
 const getImageSrc = (image) => {
   if (!image) return null
@@ -34,6 +35,20 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
     fetchProducts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshSignal])
+
+  useProductSocket((updatedProduct) => {
+    if (!updatedProduct) return
+    setProducts((prev) => {
+      const id = String(updatedProduct.id || updatedProduct._id)
+      const index = prev.findIndex((product) => String(product.id || product._id) === id)
+      if (index !== -1) {
+        const clone = [...prev]
+        clone[index] = { ...clone[index], ...updatedProduct }
+        return clone
+      }
+      return [updatedProduct, ...prev]
+    })
+  })
 
   const handleDelete = async (event, product) => {
     event.stopPropagation()

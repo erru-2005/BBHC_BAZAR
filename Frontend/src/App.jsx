@@ -1,6 +1,19 @@
 
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { Home, PublicProductDetail, Seller, Master, MasterProductDetail, SellerLogin, MasterLogin, NotFound } from './pages'
+import {
+  Home,
+  PublicProductDetail,
+  Seller,
+  Master,
+  MasterProductDetail,
+  SellerLogin,
+  MasterLogin,
+  NotFound,
+  SellerMyProducts,
+  SellerProductDetail,
+  SellerAddProduct,
+  SellerEditProduct
+} from './pages'
 import ProtectedRoute from './components/ProtectedRoute'
 import SplashScreen from './components/SplashScreen'
 import { useEffect, useState } from 'react'
@@ -38,6 +51,38 @@ function SplashWrapper() {
         element={
           <ProtectedRoute requiredUserType="seller">
             <Seller />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/seller/products" 
+        element={
+          <ProtectedRoute requiredUserType="seller">
+            <SellerMyProducts />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/seller/products/new" 
+        element={
+          <ProtectedRoute requiredUserType="seller">
+            <SellerAddProduct />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/seller/products/:productId" 
+        element={
+          <ProtectedRoute requiredUserType="seller">
+            <SellerProductDetail />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/seller/products/:productId/edit" 
+        element={
+          <ProtectedRoute requiredUserType="seller">
+            <SellerEditProduct />
           </ProtectedRoute>
         } 
       />

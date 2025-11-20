@@ -21,6 +21,8 @@ export const API_ENDPOINTS = {
     UPDATE_SELLER: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}`,
     BLACKLIST_SELLER: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}/blacklist`,
     PRODUCTS: `${API_BASE_URL}/api/products`,
+    SELLER_PRODUCTS: `${API_BASE_URL}/api/seller/products`,
+    SELLER_PRODUCT: (productId) => `${API_BASE_URL}/api/seller/products/${productId}`,
     CATEGORIES: `${API_BASE_URL}/api/categories`
   }
 }

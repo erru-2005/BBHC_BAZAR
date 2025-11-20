@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
-import { FiBox, FiMenu, FiX, FiHome, FiBriefcase, FiLogOut } from 'react-icons/fi'
+import { FiBox, FiMenu, FiX, FiHome, FiBriefcase, FiLogOut, FiPlusSquare } from 'react-icons/fi'
 import { logout } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
@@ -75,9 +75,10 @@ function Seller() {
   }, [user, token])
 
   const menuItems = [
-    { label: 'Home', icon: FiHome },
-    { label: 'My Products', icon: FiBox },
-    { label: 'My Services', icon: FiBriefcase }
+    { label: 'Home', icon: FiHome, action: () => navigate('/seller') },
+    { label: 'My Products', icon: FiBox, action: () => navigate('/seller/products') },
+    { label: 'Add Product', icon: FiPlusSquare, action: () => navigate('/seller/products/new') },
+    { label: 'My Services', icon: FiBriefcase, action: () => null }
   ]
 
   const stats = [
@@ -289,10 +290,14 @@ function Seller() {
               </button>
             </div>
             <nav className="flex flex-col gap-1 p-4 text-sm">
-              {menuItems.map(({ label, icon: ItemIcon }) => (
+              {menuItems.map(({ label, icon: ItemIcon, action }) => (
                 <button
                   key={label}
                   type="button"
+                  onClick={() => {
+                    action?.()
+                    setIsSidebarOpen(false)
+                  }}
                   className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 px-4 py-3 text-left font-medium text-white/90 transition-transform transition-colors duration-200 hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/10 hover:text-white"
                 >
                   <span className="inline-flex items-center gap-2">
