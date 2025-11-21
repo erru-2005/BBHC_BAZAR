@@ -10,7 +10,8 @@ class User:
     """User model for authentication and user management"""
     
     def __init__(self, username, email, password_hash, first_name=None, 
-                 last_name=None, is_active=True, is_admin=False, 
+                 last_name=None, phone_number=None, address=None, 
+                 date_of_birth=None, is_active=True, is_admin=False, 
                  created_at=None, updated_at=None, _id=None):
         self._id = _id or ObjectId()
         self.username = username
@@ -18,6 +19,9 @@ class User:
         self.password_hash = password_hash
         self.first_name = first_name
         self.last_name = last_name
+        self.phone_number = phone_number
+        self.address = address
+        self.date_of_birth = date_of_birth
         self.is_active = is_active
         self.is_admin = is_admin
         self.created_at = created_at or datetime.utcnow()
@@ -46,6 +50,9 @@ class User:
             'email': self.email,
             'first_name': self.first_name,
             'last_name': self.last_name,
+            'phone_number': self.phone_number,
+            'address': self.address,
+            'date_of_birth': self.date_of_birth.isoformat() if isinstance(self.date_of_birth, datetime) else self.date_of_birth,
             'is_active': self.is_active,
             'is_admin': self.is_admin,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
@@ -64,6 +71,9 @@ class User:
             'password_hash': self.password_hash,
             'first_name': self.first_name,
             'last_name': self.last_name,
+            'phone_number': self.phone_number,
+            'address': self.address,
+            'date_of_birth': self.date_of_birth,
             'is_active': self.is_active,
             'is_admin': self.is_admin,
             'created_at': self.created_at,
@@ -89,6 +99,9 @@ class User:
             password_hash=bson_doc.get('password_hash'),
             first_name=bson_doc.get('first_name'),
             last_name=bson_doc.get('last_name'),
+            phone_number=bson_doc.get('phone_number'),
+            address=bson_doc.get('address'),
+            date_of_birth=bson_doc.get('date_of_birth'),
             is_active=bson_doc.get('is_active', True),
             is_admin=bson_doc.get('is_admin', False),
             created_at=bson_doc.get('created_at'),

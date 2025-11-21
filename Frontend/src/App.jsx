@@ -3,6 +3,11 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import {
   Home,
   PublicProductDetail,
+  PhoneNumberEntry,
+  OTPVerification,
+  UserRegistration,
+  UserProfile,
+  UserOrders,
   Seller,
   Master,
   MasterProductDetail,
@@ -42,6 +47,25 @@ function SplashWrapper() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/user/phone-entry" element={<PhoneNumberEntry />} />
+      <Route path="/user/verify-otp" element={<OTPVerification />} />
+      <Route path="/user/register" element={<UserRegistration />} />
+      <Route
+        path="/user/profile"
+        element={
+          <ProtectedRoute requiredUserType="user">
+            <UserProfile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/orders"
+        element={
+          <ProtectedRoute requiredUserType="user">
+            <UserOrders />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/seller/login" element={<SellerLogin />} />
       <Route path="/master/login" element={<MasterLogin />} />
       <Route path="/product/:productId" element={<PublicProductDetail />} />

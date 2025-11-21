@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
 import { useSelector } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
 import { getCategories } from '../../../services/api'
 import { FaUser, FaMagnifyingGlass, FaLocationDot, FaBagShopping } from 'react-icons/fa6'
 
 function MainHeader({ onOpenMenu, children }) {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
-  const { isAuthenticated, user } = useSelector((state) => state.auth)
+  const { isAuthenticated, user, userType } = useSelector((state) => state.auth)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -50,17 +52,26 @@ function MainHeader({ onOpenMenu, children }) {
             <button className="hidden md:flex items-center gap-2 hover:text-amber-300 transition">
               <FaBagShopping className="w-5 h-5" />
             </button>
-            <button className="flex items-center gap-2 hover:text-amber-300 transition">
-              {isAuthenticated && user ? (
+            <button 
+              onClick={() => {
+                if (!isAuthenticated || !user || userType === 'seller' || userType === 'master') {
+                  navigate('/user/phone-entry')
+                } else {
+                  navigate('/user/profile')
+                }
+              }}
+              className="flex items-center gap-2 hover:text-amber-300 transition"
+            >
+              {isAuthenticated && user && userType !== 'seller' && userType !== 'master' ? (
                 <>
-                  <span className="text-white">{user.first_name || user.trade_id || user.username || 'User'}</span>
+                  <span className="text-white">{user.first_name || user.username || 'User'}</span>
                   <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white">
                     <FaUser className="w-4 h-4" />
                   </div>
                 </>
               ) : (
                 <>
-                  <span className="text-white">Sign in</span>
+                  <span className="text-white">SIGN IN</span>
                   <span className="text-white">{'>'}</span>
                   <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white">
                     <FaUser className="w-4 h-4" />

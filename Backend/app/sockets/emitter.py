@@ -29,7 +29,9 @@ def emit_product_event(event_name, product_dict):
         return
 
     # Broadcast to everyone (masters, sellers, public users)
-    socketio.emit(event_name, product_dict, broadcast=True)
+    # Note: newer python-socketio versions don't support `broadcast` kw arg on Server.emit.
+    # Emitting without a room/to argument sends to all connected clients.
+    socketio.emit(event_name, product_dict)
 
     seller_trade_id = product_dict.get('seller_trade_id')
     seller_id = product_dict.get('created_by_user_id')

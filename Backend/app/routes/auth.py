@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
 from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
+from app.services.user_service import UserService
 from app.utils.otp import OTPManager
 from app.utils.sms import SMSService
 from app.utils.device import DeviceTokenManager
@@ -456,11 +457,18 @@ def get_current_user():
             if not master:
                 return jsonify({'error': 'User not found'}), 404
             user_data = master.to_dict(include_password=False)
-        else:  # seller
+        elif user_type == 'seller':
             seller = SellerService.get_seller_by_id(current_user_id)
             if not seller:
                 return jsonify({'error': 'User not found'}), 404
             user_data = seller.to_dict(include_password=False)
+        elif user_type == 'user':
+            user = UserService.get_user_by_id(current_user_id)
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+            user_data = user.to_dict(include_password=False)
+        else:
+            return jsonify({'error': 'Invalid user type'}), 400
         
         return jsonify({
             'user': user_data,
@@ -469,3 +477,279 @@ def get_current_user():
         
     except Exception as e:
         return jsonify({'error': f'Failed to get user: {str(e)}'}), 500
+
+
+@auth_bp.route('/user/send-otp', methods=['POST'])
+def user_send_otp():
+    """
+    User phone login/registration - Step 1: Send OTP to phone number
+    Expects: { "phone_number": "..." }
+    Returns: { "message": "...", "otp_session_id": "...", "phone_number": "..." }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        phone_number = data.get('phone_number')
+        
+        if not phone_number:
+            return jsonify({'error': 'Phone number is required'}), 400
+        
+        # Clean phone number (remove spaces, dashes, etc.)
+        phone_number = ''.join(filter(str.isdigit, phone_number))
+        
+        if len(phone_number) < 10:
+            return jsonify({'error': 'Invalid phone number'}), 400
+        
+        # Check if user exists
+        user = UserService.get_user_by_phone_number(phone_number)
+        
+        # Generate OTP
+        otp = OTPManager.generate_otp()
+        
+        # Store OTP with user_type 'user' and user_id (if user exists) or None (for new registration)
+        user_id = str(user._id) if user else None
+        session_id = OTPManager.store_otp(user_id, 'user', otp, phone_number=phone_number)
+        
+        # Get masked phone number
+        masked_phone = mask_phone_number(phone_number)
+        
+        # Send OTP via SMS
+        sms_sent = False
+        sms_error = None
+        try:
+            success, message = SMSService.send_otp(phone_number, otp)
+            if success:
+                sms_sent = True
+            else:
+                sms_error = message
+        except Exception as e:
+            sms_error = str(e)
+        
+        response_data = {
+            'message': 'OTP sent successfully',
+            'otp_session_id': session_id,
+            'phone_number': masked_phone,
+            'user_exists': user is not None
+        }
+        
+        # Include SMS status in development mode for debugging
+        if current_app.config.get('DEBUG'):
+            response_data['sms_sent'] = sms_sent
+            if sms_error:
+                response_data['sms_error'] = sms_error
+            response_data['otp'] = otp  # Only in debug mode
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to send OTP: {str(e)}'}), 500
+
+
+@auth_bp.route('/user/verify-otp', methods=['POST'])
+def user_verify_otp():
+    """
+    User phone login/registration - Step 2: Verify OTP
+    Expects: { "otp_session_id": "...", "otp": "..." }
+    Returns: 
+        - If user exists: { "message": "Login successful", "access_token": "...", "user": {...}, "user_exists": true }
+        - If user doesn't exist: { "message": "OTP verified", "user_exists": false, "phone_number": "..." }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        session_id = data.get('otp_session_id')
+        otp = data.get('otp')
+        
+        if not session_id or not otp:
+            return jsonify({'error': 'OTP session ID and OTP are required'}), 400
+        
+        # Verify OTP
+        user_info, error = OTPManager.verify_otp(session_id, otp)
+        
+        if error:
+            return jsonify({'error': error}), 400
+        
+        # Get phone number from session
+        phone_number = user_info.get('phone_number')
+        if not phone_number:
+            return jsonify({'error': 'Phone number not found in session'}), 400
+        
+        # Check if user exists
+        user = UserService.get_user_by_phone_number(phone_number)
+        
+        if user:
+            # User exists - login
+            user_id = str(user._id)
+            user_data = user.to_dict(include_password=False)
+            
+            # Create JWT tokens
+            additional_claims = {
+                'user_type': 'user',
+                'user_id': user_id,
+                'username': user.username
+            }
+            
+            access_token = create_access_token(
+                identity=user_id,
+                additional_claims=additional_claims
+            )
+            refresh_token = create_refresh_token(
+                identity=user_id,
+                additional_claims=additional_claims
+            )
+            
+            return jsonify({
+                'message': 'Login successful',
+                'access_token': access_token,
+                'refresh_token': refresh_token,
+                'user': user_data,
+                'userType': 'user',
+                'user_exists': True
+            }), 200
+        else:
+            # User doesn't exist - return phone number for registration
+            masked_phone = mask_phone_number(phone_number)
+            return jsonify({
+                'message': 'OTP verified. Please complete registration.',
+                'user_exists': False,
+                'phone_number': phone_number,  # Return full phone for registration
+                'phone_number_masked': masked_phone
+            }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'OTP verification failed: {str(e)}'}), 500
+
+
+@auth_bp.route('/user/register', methods=['POST'])
+def user_register():
+    """
+    User registration after OTP verification
+    Expects: { "phone_number": "...", "first_name": "...", "last_name": "...", "address": "...", "date_of_birth": "DD-MM-YYYY", "email": "..." }
+    Returns: { "message": "Registration successful", "access_token": "...", "user": {...} }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        # Validate required fields
+        required_fields = ['phone_number', 'first_name', 'last_name', 'address', 'date_of_birth', 'email']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        
+        phone_number = data.get('phone_number')
+        
+        # Check if user already exists
+        existing_user = UserService.get_user_by_phone_number(phone_number)
+        if existing_user:
+            return jsonify({'error': 'User with this phone number already exists'}), 400
+        
+        # Check if email already exists
+        existing_email = UserService.get_user_by_email(data.get('email'))
+        if existing_email:
+            return jsonify({'error': 'User with this email already exists'}), 400
+        
+        # Create user
+        user_data = {
+            'phone_number': phone_number,
+            'first_name': data.get('first_name'),
+            'last_name': data.get('last_name'),
+            'address': data.get('address'),
+            'date_of_birth': data.get('date_of_birth'),
+            'email': data.get('email'),
+            'is_active': True
+        }
+        
+        user = UserService.create_user(user_data)
+        user_dict = user.to_dict(include_password=False)
+        
+        # Create JWT tokens
+        user_id = str(user._id)
+        additional_claims = {
+            'user_type': 'user',
+            'user_id': user_id,
+            'username': user.username
+        }
+        
+        access_token = create_access_token(
+            identity=user_id,
+            additional_claims=additional_claims
+        )
+        refresh_token = create_refresh_token(
+            identity=user_id,
+            additional_claims=additional_claims
+        )
+        
+        return jsonify({
+            'message': 'Registration successful',
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': user_dict,
+            'userType': 'user'
+        }), 201
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
+
+
+@auth_bp.route('/user/profile', methods=['GET', 'PUT'])
+@jwt_required()
+def user_profile():
+    """
+    Get or update authenticated user's profile (regular user type only)
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        user_type = claims.get('user_type')
+
+        if user_type != 'user':
+            return jsonify({'error': 'Only regular users can access this resource'}), 403
+
+        if request.method == 'GET':
+            user = UserService.get_user_by_id(current_user_id)
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+
+            return jsonify({
+                'user': user.to_dict(include_password=False)
+            }), 200
+
+        # Handle update
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+
+        allowed_fields = ['first_name', 'last_name', 'email', 'address', 'date_of_birth']
+        update_data = {k: v for k, v in data.items() if k in allowed_fields}
+
+        if 'date_of_birth' in update_data and isinstance(update_data['date_of_birth'], str):
+            try:
+                from datetime import datetime
+                update_data['date_of_birth'] = datetime.strptime(update_data['date_of_birth'], '%d-%m-%Y')
+            except ValueError:
+                return jsonify({'error': 'Invalid date_of_birth format. Use DD-MM-YYYY'}), 400
+
+        updated_user = UserService.update_user(current_user_id, update_data)
+        if not updated_user:
+            return jsonify({'error': 'Failed to update user'}), 400
+
+        return jsonify({
+            'message': 'Profile updated successfully',
+            'user': updated_user.to_dict(include_password=False)
+        }), 200
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to process request: {str(e)}'}), 500
