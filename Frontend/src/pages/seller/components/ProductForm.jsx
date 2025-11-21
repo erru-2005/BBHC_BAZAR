@@ -151,6 +151,12 @@ function SellerProductForm({ initialProduct = null }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+
+    // Ensure status area is visible when submitting (for validation or server errors)
+    const statusEl = document.getElementById('seller-product-status')
+    if (statusEl) {
+      statusEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
     if (!user) {
       setStatus({ type: 'error', message: 'You must be logged in to manage products.' })
       return
@@ -209,6 +215,10 @@ function SellerProductForm({ initialProduct = null }) {
       setTimeout(() => navigate('/seller/products'), 800)
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
+      const statusEl = document.getElementById('seller-product-status')
+      if (statusEl) {
+        statusEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
     } finally {
       setSubmitting(false)
     }
@@ -218,6 +228,7 @@ function SellerProductForm({ initialProduct = null }) {
     <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-gray-200 shadow-lg p-6 space-y-6">
       {status.type && status.message && (
         <div
+          id="seller-product-status"
           className={`rounded-xl border px-4 py-3 text-sm ${
             status.type === 'success'
               ? 'bg-green-50 border-green-200 text-green-700'

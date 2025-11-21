@@ -10,7 +10,11 @@ export const API_ENDPOINTS = {
     VERIFY_OTP: `${API_BASE_URL}/api/auth/verify-otp`,
     REGISTER: `${API_BASE_URL}/api/auth/register`,
     REFRESH: `${API_BASE_URL}/api/auth/refresh`,
-    ME: `${API_BASE_URL}/api/auth/me`
+    ME: `${API_BASE_URL}/api/auth/me`,
+    USER_SEND_OTP: `${API_BASE_URL}/api/auth/user/send-otp`,
+    USER_VERIFY_OTP: `${API_BASE_URL}/api/auth/user/verify-otp`,
+    USER_REGISTER: `${API_BASE_URL}/api/auth/user/register`,
+    USER_PROFILE: `${API_BASE_URL}/api/auth/user/profile`
   },
   API: {
     REGISTER_MASTER: `${API_BASE_URL}/api/register_master`,

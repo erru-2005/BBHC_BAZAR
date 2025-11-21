@@ -272,6 +272,108 @@ export const getCurrentUser = async () => {
 }
 
 /**
+ * Send OTP to user phone number
+ * @param {string} phoneNumber - Phone number
+ * @returns {Promise} Response with OTP session ID
+ */
+export const sendUserOTP = async (phoneNumber) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.USER_SEND_OTP, {
+      phone_number: phoneNumber
+    })
+
+    return {
+      otp_session_id: response.otp_session_id,
+      phone_number: response.phone_number,
+      user_exists: response.user_exists,
+      message: response.message,
+      otp: response.otp // Only in debug mode
+    }
+  } catch (error) {
+    throw new Error(error.response?.data?.error || error.message || 'Failed to send OTP')
+  }
+}
+
+/**
+ * Verify OTP for user phone login/registration
+ * @param {string} otpSessionId - OTP session ID
+ * @param {string} otp - OTP code
+ * @returns {Promise} Response with user data if exists, or registration info if not
+ */
+export const verifyUserOTP = async (otpSessionId, otp) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.USER_VERIFY_OTP, {
+      otp_session_id: otpSessionId,
+      otp: otp
+    })
+
+    return {
+      user_exists: response.user_exists,
+      user: response.user,
+      token: response.access_token,
+      refreshToken: response.refresh_token,
+      userType: response.userType || 'user',
+      phone_number: response.phone_number,
+      phone_number_masked: response.phone_number_masked,
+      message: response.message
+    }
+  } catch (error) {
+    throw new Error(error.response?.data?.error || error.message || 'OTP verification failed')
+  }
+}
+
+/**
+ * Register new user after OTP verification
+ * @param {object} userData - User registration data
+ * @returns {Promise} Registration response
+ */
+export const registerUserPhone = async (userData) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.USER_REGISTER, userData)
+
+    return {
+      user: response.user,
+      token: response.access_token,
+      refreshToken: response.refresh_token,
+      userType: response.userType || 'user',
+      message: response.message
+    }
+  } catch (error) {
+    throw new Error(error.response?.data?.error || error.message || 'Registration failed')
+  }
+}
+
+/**
+ * Get authenticated user's profile
+ * @returns {Promise} User profile data
+ */
+export const getUserProfile = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.AUTH.USER_PROFILE)
+    return response.user
+  } catch (error) {
+    throw new Error(error.response?.data?.error || error.message || 'Failed to fetch profile')
+  }
+}
+
+/**
+ * Update authenticated user's profile
+ * @param {object} profileData - Fields to update
+ * @returns {Promise} Updated user data
+ */
+export const updateUserProfile = async (profileData) => {
+  try {
+    const response = await apiClient.put(API_ENDPOINTS.AUTH.USER_PROFILE, profileData)
+    return {
+      user: response.user,
+      message: response.message
+    }
+  } catch (error) {
+    throw new Error(error.response?.data?.error || error.message || 'Failed to update profile')
+  }
+}
+
+/**
  * Get all sellers
  * @returns {Promise} List of sellers
  */

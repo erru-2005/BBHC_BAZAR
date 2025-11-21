@@ -38,6 +38,15 @@ class UserService:
             return None
     
     @staticmethod
+    def get_user_by_phone_number(phone_number):
+        """Get user by phone number"""
+        try:
+            user_doc = mongo.db.users.find_one({'phone_number': phone_number})
+            return User.from_bson(user_doc) if user_doc else None
+        except Exception:
+            return None
+    
+    @staticmethod
     def create_user(user_data):
         """Create a new user"""
         try:
@@ -45,11 +54,39 @@ class UserService:
             if 'password' in user_data:
                 user_data['password_hash'] = User.set_password(user_data.pop('password'))
             
-            # Validate required fields
-            required_fields = ['username', 'email', 'password_hash']
-            for field in required_fields:
-                if field not in user_data:
-                    raise ValueError(f"Missing required field: {field}")
+            # For phone-based registration, password is optional
+            # Generate a random password if not provided (for phone-based auth)
+            if 'password_hash' not in user_data:
+                import secrets
+                random_password = secrets.token_urlsafe(32)
+                user_data['password_hash'] = User.set_password(random_password)
+            
+            # Validate required fields - email and username are required for traditional registration
+            # For phone-based registration, phone_number is required instead
+            if 'phone_number' in user_data and user_data['phone_number']:
+                # Phone-based registration
+                if not user_data.get('phone_number'):
+                    raise ValueError("Phone number is required")
+                # Generate username from phone if not provided
+                if not user_data.get('username'):
+                    user_data['username'] = f"user_{user_data['phone_number']}"
+                # Generate email from phone if not provided
+                if not user_data.get('email'):
+                    user_data['email'] = f"{user_data['phone_number']}@bbhcbazaar.local"
+            else:
+                # Traditional registration
+                required_fields = ['username', 'email', 'password_hash']
+                for field in required_fields:
+                    if field not in user_data:
+                        raise ValueError(f"Missing required field: {field}")
+            
+            # Parse date_of_birth if provided as string (DD-MM-YYYY)
+            if 'date_of_birth' in user_data and isinstance(user_data['date_of_birth'], str):
+                try:
+                    from datetime import datetime
+                    user_data['date_of_birth'] = datetime.strptime(user_data['date_of_birth'], '%d-%m-%Y')
+                except ValueError:
+                    raise ValueError("Invalid date_of_birth format. Use DD-MM-YYYY")
             
             # Create user instance
             user = User(
@@ -58,17 +95,24 @@ class UserService:
                 password_hash=user_data.get('password_hash'),
                 first_name=user_data.get('first_name'),
                 last_name=user_data.get('last_name'),
-                is_active=user_data.get('is_active', False),
+                phone_number=user_data.get('phone_number'),
+                address=user_data.get('address'),
+                date_of_birth=user_data.get('date_of_birth'),
+                is_active=user_data.get('is_active', True),
                 is_admin=user_data.get('is_admin', False),
                 created_at=user_data.get('created_at')
             )
             
-            # Check if email or username already exists
-            if UserService.get_user_by_email(user.email):
+            # Check if email or username already exists (only if provided)
+            if user.email and UserService.get_user_by_email(user.email):
                 raise ValueError("User with this email already exists")
             
-            if UserService.get_user_by_username(user.username):
+            if user.username and UserService.get_user_by_username(user.username):
                 raise ValueError("User with this username already exists")
+            
+            # Check if phone number already exists
+            if user.phone_number and UserService.get_user_by_phone_number(user.phone_number):
+                raise ValueError("User with this phone number already exists")
             
             # Store additional metadata in BSON
             user_bson = user.to_bson()
