@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, forwardRef } from 'react'
 import PropTypes from 'prop-types'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { getCategories } from '../../../services/api'
 import { FaUser, FaMagnifyingGlass, FaLocationDot, FaBagShopping } from 'react-icons/fa6'
 
-function MainHeader({ onOpenMenu, children }) {
+const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logoRef) {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const { isAuthenticated, user, userType } = useSelector((state) => state.auth)
@@ -33,7 +33,10 @@ function MainHeader({ onOpenMenu, children }) {
       <div className="w-full px-4 lg:px-8">
         <div className="flex items-center justify-between py-3 gap-4">
           <div className="flex items-center gap-3">
-            <div className="bg-white text-[#131921] font-black tracking-tight text-xl px-3 py-1 rounded-sm shadow">
+            <div 
+              ref={logoRef}
+              className="bg-white text-[#131921] font-black tracking-tight text-xl px-3 py-1 rounded-sm shadow"
+            >
               BBHC<span className="text-pink-500">Bazaar</span>
             </div>
           </div>
@@ -131,12 +134,14 @@ function MainHeader({ onOpenMenu, children }) {
       </div>
     </header>
   )
-}
+})
 
 MainHeader.propTypes = {
   onOpenMenu: PropTypes.func.isRequired,
   children: PropTypes.node
 }
+
+MainHeader.displayName = 'MainHeader'
 
 export default MainHeader
 

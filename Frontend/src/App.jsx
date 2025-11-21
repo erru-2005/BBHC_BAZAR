@@ -21,32 +21,52 @@ import {
 } from './pages'
 import ProtectedRoute from './components/ProtectedRoute'
 import SplashScreen from './components/SplashScreen'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 // Inner component to use router hooks
 function SplashWrapper() {
   const location = useLocation()
-  const [showSplash, setShowSplash] = useState(location.pathname === '/')
-
+  const [showSplash, setShowSplash] = useState(() => {
+    // Only show splash on initial load to home page
+    const hasSeenSplash = sessionStorage.getItem('hasSeenSplash')
+    return location.pathname === '/' && !hasSeenSplash
+  })
+  const [showContent, setShowContent] = useState(!showSplash)
+  const headerLogoRef = useRef(null)
+  
   useEffect(() => {
     if (location.pathname === '/') {
-      setShowSplash(true)
+      const hasSeenSplash = sessionStorage.getItem('hasSeenSplash')
+      if (!hasSeenSplash) {
+        setShowSplash(true)
+        setShowContent(true) // Render content but keep it hidden
+      } else {
+        setShowSplash(false)
+        setShowContent(true)
+      }
     } else {
       setShowSplash(false)
+      setShowContent(true)
     }
   }, [location.pathname])
 
   const handleSplashComplete = () => {
+    sessionStorage.setItem('hasSeenSplash', 'true')
     setShowSplash(false)
   }
 
-  if (showSplash) {
-    return <SplashScreen onComplete={handleSplashComplete} />
-  }
-
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
+    <>
+      {showSplash && (
+        <SplashScreen 
+          onComplete={handleSplashComplete} 
+          headerLogoRef={headerLogoRef}
+        />
+      )}
+      {showContent && (
+        <div style={{ opacity: showSplash ? 0 : 1, transition: 'opacity 0.3s', pointerEvents: showSplash ? 'none' : 'auto' }}>
+          <Routes>
+            <Route path="/" element={<Home headerLogoRef={headerLogoRef} />} />
       <Route path="/user/phone-entry" element={<PhoneNumberEntry />} />
       <Route path="/user/verify-otp" element={<OTPVerification />} />
       <Route path="/user/register" element={<UserRegistration />} />
@@ -126,8 +146,11 @@ function SplashWrapper() {
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+      )}
+    </>
   )
 }
 

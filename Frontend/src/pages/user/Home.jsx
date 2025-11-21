@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { useLocation } from 'react-router-dom'
 import MainHeader from './components/MainHeader'
 import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
@@ -11,14 +12,20 @@ import RecommendationRow from './components/RecommendationRow'
 import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
 import ProductShowcase from './components/ProductShowcase'
+import LogoAnimation from '../../components/LogoAnimation'
 import { setHomeProducts, setError, setLoading } from '../../store/dataSlice'
 import { getProducts } from '../../services/api'
 
 const circleLabels = ['Men', 'Women', 'Kids', 'Footwear', 'Accessories', 'Beauty']
 
-function Home() {
+function Home({ headerLogoRef: externalHeaderLogoRef }) {
   const dispatch = useDispatch()
+  const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showLogoAnimation, setShowLogoAnimation] = useState(false)
+  const internalHeaderLogoRef = useRef(null)
+  const headerLogoRef = externalHeaderLogoRef || internalHeaderLogoRef
+  const prevLocationRef = useRef(location.pathname)
 
   const { home, loading, error } = useSelector((state) => state.data)
   const homeData = home
@@ -31,6 +38,19 @@ function Home() {
     bottomNavItems,
     products
   } = homeData
+
+  // Detect navigation to home from another page
+  useEffect(() => {
+    const prevPath = prevLocationRef.current
+    const currentPath = location.pathname
+
+    // If navigating to home from another page (not initial load)
+    if (currentPath === '/' && prevPath !== '/' && prevPath !== '') {
+      setShowLogoAnimation(true)
+    }
+
+    prevLocationRef.current = currentPath
+  }, [location.pathname])
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -51,7 +71,13 @@ function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900">
-      <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
+      {showLogoAnimation && (
+        <LogoAnimation
+          headerLogoRef={headerLogoRef}
+          onComplete={() => setShowLogoAnimation(false)}
+        />
+      )}
+      <MainHeader ref={headerLogoRef} onOpenMenu={() => setMobileMenuOpen(true)}>
         <MobileSearchBar />
       </MainHeader>
 
