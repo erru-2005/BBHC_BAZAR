@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Skeleton from 'react-loading-skeleton'
+import 'react-loading-skeleton/dist/skeleton.css'
 import { deleteProduct, getProducts } from '../../../services/api'
 import { FaSyncAlt, FaTag } from 'react-icons/fa'
 import { FiEdit, FiTrash2 } from 'react-icons/fi'
 import useProductSocket from '../../../hooks/useProductSocket'
+
+const SKELETON_PLACEHOLDERS = Array.from({ length: 4 })
 
 const getImageSrc = (image) => {
   if (!image) return null
@@ -85,138 +89,187 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
       )}
 
       {loading && products.length === 0 ? (
-        <p className="text-sm text-gray-500">Loading products from server...</p>
+        <div className="space-y-4" role="status" aria-live="polite" aria-busy="true">
+          <p className="text-sm text-gray-500">Loading products from server...</p>
+          <div className="grid gap-5">
+            {SKELETON_PLACEHOLDERS.map((_, index) => (
+              <article
+                key={`product-skeleton-${index}`}
+                className="border border-gray-200 rounded-2xl p-4 flex flex-col gap-4"
+                aria-hidden="true"
+              >
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="w-full sm:w-32">
+                    <Skeleton height={160} borderRadius="0.75rem" />
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="min-w-0 space-y-2">
+                        <Skeleton width={70} height={10} />
+                        <Skeleton width="60%" height={20} />
+                        <Skeleton width="40%" height={12} />
+                      </div>
+                      <div className="flex items-center gap-2 self-start">
+                        <Skeleton width={40} height={40} borderRadius="0.75rem" />
+                        <Skeleton width={40} height={40} borderRadius="0.75rem" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Skeleton width={32} height={32} circle />
+                      <Skeleton width="35%" height={14} />
+                      <Skeleton width="20%" height={14} />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: 3 }).map((__, chipIndex) => (
+                        <Skeleton key={`chip-${chipIndex}`} width={70} height={20} borderRadius="9999px" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-baseline gap-3">
+                  <Skeleton width={140} height={28} />
+                  <Skeleton width={90} height={18} />
+                  <Skeleton width={60} height={18} />
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
       ) : null}
 
       {!loading && products.length === 0 ? (
         <p className="text-sm text-gray-500">No products have been added yet.</p>
       ) : null}
 
-      <div className="grid gap-5">
-        {products.map((product) => {
-          const productName = product.product_name || product.productName || 'Untitled product'
-          const createdBy = product.created_by || 'Unknown'
-          const createdAt = product.created_at || product.createdAt
-          const formattedCreatedAt = createdAt ? new Date(createdAt).toLocaleString() : 'N/A'
-          const thumbnail = product.thumbnail || product.media?.thumbnail
-          const gallery = product.gallery || product.media?.gallery || []
-          const points = product.points || []
-          const rawCategories = product.categories ?? []
-          const categories = Array.isArray(rawCategories)
-            ? rawCategories
-            : rawCategories
-            ? [rawCategories]
-            : []
-          const selling = Number(product.selling_price || product.price || 0)
-          const max = Number(product.max_price || product.mrp || selling)
-          const discount = max > selling ? Math.round(((max - selling) / max) * 100) : null
-          const sellerName =
-            product.seller_name ||
-            product.created_by ||
-            product.created_by_user_id ||
-            product.seller_trade_id ||
-            'Unknown seller'
-          const sellerTradeId = product.seller_trade_id || product.created_by_user_id || product.created_by || '—'
-          const quantityValue =
-            product.quantity ||
-            product.stock ||
-            product.available_quantity ||
-            product.inventory ||
-            0
-          const productId = product.id || product._id || productName
+      {products.length > 0 && (
+        <div className="grid gap-5">
+          {products.map((product) => {
+            const productName = product.product_name || product.productName || 'Untitled product'
+            const createdBy = product.created_by || 'Unknown'
+            const createdAt = product.created_at || product.createdAt
+            const formattedCreatedAt = createdAt ? new Date(createdAt).toLocaleString() : 'N/A'
+            const thumbnail = product.thumbnail || product.media?.thumbnail
+            const gallery = product.gallery || product.media?.gallery || []
+            const points = product.points || []
+            const rawCategories = product.categories ?? []
+            const categories = Array.isArray(rawCategories)
+              ? rawCategories
+              : rawCategories
+              ? [rawCategories]
+              : []
+            const selling = Number(product.selling_price || product.price || 0)
+            const max = Number(product.max_price || product.mrp || selling)
+            const discount = max > selling ? Math.round(((max - selling) / max) * 100) : null
+            const sellerName =
+              product.seller_name ||
+              product.created_by ||
+              product.created_by_user_id ||
+              product.seller_trade_id ||
+              'Unknown seller'
+            const sellerTradeId = product.seller_trade_id || product.created_by_user_id || product.created_by || '—'
+            const quantityValue =
+              product.quantity ||
+              product.stock ||
+              product.available_quantity ||
+              product.inventory ||
+              0
+            const productId = product.id || product._id || productName
 
-          return (
-            <article
-              key={productId}
-              className="border border-gray-200 rounded-2xl p-4 flex flex-col gap-4 hover:shadow-lg transition cursor-pointer"
-              onClick={() => navigate(`/master/products/${productId}`, { state: { product } })}
-            >
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="w-full sm:w-32 h-40 sm:h-28 bg-gray-50 border rounded-xl flex items-center justify-center overflow-hidden">
-                  {getImageSrc(thumbnail) ? (
-                    <img
-                      src={getImageSrc(thumbnail)}
-                      alt={`${productName} thumbnail`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs text-gray-400 text-center px-2">No image</span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 space-y-2">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-500 uppercase tracking-wider">Product</p>
-                      <h3 className="text-lg font-semibold text-gray-900 truncate">{productName}</h3>
-                      <p className="text-xs text-gray-500">Added by {createdBy} • {formattedCreatedAt}</p>
-                    </div>
-                    <div className="flex items-center gap-2 self-start">
-                      <button
-                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onEditProduct?.(product)
-                        }}
-                        aria-label={`Edit ${productName}`}
-                      >
-                        <FiEdit className="w-4 h-4 text-gray-700" />
-                      </button>
-                      <button
-                        className="p-2 rounded-lg bg-gray-100 hover:bg-red-50"
-                        onClick={(event) => handleDelete(event, product)}
-                        aria-label={`Delete ${productName}`}
-                      >
-                        <FiTrash2 className="w-4 h-4 text-red-600" />
-                      </button>
-                    </div>
+            return (
+              <article
+                key={productId}
+                className="border border-gray-200 rounded-2xl p-4 flex flex-col gap-4 hover:shadow-lg transition cursor-pointer"
+                onClick={() => navigate(`/master/products/${productId}`, { state: { product } })}
+              >
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="w-full sm:w-32 h-40 sm:h-28 bg-gray-50 border rounded-xl flex items-center justify-center overflow-hidden">
+                    {getImageSrc(thumbnail) ? (
+                      <img
+                        src={getImageSrc(thumbnail)}
+                        alt={`${productName} thumbnail`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400 text-center px-2">No image</span>
+                    )}
                   </div>
-
-                  <div className="text-sm text-gray-700 flex flex-wrap items-center gap-2">
-                    <span className="font-semibold">{sellerName}</span>
-                    <span className="text-gray-400">•</span>
-                    <span className="text-gray-500 text-xs uppercase">Trade ID: {sellerTradeId}</span>
-                    <span className="text-gray-400">•</span>
-                    <span className="text-gray-600 text-xs uppercase">Qty: {quantityValue}</span>
-                  </div>
-
-                  {categories.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {categories.slice(0, 3).map((category) => (
-                        <span
-                          key={`${productName}-${category}`}
-                          className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700 flex items-center gap-1"
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-500 uppercase tracking-wider">Product</p>
+                        <h3 className="text-lg font-semibold text-gray-900 truncate">{productName}</h3>
+                        <p className="text-xs text-gray-500">
+                          Added by {createdBy} • {formattedCreatedAt}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 self-start">
+                        <button
+                          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onEditProduct?.(product)
+                          }}
+                          aria-label={`Edit ${productName}`}
                         >
-                          <FaTag className="w-3 h-3" />
-                          {category}
-                        </span>
-                      ))}
-                      {categories.length > 3 && (
-                        <span className="px-2 py-0.5 text-xs rounded-full bg-gray-50 text-gray-500">
-                          +{categories.length - 3}
+                          <FiEdit className="w-4 h-4 text-gray-700" />
+                        </button>
+                        <button
+                          className="p-2 rounded-lg bg-gray-100 hover:bg-red-50"
+                          onClick={(event) => handleDelete(event, product)}
+                          aria-label={`Delete ${productName}`}
+                        >
+                          <FiTrash2 className="w-4 h-4 text-red-600" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="text-sm text-gray-700 flex flex-wrap items-center gap-2">
+                      <span className="font-semibold">{sellerName}</span>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-gray-500 text-xs uppercase">Trade ID: {sellerTradeId}</span>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-gray-600 text-xs uppercase">Qty: {quantityValue}</span>
+                    </div>
+
+                    {categories.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {categories.slice(0, 3).map((category) => (
+                          <span
+                            key={`${productName}-${category}`}
+                            className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700 flex items-center gap-1"
+                          >
+                            <FaTag className="w-3 h-3" />
+                            {category}
+                          </span>
+                        ))}
+                        {categories.length > 3 && (
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-gray-50 text-gray-500">
+                            +{categories.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-baseline gap-2 text-gray-900">
+                  <span className="text-2xl font-bold">₹{selling.toLocaleString('en-IN')}</span>
+                  {max > selling && (
+                    <>
+                      <span className="text-sm text-gray-500 line-through">₹{max.toLocaleString('en-IN')}</span>
+                      {discount && (
+                        <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                          {discount}% OFF
                         </span>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
-              </div>
-
-              <div className="flex flex-wrap items-baseline gap-2 text-gray-900">
-                <span className="text-2xl font-bold">₹{selling.toLocaleString('en-IN')}</span>
-                {max > selling && (
-                  <>
-                    <span className="text-sm text-gray-500 line-through">₹{max.toLocaleString('en-IN')}</span>
-                    {discount && (
-                      <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                        {discount}% OFF
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-            </article>
-          )
-        })}
-      </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

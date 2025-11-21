@@ -1,5 +1,15 @@
 import PropTypes from 'prop-types'
 import { useEffect } from 'react'
+import { FaStore, FaHandshake, FaBagShopping, FaUserLarge, FaHeart, FaRegCircle } from 'react-icons/fa6'
+
+// Reuse the same icons from MobileBottomNav
+const quickLinkIconMap = {
+  profile: FaUserLarge, // Maps to "me" icon from bottom nav
+  services: FaHandshake, // Maps to "service" icon from bottom nav
+  products: FaStore, // Maps to "product" icon from bottom nav
+  wishlist: FaHeart, // No direct match, using heart icon
+  bag: FaBagShopping // Maps to "bag" icon from bottom nav
+}
 
 function MobileMenu({ open, onClose, quickLinks, categories }) {
   useEffect(() => {
@@ -18,7 +28,7 @@ function MobileMenu({ open, onClose, quickLinks, categories }) {
   }
 
   return (
-    <div className="lg:hidden fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50">
       <div
         className="absolute inset-0 bg-black/50 transition-opacity duration-300"
         onClick={onClose}
@@ -40,15 +50,27 @@ function MobileMenu({ open, onClose, quickLinks, categories }) {
           <div className="px-4 py-3 border-b">
             <p className="text-xs uppercase text-gray-500 mb-2">Quick links</p>
             <div className="grid grid-cols-2 gap-3">
-              {quickLinks.map((link) => (
-                <button
-                  key={link.label}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 text-sm font-medium text-slate-800 hover:bg-amber-50 transition"
-                >
-                  <span className="text-lg">{link.icon}</span>
-                  {link.label}
-                </button>
-              ))}
+              {quickLinks.map((link) => {
+                const iconKey = typeof link.icon === 'string' ? link.icon.toLowerCase() : null
+                const IconComponent = iconKey ? quickLinkIconMap[iconKey] : null
+                return (
+                  <button
+                    key={link.label}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 text-sm font-medium text-slate-800 hover:bg-amber-50 transition"
+                  >
+                    <span className="text-lg text-amber-500">
+                      {IconComponent ? (
+                        <IconComponent className="w-5 h-5" />
+                      ) : link.icon ? (
+                        link.icon
+                      ) : (
+                        <FaRegCircle className="w-5 h-5 text-slate-400" />
+                      )}
+                    </span>
+                    {link.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
           <div className="px-4 py-3 border-b">
@@ -87,7 +109,7 @@ MobileMenu.propTypes = {
   quickLinks: PropTypes.arrayOf(
     PropTypes.shape({
       label: PropTypes.string.isRequired,
-      icon: PropTypes.string.isRequired
+      icon: PropTypes.oneOfType([PropTypes.string, PropTypes.node]).isRequired
     })
   ).isRequired,
   categories: PropTypes.arrayOf(

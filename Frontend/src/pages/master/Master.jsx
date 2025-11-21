@@ -11,7 +11,7 @@ import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList } from 'react-icons/fa'
+import { FaBox, FaThList, FaBars } from 'react-icons/fa'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
 import ListSellers from './components/ListSellers'
@@ -26,12 +26,8 @@ function Master() {
   const { user, token } = useSelector((state) => state.auth)
   const [editingProduct, setEditingProduct] = useState(null)
   const [productsRefreshKey, setProductsRefreshKey] = useState(0)
-  
-  // Initialize activeTab from localStorage or default to 'home'
-  const [activeTab, setActiveTab] = useState(() => {
-    const savedTab = localStorage.getItem('master_active_tab')
-    return savedTab || 'home'
-  })
+  const [activeTab, setActiveTab] = useState('home')
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   // Default tab order (Home always first, others can be reordered)
   const defaultTabs = [
@@ -136,18 +132,11 @@ function Master() {
     
     // Clear device token
     clearDeviceToken()
-    // Clear saved tab state
-    localStorage.removeItem('master_active_tab')
     // Dispatch logout action
     dispatch(logout())
     // Navigate to login page
     navigate('/master/login')
   }
-
-  // Save activeTab to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('master_active_tab', activeTab)
-  }, [activeTab])
 
   // Initialize socket connection on component mount
   useEffect(() => {
@@ -406,6 +395,11 @@ function Master() {
     setDragOverIndex(null)
   }
 
+  const handleTabSelection = (tabId) => {
+    setActiveTab(tabId)
+    setIsMenuOpen(false)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header with Integrated Tabs */}
@@ -457,6 +451,15 @@ function Master() {
               overflowY: 'hidden'
             }}
           >
+            <button
+              onClick={() => setIsMenuOpen(true)}
+              className="tab-button px-4 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 select-none bg-gray-100 text-gray-700 hover:bg-gray-200"
+              title="Open menu"
+              aria-label="Open tab menu"
+            >
+              <FaBars className="w-5 h-5" />
+            </button>
+
             {tabs.map((tab, index) => (
               <button
                 key={tab.id}
@@ -472,9 +475,8 @@ function Master() {
                 onTouchEnd={handleTouchEnd}
                 onTouchCancel={handleTouchCancel}
                 onClick={() => {
-                  // Don't trigger click if we just finished dragging
                   if (!isDragging && !longPressTimer) {
-                    setActiveTab(tab.id)
+                    handleTabSelection(tab.id)
                   }
                 }}
                 className={`tab-button px-5 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 select-none ${
@@ -554,6 +556,53 @@ function Master() {
           />
         )}
       </div>
+
+      {/* Right-side Menu */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIsMenuOpen(false)}
+          />
+          <div className="absolute inset-y-0 right-0 w-80 max-w-full bg-white shadow-2xl p-6 flex flex-col gap-4 transform transition-transform duration-300 translate-x-0">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Quick Navigation</h3>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="p-2 rounded-full hover:bg-gray-100"
+                aria-label="Close menu"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-gray-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 overflow-y-auto">
+              {tabs.map((tab) => (
+                <button
+                  key={`menu-${tab.id}`}
+                  onClick={() => handleTabSelection(tab.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-left transition ${
+                    activeTab === tab.id
+                      ? 'bg-gray-900 text-white shadow'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <tab.icon className="w-5 h-5" />
+                  <span className="font-medium">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

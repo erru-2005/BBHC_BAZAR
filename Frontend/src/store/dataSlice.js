@@ -104,11 +104,11 @@ const initialState = {
       }
     ],
     mobileQuickLinks: [
-      { label: 'Profile', icon: '👤' },
-      { label: 'Services', icon: '🛠️' },
-      { label: 'Products', icon: '🛍️' },
-      { label: 'Wishlist', icon: '❤️' },
-      { label: 'Bag', icon: '🛒' }
+      { label: 'Profile', icon: 'profile' },
+      { label: 'Services', icon: 'services' },
+      { label: 'Products', icon: 'products' },
+      { label: 'Wishlist', icon: 'wishlist' },
+      { label: 'Bag', icon: 'bag' }
     ],
     bottomNavItems: [
       { label: 'Product', icon: 'product' },
