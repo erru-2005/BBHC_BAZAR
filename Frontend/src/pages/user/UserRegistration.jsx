@@ -112,9 +112,12 @@ function UserRegistration() {
       // Show success popup
       setShowSuccess(true)
       
+      // Get returnTo from location state or default to home
+      const returnTo = location.state?.returnTo || '/'
+      
       // Redirect after 2 seconds
       setTimeout(() => {
-        navigate('/')
+        navigate(returnTo)
       }, 2000)
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.')

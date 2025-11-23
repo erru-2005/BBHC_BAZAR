@@ -27,7 +27,12 @@ export const API_ENDPOINTS = {
     PRODUCTS: `${API_BASE_URL}/api/products`,
     SELLER_PRODUCTS: `${API_BASE_URL}/api/seller/products`,
     SELLER_PRODUCT: (productId) => `${API_BASE_URL}/api/seller/products/${productId}`,
-    CATEGORIES: `${API_BASE_URL}/api/categories`
+    CATEGORIES: `${API_BASE_URL}/api/categories`,
+    PRODUCT_RATINGS: (productId) => `${API_BASE_URL}/api/products/${productId}/ratings`,
+    PRODUCT_RATING_STATS: (productId) => `${API_BASE_URL}/api/products/${productId}/ratings/stats`,
+    MY_RATING: (productId) => `${API_BASE_URL}/api/products/${productId}/ratings/me`,
+    RATING_CATEGORY: (category) => `${API_BASE_URL}/api/ratings/category/${category}`,
+    DELETE_RATING: (ratingId) => `${API_BASE_URL}/api/ratings/${ratingId}`
   }
 }
 

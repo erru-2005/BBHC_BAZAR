@@ -1,5 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import PropTypes from 'prop-types'
+import { useNavigate } from 'react-router-dom'
+import { useSelector } from 'react-redux'
+import { createOrUpdateRating, getMyRating, getProductRatingStats } from '../services/api'
 
 /**
  * StarRating Component - Gold Stars with Particle Effects
@@ -12,6 +15,7 @@ import PropTypes from 'prop-types'
  * - Particles appear from center of each star and fade out slowly
  * - Same card structure
  * - Satisfying and cool animations
+ * - Backend integration with authentication
  */
 function StarRating({
   totalStars = 5,
@@ -20,12 +24,45 @@ function StarRating({
   showRatingText = true,
   disabled = false,
   size = 'md',
-  className = ''
+  className = '',
+  productId = null, // Product ID for backend integration
+  showStats = false // Show rating statistics
 }) {
   const [rating, setRating] = useState(initialRating)
   const [hoveredStar, setHoveredStar] = useState(0)
   const [particles, setParticles] = useState([])
+  const [ratingStats, setRatingStats] = useState(null)
+  const [loading, setLoading] = useState(false)
   const starRefs = useRef({})
+  const navigate = useNavigate()
+  const { isAuthenticated, userType } = useSelector((state) => state.auth)
+
+  // Fetch user's existing rating and stats on mount
+  useEffect(() => {
+    if (productId) {
+      // Fetch rating stats (public, no auth required)
+      getProductRatingStats(productId)
+        .then(stats => {
+          setRatingStats(stats)
+        })
+        .catch(err => {
+          console.error('Error fetching rating stats:', err)
+        })
+
+      // Fetch user's rating if authenticated
+      if (isAuthenticated && userType === 'user') {
+        getMyRating(productId)
+          .then(userRating => {
+            if (userRating && userRating.rating) {
+              setRating(userRating.rating)
+            }
+          })
+          .catch(err => {
+            console.error('Error fetching user rating:', err)
+          })
+      }
+    }
+  }, [productId, isAuthenticated, userType])
 
   // Star level tooltips
   const starTooltips = {
@@ -108,14 +145,68 @@ function StarRating({
   /**
    * Handle star click
    * Animates stars one by one sequentially, then creates particles from all selected stars
+   * Checks authentication and redirects to login if needed
    */
   const handleStarClick = (starValue, event) => {
-    if (disabled) return
-    
+    if (disabled || loading) return
+
+    // Check authentication - only users can rate
+    if (!isAuthenticated || userType !== 'user') {
+      // Redirect to login page with return URL
+      const currentPath = window.location.pathname + window.location.search
+      navigate('/user/phone-entry', { 
+        state: { 
+          returnTo: currentPath,
+          message: 'Please login to rate this product'
+        } 
+      })
+      return
+    }
+
+    // Check if productId is provided
+    if (!productId) {
+      console.warn('Product ID not provided. Rating will not be saved.')
+      // Still allow local rating change for UI purposes
+      animateStars(starValue)
+      return
+    }
+
     // Reset rating first
     setRating(0)
+    setLoading(true)
     
     // Animate stars one by one sequentially
+    animateStars(starValue, async () => {
+      try {
+        // Save rating to backend
+        const savedRating = await createOrUpdateRating(productId, starValue)
+        
+        // Update local state
+        setRating(starValue)
+        
+        // Refresh stats
+        const stats = await getProductRatingStats(productId)
+        setRatingStats(stats)
+        
+        // Call callback if provided
+        if (onRatingChange) {
+          onRatingChange(starValue, savedRating)
+        }
+      } catch (error) {
+        console.error('Error saving rating:', error)
+        // Revert rating on error
+        setRating(0)
+        alert('Failed to save rating. Please try again.')
+      } finally {
+        setLoading(false)
+      }
+    })
+  }
+
+  /**
+   * Animate stars sequentially
+   */
+  const animateStars = (starValue, onComplete = null) => {
     for (let i = 1; i <= starValue; i++) {
       setTimeout(() => {
         setRating(i)
@@ -125,11 +216,10 @@ function StarRating({
           // Perfect timing: release particles right after last star fills
           setTimeout(() => {
             createParticles(starValue)
+            if (onComplete) {
+              onComplete()
+            }
           }, 100) // Reduced delay for smoother transition
-          
-          if (onRatingChange) {
-            onRatingChange(starValue)
-          }
         }
       }, (i - 1) * 150) // 150ms delay between each star
     }
@@ -315,13 +405,13 @@ function StarRating({
                         key={starValue}
                         ref={(el) => (starRefs.current[starValue] = el)}
                         type="button"
-                        disabled={disabled}
+                        disabled={disabled || loading}
                         onClick={(e) => handleStarClick(starValue, e)}
                         onMouseEnter={() => handleStarHover(starValue)}
                         className={`
-                          ${disabled ? 'cursor-default' : 'cursor-pointer'}
+                          ${disabled || loading ? 'cursor-default' : 'cursor-pointer'}
                           transition-all duration-300 ease-out
-                          ${!disabled && 'hover:scale-125 active:scale-110'}
+                          ${!disabled && !loading && 'hover:scale-125 active:scale-110'}
                           focus:outline-none
                           disabled:opacity-60
                           p-0.5 sm:p-1
@@ -329,7 +419,7 @@ function StarRating({
                           relative z-10
                         `}
                         aria-label={`Rate ${starValue} out of ${totalStars} stars`}
-                        title={!disabled ? starTooltips[starValue] || '' : ''}
+                        title={!disabled && !loading ? starTooltips[starValue] || '' : ''}
                       >
                         <GoldStar
                           starValue={starValue}
@@ -346,11 +436,20 @@ function StarRating({
                 {showRatingText && (
                   <div className="flex items-center gap-1 ml-1 sm:ml-2">
                     <span className={`${config.text} font-bold text-amber-600`}>
-                      {rating > 0 ? rating.toFixed(1) : '0.0'}
+                      {ratingStats?.average_rating 
+                        ? ratingStats.average_rating.toFixed(1) 
+                        : rating > 0 
+                        ? rating.toFixed(1) 
+                        : '0.0'}
                     </span>
                     <span className={`${config.text} font-normal text-gray-400`}>
                       / {totalStars}
                     </span>
+                    {ratingStats && ratingStats.total_ratings > 0 && (
+                      <span className={`${config.text} font-normal text-gray-500 ml-1`}>
+                        ({ratingStats.total_ratings})
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -376,7 +475,9 @@ StarRating.propTypes = {
   showRatingText: PropTypes.bool,
   disabled: PropTypes.bool,
   size: PropTypes.oneOf(['sm', 'md', 'lg']),
-  className: PropTypes.string
+  className: PropTypes.string,
+  productId: PropTypes.string,
+  showStats: PropTypes.bool
 }
 
 export default StarRating

@@ -600,3 +600,100 @@ export const refreshToken = async (refreshToken) => {
   }
 }
 
+/**
+ * Create or update a product rating
+ * @param {string} productId - Product ID
+ * @param {number} rating - Rating value (1-5)
+ * @param {string} reviewText - Optional review text
+ * @returns {Promise} Rating object
+ */
+export const createOrUpdateRating = async (productId, rating, reviewText = null) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.PRODUCT_RATINGS(productId), {
+      rating,
+      review_text: reviewText
+    })
+    return response.rating
+  } catch (error) {
+    throw new Error(error.message || 'Failed to save rating')
+  }
+}
+
+/**
+ * Get current user's rating for a product
+ * @param {string} productId - Product ID
+ * @returns {Promise} Rating object or null
+ */
+export const getMyRating = async (productId) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.MY_RATING(productId))
+    return response.rating
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch rating')
+  }
+}
+
+/**
+ * Get all ratings for a product
+ * @param {string} productId - Product ID
+ * @param {number} limit - Limit results
+ * @param {number} skip - Skip results
+ * @returns {Promise} Array of ratings
+ */
+export const getProductRatings = async (productId, limit = null, skip = 0) => {
+  try {
+    const params = { skip }
+    if (limit) params.limit = limit
+    
+    const response = await apiClient.get(API_ENDPOINTS.API.PRODUCT_RATINGS(productId), { params })
+    return response.ratings
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch ratings')
+  }
+}
+
+/**
+ * Get rating statistics for a product
+ * @param {string} productId - Product ID
+ * @returns {Promise} Rating statistics
+ */
+export const getProductRatingStats = async (productId) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.PRODUCT_RATING_STATS(productId))
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch rating stats')
+  }
+}
+
+/**
+ * Get products by rating category
+ * @param {string} category - Rating category (1_star, 2_star, 3_star, 4_star, 5_star)
+ * @param {number} limit - Limit results
+ * @param {number} skip - Skip results
+ * @returns {Promise} Array of product IDs
+ */
+export const getProductsByRatingCategory = async (category, limit = 20, skip = 0) => {
+  try {
+    const params = { limit, skip }
+    const response = await apiClient.get(API_ENDPOINTS.API.RATING_CATEGORY(category), { params })
+    return response.product_ids
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch products')
+  }
+}
+
+/**
+ * Delete a rating
+ * @param {string} ratingId - Rating ID
+ * @returns {Promise} Success message
+ */
+export const deleteRating = async (ratingId) => {
+  try {
+    const response = await apiClient.delete(API_ENDPOINTS.API.DELETE_RATING(ratingId))
+    return response.message
+  } catch (error) {
+    throw new Error(error.message || 'Failed to delete rating')
+  }
+}
+

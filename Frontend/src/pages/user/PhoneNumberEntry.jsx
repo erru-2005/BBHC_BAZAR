@@ -1,13 +1,18 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { sendUserOTP } from '../../services/api'
 import { FaPhone, FaArrowLeft } from 'react-icons/fa6'
 
 function PhoneNumberEntry() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [phoneNumber, setPhoneNumber] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  
+  // Get returnTo URL from location state
+  const returnTo = location.state?.returnTo || '/'
+  const message = location.state?.message
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -21,12 +26,13 @@ function PhoneNumberEntry() {
     setLoading(true)
     try {
       const response = await sendUserOTP(phoneNumber)
-      // Navigate to OTP verification page with session ID and phone number
+      // Navigate to OTP verification page with session ID, phone number, and returnTo
       navigate('/user/verify-otp', {
         state: {
           otpSessionId: response.otp_session_id,
           phoneNumber: phoneNumber,
-          phoneNumberMasked: response.phone_number
+          phoneNumberMasked: response.phone_number,
+          returnTo: returnTo
         }
       })
     } catch (err) {
@@ -60,6 +66,9 @@ function PhoneNumberEntry() {
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">Enter Your Phone Number</h1>
             <p className="text-white/70">We'll send you a verification code</p>
+            {message && (
+              <p className="text-pink-400 mt-2 text-sm">{message}</p>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

@@ -17,6 +17,7 @@ function OTPVerification() {
   const [otpSessionId, setOtpSessionId] = useState(null)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [phoneNumberMasked, setPhoneNumberMasked] = useState('')
+  const [returnTo, setReturnTo] = useState('/')
 
   useEffect(() => {
     // Get data from navigation state
@@ -24,6 +25,7 @@ function OTPVerification() {
       setOtpSessionId(location.state.otpSessionId)
       setPhoneNumber(location.state.phoneNumber)
       setPhoneNumberMasked(location.state.phoneNumberMasked)
+      setReturnTo(location.state.returnTo || '/')
     } else {
       // If no state, redirect back to phone entry
       navigate('/user/phone-entry')
@@ -86,14 +88,15 @@ function OTPVerification() {
           refresh_token: response.refreshToken
         }))
         
-        // Show success message and redirect
+        // Show success message and redirect to returnTo URL or home
         alert('Login successful!')
-        navigate('/')
+        navigate(returnTo || '/')
       } else {
         // User doesn't exist - navigate to registration
         navigate('/user/register', {
           state: {
-            phoneNumber: response.phone_number
+            phoneNumber: response.phone_number,
+            returnTo: returnTo
           }
         })
       }

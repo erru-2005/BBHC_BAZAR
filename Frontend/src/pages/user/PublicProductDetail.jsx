@@ -178,14 +178,15 @@ function PublicProductDetail() {
                 <StarRating
                   totalStars={5}
                   initialRating={userRating}
+                  productId={productId}
                   onRatingChange={(rating) => {
                     setUserRating(rating)
-                    // TODO: Save rating to backend
                     console.log('User rated:', rating)
                   }}
                   showRatingText={true}
                   disabled={false}
                   size="md"
+                  showStats={true}
                 />
               </div>
             </div>

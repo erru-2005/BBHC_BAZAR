@@ -1,13 +1,14 @@
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { FaArrowLeft, FaBox } from 'react-icons/fa6'
+import MobileBottomNav from './components/MobileBottomNav'
 
 function UserOrders() {
   const navigate = useNavigate()
   const { user } = useSelector((state) => state.auth)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#131921] via-[#1a2332] to-[#131921] p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#131921] via-[#1a2332] to-[#131921] p-4 sm:p-6 pb-24 lg:pb-6">
       <div className="max-w-4xl mx-auto space-y-6 text-white">
         <button
           onClick={() => navigate('/user/profile')}
@@ -39,6 +40,7 @@ function UserOrders() {
           </div>
         </div>
       </div>
+      <MobileBottomNav />
     </div>
   )
 }

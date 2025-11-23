@@ -91,8 +91,6 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
       <main className="max-w-7xl mx-auto px-4 lg:px-8 pb-24 lg:pb-0">
         <CircleCategoryScroller labels={circleLabels} />
         <SpotlightSlider slides={spotlightProducts} />
-        <CategoryGrid title="Shop by interest" actionLabel="View all" categories={quickCategories} />
-        <CuratedCollectionsGrid collections={curatedCollections} />
         {recommendationRows.map((row) => (
           <RecommendationRow key={row.id} title={row.title} products={row.products} />
         ))}
