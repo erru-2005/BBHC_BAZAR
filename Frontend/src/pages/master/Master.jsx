@@ -11,7 +11,7 @@ import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars } from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag } from 'react-icons/fa'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
 import ListSellers from './components/ListSellers'
@@ -19,6 +19,7 @@ import ListMasters from './components/ListMasters'
 import AddProduct from './components/AddProduct'
 import BlacklistedSellers from './components/BlacklistedSellers'
 import ListProducts from './components/ListProducts'
+import OrdersList from './components/OrdersList'
 
 function Master() {
   const dispatch = useDispatch()
@@ -32,6 +33,7 @@ function Master() {
   // Default tab order (Home always first, others can be reordered)
   const defaultTabs = [
     { id: 'home', label: 'Home', icon: HiHome },
+    { id: 'orders', label: 'Orders', icon: FaShoppingBag },
     { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
     { id: 'add-master', label: 'Add Master', icon: IoMdPersonAdd },
     { id: 'add-product', label: 'Add Product', icon: FaBox },
@@ -443,7 +445,7 @@ function Master() {
           {/* Tabs Navigation - Integrated with Header */}
           <div 
             ref={tabsContainerRef}
-            className="flex items-center gap-2 overflow-x-auto pb-3"
+            className="flex items-center gap-2 overflow-x-auto pb-3 relative"
             style={{ 
               WebkitOverflowScrolling: 'touch',
               scrollbarWidth: 'none',
@@ -453,11 +455,11 @@ function Master() {
           >
             <button
               onClick={() => setIsMenuOpen(true)}
-              className="tab-button px-4 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 select-none bg-gray-100 text-gray-700 hover:bg-gray-200"
+              className="tab-button px-3 sm:px-4 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center justify-center gap-2 select-none bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 flex-shrink-0 z-10 min-w-[44px] min-h-[44px]"
               title="Open menu"
               aria-label="Open tab menu"
             >
-              <FaBars className="w-5 h-5" />
+              <FaBars className="w-5 h-5 flex-shrink-0 text-gray-700" />
             </button>
 
             {tabs.map((tab, index) => (
@@ -503,10 +505,10 @@ function Master() {
                 title={tab.id === 'home' ? 'Home (Fixed)' : 'Long press and drag to reorder'}
               >
                 {tab.id === 'home' ? (
-                  <tab.icon className="w-5 h-5" />
+                  <tab.icon className="w-5 h-5 flex-shrink-0" />
                 ) : (
                   <>
-                    <tab.icon className="w-5 h-5" />
+                    <tab.icon className="w-5 h-5 flex-shrink-0" />
                     <span>{tab.label}</span>
                   </>
                 )}
@@ -555,6 +557,8 @@ function Master() {
             }}
           />
         )}
+
+        {activeTab === 'orders' && <OrdersList />}
       </div>
 
       {/* Right-side Menu */}

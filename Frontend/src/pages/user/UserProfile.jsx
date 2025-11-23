@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
+import { FaLocationDot, FaCalendarDays, FaBoxOpen, FaArrowLeft } from 'react-icons/fa6'
+import { FaUserCircle, FaPhone, FaEnvelope, FaRegSave, FaSignOutAlt } from 'react-icons/fa'
 import { getUserProfile, updateUserProfile } from '../../services/api'
 import { setUser, logout } from '../../store/authSlice'
-import { FaLocationDot, FaCalendarDays, FaBoxOpen } from 'react-icons/fa6'
-import { FaUserCircle, FaPhone, FaEnvelope, FaRegSave, FaSignOutAlt } from 'react-icons/fa'
 import MobileBottomNav from './components/MobileBottomNav'
 
 function formatDate(value) {
@@ -160,10 +160,21 @@ function UserProfile() {
   return (
     <div className="min-h-screen bg-white text-gray-900 py-8 px-4 pb-24 lg:pb-8">
       <div className="max-w-5xl mx-auto space-y-10">
+        {/* Navigation Header */}
+        <div className="flex items-center gap-4 mb-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-amber-700 hover:text-amber-800 transition-colors"
+          >
+            <FaArrowLeft className="w-5 h-5" />
+            <span className="font-medium">Back</span>
+          </button>
+        </div>
+
         <section className="space-y-8 border-b border-gray-200 pb-8">
           <div className="flex flex-col lg:flex-row items-center gap-8">
             <div className="text-center lg:text-left">
-              <FaUserCircle className="w-24 h-24 text-black mx-auto lg:mx-0" />
+              <FaUserCircle className="w-24 h-24 text-amber-700 mx-auto lg:mx-0" />
               <h1 className="text-3xl font-semibold tracking-tight mt-4 text-black">
                 {profile.first_name || user?.first_name} {profile.last_name || user?.last_name}
               </h1>
@@ -171,21 +182,21 @@ function UserProfile() {
             </div>
             <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50">
-                <FaPhone className="w-5 h-5 text-black" />
+                <FaPhone className="w-5 h-5 text-amber-700" />
                 <div>
                   <p className="text-xs uppercase tracking-widest text-gray-500">Phone</p>
                   <p className="font-semibold text-black">{profile.phone_number || user?.phone_number}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50">
-                <FaCalendarDays className="w-5 h-5 text-black" />
+                <FaCalendarDays className="w-5 h-5 text-amber-700" />
                 <div>
                   <p className="text-xs uppercase tracking-widest text-gray-500">Member Since</p>
                   <p className="font-semibold text-black">{formatDate(user?.created_at)}</p>
                 </div>
               </div>
               <div className="sm:col-span-2 flex items-start gap-3 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50">
-                <FaLocationDot className="w-5 h-5 text-black mt-1" />
+                <FaLocationDot className="w-5 h-5 text-amber-700 mt-1" />
                 <div>
                   <p className="text-xs uppercase tracking-widest text-gray-500">Address</p>
                   <p className="font-semibold text-black">{profile.address || 'Not provided'}</p>
@@ -199,7 +210,7 @@ function UserProfile() {
               onClick={() => navigate('/user/orders')}
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 border border-amber-400 text-black font-semibold py-3 hover:bg-amber-500 transition"
             >
-              <FaBoxOpen className="text-black" />
+              <FaBoxOpen className="text-amber-700" />
               View Orders
             </button>
             <button
@@ -239,7 +250,7 @@ function UserProfile() {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <div className="flex items-start gap-3 flex-1">
-                      <FieldIcon className="text-black mt-1" />
+                      <FieldIcon className="text-amber-700 mt-1" />
                       <div className="flex-1">
                         <p className="text-xs uppercase tracking-widest text-gray-500">{field.label}</p>
                         {!isEditing ? (

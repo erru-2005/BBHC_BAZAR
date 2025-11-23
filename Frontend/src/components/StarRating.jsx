@@ -34,6 +34,7 @@ function StarRating({
   const [ratingStats, setRatingStats] = useState(null)
   const [loading, setLoading] = useState(false)
   const starRefs = useRef({})
+  const containerRef = useRef(null)
   const navigate = useNavigate()
   const { isAuthenticated, userType } = useSelector((state) => state.auth)
 
@@ -50,7 +51,9 @@ function StarRating({
         })
 
       // Fetch user's rating if authenticated
-      if (isAuthenticated && userType === 'user') {
+      // Check both Redux state and localStorage token
+      const hasToken = localStorage.getItem('token')
+      if ((isAuthenticated && userType === 'user') || hasToken) {
         getMyRating(productId)
           .then(userRating => {
             if (userRating && userRating.rating) {
@@ -58,7 +61,12 @@ function StarRating({
             }
           })
           .catch(err => {
-            console.error('Error fetching user rating:', err)
+            // Only log if it's not a 401 (which will be handled by refresh)
+            // or if refresh also failed (user needs to login)
+            if (!err.message?.includes('Authorization token is missing') && 
+                !err.message?.includes('Session expired')) {
+              console.error('Error fetching user rating:', err)
+            }
           })
       }
     }
@@ -103,15 +111,23 @@ function StarRating({
   // Create particle effect from all selected stars
   const createParticles = (selectedRating) => {
     const newParticles = []
+    const container = containerRef.current
+    if (!container) return
+
+    // Get container's position relative to document
+    const containerRect = container.getBoundingClientRect()
 
     // Create particles from all selected stars (1 to selectedRating)
     for (let starValue = 1; starValue <= selectedRating; starValue++) {
       const starElement = starRefs.current[starValue]
       if (!starElement) continue
 
-      const rect = starElement.getBoundingClientRect()
-      const centerX = rect.left + rect.width / 2
-      const centerY = rect.top + rect.height / 2
+      // Get star position relative to viewport
+      const starRect = starElement.getBoundingClientRect()
+      
+      // Calculate position relative to container (not viewport)
+      const centerX = starRect.left - containerRect.left + starRect.width / 2
+      const centerY = starRect.top - containerRect.top + starRect.height / 2
 
       const particleCount = 6 // Small stars per star
       const baseDelay = (starValue - 1) * 0.08 // Smoother stagger delay for each star
@@ -313,6 +329,7 @@ function StarRating({
   /**
    * Small Particle Star Component
    * Tiny gold stars that appear from center of selected stars and fade out slowly
+   * Positioned absolutely relative to container to stay fixed during scroll
    */
   const ParticleStar = ({ particle }) => {
     const endX = particle.endX
@@ -323,7 +340,7 @@ function StarRating({
     return (
       <div
         key={particle.id}
-        className="fixed pointer-events-none"
+        className="absolute pointer-events-none"
         style={{
           left: `${particle.x}px`,
           top: `${particle.y}px`,
@@ -378,13 +395,15 @@ function StarRating({
 
   return (
     <>
-      {/* Particle effects */}
-      {particles.map((particle) => (
-        <ParticleStar key={particle.id} particle={particle} />
-      ))}
-
       <div className={`w-full ${className}`}>
-        <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 p-3 sm:p-4 md:p-5">
+        <div 
+          ref={containerRef}
+          className="bg-white rounded-lg sm:rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 p-3 sm:p-4 md:p-5 relative"
+        >
+          {/* Particle effects - positioned relative to container */}
+          {particles.map((particle) => (
+            <ParticleStar key={particle.id} particle={particle} />
+          ))}
           <div className="flex flex-col items-center sm:items-start gap-3 sm:gap-4">
             {/* Stars Section - Centered on mobile, left-aligned on desktop */}
             <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-4 w-full">

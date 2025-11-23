@@ -439,6 +439,41 @@ def verify_otp():
         return jsonify({'error': f'OTP verification failed: {str(e)}'}), 500
 
 
+@auth_bp.route('/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh():
+    """
+    Refresh access token using refresh token
+    Returns: { "access_token": "..." }
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        
+        # Get user type from claims
+        user_type = claims.get('user_type', 'user')
+        username = claims.get('username', '')
+        
+        # Create new access token with same claims
+        additional_claims = {
+            'user_type': user_type,
+            'user_id': current_user_id,
+            'username': username
+        }
+        
+        new_access_token = create_access_token(
+            identity=current_user_id,
+            additional_claims=additional_claims
+        )
+        
+        return jsonify({
+            'access_token': new_access_token
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Token refresh failed: {str(e)}'}), 500
+
+
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_current_user():

@@ -1,0 +1,562 @@
+/**
+ * Orders List Component for Master Dashboard
+ * Features: Real-time updates, search, filters, export, accept/reject
+ */
+import { useState, useEffect, useRef } from 'react'
+import { getSocket } from '../../../utils/socket'
+import { FaSearch, FaFileExcel, FaFilePdf, FaCheckCircle, FaTimesCircle, FaEye, FaFilter } from 'react-icons/fa'
+import { motion, AnimatePresence } from 'framer-motion'
+
+// Mock data structure - replace with actual API calls
+const mockOrders = [
+  {
+    id: 'ORD001',
+    orderNumber: 'ORD-2024-001',
+    product: {
+      id: 'prod1',
+      name: 'Premium Product A',
+      image: 'https://via.placeholder.com/100',
+      price: 1299
+    },
+    seller: {
+      id: 'seller1',
+      tradeId: 'SELLER001',
+      name: 'Seller Name',
+      email: 'seller@example.com',
+      phone: '+1234567890'
+    },
+    user: {
+      id: 'user1',
+      name: 'John Doe',
+      email: 'user@example.com',
+      phone: '+9876543210',
+      address: '123 Main St, City, State'
+    },
+    status: 'pending',
+    quantity: 2,
+    totalAmount: 2598,
+    createdAt: new Date().toISOString(),
+    orderTime: new Date().toISOString()
+  }
+]
+
+function OrdersList() {
+  const [orders, setOrders] = useState([])
+  const [filteredOrders, setFilteredOrders] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedOrder, setSelectedOrder] = useState(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const socket = getSocket()
+
+  // Initialize orders
+  useEffect(() => {
+    // TODO: Fetch orders from API
+    setOrders(mockOrders)
+    setFilteredOrders(mockOrders)
+  }, [])
+
+  // Real-time order updates via Socket.IO
+  useEffect(() => {
+    if (!socket) return
+
+    const handleNewOrder = (orderData) => {
+      // Add new order to the top of the list
+      setOrders(prev => [orderData, ...prev])
+      
+      // Show animated notification
+      showNotification({
+        id: Date.now(),
+        type: 'new_order',
+        message: `New order received: ${orderData.orderNumber}`,
+        order: orderData
+      })
+    }
+
+    const handleOrderUpdate = (orderData) => {
+      setOrders(prev => 
+        prev.map(order => 
+          order.id === orderData.id ? orderData : order
+        )
+      )
+    }
+
+    socket.on('new_order', handleNewOrder)
+    socket.on('order_updated', handleOrderUpdate)
+
+    return () => {
+      socket.off('new_order', handleNewOrder)
+      socket.off('order_updated', handleOrderUpdate)
+    }
+  }, [socket])
+
+  // Filter and search orders
+  useEffect(() => {
+    let filtered = orders
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(order => order.status === statusFilter)
+    }
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(order =>
+        order.orderNumber.toLowerCase().includes(query) ||
+        order.product.name.toLowerCase().includes(query) ||
+        order.seller.name.toLowerCase().includes(query) ||
+        order.user.name.toLowerCase().includes(query)
+      )
+    }
+
+    // Sort by latest first
+    filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+    setFilteredOrders(filtered)
+  }, [orders, searchQuery, statusFilter])
+
+  // Show notification
+  const showNotification = (notification) => {
+    setNotifications(prev => [...prev, notification])
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== notification.id))
+    }, 5000)
+  }
+
+  // Handle order click
+  const handleOrderClick = (order) => {
+    setSelectedOrder(order)
+    setShowDetailModal(true)
+  }
+
+  // Handle accept order
+  const handleAcceptOrder = async (orderId) => {
+    try {
+      // TODO: API call to accept order
+      console.log('Accepting order:', orderId)
+      setOrders(prev =>
+        prev.map(order =>
+          order.id === orderId ? { ...order, status: 'accepted' } : order
+        )
+      )
+      setShowDetailModal(false)
+      showNotification({
+        id: Date.now(),
+        type: 'success',
+        message: 'Order accepted successfully'
+      })
+    } catch (error) {
+      console.error('Error accepting order:', error)
+      showNotification({
+        id: Date.now(),
+        type: 'error',
+        message: 'Failed to accept order'
+      })
+    }
+  }
+
+  // Handle reject order
+  const handleRejectOrder = async (orderId) => {
+    try {
+      // TODO: API call to reject order
+      console.log('Rejecting order:', orderId)
+      setOrders(prev =>
+        prev.map(order =>
+          order.id === orderId ? { ...order, status: 'rejected' } : order
+        )
+      )
+      setShowDetailModal(false)
+      showNotification({
+        id: Date.now(),
+        type: 'success',
+        message: 'Order rejected successfully'
+      })
+    } catch (error) {
+      console.error('Error rejecting order:', error)
+      showNotification({
+        id: Date.now(),
+        type: 'error',
+        message: 'Failed to reject order'
+      })
+    }
+  }
+
+  // Export to Excel
+  const handleExportExcel = () => {
+    // TODO: Implement Excel export
+    console.log('Exporting to Excel...')
+    showNotification({
+      id: Date.now(),
+      type: 'info',
+      message: 'Excel export started'
+    })
+  }
+
+  // Export to PDF
+  const handleExportPdf = () => {
+    // TODO: Implement PDF export
+    console.log('Exporting to PDF...')
+    showNotification({
+      id: Date.now(),
+      type: 'info',
+      message: 'PDF export started'
+    })
+  }
+
+  // Format date
+  const formatDate = (dateString) => {
+    const date = new Date(dateString)
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  // Get status badge color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'accepted':
+        return 'bg-green-100 text-green-800'
+      case 'rejected':
+        return 'bg-red-100 text-red-800'
+      case 'completed':
+        return 'bg-blue-100 text-blue-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  return (
+    <div className="w-full">
+      {/* Header with Search, Filters, and Export */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+          {/* Search Bar */}
+          <div className="flex-1 w-full lg:max-w-md">
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search orders, products, sellers, users..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Filters and Export Buttons */}
+          <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+            {/* Status Filter */}
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none pl-10 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white cursor-pointer"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="completed">Completed</option>
+              </select>
+              <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+            </div>
+
+            {/* Export Buttons */}
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              <FaFileExcel className="w-5 h-5" />
+              <span className="hidden sm:inline">Export Excel</span>
+            </button>
+            <button
+              onClick={handleExportPdf}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              <FaFilePdf className="w-5 h-5" />
+              <span className="hidden sm:inline">Export PDF</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Orders List */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Order #</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Product</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Seller</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="px-4 py-12 text-center text-gray-500">
+                    No orders found
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map((order) => (
+                  <tr
+                    key={order.id}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => handleOrderClick(order)}
+                  >
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{order.orderNumber}</div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={order.product.image}
+                          alt={order.product.name}
+                          className="w-12 h-12 rounded-lg object-cover"
+                        />
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{order.product.name}</div>
+                          <div className="text-xs text-gray-500">Qty: {order.quantity}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="text-sm text-gray-900">{order.seller.name}</div>
+                      <div className="text-xs text-gray-500">{order.seller.tradeId}</div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="text-sm text-gray-900">{order.user.name}</div>
+                      <div className="text-xs text-gray-500">{order.user.email}</div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm font-semibold text-gray-900">
+                        ₹{order.totalAmount.toLocaleString()}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(order.createdAt)}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOrderClick(order)
+                        }}
+                        className="text-amber-600 hover:text-amber-700 transition-colors"
+                        title="View Details"
+                      >
+                        <FaEye className="w-5 h-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Order Detail Modal */}
+      <AnimatePresence>
+        {showDetailModal && selectedOrder && (
+          <OrderDetailModal
+            order={selectedOrder}
+            onClose={() => setShowDetailModal(false)}
+            onAccept={handleAcceptOrder}
+            onReject={handleRejectOrder}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Animated Notifications */}
+      <NotificationContainer notifications={notifications} />
+    </div>
+  )
+}
+
+// Order Detail Modal Component
+function OrderDetailModal({ order, onClose, onAccept, onReject }) {
+  const formatDate = (dateString) => {
+    const date = new Date(dateString)
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+          <h2 className="text-2xl font-bold text-gray-900">Order Details</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Order Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="text-sm text-gray-500 mb-1">Order Number</div>
+              <div className="text-lg font-semibold text-gray-900">{order.orderNumber}</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="text-sm text-gray-500 mb-1">Order Time</div>
+              <div className="text-lg font-semibold text-gray-900">{formatDate(order.orderTime)}</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="text-sm text-gray-500 mb-1">Total Amount</div>
+              <div className="text-lg font-semibold text-gray-900">₹{order.totalAmount.toLocaleString()}</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="text-sm text-gray-500 mb-1">Status</div>
+              <div className="text-lg font-semibold text-gray-900 capitalize">{order.status}</div>
+            </div>
+          </div>
+
+          {/* Product Details */}
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Details</h3>
+            <div className="flex gap-4 bg-gray-50 rounded-lg p-4">
+              <img
+                src={order.product.image}
+                alt={order.product.name}
+                className="w-24 h-24 rounded-lg object-cover"
+              />
+              <div className="flex-1">
+                <div className="text-xl font-semibold text-gray-900 mb-2">{order.product.name}</div>
+                <div className="text-sm text-gray-600 mb-1">Product ID: {order.product.id}</div>
+                <div className="text-lg font-semibold text-amber-600">₹{order.product.price.toLocaleString()}</div>
+                <div className="text-sm text-gray-600 mt-2">Quantity: {order.quantity}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Seller Details */}
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Seller Details</h3>
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <div><span className="text-sm text-gray-500">Name:</span> <span className="font-medium text-gray-900">{order.seller.name}</span></div>
+              <div><span className="text-sm text-gray-500">Trade ID:</span> <span className="font-medium text-gray-900">{order.seller.tradeId}</span></div>
+              <div><span className="text-sm text-gray-500">Email:</span> <span className="font-medium text-gray-900">{order.seller.email}</span></div>
+              <div><span className="text-sm text-gray-500">Phone:</span> <span className="font-medium text-gray-900">{order.seller.phone}</span></div>
+            </div>
+          </div>
+
+          {/* User Details */}
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">User Details</h3>
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <div><span className="text-sm text-gray-500">Name:</span> <span className="font-medium text-gray-900">{order.user.name}</span></div>
+              <div><span className="text-sm text-gray-500">Email:</span> <span className="font-medium text-gray-900">{order.user.email}</span></div>
+              <div><span className="text-sm text-gray-500">Phone:</span> <span className="font-medium text-gray-900">{order.user.phone}</span></div>
+              <div><span className="text-sm text-gray-500">Address:</span> <span className="font-medium text-gray-900">{order.user.address}</span></div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          {order.status === 'pending' && (
+            <div className="border-t border-gray-200 pt-6 flex gap-4">
+              <button
+                onClick={() => onAccept(order.id)}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+              >
+                <FaCheckCircle className="w-5 h-5" />
+                Accept Order
+              </button>
+              <button
+                onClick={() => onReject(order.id)}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+              >
+                <FaTimesCircle className="w-5 h-5" />
+                Reject Order
+              </button>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// Notification Container Component
+function NotificationContainer({ notifications }) {
+  return (
+    <div className="fixed top-4 right-4 z-50 space-y-2">
+      <AnimatePresence>
+        {notifications.map((notification) => (
+          <motion.div
+            key={notification.id}
+            initial={{ x: 400, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 400, opacity: 0 }}
+            className={`min-w-[300px] max-w-md rounded-lg shadow-lg p-4 ${
+              notification.type === 'new_order' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white' :
+              notification.type === 'success' ? 'bg-green-500 text-white' :
+              notification.type === 'error' ? 'bg-red-500 text-white' :
+              'bg-blue-500 text-white'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <div className="font-semibold">{notification.message}</div>
+                {notification.order && (
+                  <div className="text-sm mt-1 opacity-90">
+                    Order: {notification.order.orderNumber}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+export default OrdersList
+

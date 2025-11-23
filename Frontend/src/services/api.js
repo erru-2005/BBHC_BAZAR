@@ -4,6 +4,8 @@
 import axios from 'axios'
 import { API_ENDPOINTS } from '../config/api'
 import { setDeviceToken } from '../utils/device'
+import { store } from '../store'
+import { setToken, logout } from '../store/authSlice'
 
 // Create axios instance
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:5000'
@@ -17,12 +19,15 @@ const apiClient = axios.create({
 // Add request interceptor to include token
 apiClient.interceptors.request.use(
   (config) => {
+    // Skip adding token if this is a refresh request (to avoid loops)
+    if (config.skipAuthRefresh) {
+      return config
+    }
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
-    } else {
-      console.warn('No token found in localStorage for authenticated request')
     }
+    // Removed warning - it's normal for public endpoints to not have tokens
     return config
   },
   (error) => {
@@ -30,7 +35,23 @@ apiClient.interceptors.request.use(
   }
 )
 
-// Add response interceptor for error handling
+// Track if we're currently refreshing to avoid multiple refresh attempts
+let isRefreshing = false
+let failedQueue = []
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error)
+    } else {
+      prom.resolve(token)
+    }
+  })
+  
+  failedQueue = []
+}
+
+// Add response interceptor for error handling and automatic token refresh
 apiClient.interceptors.response.use(
   (response) => {
     // Return the data, but also log for debugging
@@ -39,15 +60,94 @@ apiClient.interceptors.response.use(
     }
     return response.data
   },
-  (error) => {
-    // Handle 401 errors specifically
-    if (error.response?.status === 401) {
-      // Clear invalid token (only token stored in localStorage)
-      localStorage.removeItem('token')
-      localStorage.removeItem('refresh_token')
-      const message = error.response?.data?.error || 'Authentication failed. Please log in again.'
-      throw new Error(message)
+  async (error) => {
+    const originalRequest = error.config
+
+    // Handle 401 errors specifically - try to refresh token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Skip refresh for refresh endpoint itself to avoid infinite loop
+      if (originalRequest.url?.includes('/auth/refresh')) {
+        const message = error.response?.data?.error || 'Token refresh failed. Please log in again.'
+        throw new Error(message)
+      }
+
+      // If we're already refreshing, queue this request
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject })
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`
+          return apiClient(originalRequest)
+        }).catch(err => {
+          return Promise.reject(err)
+        })
+      }
+
+      originalRequest._retry = true
+      isRefreshing = true
+
+      const refreshToken = localStorage.getItem('refresh_token')
+      
+      // If no refresh token, logout immediately
+      if (!refreshToken) {
+        isRefreshing = false
+        processQueue(new Error('No refresh token available'), null)
+        localStorage.removeItem('token')
+        localStorage.removeItem('refresh_token')
+        store.dispatch(logout())
+        const message = error.response?.data?.error || 'Authentication failed. Please log in again.'
+        throw new Error(message)
+      }
+
+      try {
+        // Try to refresh the token (use axios directly to avoid interceptor loop)
+        const refreshResponse = await axios.post(
+          `${API_BASE_URL}/api/auth/refresh`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${refreshToken}`
+            }
+          }
+        )
+
+        const newAccessToken = refreshResponse.data.access_token
+        
+        if (!newAccessToken) {
+          throw new Error('No access token received from refresh endpoint')
+        }
+        
+        // Update stored token
+        localStorage.setItem('token', newAccessToken)
+        
+        // Update Redux store
+        store.dispatch(setToken(newAccessToken))
+
+        // Update the original request with new token
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+        
+        isRefreshing = false
+        processQueue(null, newAccessToken)
+
+        // Retry the original request
+        return apiClient(originalRequest)
+      } catch (refreshError) {
+        // Refresh failed - logout user
+        isRefreshing = false
+        processQueue(refreshError, null)
+        
+        localStorage.removeItem('token')
+        localStorage.removeItem('refresh_token')
+        
+        // Dispatch logout action
+        store.dispatch(logout())
+        
+        const message = refreshError.response?.data?.error || refreshError.message || 'Session expired. Please log in again.'
+        throw new Error(message)
+      }
     }
+
+    // For non-401 errors or if retry already attempted, throw normally
     const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Request failed'
     console.error('API Error:', error.response?.data || error.message)
     throw new Error(message)
