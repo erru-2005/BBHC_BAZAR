@@ -47,7 +47,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
                 <FaMagnifyingGlass className="text-gray-400 w-4 h-4" />
               </div>
               <input type="text" placeholder="Search BBHCBazaar" className="flex-1 px-4 py-2 text-gray-800 outline-none" />
-              <button className="px-4 bg-amber-400 hover:bg-amber-300 text-gray-900 font-semibold">Search</button>
+              <button className="px-4 bg-amber-700 hover:bg-amber-800 text-white font-semibold transition-colors">Search</button>
             </div>
           </div>
 
@@ -124,8 +124,8 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
               className="flex items-center gap-2 hover:text-white transition whitespace-nowrap overflow-x-auto"
             >
               <FaLocationDot className="text-pink-500 w-4 h-4 flex-shrink-0" />
-              <span className="text-xs text-gray-300">Delivering to</span>
-              <span className="font-semibold text-sm">BBHCBazaar Outlet, kundapura 576201</span>
+              <span className="text-xs text-gray-300 font-normal">Delivering to</span>
+              <span className="text-xs text-gray-200 font-medium">BBHCBazaar Outlet, Kundapura 576201</span>
             </a>
           </div>
         </div>

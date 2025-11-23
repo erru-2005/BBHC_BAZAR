@@ -1,15 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
-import { SplitText } from 'gsap/SplitText';
-
-// Register SplitText plugin
-if (typeof window !== 'undefined') {
-  try {
-gsap.registerPlugin(SplitText);
-  } catch (e) {
-    // Plugin already registered or not available
-  }
-}
 
 const SplashScreen = ({ onComplete, headerLogoRef }) => {
   const logoRef = useRef(null);
@@ -25,8 +15,6 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
     }
 
     const logoElement = logoRef.current;
-    let split = null;
-    let chars = [];
     let timeoutCount = 0;
     const maxTimeoutCount = 40; // Max 2 seconds wait (40 * 50ms)
 
@@ -37,10 +25,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
         if (timeoutCount >= maxTimeoutCount) {
           // Timeout: just fade out without animation
           const tl = gsap.timeline({
-      onComplete: () => {
-              if (split && split.revert) {
-                split.revert();
-              }
+            onComplete: () => {
               setIsAnimating(false);
               onComplete?.();
             }
@@ -68,15 +53,6 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
       const targetY = headerRect.top + headerRect.height / 2;
       const targetScale = Math.min(headerRect.width / initialRect.width, 1);
 
-      // Create SplitText for letter animation
-      try {
-        split = new SplitText(logoElement, { type: 'chars' });
-        chars = split.chars;
-      } catch (e) {
-        // If SplitText fails, use the element directly
-        chars = [logoElement];
-      }
-
       // Set initial position (center of screen)
       gsap.set(containerRef.current, {
         position: 'fixed',
@@ -87,51 +63,89 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
         zIndex: 9999
       });
 
+      // Logo is visible from start - add premium loading effect on the logo itself
+      gsap.set(logoElement, {
+        opacity: 1
+      });
+
+      // Make logo container relative for positioning
+      logoElement.style.position = 'relative';
+
+      // Create premium visible silver shimmer effect from bottom-left to top-right
+      const loadingOverlay = document.createElement('div');
+      loadingOverlay.className = 'premium-loading-effect';
+      const logoWidth = initialRect.width || 250;
+      const logoHeight = initialRect.height || 70;
+      
+      // Premium visible silver shimmer overlay - diagonal from bottom-left to top-right
+      loadingOverlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          135deg,
+          transparent 0%,
+          transparent 35%,
+          rgba(192, 192, 192, 0.6) 45%,
+          rgba(255, 255, 255, 0.8) 50%,
+          rgba(192, 192, 192, 0.6) 55%,
+          transparent 65%,
+          transparent 100%
+        );
+        background-size: 250% 250%;
+        background-position: 100% 100%;
+        border-radius: 0.25rem;
+        pointer-events: none;
+        z-index: 1;
+        mix-blend-mode: screen;
+      `;
+      
+      // Append loading overlay to logo
+      logoElement.appendChild(loadingOverlay);
+
       // Create animation timeline
       const tl = gsap.timeline({
         onComplete: () => {
-          if (split && split.revert) {
-            split.revert();
+          // Remove loading overlay
+          if (loadingOverlay.parentNode) {
+            loadingOverlay.parentNode.removeChild(loadingOverlay);
           }
           setIsAnimating(false);
           onComplete?.();
         }
       });
 
-      // Step 1: Animate letters building in the middle of screen (if using SplitText)
-      if (chars.length > 1) {
-        // Animate letters with stagger - this will complete before next step
-        tl.from(chars, {
-          duration: 0.8,
-          opacity: 0,
-          y: 30,
-          stagger: 0.1,
-          ease: 'power3.out'
-        });
-      } else {
-        // Fallback: fade in
-        tl.from(logoElement, {
-          duration: 0.9,
-          opacity: 0,
-          scale: 0.8,
-          ease: 'power3.out'
-        });
-      }
+      // Step 1: Premium visible silver shimmer from bottom-left to top-right
+      // Start at bottom-left (100% 100%) and move to top-right (0% 0%)
+      tl.fromTo(loadingOverlay, 
+        {
+          backgroundPosition: '100% 100%' // Start at bottom-left
+        },
+        {
+          duration: 2.0,
+          backgroundPosition: '0% 0%', // End at top-right
+          ease: 'power1.inOut',
+          repeat: 1 // Shimmer effect repeats once (2 total passes)
+        }
+      );
 
-      // Step 2: Wait until letter animation ends, then add extra delay
-      // This ensures logo stays idle in middle until animation completes + mandatory delay
-      const extraWaitTime = 0.3; // Mandatory delay after letter animation ends
-      tl.to({}, { duration: extraWaitTime });
+      // Step 2: Hold logo in middle for visible duration
+      const holdTime = 0.3; // Brief hold after loading effect
+      tl.to({}, { duration: holdTime });
 
-      // Additional delay before movement starts
-      const movementDelay = 2.0; // Extra delay before movement animation
-      tl.to({}, { duration: movementDelay });
+      // Step 3: Fade out loading overlay smoothly
+      tl.to(loadingOverlay, {
+        duration: 0.5,
+        opacity: 0,
+        ease: 'power2.out'
+      });
 
-      // Step 3: Move very slowly to header position - PERFECTLY SYNCED with background fade
-      // IMPORTANT: These animations start AFTER all previous steps complete (no position offset)
+      // Step 4: Move very slowly to header position - PERFECTLY SYNCED with background fade
       const movementDuration = 3.0; // Very slow movement
       
-      // Animate logo to header position - starts after all delays complete
+      // Animate logo to header position - starts after skeleton animation and hold complete
       tl.to(containerRef.current, {
         duration: movementDuration,
         x: targetX - window.innerWidth / 2,
@@ -144,7 +158,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
             containerRef.current.style.willChange = 'transform'
           }
         }
-      }); // No position offset - starts after previous step completes
+      }); // Starts after previous step completes
 
       // Fade out black background - PERFECTLY SYNCED with logo movement
       // Same duration, same start time, same easing for perfect sync
@@ -156,8 +170,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
         }, '<'); // Start at the same time as logo movement (using '<' to sync)
       }
 
-      // Step 4: Complete animation - logo stays visible, no fade out
-      // Logo will be visible until it reaches correct position, then component unmounts
+      // Step 5: Complete animation - logo stays visible
       tl.call(() => {
         // Clean up will-change for performance
         if (containerRef.current) {
@@ -171,9 +184,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
 
     // Cleanup function
     return () => {
-      if (split && split.revert) {
-      split.revert();
-      }
+      // Cleanup will be handled by timeline onComplete
     };
   }, [headerLogoRef, onComplete]);
 
@@ -182,7 +193,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
   return (
     <div
       ref={backgroundRef}
-      className="splash-background fixed inset-0 z-[9999] bg-black"
+      className="splash-background fixed inset-0 z-[9999]"
       style={{
         position: 'fixed',
         top: 0,
@@ -191,7 +202,8 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
         bottom: 0,
         width: '100%',
         height: '100%',
-        zIndex: 9999
+        zIndex: 9999,
+        background: '#0a0a0a'
       }}
     >
       <div
@@ -206,21 +218,22 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
           WebkitTransform: 'translate(-50%, -50%)',
           msTransform: 'translate(-50%, -50%)'
         }}
-    >
+      >
         <div
           ref={logoRef}
-          className="whitespace-nowrap text-3xl xs:text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight"
+          className="whitespace-nowrap text-3xl xs:text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight relative z-10"
           style={{
             background: 'white',
             padding: 'clamp(0.375rem, 2vw, 0.5rem) clamp(0.75rem, 3vw, 1rem)',
             borderRadius: '0.25rem',
             boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-            willChange: 'transform, opacity'
+            willChange: 'transform, opacity',
+            position: 'relative'
           }}
         >
           <span style={{ color: '#131921' }}>BBHC</span>
-        <span className="text-pink-500">Bazaar</span>
-      </div>
+          <span className="text-pink-500">Bazaar</span>
+        </div>
       </div>
     </div>
   );
