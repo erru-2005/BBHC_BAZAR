@@ -10,6 +10,8 @@ import ProductMediaViewer from '../../components/ProductMediaViewer'
 import { setHomeProducts } from '../../store/dataSlice'
 import { getProducts } from '../../services/api'
 import { FaStar } from 'react-icons/fa'
+import { FaHeart, FaShoppingBag } from 'react-icons/fa'
+import StarRating from '../../components/StarRating'
 import useProductSocket from '../../hooks/useProductSocket'
 
 const formatCurrency = (value) => {
@@ -26,6 +28,7 @@ function PublicProductDetail() {
   const { home } = useSelector((state) => state.data)
   const productFromStore = home.products?.find((prod) => String(prod.id || prod._id) === productId)
   const [product, setProduct] = useState(location.state?.product || productFromStore)
+  const [userRating, setUserRating] = useState(0)
 
   useEffect(() => {
     if (!product) {
@@ -100,13 +103,24 @@ function PublicProductDetail() {
 
           <div className="space-y-4 sm:space-y-5 lg:space-y-6 w-full">
             <div>
-              <p className="text-[10px] sm:text-xs uppercase tracking-widest text-gray-500">Product</p>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight capitalize mt-1">{product.product_name}</h1>
-              {product.categories && (
-                <span className="inline-flex items-center gap-2 mt-2 sm:mt-3 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gray-100 text-xs sm:text-sm font-semibold text-gray-700">
-                  {Array.isArray(product.categories) ? product.categories[0] : product.categories}
-                </span>
-              )}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <p className="text-[10px] sm:text-xs uppercase tracking-widest text-gray-500">Product</p>
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight capitalize mt-1">{product.product_name}</h1>
+                  {product.categories && (
+                    <span className="inline-flex items-center gap-2 mt-2 sm:mt-3 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gray-100 text-xs sm:text-sm font-semibold text-gray-700">
+                      {Array.isArray(product.categories) ? product.categories[0] : product.categories}
+                    </span>
+                  )}
+                </div>
+                <button
+                  className="flex-shrink-0 p-2 sm:p-2.5 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors"
+                  aria-label="Add to wishlist"
+                  title="Add to wishlist"
+                >
+                  <FaHeart className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 hover:text-pink-500 transition-colors" />
+                </button>
+              </div>
             </div>
 
             {product.rating && (
@@ -150,8 +164,30 @@ function PublicProductDetail() {
             )}
 
             <div className="flex flex-col gap-2 sm:gap-3 pt-2">
-              <button className="w-full px-4 py-2.5 sm:py-3 bg-emerald-700 text-white text-sm sm:text-base font-semibold rounded-full shadow hover:bg-emerald-600 transition">Buy Now</button>
-              <button className="w-full px-4 py-2.5 sm:py-3 rounded-full border border-gray-300 text-sm sm:text-base font-semibold text-gray-800 hover:bg-gray-50 transition">Add to bag</button>
+              <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-emerald-700 text-white text-sm sm:text-base font-semibold rounded-full shadow hover:bg-emerald-600 transition">
+                Buy Now
+              </button>
+              <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 rounded-full border border-gray-300 text-sm sm:text-base font-semibold text-gray-800 hover:bg-gray-50 transition">
+                <FaShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+                Add to bag
+              </button>
+              
+              {/* Star Rating Panel */}
+              <div className="pt-3 sm:pt-4 border-t border-gray-200">
+                <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">Rate this product</p>
+                <StarRating
+                  totalStars={5}
+                  initialRating={userRating}
+                  onRatingChange={(rating) => {
+                    setUserRating(rating)
+                    // TODO: Save rating to backend
+                    console.log('User rated:', rating)
+                  }}
+                  showRatingText={true}
+                  disabled={false}
+                  size="md"
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { SplitText } from 'gsap/SplitText';
 // Register SplitText plugin
 if (typeof window !== 'undefined') {
   try {
-    gsap.registerPlugin(SplitText);
+gsap.registerPlugin(SplitText);
   } catch (e) {
     // Plugin already registered or not available
   }
@@ -37,7 +37,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
         if (timeoutCount >= maxTimeoutCount) {
           // Timeout: just fade out without animation
           const tl = gsap.timeline({
-            onComplete: () => {
+      onComplete: () => {
               if (split && split.revert) {
                 split.revert();
               }
@@ -122,7 +122,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
       // This ensures logo stays idle in middle until animation completes + mandatory delay
       const extraWaitTime = 0.3; // Mandatory delay after letter animation ends
       tl.to({}, { duration: extraWaitTime });
-      
+
       // Additional delay before movement starts
       const movementDelay = 2.0; // Extra delay before movement animation
       tl.to({}, { duration: movementDelay });
@@ -172,7 +172,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
     // Cleanup function
     return () => {
       if (split && split.revert) {
-        split.revert();
+      split.revert();
       }
     };
   }, [headerLogoRef, onComplete]);
@@ -206,7 +206,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
           WebkitTransform: 'translate(-50%, -50%)',
           msTransform: 'translate(-50%, -50%)'
         }}
-      >
+    >
         <div
           ref={logoRef}
           className="whitespace-nowrap text-3xl xs:text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight"
@@ -219,8 +219,8 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
           }}
         >
           <span style={{ color: '#131921' }}>BBHC</span>
-          <span className="text-pink-500">Bazaar</span>
-        </div>
+        <span className="text-pink-500">Bazaar</span>
+      </div>
       </div>
     </div>
   );
