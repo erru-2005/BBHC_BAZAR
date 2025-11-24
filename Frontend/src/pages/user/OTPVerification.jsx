@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { verifyUserOTP } from '../../services/api'
+import { verifyUserOTP, sendUserOTP } from '../../services/api'
 import { useDispatch } from 'react-redux'
 import { loginSuccess } from '../../store/authSlice'
 import { FaArrowLeft } from 'react-icons/fa6'
@@ -18,6 +18,9 @@ function OTPVerification() {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [phoneNumberMasked, setPhoneNumberMasked] = useState('')
   const [returnTo, setReturnTo] = useState('/')
+  const [resendTimer, setResendTimer] = useState(60)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [infoMessage, setInfoMessage] = useState('')
 
   useEffect(() => {
     // Get data from navigation state
@@ -31,6 +34,12 @@ function OTPVerification() {
       navigate('/user/phone-entry')
     }
   }, [location, navigate])
+
+  useEffect(() => {
+    if (resendTimer <= 0) return
+    const timer = setTimeout(() => setResendTimer(prev => prev - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendTimer])
 
   const handleOtpChange = (index, value) => {
     if (value.length > 1) return // Only allow single digit
@@ -87,10 +96,8 @@ function OTPVerification() {
           userType: response.userType,
           refresh_token: response.refreshToken
         }))
-        
-        // Show success message and redirect to returnTo URL or home
-        alert('Login successful!')
-        navigate(returnTo || '/')
+
+        navigate(returnTo || '/', { replace: true })
       } else {
         // User doesn't exist - navigate to registration
         navigate('/user/register', {
@@ -107,37 +114,68 @@ function OTPVerification() {
     }
   }
 
+  const handleResendOtp = async () => {
+    if (resendTimer > 0 || resendLoading) return
+    setResendLoading(true)
+    setInfoMessage('')
+    setError(null)
+
+    try {
+      const response = await sendUserOTP(phoneNumber)
+      if (response?.otp_session_id) {
+        setOtpSessionId(response.otp_session_id)
+      }
+      if (response?.phone_number) {
+        setPhoneNumberMasked(response.phone_number)
+      }
+      setResendTimer(60)
+      setInfoMessage('A new code has been sent to your phone.')
+    } catch (err) {
+      setError(err.message || 'Failed to resend OTP. Please try again.')
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
   const handleEditPhone = () => {
-    navigate('/user/phone-entry')
+    navigate('/user/phone-entry', {
+      state: {
+        prefillPhone: phoneNumber,
+        returnTo,
+        message: 'Update your phone number'
+      }
+    })
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#131921] via-[#1a2332] to-[#131921] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-gray-100 text-gray-900 flex items-center justify-center px-4 py-10">
+      <div className="w-full lg:w-1/2 max-w-md lg:max-w-[420px] mx-auto">
         <button
           onClick={() => navigate('/user/phone-entry')}
-          className="mb-6 flex items-center gap-2 text-white/70 hover:text-white transition"
+          className="mb-6 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
         >
           <FaArrowLeft className="w-4 h-4" />
-          <span>Back</span>
+          <span className="text-sm font-medium uppercase tracking-wide">Back</span>
         </button>
 
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Enter Verification Code</h1>
-            <p className="text-white/70 mb-4">
-              We sent a code to {phoneNumberMasked || phoneNumber}
+        <div className="relative overflow-hidden rounded-3xl bg-white border border-gray-200 shadow-[0_35px_80px_rgba(15,23,42,0.08)] p-8 sm:p-10">
+          <div className="absolute inset-x-8 top-0 h-28 bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 rounded-b-[40px] opacity-5 pointer-events-none" />
+          <div className="relative text-center mb-8">
+            <p className="text-xs tracking-[0.3em] text-gray-500 uppercase mb-3">Two Step Security</p>
+            <h1 className="text-3xl font-semibold text-gray-900 mb-3">Enter Verification Code</h1>
+            <p className="text-base text-gray-500 mb-4">
+              We sent a code to <span className="font-semibold text-gray-900">{phoneNumberMasked || phoneNumber}</span>
             </p>
             <button
               onClick={handleEditPhone}
-              className="inline-flex items-center gap-2 text-pink-400 hover:text-pink-300 text-sm transition"
+              className="inline-flex items-center gap-2 text-gray-900 font-medium text-sm border border-gray-900/20 rounded-full px-4 py-1.5 hover:bg-gray-900 hover:text-white transition"
             >
-              <FaEdit className="w-3 h-3" />
+              <FaEdit className="w-3.5 h-3.5" />
               <span>Edit phone number</span>
             </button>
           </div>
 
-          <div className="space-y-6">
+          <div className="relative z-10 space-y-6">
             <div className="flex justify-center gap-3">
               {otp.map((digit, index) => (
                 <input
@@ -150,21 +188,39 @@ function OTPVerification() {
                   onChange={(e) => handleOtpChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
-                  className="w-12 h-14 text-center text-2xl font-bold bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  className="w-12 h-14 text-center text-2xl font-bold bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition"
                 />
               ))}
             </div>
 
             {error && (
-              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3">
-                <p className="text-red-200 text-sm text-center">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <p className="text-red-600 text-sm text-center">{error}</p>
+              </div>
+            )}
+            {infoMessage && !error && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <p className="text-gray-700 text-sm text-center">{infoMessage}</p>
               </div>
             )}
 
             <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={resendTimer > 0 || resendLoading}
+              className="w-full border border-gray-300 text-gray-900 font-medium py-3 rounded-xl disabled:text-gray-400 disabled:border-gray-200 hover:bg-gray-50 transition"
+            >
+              {resendLoading
+                ? 'Resending...'
+                : resendTimer > 0
+                  ? `Resend code in 0:${String(resendTimer).padStart(2, '0')}`
+                  : 'Resend verification code'}
+            </button>
+
+            <button
               onClick={handleVerify}
               disabled={loading || otp.join('').length !== 6}
-              className="w-full bg-pink-500 hover:bg-pink-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
+              className="w-full bg-gray-900 hover:bg-black disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3.5 px-4 rounded-xl transition-colors duration-200 tracking-wide uppercase"
             >
               {loading ? 'Verifying...' : 'Verify'}
             </button>

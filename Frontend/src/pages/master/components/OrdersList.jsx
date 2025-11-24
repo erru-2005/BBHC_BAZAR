@@ -6,39 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getSocket } from '../../../utils/socket'
 import { FaSearch, FaFileExcel, FaFilePdf, FaCheckCircle, FaTimesCircle, FaEye, FaFilter } from 'react-icons/fa'
 import { motion, AnimatePresence } from 'framer-motion'
-
-// Mock data structure - replace with actual API calls
-const mockOrders = [
-  {
-    id: 'ORD001',
-    orderNumber: 'ORD-2024-001',
-    product: {
-      id: 'prod1',
-      name: 'Premium Product A',
-      image: 'https://via.placeholder.com/100',
-      price: 1299
-    },
-    seller: {
-      id: 'seller1',
-      tradeId: 'SELLER001',
-      name: 'Seller Name',
-      email: 'seller@example.com',
-      phone: '+1234567890'
-    },
-    user: {
-      id: 'user1',
-      name: 'John Doe',
-      email: 'user@example.com',
-      phone: '+9876543210',
-      address: '123 Main St, City, State'
-    },
-    status: 'pending',
-    quantity: 2,
-    totalAmount: 2598,
-    createdAt: new Date().toISOString(),
-    orderTime: new Date().toISOString()
-  }
-]
+import { getOrders, updateOrderStatus } from '../../../services/api'
 
 function OrdersList() {
   const [orders, setOrders] = useState([])
@@ -48,13 +16,37 @@ function OrdersList() {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [notifications, setNotifications] = useState([])
+  const [loadingOrders, setLoadingOrders] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
   const socket = getSocket()
 
   // Initialize orders
   useEffect(() => {
-    // TODO: Fetch orders from API
-    setOrders(mockOrders)
-    setFilteredOrders(mockOrders)
+    let isMounted = true
+
+    const fetchOrders = async () => {
+      try {
+        setLoadingOrders(true)
+        const apiOrders = await getOrders()
+        if (isMounted) {
+          setOrders(apiOrders)
+        }
+      } catch (err) {
+        if (isMounted) {
+          setFetchError(err.message)
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingOrders(false)
+        }
+      }
+    }
+
+    fetchOrders()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   // Real-time order updates via Socket.IO
@@ -136,11 +128,10 @@ function OrdersList() {
   // Handle accept order
   const handleAcceptOrder = async (orderId) => {
     try {
-      // TODO: API call to accept order
-      console.log('Accepting order:', orderId)
+      const updatedOrder = await updateOrderStatus(orderId, 'accepted')
       setOrders(prev =>
         prev.map(order =>
-          order.id === orderId ? { ...order, status: 'accepted' } : order
+          order.id === orderId ? updatedOrder : order
         )
       )
       setShowDetailModal(false)
@@ -162,11 +153,10 @@ function OrdersList() {
   // Handle reject order
   const handleRejectOrder = async (orderId) => {
     try {
-      // TODO: API call to reject order
-      console.log('Rejecting order:', orderId)
+      const updatedOrder = await updateOrderStatus(orderId, 'rejected')
       setOrders(prev =>
         prev.map(order =>
-          order.id === orderId ? { ...order, status: 'rejected' } : order
+          order.id === orderId ? updatedOrder : order
         )
       )
       setShowDetailModal(false)
@@ -209,7 +199,9 @@ function OrdersList() {
 
   // Format date
   const formatDate = (dateString) => {
+    if (!dateString) return '—'
     const date = new Date(dateString)
+    if (Number.isNaN(date.getTime())) return '—'
     return date.toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -230,6 +222,8 @@ function OrdersList() {
         return 'bg-red-100 text-red-800'
       case 'completed':
         return 'bg-blue-100 text-blue-800'
+      case 'cancelled':
+        return 'bg-gray-100 text-gray-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -291,6 +285,12 @@ function OrdersList() {
         </div>
       </div>
 
+      {fetchError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {fetchError}
+        </div>
+      )}
+
       {/* Orders List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
@@ -308,70 +308,97 @@ function OrdersList() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredOrders.length === 0 ? (
+              {loadingOrders ? (
+                <tr>
+                  <td colSpan="8" className="px-4 py-12 text-center text-gray-500">
+                    Loading orders...
+                  </td>
+                </tr>
+              ) : filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="px-4 py-12 text-center text-gray-500">
                     No orders found
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={() => handleOrderClick(order)}
-                  >
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{order.orderNumber}</div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={order.product.image}
-                          alt={order.product.name}
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{order.product.name}</div>
-                          <div className="text-xs text-gray-500">Qty: {order.quantity}</div>
+                filteredOrders.map((order) => {
+                  const productName = order.product?.name || order.product?.product_name || 'Product'
+                  const productImage = order.product?.thumbnail || order.product?.image || 'https://via.placeholder.com/80?text=BBHC'
+                  const sellerName =
+                    order.seller?.name ||
+                    [order.seller?.first_name, order.seller?.last_name].filter(Boolean).join(' ').trim() ||
+                    '—'
+                  const sellerTrade =
+                    order.seller?.tradeId ||
+                    order.seller?.trade_id ||
+                    order.product?.sellerTradeId ||
+                    '—'
+                  const userName =
+                    order.user?.name ||
+                    [order.user?.first_name, order.user?.last_name].filter(Boolean).join(' ').trim() ||
+                    'Customer'
+                  const userEmail = order.user?.email || '—'
+                  const totalAmount = Number(order.totalAmount || order.total_amount || 0)
+                  const createdAt = order.createdAt || order.created_at || order.orderTime
+
+                  return (
+                    <tr
+                      key={order.id}
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => handleOrderClick(order)}
+                    >
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{order.orderNumber}</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={productImage}
+                            alt={productName}
+                            className="w-12 h-12 rounded-lg object-cover"
+                          />
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{productName}</div>
+                            <div className="text-xs text-gray-500">Qty: {order.quantity}</div>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm text-gray-900">{order.seller.name}</div>
-                      <div className="text-xs text-gray-500">{order.seller.tradeId}</div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm text-gray-900">{order.user.name}</div>
-                      <div className="text-xs text-gray-500">{order.user.email}</div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-gray-900">
-                        ₹{order.totalAmount.toLocaleString()}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(order.createdAt)}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleOrderClick(order)
-                        }}
-                        className="text-amber-600 hover:text-amber-700 transition-colors"
-                        title="View Details"
-                      >
-                        <FaEye className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-sm text-gray-900">{sellerName}</div>
+                        <div className="text-xs text-gray-500">{sellerTrade}</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-sm text-gray-900">{userName}</div>
+                        <div className="text-xs text-gray-500">{userEmail}</div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-gray-900">
+                          ₹{totalAmount.toLocaleString('en-IN')}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(createdAt)}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOrderClick(order)
+                          }}
+                          className="text-amber-600 hover:text-amber-700 transition-colors"
+                          title="View Details"
+                        >
+                          <FaEye className="w-5 h-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -399,7 +426,9 @@ function OrdersList() {
 // Order Detail Modal Component
 function OrderDetailModal({ order, onClose, onAccept, onReject }) {
   const formatDate = (dateString) => {
+    if (!dateString) return '—'
     const date = new Date(dateString)
+    if (Number.isNaN(date.getTime())) return '—'
     return date.toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -409,6 +438,30 @@ function OrderDetailModal({ order, onClose, onAccept, onReject }) {
       second: '2-digit'
     })
   }
+
+  const productName = order.product?.name || order.product?.product_name || 'Product'
+  const productImage = order.product?.thumbnail || order.product?.image || 'https://via.placeholder.com/120?text=BBHC'
+  const productPrice = Number(order.product?.price || order.product?.selling_price || 0)
+  const sellerName =
+    order.seller?.name ||
+    [order.seller?.first_name, order.seller?.last_name].filter(Boolean).join(' ').trim() ||
+    '—'
+  const sellerTradeId =
+    order.seller?.tradeId ||
+    order.seller?.trade_id ||
+    order.product?.sellerTradeId ||
+    '—'
+  const sellerEmail = order.seller?.email || '—'
+  const sellerPhone = order.seller?.phone || order.seller?.phone_number || '—'
+  const userName =
+    order.user?.name ||
+    [order.user?.first_name, order.user?.last_name].filter(Boolean).join(' ').trim() ||
+    'Customer'
+  const userEmail = order.user?.email || '—'
+  const userPhone = order.user?.phone || order.user?.phone_number || '—'
+  const userAddress = order.user?.address || '—'
+  const totalAmount = Number(order.totalAmount || order.total_amount || 0)
+  const createdAt = order.createdAt || order.created_at || order.orderTime
 
   return (
     <motion.div
@@ -446,11 +499,11 @@ function OrderDetailModal({ order, onClose, onAccept, onReject }) {
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="text-sm text-gray-500 mb-1">Order Time</div>
-              <div className="text-lg font-semibold text-gray-900">{formatDate(order.orderTime)}</div>
+              <div className="text-lg font-semibold text-gray-900">{formatDate(createdAt)}</div>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="text-sm text-gray-500 mb-1">Total Amount</div>
-              <div className="text-lg font-semibold text-gray-900">₹{order.totalAmount.toLocaleString()}</div>
+              <div className="text-lg font-semibold text-gray-900">₹{totalAmount.toLocaleString('en-IN')}</div>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="text-sm text-gray-500 mb-1">Status</div>
@@ -463,14 +516,14 @@ function OrderDetailModal({ order, onClose, onAccept, onReject }) {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Details</h3>
             <div className="flex gap-4 bg-gray-50 rounded-lg p-4">
               <img
-                src={order.product.image}
-                alt={order.product.name}
+                src={productImage}
+                alt={productName}
                 className="w-24 h-24 rounded-lg object-cover"
               />
               <div className="flex-1">
-                <div className="text-xl font-semibold text-gray-900 mb-2">{order.product.name}</div>
-                <div className="text-sm text-gray-600 mb-1">Product ID: {order.product.id}</div>
-                <div className="text-lg font-semibold text-amber-600">₹{order.product.price.toLocaleString()}</div>
+                <div className="text-xl font-semibold text-gray-900 mb-2">{productName}</div>
+                <div className="text-sm text-gray-600 mb-1">Product ID: {order.product?.id}</div>
+                <div className="text-lg font-semibold text-amber-600">₹{productPrice.toLocaleString('en-IN')}</div>
                 <div className="text-sm text-gray-600 mt-2">Quantity: {order.quantity}</div>
               </div>
             </div>
@@ -480,10 +533,10 @@ function OrderDetailModal({ order, onClose, onAccept, onReject }) {
           <div className="border-t border-gray-200 pt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Seller Details</h3>
             <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-              <div><span className="text-sm text-gray-500">Name:</span> <span className="font-medium text-gray-900">{order.seller.name}</span></div>
-              <div><span className="text-sm text-gray-500">Trade ID:</span> <span className="font-medium text-gray-900">{order.seller.tradeId}</span></div>
-              <div><span className="text-sm text-gray-500">Email:</span> <span className="font-medium text-gray-900">{order.seller.email}</span></div>
-              <div><span className="text-sm text-gray-500">Phone:</span> <span className="font-medium text-gray-900">{order.seller.phone}</span></div>
+              <div><span className="text-sm text-gray-500">Name:</span> <span className="font-medium text-gray-900">{sellerName}</span></div>
+              <div><span className="text-sm text-gray-500">Trade ID:</span> <span className="font-medium text-gray-900">{sellerTradeId}</span></div>
+              <div><span className="text-sm text-gray-500">Email:</span> <span className="font-medium text-gray-900">{sellerEmail}</span></div>
+              <div><span className="text-sm text-gray-500">Phone:</span> <span className="font-medium text-gray-900">{sellerPhone}</span></div>
             </div>
           </div>
 
@@ -491,10 +544,10 @@ function OrderDetailModal({ order, onClose, onAccept, onReject }) {
           <div className="border-t border-gray-200 pt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">User Details</h3>
             <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-              <div><span className="text-sm text-gray-500">Name:</span> <span className="font-medium text-gray-900">{order.user.name}</span></div>
-              <div><span className="text-sm text-gray-500">Email:</span> <span className="font-medium text-gray-900">{order.user.email}</span></div>
-              <div><span className="text-sm text-gray-500">Phone:</span> <span className="font-medium text-gray-900">{order.user.phone}</span></div>
-              <div><span className="text-sm text-gray-500">Address:</span> <span className="font-medium text-gray-900">{order.user.address}</span></div>
+              <div><span className="text-sm text-gray-500">Name:</span> <span className="font-medium text-gray-900">{userName}</span></div>
+              <div><span className="text-sm text-gray-500">Email:</span> <span className="font-medium text-gray-900">{userEmail}</span></div>
+              <div><span className="text-sm text-gray-500">Phone:</span> <span className="font-medium text-gray-900">{userPhone}</span></div>
+              <div><span className="text-sm text-gray-500">Address:</span> <span className="font-medium text-gray-900">{userAddress}</span></div>
             </div>
           </div>
 

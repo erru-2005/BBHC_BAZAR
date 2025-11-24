@@ -797,3 +797,42 @@ export const deleteRating = async (ratingId) => {
   }
 }
 
+/**
+ * Orders API
+ */
+export const createOrder = async (orderPayload) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDERS, orderPayload)
+    return response.order
+  } catch (error) {
+    throw new Error(error.message || 'Failed to place order')
+  }
+}
+
+export const getOrders = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ORDERS, { params })
+    return response.orders || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch orders')
+  }
+}
+
+export const updateOrderStatus = async (orderId, status) => {
+  try {
+    const response = await apiClient.put(API_ENDPOINTS.API.ORDER_STATUS(orderId), { status })
+    return response.order
+  } catch (error) {
+    throw new Error(error.message || 'Failed to update order status')
+  }
+}
+
+export const cancelOrder = async (orderId) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_CANCEL(orderId))
+    return response.order
+  } catch (error) {
+    throw new Error(error.message || 'Failed to cancel order')
+  }
+}
+

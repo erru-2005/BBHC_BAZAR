@@ -51,3 +51,12 @@ def emit_product_event(event_name, product_dict):
     # Notify all masters who are currently active
     _emit_to_collection('master', {'socket_id': {'$ne': None}}, event_name, product_dict)
 
+
+def emit_order_event(event_name, order_dict):
+    """
+    Broadcast order events (new, updated) to all masters and connected dashboards.
+    """
+    if not order_dict:
+        return
+    socketio.emit(event_name, order_dict)
+    _emit_to_collection('master', {'socket_id': {'$ne': None}}, event_name, order_dict)

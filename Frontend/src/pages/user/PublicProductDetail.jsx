@@ -26,6 +26,7 @@ function PublicProductDetail() {
   const dispatch = useDispatch()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { home } = useSelector((state) => state.data)
+  const { isAuthenticated, userType } = useSelector((state) => state.auth)
   const productFromStore = home.products?.find((prod) => String(prod.id || prod._id) === productId)
   const [product, setProduct] = useState(location.state?.product || productFromStore)
   const [userRating, setUserRating] = useState(0)
@@ -164,7 +165,23 @@ function PublicProductDetail() {
             )}
 
             <div className="flex flex-col gap-2 sm:gap-3 pt-2">
-              <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-emerald-700 text-white text-sm sm:text-base font-semibold rounded-full shadow hover:bg-emerald-600 transition">
+              <button
+                onClick={() => {
+                  if (!product) return
+                  if (!isAuthenticated || userType !== 'user') {
+                    navigate('/user/phone-entry', {
+                      state: {
+                        returnTo: `/product/${productId}/buy`,
+                        message: 'Please login to complete your purchase.'
+                      }
+                    })
+                    return
+                  }
+                  navigate(`/product/${productId}/buy`, { state: { product } })
+                }}
+                disabled={!product}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-emerald-700 text-white text-sm sm:text-base font-semibold rounded-full shadow hover:bg-emerald-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
                 Buy Now
               </button>
               <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 rounded-full border border-gray-300 text-sm sm:text-base font-semibold text-gray-800 hover:bg-gray-50 transition">

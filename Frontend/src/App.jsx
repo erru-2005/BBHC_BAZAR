@@ -8,6 +8,7 @@ import {
   UserRegistration,
   UserProfile,
   UserOrders,
+  BuyNow,
   Seller,
   Master,
   MasterProductDetail,
@@ -90,6 +91,7 @@ function SplashWrapper() {
       <Route path="/master/login" element={<MasterLogin />} />
       <Route path="/product/:productId" element={<PublicProductDetail />} />
       <Route path="/product/public/:productId" element={<PublicProductDetail />} />
+      <Route path="/product/:productId/buy" element={<BuyNow />} />
       <Route 
         path="/seller" 
         element={

@@ -93,10 +93,12 @@ def create_app(config_class=Config):
     from app.routes.api import api_bp
     from app.routes.auth import auth_bp
     from app.routes.ratings import ratings_bp
+    from app.routes.orders import orders_bp
     
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(auth_bp)
     app.register_blueprint(ratings_bp, url_prefix='/api')
+    app.register_blueprint(orders_bp, url_prefix='/api')
     
     # Register Socket.IO events (keeping configuration but minimal)
     from app.sockets import register_socket_events
@@ -157,6 +159,13 @@ def create_indexes():
         mongo.db.ratings.create_index([('user_id', ASCENDING)])
         mongo.db.ratings.create_index([('rating', ASCENDING)])
         mongo.db.ratings.create_index([('created_at', ASCENDING)])
+
+        # Create indexes for orders collection
+        mongo.db.orders.create_index([('order_number', ASCENDING)], unique=True)
+        mongo.db.orders.create_index([('user_id', ASCENDING)])
+        mongo.db.orders.create_index([('seller_id', ASCENDING)])
+        mongo.db.orders.create_index([('status', ASCENDING)])
+        mongo.db.orders.create_index([('created_at', ASCENDING)])
         
         print("Database indexes created successfully")
     except Exception as e:

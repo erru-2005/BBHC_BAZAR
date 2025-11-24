@@ -21,6 +21,8 @@ import BlacklistedSellers from './components/BlacklistedSellers'
 import ListProducts from './components/ListProducts'
 import OrdersList from './components/OrdersList'
 
+const TAB_ORDER_VERSION = '2'
+
 function Master() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
@@ -34,11 +36,11 @@ function Master() {
   const defaultTabs = [
     { id: 'home', label: 'Home', icon: HiHome },
     { id: 'orders', label: 'Orders', icon: FaShoppingBag },
-    { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
-    { id: 'add-master', label: 'Add Master', icon: IoMdPersonAdd },
     { id: 'add-product', label: 'Add Product', icon: FaBox },
     { id: 'list-products', label: 'List Products', icon: FaThList },
+    { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
     { id: 'list-sellers', label: 'List Sellers', icon: MdList },
+    { id: 'add-master', label: 'Add Master', icon: IoMdPersonAdd },
     { id: 'list-masters', label: 'List Masters', icon: MdList },
     { id: 'blacklisted-sellers', label: 'Blacklisted', icon: MdBlock }
   ]
@@ -46,28 +48,36 @@ function Master() {
   // Initialize tab order from localStorage or use default
   const [tabs, setTabs] = useState(() => {
     const savedOrder = localStorage.getItem('master_tab_order')
-    if (savedOrder) {
+    const savedVersion = localStorage.getItem('master_tab_order_version')
+
+    if (savedOrder && savedVersion === TAB_ORDER_VERSION) {
       try {
         const order = JSON.parse(savedOrder)
-        // Ensure Home is always first
         const homeTab = defaultTabs.find(t => t.id === 'home')
         const otherTabs = defaultTabs.filter(t => t.id !== 'home')
-        // Reorder other tabs based on saved order
+
         const orderedOtherTabs = order
           .filter(id => id !== 'home')
           .map(id => otherTabs.find(t => t.id === id))
           .filter(Boolean)
-        // Add any missing tabs
+
         otherTabs.forEach(tab => {
           if (!orderedOtherTabs.find(t => t.id === tab.id)) {
             orderedOtherTabs.push(tab)
           }
         })
+
         return [homeTab, ...orderedOtherTabs]
       } catch (e) {
-        return defaultTabs
+        // fall through to default order
       }
     }
+
+    localStorage.setItem('master_tab_order_version', TAB_ORDER_VERSION)
+    localStorage.setItem(
+      'master_tab_order',
+      JSON.stringify(defaultTabs.map(tab => tab.id))
+    )
     return defaultTabs
   })
 
@@ -87,6 +97,7 @@ function Master() {
   useEffect(() => {
     const order = tabs.map(tab => tab.id)
     localStorage.setItem('master_tab_order', JSON.stringify(order))
+    localStorage.setItem('master_tab_order_version', TAB_ORDER_VERSION)
   }, [tabs])
 
   // Cleanup long press timer on unmount

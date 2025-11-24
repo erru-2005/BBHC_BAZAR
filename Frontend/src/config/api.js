@@ -32,7 +32,10 @@ export const API_ENDPOINTS = {
     PRODUCT_RATING_STATS: (productId) => `${API_BASE_URL}/api/products/${productId}/ratings/stats`,
     MY_RATING: (productId) => `${API_BASE_URL}/api/products/${productId}/ratings/me`,
     RATING_CATEGORY: (category) => `${API_BASE_URL}/api/ratings/category/${category}`,
-    DELETE_RATING: (ratingId) => `${API_BASE_URL}/api/ratings/${ratingId}`
+    DELETE_RATING: (ratingId) => `${API_BASE_URL}/api/ratings/${ratingId}`,
+    ORDERS: `${API_BASE_URL}/api/orders`,
+    ORDER_STATUS: (orderId) => `${API_BASE_URL}/api/orders/${orderId}/status`,
+    ORDER_CANCEL: (orderId) => `${API_BASE_URL}/api/orders/${orderId}/cancel`
   }
 }
 
