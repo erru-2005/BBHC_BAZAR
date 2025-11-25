@@ -11,7 +11,7 @@ import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars, FaShoppingBag } from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt } from 'react-icons/fa'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
 import ListSellers from './components/ListSellers'
@@ -430,27 +430,6 @@ function Master() {
               <h1 className="text-2xl font-bold text-gray-900">BBHCBazaar</h1>
             </div>
             
-            {/* Logout Icon */}
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              title="Logout"
-              aria-label="Logout"
-            >
-              <svg
-                className="w-6 h-6 text-gray-600 hover:text-gray-900"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                />
-              </svg>
-            </button>
           </div>
 
           {/* Tabs Navigation - Integrated with Header */}
@@ -614,6 +593,16 @@ function Master() {
                   <span className="font-medium">{tab.label}</span>
                 </button>
               ))}
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false)
+                  handleLogout()
+                }}
+                className="mt-2 flex items-center gap-3 px-4 py-3 rounded-lg text-left transition bg-red-50 text-red-600 hover:bg-red-100 font-semibold"
+              >
+                <FaSignOutAlt className="w-5 h-5" />
+                <span>Logout</span>
+              </button>
             </div>
           </div>
         </div>

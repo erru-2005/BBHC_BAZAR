@@ -142,7 +142,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
         ease: 'power2.out'
       });
 
-      // Step 4: Move very slowly to header position - PERFECTLY SYNCED with background fade
+      // Step 4: Move very slowly to header position while keeping splash fully opaque
       const movementDuration = 3.0; // Very slow movement
       
       // Animate logo to header position - starts after skeleton animation and hold complete
@@ -159,16 +159,6 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
           }
         }
       }); // Starts after previous step completes
-
-      // Fade out black background - PERFECTLY SYNCED with logo movement
-      // Same duration, same start time, same easing for perfect sync
-      if (backgroundRef.current) {
-        tl.to(backgroundRef.current, {
-          duration: movementDuration, // Exact same duration
-          opacity: 0,
-          ease: 'power1.inOut' // Exact same easing
-        }, '<'); // Start at the same time as logo movement (using '<' to sync)
-      }
 
       // Step 5: Complete animation - logo stays visible
       tl.call(() => {

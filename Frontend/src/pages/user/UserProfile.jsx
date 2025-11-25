@@ -163,11 +163,12 @@ function UserProfile() {
         {/* Navigation Header */}
         <div className="flex items-center gap-4 mb-4">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="flex items-center gap-2 text-amber-700 hover:text-amber-800 transition-colors"
+            aria-label="Back to dashboard"
           >
             <FaArrowLeft className="w-5 h-5" />
-            <span className="font-medium">Back</span>
+            <span className="font-medium">Back to dashboard</span>
           </button>
         </div>
 
