@@ -108,7 +108,11 @@ function UserOrders() {
       <div
         key={order.id}
         className="flex flex-col gap-4 bg-white/5 border border-white/10 rounded-3xl p-5 sm:p-6 cursor-pointer"
-        onClick={() => setActiveOrder(order)}
+        onClick={() => {
+          if (order.status !== 'cancelled') {
+            setActiveOrder(order)
+          }
+        }}
       >
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -227,22 +231,35 @@ function UserOrders() {
               className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md text-center space-y-4 shadow-2xl"
             >
               <h3 className="text-xl font-semibold text-gray-900">Pickup QR</h3>
-              <p className="text-sm text-gray-500">
-                Show this code at the BBHCBazaar outlet to complete payment and collect your product.
-              </p>
-              <div className="inline-block bg-gray-50 border border-gray-200 rounded-2xl p-4" ref={qrPreviewRef}>
-                <QRCode value={activeOrder.qrCodeData || activeOrder.qrCode || activeOrder.qr_code_data || ''} size={200} />
-              </div>
+              {activeOrder.status === 'cancelled' ? (
+                <p className="text-sm text-red-500">
+                  This order has been cancelled. The QR code is no longer available.
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500">
+                    Show this code at the BBHCBazaar outlet to complete payment and collect your product.
+                  </p>
+                  <div className="inline-block bg-gray-50 border border-gray-200 rounded-2xl p-4" ref={qrPreviewRef}>
+                    <QRCode
+                      value={activeOrder.qrCodeData || activeOrder.qrCode || activeOrder.qr_code_data || ''}
+                      size={200}
+                    />
+                  </div>
+                </>
+              )}
               <p className="text-xs text-gray-500 uppercase tracking-widest">
                 Order #{activeOrder.orderNumber}
               </p>
-              <button
-                onClick={downloadActiveOrderQR}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 text-white font-semibold py-3 hover:bg-black transition"
-              >
-                <FaDownload className="w-4 h-4" />
-                Download QR
-              </button>
+              {activeOrder.status !== 'cancelled' && (
+                <button
+                  onClick={downloadActiveOrderQR}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 text-white font-semibold py-3 hover:bg-black transition"
+                >
+                  <FaDownload className="w-4 h-4" />
+                  Download QR
+                </button>
+              )}
               <button
                 onClick={() => setActiveOrder(null)}
                 className="w-full rounded-full border border-gray-300 text-gray-700 font-semibold py-3 hover:bg-gray-50 transition"

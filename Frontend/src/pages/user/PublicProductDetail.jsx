@@ -99,7 +99,7 @@ function PublicProductDetail() {
           ← Back
         </button>
 
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 w-full">
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 w-full items-start">
           <ProductMediaViewer thumbnail={product.thumbnail} gallery={product.gallery} productName={product.product_name} />
 
           <div className="space-y-4 sm:space-y-5 lg:space-y-6 w-full">

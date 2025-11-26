@@ -3,22 +3,28 @@ import { FaMagnifyingGlass, FaLocationDot } from 'react-icons/fa6'
 function MobileSearchBar() {
   return (
     <div className="md:hidden space-y-3 pb-4">
-      <div className="flex bg-white rounded-full overflow-hidden shadow-inner">
-        <div className="flex items-center px-3 border-r border-gray-200">
-          <FaMagnifyingGlass className="text-gray-400 w-4 h-4" />
-        </div>
-        <input type="text" placeholder="Search BBHCBazaar" className="flex-1 px-3 py-2 text-sm text-gray-800 outline-none" />
-        <button className="px-4 bg-amber-700 hover:bg-amber-800 text-white font-semibold text-sm transition-colors">Search</button>
+      {/* White pill search bar for mobile, matching header style */}
+      <div className="flex items-center gap-2 bg-white rounded-full px-3 py-2 shadow-inner">
+        <FaMagnifyingGlass className="text-gray-400 w-4 h-4 flex-shrink-0" />
+        <input
+          type="text"
+          placeholder="Search BBHCBazaar"
+          className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-500 outline-none"
+        />
       </div>
-      <a 
-        href="https://maps.app.goo.gl/VxcqFH7aferTNzPx8" 
-        target="_blank" 
+
+      {/* Location row kept but colors tuned to match header */}
+      <a
+        href="https://maps.app.goo.gl/VxcqFH7aferTNzPx8"
+        target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-2 text-xs text-gray-200 hover:text-white transition whitespace-nowrap overflow-x-auto"
+        className="flex items-center gap-2 text-xs text-gray-300 hover:text-white transition whitespace-nowrap overflow-x-auto"
       >
         <FaLocationDot className="text-pink-500 w-4 h-4 flex-shrink-0" />
-        <span className="text-xs text-gray-300 font-normal whitespace-nowrap">Delivering to</span>
-        <span className="text-xs text-gray-200 font-medium whitespace-nowrap">BBHCBazaar Outlet, Kundapura 576201</span>
+        <span className="text-xs text-gray-400 font-normal whitespace-nowrap">Delivering to</span>
+        <span className="text-xs text-gray-200 font-medium whitespace-nowrap">
+          BBHCBazaar Outlet, Kundapura 576201
+        </span>
       </a>
     </div>
   )

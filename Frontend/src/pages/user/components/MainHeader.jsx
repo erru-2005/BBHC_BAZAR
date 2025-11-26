@@ -41,13 +41,14 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
             </div>
           </div>
 
-          <div className="flex-1 hidden md:block">
-            <div className="flex bg-white rounded-md overflow-hidden shadow-inner">
-              <div className="flex items-center px-3 border-r border-gray-200">
-                <FaMagnifyingGlass className="text-gray-400 w-4 h-4" />
-              </div>
-              <input type="text" placeholder="Search BBHCBazaar" className="flex-1 px-4 py-2 text-gray-800 outline-none" />
-              <button className="px-4 bg-amber-700 hover:bg-amber-800 text-white font-semibold transition-colors">Search</button>
+          <div className="flex-1 hidden md:flex justify-center">
+            <div className="w-full max-w-md flex items-center gap-2 bg-white rounded-full px-3 py-2 shadow-inner">
+              <FaMagnifyingGlass className="text-gray-400 w-4 h-4 flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Search BBHCBazaar"
+                className="flex-1 bg-transparent px-1 py-1 text-sm text-gray-800 placeholder-gray-500 outline-none"
+              />
             </div>
           </div>
 

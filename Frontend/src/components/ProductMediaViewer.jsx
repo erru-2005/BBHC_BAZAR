@@ -49,7 +49,7 @@ function ProductMediaViewer({ thumbnail, gallery = [], productName }) {
         ))}
       </div>
 
-      <div className="flex-1 order-1 lg:order-2 w-full flex items-center justify-center min-h-[240px] sm:min-h-[280px] lg:min-h-[320px]">
+      <div className="flex-1 order-1 lg:order-2 w-full flex items-start justify-center min-h-[240px] sm:min-h-[280px] lg:min-h-[320px] pt-0">
         <img src={activeMedia.src} alt={activeMedia.alt} className="max-h-[240px] sm:max-h-[400px] lg:max-h-[520px] w-full h-auto object-contain" />
       </div>
     </div>
