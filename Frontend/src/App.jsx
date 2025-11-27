@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import {
   Home,
   PublicProductDetail,
@@ -89,11 +89,13 @@ function SplashWrapper() {
       />
       <Route path="/seller/login" element={<SellerLogin />} />
       <Route path="/master/login" element={<MasterLogin />} />
+      <Route path="/seller" element={<Navigate to="/seller/login" replace />} />
+      <Route path="/master" element={<Navigate to="/master/login" replace />} />
       <Route path="/product/:productId" element={<PublicProductDetail />} />
       <Route path="/product/public/:productId" element={<PublicProductDetail />} />
       <Route path="/product/:productId/buy" element={<BuyNow />} />
       <Route 
-        path="/seller" 
+        path="/seller/dashboard" 
         element={
           <ProtectedRoute requiredUserType="seller">
             <Seller />
@@ -133,7 +135,7 @@ function SplashWrapper() {
         } 
       />
       <Route 
-        path="/master" 
+        path="/master/dashboard" 
         element={
           <ProtectedRoute requiredUserType="master">
             <Master />

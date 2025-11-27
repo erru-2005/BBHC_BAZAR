@@ -4,9 +4,13 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { getSocket } from '../../../utils/socket'
-import { FaSearch, FaFileExcel, FaFilePdf, FaCheckCircle, FaTimesCircle, FaEye, FaFilter } from 'react-icons/fa'
+import { FaSearch, FaFileExcel, FaCheckCircle, FaTimesCircle, FaFilter } from 'react-icons/fa'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getOrders, updateOrderStatus } from '../../../services/api'
+import XLSX from 'xlsx-js-style'
+import { saveAs } from 'file-saver'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 function OrdersList() {
   const [orders, setOrders] = useState([])
@@ -150,6 +154,81 @@ function OrdersList() {
     }
   }
 
+  const wrapText = (text, maxLength = 32) => {
+    if (!text) return ''
+    const words = text.split(' ')
+    const lines = []
+    let currentLine = ''
+
+    words.forEach((word) => {
+      const candidate = `${currentLine ? `${currentLine} ` : ''}${word}`
+      if (candidate.length > maxLength) {
+        if (currentLine) {
+          lines.push(currentLine)
+        }
+        currentLine = word
+      } else {
+        currentLine = candidate
+      }
+    })
+
+    if (currentLine) {
+      lines.push(currentLine)
+    }
+
+    return lines.join('\n')
+  }
+
+  // Format order data for exports
+  const formatOrderForExport = (order) => {
+    const productName = order.product?.name || order.product?.product_name || 'Product'
+    const sellerName =
+      order.seller?.name ||
+      [order.seller?.first_name, order.seller?.last_name].filter(Boolean).join(' ').trim() ||
+      '—'
+    const sellerTrade =
+      order.seller?.tradeId ||
+      order.seller?.trade_id ||
+      order.product?.sellerTradeId ||
+      '—'
+    const userName =
+      order.user?.name ||
+      [order.user?.first_name, order.user?.last_name].filter(Boolean).join(' ').trim() ||
+      'Customer'
+    const userEmail = order.user?.email || '—'
+    const totalAmount = Number(order.totalAmount || order.total_amount || 0)
+    const createdAt = order.createdAt || order.created_at || order.orderTime
+
+    return {
+      orderNumber: order.orderNumber,
+      productName,
+      sellerName,
+      sellerTrade,
+      userName,
+      userEmail,
+      quantity: order.quantity,
+      status: order.status,
+      totalAmount: totalAmount ? `₹${totalAmount.toLocaleString('en-IN')}` : '₹0',
+      createdAt: formatDate(createdAt)
+    }
+  }
+
+  const prepareExportRows = ({ wrapProductAndSeller = false } = {}) => {
+    return filteredOrders.map((order) => {
+      const formatted = formatOrderForExport(order)
+
+      if (wrapProductAndSeller) {
+        return {
+          ...formatted,
+          productName: wrapText(formatted.productName),
+          sellerName: wrapText(formatted.sellerName, 28)
+        }
+      }
+
+      return formatted
+    })
+  }
+
   // Handle reject order
   const handleRejectOrder = async (orderId) => {
     try {
@@ -177,25 +256,114 @@ function OrdersList() {
 
   // Export to Excel
   const handleExportExcel = () => {
-    // TODO: Implement Excel export
-    console.log('Exporting to Excel...')
-    showNotification({
-      id: Date.now(),
-      type: 'info',
-      message: 'Excel export started'
-    })
+    if (!filteredOrders.length) {
+      showNotification({
+        id: Date.now(),
+        type: 'info',
+        message: 'No orders available to export'
+      })
+      return
+    }
+
+    try {
+      const headerConfig = [
+        { key: 'orderNumber', label: 'Order #' },
+        { key: 'productName', label: 'Product Name' },
+        { key: 'sellerName', label: 'Seller Name' },
+        { key: 'sellerTrade', label: 'Seller Trade' },
+        { key: 'userName', label: 'User Name' },
+        { key: 'userEmail', label: 'User Email' },
+        { key: 'quantity', label: 'Qty' },
+        { key: 'status', label: 'Status' },
+        { key: 'totalAmount', label: 'Amount' },
+        { key: 'createdAt', label: 'Created At' }
+      ]
+
+      const rows = prepareExportRows({ wrapProductAndSeller: true })
+      const tableMatrix = [
+        headerConfig.map((col) => col.label),
+        ...rows.map((row) => headerConfig.map((col) => row[col.key] ?? ''))
+      ]
+
+      const worksheet = XLSX.utils.aoa_to_sheet(tableMatrix)
+
+      // Dynamically size columns so no data is hidden
+      const columnWidths = headerConfig.map((_, columnIndex) => {
+        const maxLength = tableMatrix.reduce((max, currentRow) => {
+          const cellValue = currentRow[columnIndex]?.toString() ?? ''
+          const lines = cellValue.split('\n')
+          const longestLine = lines.reduce((longest, line) => Math.max(longest, line.length), 0)
+          return Math.max(max, longestLine)
+        }, 0)
+
+        const minWidth = columnIndex === 1 || columnIndex === 2 ? 30 : 12
+        const maxWidth = columnIndex === 1 || columnIndex === 2 ? 60 : 40
+        return {
+          wch: Math.min(Math.max(maxLength + 2, minWidth), maxWidth)
+        }
+      })
+
+      worksheet['!cols'] = columnWidths
+      worksheet['!rows'] = worksheet['!rows'] || []
+      worksheet['!rows'][0] = { hpt: 22 }
+      worksheet['!pageSetup'] = {
+        fitToWidth: 1,
+        fitToHeight: 0,
+        orientation: 'landscape',
+        paperSize: 9 // A4
+      }
+
+      const range = XLSX.utils.decode_range(worksheet['!ref'])
+      for (let C = range.s.c; C <= range.e.c; C += 1) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C })
+        if (!worksheet[cellAddress]) continue
+        worksheet[cellAddress].s = {
+          font: { bold: true, color: { rgb: 'FFFFFFFF' } },
+          fill: { fgColor: { rgb: '111827' } },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        }
+      }
+
+      const wrapColumns = [1, 2]
+      for (let R = 1; R <= range.e.r; R += 1) {
+        wrapColumns.forEach((columnIndex) => {
+          const cellAddress = XLSX.utils.encode_cell({ r: R, c: columnIndex })
+          const cell = worksheet[cellAddress]
+          if (!cell) return
+          cell.s = {
+            ...(cell.s || {}),
+            alignment: {
+              horizontal: 'left',
+              vertical: 'top',
+              wrapText: true
+            }
+          }
+        })
+      }
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders')
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+      const blob = new Blob([excelBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      })
+      const timestamp = new Date().toISOString().split('T')[0]
+      saveAs(blob, `bbhc-orders-${timestamp}.xlsx`)
+      showNotification({
+        id: Date.now(),
+        type: 'success',
+        message: 'Excel exported successfully'
+      })
+    } catch (error) {
+      console.error('Error exporting Excel:', error)
+      showNotification({
+        id: Date.now(),
+        type: 'error',
+        message: 'Failed to export Excel'
+      })
+    }
   }
 
-  // Export to PDF
-  const handleExportPdf = () => {
-    // TODO: Implement PDF export
-    console.log('Exporting to PDF...')
-    showNotification({
-      id: Date.now(),
-      type: 'info',
-      message: 'PDF export started'
-    })
-  }
 
   // Format date
   const formatDate = (dateString) => {
@@ -274,13 +442,6 @@ function OrdersList() {
               <FaFileExcel className="w-5 h-5" />
               <span className="hidden sm:inline">Export Excel</span>
             </button>
-            <button
-              onClick={handleExportPdf}
-              className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-            >
-              <FaFilePdf className="w-5 h-5" />
-              <span className="hidden sm:inline">Export PDF</span>
-            </button>
           </div>
         </div>
       </div>
@@ -294,7 +455,7 @@ function OrdersList() {
       {/* Orders List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full table-auto text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Order #</th>
@@ -304,19 +465,18 @@ function OrdersList() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Amount</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loadingOrders ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan="7" className="px-4 py-12 text-center text-gray-500">
                     Loading orders...
                   </td>
                 </tr>
               ) : filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan="7" className="px-4 py-12 text-center text-gray-500">
                     No orders found
                   </td>
                 </tr>
@@ -347,29 +507,37 @@ function OrdersList() {
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => handleOrderClick(order)}
                     >
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{order.orderNumber}</div>
+                      <td className="px-4 py-4 align-top">
+                        <div className="font-medium text-gray-900 break-words leading-snug max-w-[180px]">
+                          {order.orderNumber}
+                        </div>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start gap-3">
                           <img
                             src={productImage}
                             alt={productName}
                             className="w-12 h-12 rounded-lg object-cover"
                           />
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{productName}</div>
+                          <div className="space-y-1">
+                            <div className="font-medium text-gray-900 leading-snug break-words max-w-[220px]">
+                              {productName}
+                            </div>
                             <div className="text-xs text-gray-500">Qty: {order.quantity}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4">
-                        <div className="text-sm text-gray-900">{sellerName}</div>
-                        <div className="text-xs text-gray-500">{sellerTrade}</div>
+                      <td className="px-4 py-4 align-top">
+                        <div className="text-gray-900 break-words leading-snug max-w-[200px]">
+                          {sellerName}
+                        </div>
+                        <div className="text-xs text-gray-500 break-all">{sellerTrade}</div>
                       </td>
-                      <td className="px-4 py-4">
-                        <div className="text-sm text-gray-900">{userName}</div>
-                        <div className="text-xs text-gray-500">{userEmail}</div>
+                      <td className="px-4 py-4 align-top">
+                        <div className="text-gray-900 break-words leading-snug max-w-[220px]">
+                          {userName}
+                        </div>
+                        <div className="text-xs text-gray-500 break-all">{userEmail}</div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold text-gray-900">
@@ -383,18 +551,6 @@ function OrdersList() {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(createdAt)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleOrderClick(order)
-                          }}
-                          className="text-amber-600 hover:text-amber-700 transition-colors"
-                          title="View Details"
-                        >
-                          <FaEye className="w-5 h-5" />
-                        </button>
                       </td>
                     </tr>
                   )

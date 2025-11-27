@@ -85,7 +85,7 @@ function SellerMyProducts() {
     <div className="min-h-screen bg-gradient-to-b from-[#EAF3FF] via-white to-[#F4ECFF] text-slate-900">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-0">
         <button
-          onClick={() => navigate('/seller')}
+          onClick={() => navigate('/seller/dashboard')}
           className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-black transition-colors"
         >
           <FiArrowLeft className="h-4 w-4" />

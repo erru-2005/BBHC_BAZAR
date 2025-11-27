@@ -75,7 +75,7 @@ function Seller() {
   }, [user, token])
 
   const menuItems = [
-    { label: 'Home', icon: FiHome, action: () => navigate('/seller') },
+    { label: 'Home', icon: FiHome, action: () => navigate('/seller/dashboard') },
     { label: 'My Products', icon: FiBox, action: () => navigate('/seller/products') },
     { label: 'Add Product', icon: FiPlusSquare, action: () => navigate('/seller/products/new') },
     { label: 'My Services', icon: FiBriefcase, action: () => null }

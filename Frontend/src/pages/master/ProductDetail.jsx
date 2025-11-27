@@ -93,7 +93,7 @@ function MasterProductDetail() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900 pb-16">
       <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8 space-y-6">
         <button
-          onClick={() => navigate('/master')}
+          onClick={() => navigate('/master/dashboard')}
           className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-black transition-colors"
         >
           <FaArrowLeft className="w-4 h-4" />

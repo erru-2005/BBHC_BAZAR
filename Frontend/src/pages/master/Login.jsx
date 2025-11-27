@@ -95,7 +95,7 @@ function MasterLogin() {
         })
         
         // Navigate to dashboard
-        navigate('/master')
+        navigate('/master/dashboard')
         return
       }
       
@@ -148,7 +148,7 @@ function MasterLogin() {
         })
       })
       
-      navigate('/master')
+      navigate('/master/dashboard')
     } catch (error) {
       dispatch(loginFailure(error.message || 'OTP verification failed. Please try again.'))
     }
@@ -182,7 +182,7 @@ function MasterLogin() {
             user_type: 'master'
           })
         })
-        navigate('/master')
+        navigate('/master/dashboard')
         return
       }
 

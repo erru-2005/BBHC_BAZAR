@@ -94,7 +94,7 @@ function SellerLogin() {
           })
         })
         
-        navigate('/seller')
+        navigate('/seller/dashboard')
         return
       }
       
@@ -142,7 +142,7 @@ function SellerLogin() {
         })
       })
       
-      navigate('/seller')
+      navigate('/seller/dashboard')
     } catch (error) {
       dispatch(loginFailure(error.message || 'OTP verification failed. Please try again.'))
     }
@@ -176,7 +176,7 @@ function SellerLogin() {
             user_type: 'seller'
           })
         })
-        navigate('/seller')
+        navigate('/seller/dashboard')
         return
       }
 
