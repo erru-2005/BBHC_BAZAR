@@ -980,6 +980,55 @@ export const cancelOrder = async (orderId) => {
   }
 }
 
+export const getOrder = async (orderId) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ORDER(orderId))
+    return response.order
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch order')
+  }
+}
+
+export const sellerAcceptOrder = async (orderId) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_ACCEPT(orderId))
+    return response.order
+  } catch (error) {
+    throw new Error(error.message || 'Failed to accept order')
+  }
+}
+
+export const sellerRejectOrder = async (orderId, reason = null) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_REJECT(orderId), {
+      reason: reason || 'No reason provided'
+    })
+    return response.order
+  } catch (error) {
+    throw new Error(error.message || 'Failed to reject order')
+  }
+}
+
+export const scanOrderToken = async (token) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_SCAN, { token })
+    return response.order
+  } catch (error) {
+    throw new Error(error.message || 'Failed to scan token')
+  }
+}
+
+export const masterCancelOrder = async (orderId, confirmationCode) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_CANCEL_MASTER(orderId), {
+      confirmation_code: confirmationCode
+    })
+    return response.order
+  } catch (error) {
+    throw new Error(error.message || 'Failed to cancel order')
+  }
+}
+
 /**
  * Bag API
  */

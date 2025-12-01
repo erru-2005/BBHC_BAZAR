@@ -20,11 +20,21 @@ class Order:
         user_snapshot=None,
         seller_id=None,
         seller_snapshot=None,
-        status='pending',
+        status='pending_seller',
         pickup_location=None,
         pickup_instructions=None,
         delivery_address=None,
         qr_code_data=None,
+        secure_token_user=None,
+        secure_token_seller=None,
+        token_used_user=False,
+        token_used_seller=False,
+        qr_code_url_user=None,
+        qr_code_url_seller=None,
+        outlet_id=None,
+        status_history=None,
+        cancelled_by_master=False,
+        cancellation_code=None,
         metadata=None,
         created_at=None,
         updated_at=None,
@@ -49,6 +59,16 @@ class Order:
         self.pickup_instructions = pickup_instructions
         self.delivery_address = delivery_address
         self.qr_code_data = qr_code_data
+        self.secure_token_user = secure_token_user
+        self.secure_token_seller = secure_token_seller
+        self.token_used_user = token_used_user
+        self.token_used_seller = token_used_seller
+        self.qr_code_url_user = qr_code_url_user
+        self.qr_code_url_seller = qr_code_url_seller
+        self.outlet_id = outlet_id
+        self.status_history = status_history or []
+        self.cancelled_by_master = cancelled_by_master
+        self.cancellation_code = cancellation_code
         self.metadata = metadata or {}
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or datetime.utcnow()
@@ -61,6 +81,7 @@ class Order:
             'product_id': str(self.product_id),
             'user_id': str(self.user_id),
             'seller_id': str(self.seller_id) if self.seller_id else None,
+            'outlet_id': str(self.outlet_id) if self.outlet_id else None,
             'quantity': self.quantity,
             'unitPrice': self.unit_price,
             'totalAmount': self.total_amount,
@@ -69,6 +90,15 @@ class Order:
             'pickupInstructions': self.pickup_instructions,
             'deliveryAddress': self.delivery_address,
             'qrCodeData': self.qr_code_data,
+            'secureTokenUser': self.secure_token_user,
+            'secureTokenSeller': self.secure_token_seller,
+            'tokenUsedUser': self.token_used_user,
+            'tokenUsedSeller': self.token_used_seller,
+            'qrCodeUrlUser': self.qr_code_url_user,
+            'qrCodeUrlSeller': self.qr_code_url_seller,
+            'statusHistory': [self._format_status_entry(entry) for entry in self.status_history],
+            'cancelledByMaster': self.cancelled_by_master,
+            'cancellationCode': self.cancellation_code,
             'product': self.product_snapshot,
             'user': self.user_snapshot,
             'seller': self.seller_snapshot,
@@ -85,6 +115,7 @@ class Order:
             'product_id': self.product_id,
             'user_id': self.user_id,
             'seller_id': self.seller_id,
+            'outlet_id': self.outlet_id,
             'quantity': self.quantity,
             'unit_price': self.unit_price,
             'total_amount': self.total_amount,
@@ -93,6 +124,15 @@ class Order:
             'pickup_instructions': self.pickup_instructions,
             'delivery_address': self.delivery_address,
             'qr_code_data': self.qr_code_data,
+            'secure_token_user': self.secure_token_user,
+            'secure_token_seller': self.secure_token_seller,
+            'token_used_user': self.token_used_user,
+            'token_used_seller': self.token_used_seller,
+            'qr_code_url_user': self.qr_code_url_user,
+            'qr_code_url_seller': self.qr_code_url_seller,
+            'status_history': self.status_history,
+            'cancelled_by_master': self.cancelled_by_master,
+            'cancellation_code': self.cancellation_code,
             'product_snapshot': self.product_snapshot,
             'user_snapshot': self.user_snapshot,
             'seller_snapshot': self.seller_snapshot,
@@ -111,14 +151,24 @@ class Order:
             product_id=bson_doc.get('product_id'),
             user_id=bson_doc.get('user_id'),
             seller_id=bson_doc.get('seller_id'),
+            outlet_id=bson_doc.get('outlet_id'),
             quantity=bson_doc.get('quantity'),
             unit_price=bson_doc.get('unit_price'),
             total_amount=bson_doc.get('total_amount'),
-            status=bson_doc.get('status', 'pending'),
+            status=bson_doc.get('status', 'pending_seller'),
             pickup_location=bson_doc.get('pickup_location'),
             pickup_instructions=bson_doc.get('pickup_instructions'),
             delivery_address=bson_doc.get('delivery_address'),
             qr_code_data=bson_doc.get('qr_code_data'),
+            secure_token_user=bson_doc.get('secure_token_user'),
+            secure_token_seller=bson_doc.get('secure_token_seller'),
+            token_used_user=bson_doc.get('token_used_user', False),
+            token_used_seller=bson_doc.get('token_used_seller', False),
+            qr_code_url_user=bson_doc.get('qr_code_url_user'),
+            qr_code_url_seller=bson_doc.get('qr_code_url_seller'),
+            status_history=bson_doc.get('status_history', []),
+            cancelled_by_master=bson_doc.get('cancelled_by_master', False),
+            cancellation_code=bson_doc.get('cancellation_code'),
             product_snapshot=bson_doc.get('product_snapshot', {}),
             user_snapshot=bson_doc.get('user_snapshot', {}),
             seller_snapshot=bson_doc.get('seller_snapshot', {}),
@@ -133,4 +183,10 @@ class Order:
             return value.isoformat()
         return value
 
-
+    @staticmethod
+    def _format_status_entry(entry):
+        if isinstance(entry, dict):
+            if 'timestamp' in entry and isinstance(entry['timestamp'], datetime):
+                entry = entry.copy()
+                entry['timestamp'] = entry['timestamp'].isoformat()
+        return entry

@@ -21,6 +21,26 @@ def _emit_to_collection(collection_name, filter_query, event_name, payload):
         print(f"[SocketEmitter] Failed to emit to {collection_name}: {exc}")
 
 
+def _emit_to_user(user_id, event_name, payload):
+    """Emit event to a specific user by their user_id."""
+    try:
+        user_doc = mongo.db.users.find_one({'_id': ObjectId(user_id)}, {'socket_id': 1})
+        if user_doc and user_doc.get('socket_id'):
+            socketio.emit(event_name, payload, room=user_doc['socket_id'])
+    except Exception as exc:
+        print(f"[SocketEmitter] Failed to emit to user {user_id}: {exc}")
+
+
+def _emit_to_seller(seller_id, event_name, payload):
+    """Emit event to a specific seller by their seller_id."""
+    try:
+        seller_doc = mongo.db.sellers.find_one({'_id': ObjectId(seller_id)}, {'socket_id': 1})
+        if seller_doc and seller_doc.get('socket_id'):
+            socketio.emit(event_name, payload, room=seller_doc['socket_id'])
+    except Exception as exc:
+        print(f"[SocketEmitter] Failed to emit to seller {seller_id}: {exc}")
+
+
 def emit_product_event(event_name, product_dict):
     """
     Broadcast product event to all listeners plus targeted masters/sellers.
@@ -29,8 +49,6 @@ def emit_product_event(event_name, product_dict):
         return
 
     # Broadcast to everyone (masters, sellers, public users)
-    # Note: newer python-socketio versions don't support `broadcast` kw arg on Server.emit.
-    # Emitting without a room/to argument sends to all connected clients.
     socketio.emit(event_name, product_dict)
 
     seller_trade_id = product_dict.get('seller_trade_id')
@@ -52,11 +70,29 @@ def emit_product_event(event_name, product_dict):
     _emit_to_collection('master', {'socket_id': {'$ne': None}}, event_name, product_dict)
 
 
-def emit_order_event(event_name, order_dict):
+def emit_order_event(event_name, order_dict, target_user_id=None, target_seller_id=None):
     """
-    Broadcast order events (new, updated) to all masters and connected dashboards.
+    Broadcast order events (new, updated) to relevant parties.
+    - Broadcasts to all masters
+    - Targets specific user if target_user_id provided
+    - Targets specific seller if target_seller_id provided
     """
     if not order_dict:
         return
-    socketio.emit(event_name, order_dict)
+    
+    # Broadcast to all masters
     _emit_to_collection('master', {'socket_id': {'$ne': None}}, event_name, order_dict)
+    
+    # Broadcast to all outlet men
+    _emit_to_collection('outlet_men', {'socket_id': {'$ne': None}}, event_name, order_dict)
+    
+    # Target specific user
+    if target_user_id:
+        _emit_to_user(target_user_id, event_name, order_dict)
+    
+    # Target specific seller
+    if target_seller_id:
+        _emit_to_seller(target_seller_id, event_name, order_dict)
+    
+    # Also broadcast generally (for any other listeners)
+    socketio.emit(event_name, order_dict)

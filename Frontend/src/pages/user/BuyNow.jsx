@@ -273,30 +273,40 @@ function BuyNow() {
             >
               <SuccessAnimation />
               <div>
-                <h2 className="text-2xl font-semibold text-gray-900">Order confirmed!</h2>
+                <h2 className="text-2xl font-semibold text-gray-900">Order placed successfully!</h2>
                 <p className="text-sm text-gray-500 mt-2">
-                  Show this QR code at the BBHCBazaar outlet to pay and collect your {successOrder.product?.name}.
+                  Your order is waiting for seller confirmation. You'll receive a QR code once the seller accepts your order.
                 </p>
+                {successOrder.status === 'pending_seller' && (
+                  <p className="text-xs text-amber-600 mt-2 font-medium">
+                    Status: Waiting for seller confirmation
+                  </p>
+                )}
               </div>
               <div className="flex flex-col items-center gap-3">
-                {successOrder.qrCodeData && (
-                  <div
-                    className="bg-gray-50 p-4 rounded-2xl border border-gray-200 inline-block"
-                    ref={successQrRef}
-                  >
-                    <QRCode value={successOrder.qrCodeData} size={160} />
-                  </div>
+                {successOrder.status === 'seller_accepted' && successOrder.secureTokenUser && (
+                  <>
+                    <div
+                      className="bg-gray-50 p-4 rounded-2xl border border-gray-200 inline-block"
+                      ref={successQrRef}
+                    >
+                      <QRCode value={successOrder.secureTokenUser || successOrder.qrCodeData || ''} size={160} />
+                    </div>
+                    <p className="text-xs text-gray-500 font-mono">
+                      Token: {successOrder.secureTokenUser}
+                    </p>
+                    <button
+                      onClick={() => downloadSvgFromRef(successQrRef.current, `bbhc-order-${successOrder.orderNumber}.svg`)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900 text-white text-sm font-semibold hover:bg-black transition"
+                    >
+                      <FaDownload className="w-4 h-4" />
+                      Download QR
+                    </button>
+                  </>
                 )}
                 <p className="text-xs text-gray-500 uppercase tracking-widest">
                   Order #{successOrder.orderNumber}
                 </p>
-                <button
-                  onClick={() => downloadSvgFromRef(successQrRef.current, `bbhc-order-${successOrder.orderNumber}.svg`)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900 text-white text-sm font-semibold hover:bg-black transition"
-                >
-                  <FaDownload className="w-4 h-4" />
-                  Download QR
-                </button>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <button

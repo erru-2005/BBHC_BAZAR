@@ -25,7 +25,7 @@ def register_events(socketio):
                 try:
                     decoded = decode_token(auth['token'])
                     user_id = decoded.get('sub') or decoded.get('user_id')
-                    user_type = decoded.get('user_type')  # 'master' or 'seller'
+                    user_type = decoded.get('user_type')  # 'master', 'seller', 'user', 'outlet_man'
                     username = decoded.get('username')
                 except Exception:
                     pass
@@ -54,6 +54,22 @@ def register_events(socketio):
                                 'last_connected_at': datetime.utcnow()
                             }}
                         )
+                    elif user_type == 'user':
+                        mongo.db.users.update_one(
+                            {'_id': user_obj_id},
+                            {'$set': {
+                                'socket_id': socket_id,
+                                'last_connected_at': datetime.utcnow()
+                            }}
+                        )
+                    elif user_type == 'outlet_man':
+                        mongo.db.outlet_men.update_one(
+                            {'_id': user_obj_id},
+                            {'$set': {
+                                'socket_id': socket_id,
+                                'last_connected_at': datetime.utcnow()
+                            }}
+                        )
                 except Exception as e:
                     print(f"Error updating user status on connect: {e}")
                     pass
@@ -72,7 +88,7 @@ def register_events(socketio):
         try:
             socket_id = request.sid
             
-            # Find user by socket_id and update status to not_active
+            # Find user by socket_id and update status
             # Check masters collection
             master = mongo.db.master.find_one({'socket_id': socket_id})
             if master:
@@ -96,6 +112,28 @@ def register_events(socketio):
                         'last_disconnected_at': datetime.utcnow()
                     }}
                 )
+            
+            # Check users collection
+            user = mongo.db.users.find_one({'socket_id': socket_id})
+            if user:
+                mongo.db.users.update_one(
+                    {'_id': user['_id']},
+                    {'$set': {
+                        'socket_id': None,
+                        'last_disconnected_at': datetime.utcnow()
+                    }}
+                )
+            
+            # Check outlet_men collection
+            outlet_man = mongo.db.outlet_men.find_one({'socket_id': socket_id})
+            if outlet_man:
+                mongo.db.outlet_men.update_one(
+                    {'_id': outlet_man['_id']},
+                    {'$set': {
+                        'socket_id': None,
+                        'last_disconnected_at': datetime.utcnow()
+                    }}
+                )
         except Exception as e:
             print(f"Error updating user status on disconnect: {e}")
             pass
@@ -105,7 +143,7 @@ def register_events(socketio):
         """Handle user authentication via socket"""
         try:
             user_id = data.get('user_id')
-            user_type = data.get('user_type')  # 'master' or 'seller'
+            user_type = data.get('user_type')  # 'master', 'seller', 'user', 'outlet_man'
             
             if user_id and user_type:
                 try:
@@ -130,6 +168,22 @@ def register_events(socketio):
                                 'last_connected_at': datetime.utcnow()
                             }}
                         )
+                    elif user_type == 'user':
+                        mongo.db.users.update_one(
+                            {'_id': user_obj_id},
+                            {'$set': {
+                                'socket_id': socket_id,
+                                'last_connected_at': datetime.utcnow()
+                            }}
+                        )
+                    elif user_type == 'outlet_man':
+                        mongo.db.outlet_men.update_one(
+                            {'_id': user_obj_id},
+                            {'$set': {
+                                'socket_id': socket_id,
+                                'last_connected_at': datetime.utcnow()
+                            }}
+                        )
                     
                     emit('status_updated', {'status': 'active', 'socket_id': socket_id})
                 except Exception as e:
@@ -143,7 +197,7 @@ def register_events(socketio):
         """Handle user logout via socket"""
         try:
             user_id = data.get('user_id')
-            user_type = data.get('user_type')  # 'master' or 'seller'
+            user_type = data.get('user_type')  # 'master', 'seller', 'user', 'outlet_man'
             
             if user_id and user_type:
                 try:
@@ -163,6 +217,22 @@ def register_events(socketio):
                             {'_id': user_obj_id},
                             {'$set': {
                                 'is_active': False,
+                                'socket_id': None,
+                                'last_disconnected_at': datetime.utcnow()
+                            }}
+                        )
+                    elif user_type == 'user':
+                        mongo.db.users.update_one(
+                            {'_id': user_obj_id},
+                            {'$set': {
+                                'socket_id': None,
+                                'last_disconnected_at': datetime.utcnow()
+                            }}
+                        )
+                    elif user_type == 'outlet_man':
+                        mongo.db.outlet_men.update_one(
+                            {'_id': user_obj_id},
+                            {'$set': {
                                 'socket_id': None,
                                 'last_disconnected_at': datetime.utcnow()
                             }}

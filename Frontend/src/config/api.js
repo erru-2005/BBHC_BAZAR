@@ -43,8 +43,13 @@ export const API_ENDPOINTS = {
     WISHLIST: `${API_BASE_URL}/api/wishlist`,
     WISHLIST_ITEM: (productId) => `${API_BASE_URL}/api/wishlist/${productId}`,
     ORDERS: `${API_BASE_URL}/api/orders`,
+    ORDER: (orderId) => `${API_BASE_URL}/api/orders/${orderId}`,
+    ORDER_ACCEPT: (orderId) => `${API_BASE_URL}/api/orders/${orderId}/accept`,
+    ORDER_REJECT: (orderId) => `${API_BASE_URL}/api/orders/${orderId}/reject`,
+    ORDER_SCAN: `${API_BASE_URL}/api/orders/scan`,
     ORDER_STATUS: (orderId) => `${API_BASE_URL}/api/orders/${orderId}/status`,
     ORDER_CANCEL: (orderId) => `${API_BASE_URL}/api/orders/${orderId}/cancel`,
+    ORDER_CANCEL_MASTER: (orderId) => `${API_BASE_URL}/api/orders/${orderId}/cancel-master`,
     BAG: `${API_BASE_URL}/api/bag`,
     BAG_ITEM: (bagItemId) => `${API_BASE_URL}/api/bag/${bagItemId}`,
     BAG_CLEAR: `${API_BASE_URL}/api/bag/clear`

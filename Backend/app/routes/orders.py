@@ -1,6 +1,7 @@
 """
 Order-related API endpoints.
 """
+import secrets
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
@@ -58,6 +59,10 @@ def create_order():
         if quantity > available_quantity:
             quantity = available_quantity
 
+    # Atomically reduce product quantity
+    if not OrderService.reduce_product_quantity(product_id, quantity):
+        return jsonify({'error': 'Insufficient stock. Product quantity could not be reduced.'}), 400
+
     unit_price = product_dict.get('selling_price') or product_dict.get('max_price') or 0
     total_amount = float(unit_price or 0) * quantity
 
@@ -87,7 +92,7 @@ def create_order():
         'quantity': quantity,
         'unit_price': unit_price,
         'total_amount': total_amount,
-        'status': 'pending',
+        'status': 'pending_seller',
         'delivery_address': delivery_address or user_snapshot.get('address'),
         'pickup_location': pickup_location,
         'pickup_instructions': pickup_instructions,
@@ -114,15 +119,11 @@ def create_order():
         }
     }
 
-    # Generate QR payload once we have the order number
-    order_payload['order_number'] = OrderService.generate_order_number()
-    order_payload['qr_code_data'] = f"BBHCBazaar|ORDER:{order_payload['order_number']}|PRODUCT:{product_dict.get('id')}|USER:{user_id}|QTY:{quantity}"
-
     order = OrderService.create_order(order_payload)
     order_dict = order.to_dict()
 
-    # Broadcast to masters for dashboards
-    emit_order_event('new_order', order_dict)
+    # Emit real-time events to user, seller, and master
+    emit_order_event('new_order', order_dict, target_user_id=user_id, target_seller_id=seller_id)
 
     return jsonify({
         'message': 'Order placed successfully',
@@ -140,40 +141,159 @@ def list_orders():
     if user_type == 'master':
         orders = OrderService.get_orders()
     elif user_type == 'outlet_man':
-        # Outlet men can view all orders (same as master)
         orders = OrderService.get_orders()
+    elif user_type == 'seller':
+        orders = OrderService.get_orders_by_seller(user_id)
     elif user_type == 'user':
         orders = OrderService.get_orders_by_user(user_id)
     else:
-        print(f"[DEBUG] Unauthorized - user_type: {user_type}")
         return jsonify({'error': f'Unauthorized to view orders. User type: {user_type}'}), 403
 
     return jsonify({'orders': _serialize_orders(orders)}), 200
 
 
-@orders_bp.route('/orders/<order_id>/status', methods=['PUT'])
+@orders_bp.route('/orders/<order_id>', methods=['GET'])
 @jwt_required()
-def update_order_status(order_id):
+def get_order(order_id):
+    """Get a specific order by ID."""
     claims = get_jwt()
     user_type = claims.get('user_type')
-    # Both master and outlet_man can update order status
-    if user_type not in ['master', 'outlet_man']:
-        return jsonify({'error': 'Only masters and outlet men can update order status'}), 403
+    user_id = get_jwt_identity()
 
-    data = request.get_json() or {}
-    status = data.get('status')
-    if status not in OrderService.STATUS_CHOICES:
-        return jsonify({'error': 'Invalid status value'}), 400
+    order = OrderService.get_order_by_id(order_id)
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
 
-    updated_order = OrderService.update_order_status(order_id, status)
+    # Authorization checks
+    if user_type == 'user' and str(order.user_id) != str(user_id):
+        return jsonify({'error': 'Unauthorized'}), 403
+    if user_type == 'seller' and str(order.seller_id) != str(user_id):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    return jsonify({'order': order.to_dict()}), 200
+
+
+@orders_bp.route('/orders/<order_id>/accept', methods=['POST'])
+@jwt_required()
+def seller_accept_order(order_id):
+    """Seller accepts an order."""
+    claims = get_jwt()
+    if claims.get('user_type') != 'seller':
+        return jsonify({'error': 'Only sellers can accept orders'}), 403
+
+    seller_id = get_jwt_identity()
+    updated_order, error = OrderService.seller_accept_order(order_id, seller_id)
+    
+    if error:
+        return jsonify({'error': error}), 400
     if not updated_order:
         return jsonify({'error': 'Order not found'}), 404
 
     order_dict = updated_order.to_dict()
-    emit_order_event('order_updated', order_dict)
+    emit_order_event('order_updated', order_dict, target_user_id=str(updated_order.user_id), target_seller_id=str(updated_order.seller_id))
 
     return jsonify({
-        'message': 'Order status updated',
+        'message': 'Order accepted successfully',
+        'order': order_dict
+    }), 200
+
+
+@orders_bp.route('/orders/<order_id>/reject', methods=['POST'])
+@jwt_required()
+def seller_reject_order(order_id):
+    """Seller rejects an order."""
+    claims = get_jwt()
+    if claims.get('user_type') != 'seller':
+        return jsonify({'error': 'Only sellers can reject orders'}), 403
+
+    seller_id = get_jwt_identity()
+    payload = request.get_json() or {}
+    reason = payload.get('reason', 'No reason provided')
+
+    updated_order, error = OrderService.seller_reject_order(order_id, seller_id, reason)
+    
+    if error:
+        return jsonify({'error': error}), 400
+    if not updated_order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    order_dict = updated_order.to_dict()
+    emit_order_event('order_updated', order_dict, target_user_id=str(updated_order.user_id), target_seller_id=str(updated_order.seller_id))
+
+    return jsonify({
+        'message': 'Order rejected successfully',
+        'order': order_dict
+    }), 200
+
+
+@orders_bp.route('/orders/scan', methods=['POST'])
+@jwt_required()
+def scan_order_token():
+    """Scan QR token to update order status."""
+    claims = get_jwt()
+    user_type = claims.get('user_type')
+    scanner_id = get_jwt_identity()
+
+    payload = request.get_json() or {}
+    token = payload.get('token', '').strip()
+
+    if not token:
+        return jsonify({'error': 'Token is required'}), 400
+
+    # Determine scanner role
+    scanner_role = None
+    if user_type == 'seller':
+        scanner_role = 'seller'
+    elif user_type == 'user':
+        scanner_role = 'user'
+    elif user_type == 'outlet_man':
+        scanner_role = 'outlet'
+    else:
+        return jsonify({'error': 'Unauthorized to scan tokens'}), 403
+
+    updated_order, error = OrderService.scan_token(token, scanner_role, scanner_id)
+    
+    if error:
+        return jsonify({'error': error}), 400
+    if not updated_order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    order_dict = updated_order.to_dict()
+    emit_order_event('order_updated', order_dict, target_user_id=str(updated_order.user_id), target_seller_id=str(updated_order.seller_id))
+
+    return jsonify({
+        'message': 'Token scanned successfully',
+        'order': order_dict
+    }), 200
+
+
+@orders_bp.route('/orders/<order_id>/cancel-master', methods=['POST'])
+@jwt_required()
+def master_cancel_order(order_id):
+    """Master cancels an order with confirmation code."""
+    claims = get_jwt()
+    if claims.get('user_type') != 'master':
+        return jsonify({'error': 'Only masters can cancel orders'}), 403
+
+    master_id = get_jwt_identity()
+    payload = request.get_json() or {}
+    confirmation_code = payload.get('confirmation_code', '').strip()
+
+    if not confirmation_code:
+        return jsonify({'error': 'Confirmation code is required'}), 400
+
+    updated_order, error = OrderService.master_cancel_order(order_id, master_id, confirmation_code)
+    
+    if error:
+        return jsonify({'error': error}), 400
+    if not updated_order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    order_dict = updated_order.to_dict()
+    emit_order_event('order_updated', order_dict, target_user_id=str(updated_order.user_id), target_seller_id=str(updated_order.seller_id))
+
+    return jsonify({
+        'message': 'Order cancelled by master successfully',
         'order': order_dict
     }), 200
 
@@ -193,7 +313,7 @@ def cancel_order(order_id):
         return jsonify({'error': 'Order not found'}), 404
 
     order_dict = updated_order.to_dict()
-    emit_order_event('order_updated', order_dict)
+    emit_order_event('order_updated', order_dict, target_user_id=str(updated_order.user_id), target_seller_id=str(updated_order.seller_id))
 
     return jsonify({
         'message': 'Order cancelled successfully',
@@ -201,3 +321,30 @@ def cancel_order(order_id):
     }), 200
 
 
+@orders_bp.route('/orders/<order_id>/status', methods=['PUT'])
+@jwt_required()
+def update_order_status(order_id):
+    claims = get_jwt()
+    user_type = claims.get('user_type')
+    if user_type not in ['master', 'outlet_man']:
+        return jsonify({'error': 'Only masters and outlet men can update order status'}), 403
+
+    data = request.get_json() or {}
+    status = data.get('status')
+    note = data.get('note')
+    updated_by = f'{user_type}:{get_jwt_identity()}'
+
+    if status not in OrderService.STATUS_CHOICES:
+        return jsonify({'error': 'Invalid status value'}), 400
+
+    updated_order = OrderService.update_order_status(order_id, status, note=note, updated_by=updated_by)
+    if not updated_order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    order_dict = updated_order.to_dict()
+    emit_order_event('order_updated', order_dict, target_user_id=str(updated_order.user_id), target_seller_id=str(updated_order.seller_id))
+
+    return jsonify({
+        'message': 'Order status updated',
+        'order': order_dict
+    }), 200

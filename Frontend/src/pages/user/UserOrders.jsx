@@ -9,18 +9,25 @@ import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
 import MobileBottomNav from './components/MobileBottomNav'
 import { getOrders, cancelOrder } from '../../services/api'
+import { initSocket } from '../../utils/socket'
 
 const STATUS_STYLES = {
-  pending: { label: 'Pending', className: 'bg-yellow-500/10 text-yellow-300 border border-yellow-500/40' },
-  accepted: { label: 'Ready for pickup', className: 'bg-blue-500/10 text-blue-200 border border-blue-500/40' },
-  rejected: { label: 'Rejected', className: 'bg-red-500/10 text-red-300 border border-red-500/40' },
+  pending_seller: { label: 'Waiting for seller confirmation', className: 'bg-yellow-500/10 text-yellow-300 border border-yellow-500/40' },
+  seller_accepted: { label: 'Seller confirmed - Ready at outlet', className: 'bg-blue-500/10 text-blue-200 border border-blue-500/40' },
+  seller_rejected: { label: 'Rejected by seller', className: 'bg-red-500/10 text-red-300 border border-red-500/40' },
+  ready_for_pickup: { label: 'Ready for pickup', className: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/40' },
+  handed_over: { label: 'Handed over - Ready to collect', className: 'bg-green-500/10 text-green-300 border border-green-500/40' },
   completed: { label: 'Completed', className: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/40' },
-  cancelled: { label: 'Cancelled', className: 'bg-gray-500/10 text-gray-300 border border-gray-500/40' }
+  cancelled: { label: 'Cancelled', className: 'bg-gray-500/10 text-gray-300 border border-gray-500/40' },
+  cancelled_master: { label: 'Cancelled by admin', className: 'bg-red-500/10 text-red-300 border border-red-500/40' },
+  pending: { label: 'Pending', className: 'bg-yellow-500/10 text-yellow-300 border border-yellow-500/40' },
+  accepted: { label: 'Accepted', className: 'bg-blue-500/10 text-blue-200 border border-blue-500/40' },
+  rejected: { label: 'Rejected', className: 'bg-red-500/10 text-red-300 border border-red-500/40' }
 }
 
 function UserOrders() {
   const navigate = useNavigate()
-  const { user } = useSelector((state) => state.auth)
+  const { user, token } = useSelector((state) => state.auth)
   const { home } = useSelector((state) => state.data)
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -45,12 +52,53 @@ function UserOrders() {
     fetchOrders()
   }, [])
 
+  // Real-time Socket.IO updates
+  useEffect(() => {
+    if (!token) return
+
+    const socket = initSocket(token)
+    
+    socket.on('connect', () => {
+      if (user?.id) {
+        socket.emit('user_authenticated', {
+          user_id: user.id,
+          user_type: 'user'
+        })
+      }
+    })
+
+    socket.on('new_order', (orderData) => {
+      setOrders((prev) => {
+        const exists = prev.find((o) => o.id === orderData.id)
+        if (exists) return prev
+        return [orderData, ...prev]
+      })
+    })
+
+    socket.on('order_updated', (orderData) => {
+      setOrders((prev) =>
+        prev.map((order) => (order.id === orderData.id ? orderData : order))
+      )
+      // Update active order if it's the one being updated
+      if (activeOrder && activeOrder.id === orderData.id) {
+        setActiveOrder(orderData)
+      }
+    })
+
+    return () => {
+      socket.disconnect()
+    }
+  }, [token, user, activeOrder])
+
   const handleCancelOrder = async (orderId) => {
     setCancelingId(orderId)
     setError(null)
     try {
       const updated = await cancelOrder(orderId)
       setOrders((prev) => prev.map((order) => (order.id === orderId ? updated : order)))
+      if (activeOrder && activeOrder.id === orderId) {
+        setActiveOrder(updated)
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -80,7 +128,6 @@ function UserOrders() {
         return
       }
 
-      // Ensure a solid background to avoid transparent edges in PNG
       context.fillStyle = '#ffffff'
       context.fillRect(0, 0, canvas.width, canvas.height)
       context.drawImage(image, 0, 0)
@@ -102,19 +149,42 @@ function UserOrders() {
     image.src = url
   }
 
+  const getStatusMessage = (order) => {
+    switch (order.status) {
+      case 'pending_seller':
+        return 'Waiting for seller confirmation'
+      case 'seller_accepted':
+        return 'Seller has confirmed your order. QR code is ready for pickup.'
+      case 'seller_rejected':
+        return 'Seller has rejected this order.'
+      case 'handed_over':
+        return 'Product has been handed over at outlet. You can now collect it.'
+      case 'completed':
+        return 'Order completed successfully!'
+      case 'cancelled':
+      case 'cancelled_master':
+        return 'This order has been cancelled.'
+      default:
+        return 'Order is being processed.'
+    }
+  }
+
   const renderOrderCard = (order) => {
     const status = STATUS_STYLES[order.status] || STATUS_STYLES.pending
     const totalAmount = Number(order.totalAmount || order.total_amount || 0).toLocaleString('en-IN')
     const createdAt = order.createdAt || order.created_at
     const productName = order.product?.name || order.product?.product_name || 'Product'
     const productImg = order.product?.thumbnail || order.product?.image || 'https://via.placeholder.com/120?text=BBHC'
+    const canCancel = order.status === 'pending_seller'
+    const hasQR = order.status === 'seller_accepted' || order.status === 'handed_over' || order.status === 'ready_for_pickup'
+    const qrValue = order.secureTokenUser || order.qrCodeData || order.qr_code_data || ''
 
     return (
       <div
         key={order.id}
         className="flex flex-col gap-4 bg-white/5 border border-white/10 rounded-3xl p-5 sm:p-6 cursor-pointer"
         onClick={() => {
-          if (order.status !== 'cancelled') {
+          if (order.status !== 'cancelled' && order.status !== 'cancelled_master' && order.status !== 'seller_rejected') {
             setActiveOrder(order)
           }
         }}
@@ -146,12 +216,17 @@ function UserOrders() {
             </p>
             <p className="text-xs text-white/50 flex items-center gap-2">
               <FaTruck className="w-4 h-4" />
-              Pickup: {order.pickupLocation || 'BBHCBazaar outlet'}
+              Pickup: {order.pickupLocation || order.pickup_location || 'BBHCBazaar outlet'}
             </p>
+            {hasQR && qrValue && (
+              <p className="text-xs text-emerald-300 font-mono">
+                Token: {order.secureTokenUser || 'N/A'}
+              </p>
+            )}
           </div>
         </div>
 
-        {order.status === 'pending' && (
+        {canCancel && (
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -243,36 +318,50 @@ function UserOrders() {
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md text-center space-y-4 shadow-2xl"
             >
-              <h3 className="text-xl font-semibold text-gray-900">Pickup QR</h3>
-              {activeOrder.status === 'cancelled' ? (
+              <h3 className="text-xl font-semibold text-gray-900">Order Details</h3>
+              <p className="text-sm text-gray-600">{getStatusMessage(activeOrder)}</p>
+              
+              {(activeOrder.status === 'cancelled' || activeOrder.status === 'cancelled_master' || activeOrder.status === 'seller_rejected') ? (
                 <p className="text-sm text-red-500">
-                  This order has been cancelled. The QR code is no longer available.
+                  This order is no longer active. QR code is not available.
                 </p>
-              ) : (
+              ) : (activeOrder.status === 'pending_seller') ? (
+                <p className="text-sm text-amber-600">
+                  Waiting for seller to accept your order. QR code will be available once accepted.
+                </p>
+              ) : (activeOrder.secureTokenUser || activeOrder.qrCodeData) ? (
                 <>
                   <p className="text-sm text-gray-500">
                     Show this code at the BBHCBazaar outlet to complete payment and collect your product.
                   </p>
                   <div className="inline-block bg-gray-50 border border-gray-200 rounded-2xl p-4" ref={qrPreviewRef}>
                     <QRCode
-                      value={activeOrder.qrCodeData || activeOrder.qrCode || activeOrder.qr_code_data || ''}
+                      value={activeOrder.secureTokenUser || activeOrder.qrCodeData || activeOrder.qr_code_data || ''}
                       size={200}
                     />
                   </div>
+                  {activeOrder.secureTokenUser && (
+                    <p className="text-xs text-gray-500 font-mono">
+                      Token: {activeOrder.secureTokenUser}
+                    </p>
+                  )}
+                  <button
+                    onClick={downloadActiveOrderQR}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 text-white font-semibold py-3 hover:bg-black transition"
+                  >
+                    <FaDownload className="w-4 h-4" />
+                    Download QR
+                  </button>
                 </>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  QR code will be available once the seller accepts your order.
+                </p>
               )}
+              
               <p className="text-xs text-gray-500 uppercase tracking-widest">
                 Order #{activeOrder.orderNumber}
               </p>
-              {activeOrder.status !== 'cancelled' && (
-                <button
-                  onClick={downloadActiveOrderQR}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 text-white font-semibold py-3 hover:bg-black transition"
-                >
-                  <FaDownload className="w-4 h-4" />
-                  Download QR
-                </button>
-              )}
               <button
                 onClick={() => setActiveOrder(null)}
                 className="w-full rounded-full border border-gray-300 text-gray-700 font-semibold py-3 hover:bg-gray-50 transition"
@@ -288,4 +377,3 @@ function UserOrders() {
 }
 
 export default UserOrders
-

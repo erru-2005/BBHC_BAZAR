@@ -8,6 +8,7 @@ import { FiBox, FiMenu, FiX, FiHome, FiBriefcase, FiLogOut, FiPlusSquare } from 
 import { logout } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
+import SellerOrders from './components/SellerOrders'
 
 function Seller() {
   const dispatch = useDispatch()
@@ -16,6 +17,7 @@ function Seller() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [activeNotificationTab, setActiveNotificationTab] = useState('orders')
   const [displayedNotificationTab, setDisplayedNotificationTab] = useState('orders')
+  const [showOrders, setShowOrders] = useState(false)
   const [isNotificationContentFading, setIsNotificationContentFading] = useState(false)
   const tabRefs = useRef({})
   const tabListRef = useRef(null)
@@ -75,7 +77,8 @@ function Seller() {
   }, [user, token])
 
   const menuItems = [
-    { label: 'Home', icon: FiHome, action: () => navigate('/seller/dashboard') },
+    { label: 'Home', icon: FiHome, action: () => { setShowOrders(false); navigate('/seller/dashboard') } },
+    { label: 'My Orders', icon: FiBox, action: () => setShowOrders(true) },
     { label: 'My Products', icon: FiBox, action: () => navigate('/seller/products') },
     { label: 'Add Product', icon: FiPlusSquare, action: () => navigate('/seller/products/new') },
     { label: 'My Services', icon: FiBriefcase, action: () => null }
@@ -323,6 +326,10 @@ function Seller() {
       {/* Main Content */}
       <main className="px-4 pb-10 pt-4 sm:px-6 sm:pb-14 sm:pt-6 lg:px-0 lg:pb-16">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 sm:gap-6">
+          {showOrders ? (
+            <SellerOrders />
+          ) : (
+            <>
           <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {stats.map(({ label, value, change, gradient }) => (
               <article
@@ -432,6 +439,8 @@ function Seller() {
               </div>
             </div>
           </section>
+            </>
+          )}
         </div>
       </main>
     </div>

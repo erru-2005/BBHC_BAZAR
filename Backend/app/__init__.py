@@ -174,12 +174,22 @@ def create_indexes():
         mongo.db.orders.create_index([('seller_id', ASCENDING)])
         mongo.db.orders.create_index([('status', ASCENDING)])
         mongo.db.orders.create_index([('created_at', ASCENDING)])
+        mongo.db.orders.create_index([('secure_token_user', ASCENDING)])
+        mongo.db.orders.create_index([('secure_token_seller', ASCENDING)])
         
         # Create indexes for bag collection
         mongo.db.bag.create_index([('user_id', ASCENDING)])
         mongo.db.bag.create_index([('product_id', ASCENDING)])
         mongo.db.bag.create_index([('user_id', ASCENDING), ('product_id', ASCENDING)])
         mongo.db.bag.create_index([('created_at', ASCENDING)])
+
+        # Create indexes for users collection
+        try:
+            mongo.db.users.create_index([('phone_number', ASCENDING)], unique=True)
+            mongo.db.users.create_index([('socket_id', ASCENDING)])
+            mongo.db.users.create_index([('created_at', ASCENDING)])
+        except Exception:
+            pass  # Collection might not exist yet
 
         # Create indexes for wishlist collection via service
         WishlistService.ensure_indexes()

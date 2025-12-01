@@ -8,8 +8,9 @@ import { logout } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { disconnectSocket } from '../../utils/socket'
 import { HiHome } from 'react-icons/hi'
-import { FaShoppingBag, FaBars, FaSignOutAlt } from 'react-icons/fa'
+import { FaShoppingBag, FaBars, FaSignOutAlt, FaSearch, FaQrcode } from 'react-icons/fa'
 import OrdersList from '../master/components/OrdersList'
+import { scanOrderToken, getOrder } from '../../services/api'
 
 function Outlet() {
   const dispatch = useDispatch()
@@ -17,6 +18,10 @@ function Outlet() {
   const { user, userType } = useSelector((state) => state.auth)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('home')
+  const [tokenInput, setTokenInput] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [scanResult, setScanResult] = useState(null)
+  const [scanError, setScanError] = useState(null)
 
   // Auto-logout if different user type tries to access
   useEffect(() => {
@@ -43,6 +48,46 @@ function Outlet() {
         ? `${user.first_name} ${user.last_name}`.trim()
         : user.first_name || user.last_name || user.outlet_access_code || user.email || 'Outlet Man')
     : 'Outlet Man'
+
+  const handleTokenScan = async () => {
+    if (!tokenInput.trim()) {
+      setScanError('Please enter a token')
+      return
+    }
+
+    setScanning(true)
+    setScanError(null)
+    setScanResult(null)
+
+    try {
+      const order = await scanOrderToken(tokenInput.trim())
+      setScanResult({
+        success: true,
+        message: getScanMessage(order),
+        order
+      })
+      setTokenInput('')
+    } catch (err) {
+      setScanResult({
+        success: false,
+        message: err.message || 'Failed to scan token'
+      })
+      setScanError(err.message || 'Failed to scan token')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  const getScanMessage = (order) => {
+    if (order.status === 'seller_accepted') {
+      return 'Seller token scanned. Product has been handed over. User can now collect.'
+    } else if (order.status === 'handed_over') {
+      return 'User token scanned. Order completed successfully!'
+    } else if (order.status === 'completed') {
+      return 'Order already completed.'
+    }
+    return 'Token scanned successfully.'
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -108,9 +153,71 @@ function Outlet() {
       {/* Tab Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {activeTab === 'home' && (
-          <div className="text-center px-4">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">Outlet Dashboard</h2>
-            <p className="text-base sm:text-lg md:text-xl text-gray-600">Manage orders for your outlet</p>
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">Outlet Dashboard</h2>
+              <p className="text-base sm:text-lg md:text-xl text-gray-600">Scan or search orders by token</p>
+            </div>
+
+            {/* Token Search/Scan */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <FaQrcode className="w-6 h-6 text-gray-700" />
+                <h3 className="text-xl font-semibold text-gray-900">Token Scanner</h3>
+              </div>
+              
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleTokenScan()}
+                  placeholder="Enter token or scan QR code"
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                />
+                <button
+                  onClick={handleTokenScan}
+                  disabled={scanning || !tokenInput.trim()}
+                  className="px-6 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <FaSearch className="w-4 h-4" />
+                  {scanning ? 'Scanning...' : 'Scan'}
+                </button>
+              </div>
+
+              {scanError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {scanError}
+                </div>
+              )}
+
+              {scanResult && (
+                <div className={`p-4 rounded-lg text-sm ${
+                  scanResult.success 
+                    ? 'bg-green-50 border border-green-200 text-green-700' 
+                    : 'bg-red-50 border border-red-200 text-red-700'
+                }`}>
+                  <p className="font-semibold mb-2">{scanResult.success ? 'Success' : 'Error'}</p>
+                  <p>{scanResult.message}</p>
+                  {scanResult.order && (
+                    <div className="mt-3 pt-3 border-t border-current/20">
+                      <p className="text-xs">Order #{scanResult.order.orderNumber}</p>
+                      <p className="text-xs">Status: {scanResult.order.status}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+              <h4 className="font-semibold text-blue-900 mb-2">Instructions:</h4>
+              <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                <li>Enter the token manually or scan the QR code</li>
+                <li>Seller tokens: Confirm product has been handed over</li>
+                <li>User tokens: Confirm user has collected and paid</li>
+                <li>Tokens can only be used once</li>
+              </ul>
+            </div>
           </div>
         )}
         

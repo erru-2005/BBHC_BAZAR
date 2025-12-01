@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getSocket } from '../../../utils/socket'
 import { FaSearch, FaFileExcel, FaCheckCircle, FaTimesCircle, FaFilter } from 'react-icons/fa'
 import { motion, AnimatePresence } from 'framer-motion'
-import { getOrders, updateOrderStatus } from '../../../services/api'
+import { getOrders, updateOrderStatus, masterCancelOrder } from '../../../services/api'
 import XLSX from 'xlsx-js-style'
 import { saveAs } from 'file-saver'
 import jsPDF from 'jspdf'
@@ -19,6 +19,9 @@ function OrdersList() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelConfirmationCode, setCancelConfirmationCode] = useState('')
+  const [generatedCode, setGeneratedCode] = useState('')
   const [notifications, setNotifications] = useState([])
   const [loadingOrders, setLoadingOrders] = useState(true)
   const [fetchError, setFetchError] = useState(null)
@@ -252,6 +255,52 @@ function OrdersList() {
         message: 'Failed to reject order'
       })
     }
+  }
+
+  // Handle master cancel order
+  const handleMasterCancel = async (orderId) => {
+    if (!cancelConfirmationCode || cancelConfirmationCode !== generatedCode) {
+      showNotification({
+        id: Date.now(),
+        type: 'error',
+        message: 'Confirmation code does not match'
+      })
+      return
+    }
+
+    try {
+      const updatedOrder = await masterCancelOrder(orderId, cancelConfirmationCode)
+      setOrders(prev =>
+        prev.map(order =>
+          order.id === orderId ? updatedOrder : order
+        )
+      )
+      setShowCancelModal(false)
+      setShowDetailModal(false)
+      setCancelConfirmationCode('')
+      setGeneratedCode('')
+      showNotification({
+        id: Date.now(),
+        type: 'success',
+        message: 'Order cancelled by master successfully'
+      })
+    } catch (error) {
+      console.error('Error cancelling order:', error)
+      showNotification({
+        id: Date.now(),
+        type: 'error',
+        message: error.message || 'Failed to cancel order'
+      })
+    }
+  }
+
+  const openCancelModal = (order) => {
+    // Generate random confirmation code
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase()
+    setGeneratedCode(code)
+    setSelectedOrder(order)
+    setShowCancelModal(true)
+    setCancelConfirmationCode('')
   }
 
   // Export to Excel
@@ -569,6 +618,25 @@ function OrdersList() {
             onClose={() => setShowDetailModal(false)}
             onAccept={handleAcceptOrder}
             onReject={handleRejectOrder}
+            onCancel={openCancelModal}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Master Cancel Confirmation Modal */}
+      <AnimatePresence>
+        {showCancelModal && selectedOrder && (
+          <MasterCancelModal
+            order={selectedOrder}
+            confirmationCode={generatedCode}
+            inputCode={cancelConfirmationCode}
+            onInputChange={setCancelConfirmationCode}
+            onConfirm={() => handleMasterCancel(selectedOrder.id)}
+            onClose={() => {
+              setShowCancelModal(false)
+              setCancelConfirmationCode('')
+              setGeneratedCode('')
+            }}
           />
         )}
       </AnimatePresence>
@@ -580,7 +648,7 @@ function OrdersList() {
 }
 
 // Order Detail Modal Component
-function OrderDetailModal({ order, onClose, onAccept, onReject }) {
+function OrderDetailModal({ order, onClose, onAccept, onReject, onCancel }) {
   const formatDate = (dateString) => {
     if (!dateString) return '—'
     const date = new Date(dateString)
@@ -708,24 +776,93 @@ function OrderDetailModal({ order, onClose, onAccept, onReject }) {
           </div>
 
           {/* Action Buttons */}
-          {order.status === 'pending' && (
-            <div className="border-t border-gray-200 pt-6 flex gap-4">
+          <div className="border-t border-gray-200 pt-6 flex gap-4">
+            {order.status === 'pending' || order.status === 'pending_seller' ? (
+              <>
+                <button
+                  onClick={() => onAccept(order.id)}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+                >
+                  <FaCheckCircle className="w-5 h-5" />
+                  Accept Order
+                </button>
+                <button
+                  onClick={() => onReject(order.id)}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                >
+                  <FaTimesCircle className="w-5 h-5" />
+                  Reject Order
+                </button>
+              </>
+            ) : null}
+            {onCancel && order.status !== 'cancelled' && order.status !== 'cancelled_master' && (
               <button
-                onClick={() => onAccept(order.id)}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
-              >
-                <FaCheckCircle className="w-5 h-5" />
-                Accept Order
-              </button>
-              <button
-                onClick={() => onReject(order.id)}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                onClick={() => onCancel(order)}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-semibold"
               >
                 <FaTimesCircle className="w-5 h-5" />
-                Reject Order
+                Force Cancel (Master)
               </button>
-            </div>
-          )}
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// Master Cancel Confirmation Modal
+function MasterCancelModal({ order, confirmationCode, inputCode, onInputChange, onConfirm, onClose }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+      >
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Force Cancel Order</h2>
+        <p className="text-gray-600 mb-4">
+          You are about to forcefully cancel order <strong>#{order.orderNumber}</strong>. This action cannot be undone.
+        </p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <p className="text-sm font-semibold text-red-900 mb-2">Confirmation Code:</p>
+          <p className="text-2xl font-mono font-bold text-red-600">{confirmationCode}</p>
+          <p className="text-xs text-red-700 mt-2">Enter this code below to confirm cancellation</p>
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Enter Confirmation Code
+          </label>
+          <input
+            type="text"
+            value={inputCode}
+            onChange={(e) => onInputChange(e.target.value.toUpperCase())}
+            placeholder="Enter code"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent font-mono text-lg"
+          />
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={inputCode !== confirmationCode}
+            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Confirm Cancellation
+          </button>
         </div>
       </motion.div>
     </motion.div>
