@@ -909,6 +909,39 @@ export const deleteRating = async (ratingId) => {
 }
 
 /**
+ * Wishlist API
+ */
+export const getWishlist = async (limit = 50, skip = 0) => {
+  try {
+    const params = { limit, skip }
+    const response = await apiClient.get(API_ENDPOINTS.API.WISHLIST, { params })
+    return response.items || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch wishlist')
+  }
+}
+
+export const addToWishlist = async (productId) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.WISHLIST, {
+      product_id: productId
+    })
+    return response.item
+  } catch (error) {
+    throw new Error(error.message || 'Failed to add to wishlist')
+  }
+}
+
+export const removeFromWishlist = async (productId) => {
+  try {
+    const response = await apiClient.delete(API_ENDPOINTS.API.WISHLIST_ITEM(productId))
+    return response.message
+  } catch (error) {
+    throw new Error(error.message || 'Failed to remove from wishlist')
+  }
+}
+
+/**
  * Orders API
  */
 export const createOrder = async (orderPayload) => {

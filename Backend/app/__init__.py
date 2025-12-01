@@ -113,6 +113,7 @@ def create_indexes():
     """Create database indexes for better performance"""
     try:
         from pymongo import ASCENDING
+        from app.services.wishlist_service import WishlistService
         
         # Drop old username index from sellers collection if it exists (legacy index)
         # Check all indexes and drop any that reference username
@@ -179,6 +180,9 @@ def create_indexes():
         mongo.db.bag.create_index([('product_id', ASCENDING)])
         mongo.db.bag.create_index([('user_id', ASCENDING), ('product_id', ASCENDING)])
         mongo.db.bag.create_index([('created_at', ASCENDING)])
+
+        # Create indexes for wishlist collection via service
+        WishlistService.ensure_indexes()
         
         print("Database indexes created successfully")
     except Exception as e:

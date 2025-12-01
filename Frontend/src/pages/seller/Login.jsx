@@ -15,15 +15,21 @@ import { initSocket } from '../../utils/socket'
 function SellerLogin() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  const { loading, error, userType } = useSelector((state) => state.auth)
+  const { loading, error, userType, isAuthenticated } = useSelector((state) => state.auth)
   
-  // Auto-logout if different user type is logged in
   useEffect(() => {
+    // If already logged in as seller, go straight to dashboard
+    if (isAuthenticated && userType === 'seller') {
+      navigate('/seller/dashboard', { replace: true })
+      return
+    }
+
+    // Auto-logout if different user type is logged in
     if (userType && userType !== 'seller') {
       dispatch(logout())
       disconnectSocket()
     }
-  }, [userType, dispatch])
+  }, [userType, isAuthenticated, dispatch, navigate])
   
   const [formData, setFormData] = useState({
     trade_id: '',

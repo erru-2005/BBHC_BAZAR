@@ -763,7 +763,14 @@ def user_verify_otp():
 def user_register():
     """
     User registration after OTP verification
-    Expects: { "phone_number": "...", "first_name": "...", "last_name": "...", "address": "...", "date_of_birth": "DD-MM-YYYY", "email": "..." }
+    Expects: {
+        "phone_number": "...",
+        "first_name": "...",
+        "last_name": "...",      # optional
+        "address": "...",        # optional
+        "date_of_birth": "DD-MM-YYYY",
+        "email": "..."
+    }
     Returns: { "message": "Registration successful", "access_token": "...", "user": {...} }
     """
     try:
@@ -773,7 +780,8 @@ def user_register():
             return jsonify({'error': 'Request body is required'}), 400
         
         # Validate required fields
-        required_fields = ['phone_number', 'first_name', 'last_name', 'address', 'date_of_birth', 'email']
+        # last_name and address are optional
+        required_fields = ['phone_number', 'first_name', 'date_of_birth', 'email']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'error': f'{field} is required'}), 400

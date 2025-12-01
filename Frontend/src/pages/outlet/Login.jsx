@@ -13,15 +13,21 @@ import { initSocket, disconnectSocket } from '../../utils/socket'
 function OutletLogin() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  const { loading, error, userType } = useSelector((state) => state.auth)
+  const { loading, error, userType, isAuthenticated } = useSelector((state) => state.auth)
   
-  // Auto-logout if different user type is logged in
   useEffect(() => {
+    // If already logged in as outlet_man, go straight to dashboard
+    if (isAuthenticated && userType === 'outlet_man') {
+      navigate('/outlet/dashboard', { replace: true })
+      return
+    }
+
+    // Auto-logout if different user type is logged in
     if (userType && userType !== 'outlet_man') {
       dispatch(logout())
       disconnectSocket()
     }
-  }, [userType, dispatch])
+  }, [userType, isAuthenticated, dispatch, navigate])
   
   const [formData, setFormData] = useState({
     outlet_access_code: '',

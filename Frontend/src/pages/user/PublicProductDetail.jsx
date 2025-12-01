@@ -9,9 +9,10 @@ import MobileBottomNav from './components/MobileBottomNav'
 import ProductMediaViewer from '../../components/ProductMediaViewer'
 import { setHomeProducts } from '../../store/dataSlice'
 import { getProducts, addToBag } from '../../services/api'
-import { FaStar } from 'react-icons/fa'
 import { FaHeart, FaShoppingBag, FaMinus, FaPlus } from 'react-icons/fa'
 import StarRating from '../../components/StarRating'
+import RatingBadge from '../../components/RatingBadge'
+import { addToWishlist, removeFromWishlist, getProductRatingStats } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
 
 const formatCurrency = (value) => {
@@ -32,6 +33,10 @@ function PublicProductDetail() {
   const [userRating, setUserRating] = useState(0)
   const [addingToBag, setAddingToBag] = useState(false)
   const [quantity, setQuantity] = useState(1)
+  const wishlistIds = home.wishlist || []
+  const isWishlisted = product ? wishlistIds.includes(String(product.id || product._id)) : false
+  const [wishlistLoading, setWishlistLoading] = useState(false)
+  const [ratingStats, setRatingStats] = useState(null)
 
   useEffect(() => {
     if (!product) {
@@ -52,6 +57,23 @@ function PublicProductDetail() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [productId])
+
+  // Load rating statistics from backend so detail page always shows real averages & counts
+  useEffect(() => {
+    const id = productId
+    if (!id) return
+
+    const loadStats = async () => {
+      try {
+        const stats = await getProductRatingStats(id)
+        setRatingStats(stats || null)
+      } catch {
+        setRatingStats(null)
+      }
+    }
+
+    loadStats()
   }, [productId])
 
   useProductSocket((updatedProduct) => {
@@ -117,23 +139,55 @@ function PublicProductDetail() {
                   )}
                 </div>
                 <button
-                  className="flex-shrink-0 p-2 sm:p-2.5 rounded-full border border-gray-300 hover:bg-gray-50 transition-colors"
-                  aria-label="Add to wishlist"
-                  title="Add to wishlist"
+                  className={`flex-shrink-0 p-2 sm:p-2.5 rounded-full border transition-colors ${
+                    isWishlisted
+                      ? 'bg-red-50 border-red-200 text-red-600'
+                      : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                  }`}
+                  aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                  title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                  onClick={async () => {
+                    if (!product) return
+                    const currentId = String(product.id || product._id)
+                    if (!isAuthenticated || userType !== 'user') {
+                      navigate('/user/phone-entry', {
+                        state: {
+                          returnTo: `/product/public/${productId}`,
+                          message: 'Please login to manage your wishlist.'
+                        }
+                      })
+                      return
+                    }
+
+                    if (wishlistLoading) return
+
+                    // Optimistic toggle
+                    dispatch({ type: 'data/toggleWishlist', payload: currentId })
+                    setWishlistLoading(true)
+                    try {
+                      if (isWishlisted) {
+                        await removeFromWishlist(currentId)
+                      } else {
+                        await addToWishlist(currentId)
+                      }
+                    } catch (error) {
+                      // Revert on error
+                      dispatch({ type: 'data/toggleWishlist', payload: currentId })
+                      alert(error.message || 'Failed to update wishlist')
+                    } finally {
+                      setWishlistLoading(false)
+                    }
+                  }}
+                  disabled={wishlistLoading}
                 >
-                  <FaHeart className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 hover:text-pink-500 transition-colors" />
+                  {wishlistLoading ? (
+                    <span className="block w-5 h-5 border-2 border-t-transparent border-red-400 rounded-full animate-spin" />
+                  ) : (
+                    <FaHeart className={`w-5 h-5 sm:w-6 sm:h-6 ${isWishlisted ? 'fill-current' : ''}`} />
+                  )}
                 </button>
               </div>
             </div>
-
-            {product.rating && (
-              <div className="flex items-center gap-1 text-xs text-emerald-600">
-                {[...Array(5)].map((_, i) => (
-                  <FaStar key={i} className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                ))}
-                <span className="text-[10px] sm:text-[11px] text-gray-600 ml-1">{Number(product.rating).toFixed(1)} ({product.reviews || 0} reviews)</span>
-              </div>
-            )}
 
             {(product.selling_price || product.max_price) && (
               <div className="space-y-1.5 sm:space-y-2">
@@ -146,7 +200,18 @@ function PublicProductDetail() {
                     MRP: <span className="line-through">{formatCurrency(product.max_price)}</span>
                   </p>
                 )}
-                <p className="text-xs sm:text-sm text-gray-700">or {formatCurrency(Math.ceil((product.selling_price || product.max_price) / 6))}/month</p>
+                {ratingStats && ratingStats.average_rating && ratingStats.total_ratings > 0 && (
+                  <div className="pt-1 flex items-center gap-2">
+                    <RatingBadge
+                      value={Number(ratingStats.average_rating)}
+                      displayValue={Number(ratingStats.average_rating).toFixed(1)}
+                      size="sm"
+                    />
+                    <span className="text-[11px] sm:text-xs text-gray-600">
+                      ({ratingStats.total_ratings} reviews)
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

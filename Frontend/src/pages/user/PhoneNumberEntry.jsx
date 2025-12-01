@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { sendUserOTP } from '../../services/api'
 import { FaPhone, FaArrowLeft } from 'react-icons/fa6'
+import { useSelector } from 'react-redux'
 
 function PhoneNumberEntry() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { isAuthenticated, userType } = useSelector((state) => state.auth)
   const prefillPhone = useMemo(() => location.state?.prefillPhone || '', [location.state?.prefillPhone])
   const [phoneNumber, setPhoneNumber] = useState(prefillPhone)
   const [loading, setLoading] = useState(false)
@@ -16,8 +18,14 @@ function PhoneNumberEntry() {
   const message = location.state?.message
 
   useEffect(() => {
+    // If user is already logged in as regular user, avoid showing phone entry
+    if (isAuthenticated && userType === 'user') {
+      navigate('/', { replace: true })
+      return
+    }
+
     setPhoneNumber(prefillPhone)
-  }, [prefillPhone])
+  }, [prefillPhone, isAuthenticated, userType, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()

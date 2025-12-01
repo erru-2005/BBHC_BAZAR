@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import PropTypes from 'prop-types'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { createOrUpdateRating, getMyRating, getProductRatingStats } from '../services/api'
-
+import { createOrUpdateRating, getMyRating } from '../services/api'
+import RatingBadge from './RatingBadge'
 /**
  * StarRating Component - Gold Stars with Particle Effects
  * A premium star rating UI with gold glowing stars, smooth animations, and particle effects
@@ -31,25 +31,15 @@ function StarRating({
   const [rating, setRating] = useState(initialRating)
   const [hoveredStar, setHoveredStar] = useState(0)
   const [particles, setParticles] = useState([])
-  const [ratingStats, setRatingStats] = useState(null)
   const [loading, setLoading] = useState(false)
   const starRefs = useRef({})
   const containerRef = useRef(null)
   const navigate = useNavigate()
   const { isAuthenticated, userType } = useSelector((state) => state.auth)
 
-  // Fetch user's existing rating and stats on mount
+  // Fetch user's existing rating on mount
   useEffect(() => {
     if (productId) {
-      // Fetch rating stats (public, no auth required)
-      getProductRatingStats(productId)
-        .then(stats => {
-          setRatingStats(stats)
-        })
-        .catch(err => {
-          console.error('Error fetching rating stats:', err)
-        })
-
       // Fetch user's rating if authenticated
       // Check both Redux state and localStorage token
       const hasToken = localStorage.getItem('token')
@@ -199,10 +189,6 @@ function StarRating({
         
         // Update local state
         setRating(starValue)
-        
-        // Refresh stats
-        const stats = await getProductRatingStats(productId)
-        setRatingStats(stats)
         
         // Call callback if provided
         if (onRatingChange) {
@@ -453,23 +439,20 @@ function StarRating({
                 
                 {/* Rating Text - Next to stars */}
                 {showRatingText && (
-                  <div className="flex items-center gap-1 ml-1 sm:ml-2">
-                    <span className={`${config.text} font-bold text-amber-600`}>
-                      {ratingStats?.average_rating 
-                        ? ratingStats.average_rating.toFixed(1) 
-                        : rating > 0 
-                        ? rating.toFixed(1) 
-                        : '0.0'}
-                    </span>
-                    <span className={`${config.text} font-normal text-gray-400`}>
-                      / {totalStars}
-                    </span>
-                    {ratingStats && ratingStats.total_ratings > 0 && (
-                      <span className={`${config.text} font-normal text-gray-500 ml-1`}>
-                        ({ratingStats.total_ratings})
+                  <>
+                    {rating > 0 ? (
+                      <RatingBadge
+                        value={rating}
+                        size="sm"
+                        label="You"
+                        className="ml-1 sm:ml-2"
+                      />
+                    ) : (
+                      <span className={`${config.text} font-medium text-gray-500 ml-1 sm:ml-2`}>
+                        Tap a star to rate
                       </span>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
 

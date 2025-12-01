@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { registerUserPhone } from '../../services/api'
 import { useDispatch } from 'react-redux'
 import { loginSuccess } from '../../store/authSlice'
-import { FaArrowLeft, FaUser, FaEnvelope } from 'react-icons/fa6'
+import { FaUser, FaEnvelope } from 'react-icons/fa6'
 import { FaMapMarkerAlt, FaCalendarAlt } from 'react-icons/fa'
 
 function UserRegistration() {
@@ -50,20 +50,12 @@ function UserRegistration() {
       setError('First name is required')
       return false
     }
-    if (!formData.last_name.trim()) {
-      setError('Last name is required')
-      return false
-    }
     if (!formData.email.trim()) {
       setError('Email is required')
       return false
     }
     if (!formData.email.includes('@')) {
       setError('Please enter a valid email address')
-      return false
-    }
-    if (!formData.address.trim()) {
-      setError('Address is required')
       return false
     }
     if (!formData.date_of_birth) {
@@ -127,7 +119,7 @@ function UserRegistration() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#131921] via-[#1a2332] to-[#131921] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100 flex items-center justify-center p-4">
       {showSuccess && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 max-w-md mx-4 text-center">
@@ -143,23 +135,15 @@ function UserRegistration() {
       )}
 
       <div className="w-full max-w-md">
-        <button
-          onClick={() => navigate('/user/phone-entry')}
-          className="mb-6 flex items-center gap-2 text-white/70 hover:text-white transition"
-        >
-          <FaArrowLeft className="w-4 h-4" />
-          <span>Back</span>
-        </button>
-
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 transform transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Complete Registration</h1>
-            <p className="text-white/70">Please fill in your details</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Complete Registration</h1>
+            <p className="text-gray-500">Please fill in your details</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="first_name" className="block text-sm font-medium text-white/90 mb-2">
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-800 mb-2">
                 <FaUser className="inline w-4 h-4 mr-2" />
                 First Name *
               </label>
@@ -169,15 +153,15 @@ function UserRegistration() {
                 name="first_name"
                 value={formData.first_name}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="last_name" className="block text-sm font-medium text-white/90 mb-2">
+              <label htmlFor="last_name" className="block text-sm font-medium text-gray-800 mb-2">
                 <FaUser className="inline w-4 h-4 mr-2" />
-                Last Name *
+                Last Name (optional)
               </label>
               <input
                 type="text"
@@ -185,13 +169,12 @@ function UserRegistration() {
                 name="last_name"
                 value={formData.last_name}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                required
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm"
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-800 mb-2">
                 <FaEnvelope className="inline w-4 h-4 mr-2" />
                 Email *
               </label>
@@ -201,15 +184,15 @@ function UserRegistration() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="address" className="block text-sm font-medium text-white/90 mb-2">
+              <label htmlFor="address" className="block text-sm font-medium text-gray-800 mb-2">
                 <FaMapMarkerAlt className="inline w-4 h-4 mr-2" />
-                Address *
+                Address
               </label>
               <textarea
                 id="address"
@@ -217,13 +200,12 @@ function UserRegistration() {
                 value={formData.address}
                 onChange={handleChange}
                 rows={3}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent resize-none"
-                required
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent resize-none shadow-sm"
               />
             </div>
 
             <div>
-              <label htmlFor="date_of_birth" className="block text-sm font-medium text-white/90 mb-2">
+              <label htmlFor="date_of_birth" className="block text-sm font-medium text-gray-800 mb-2">
                 <FaCalendarAlt className="inline w-4 h-4 mr-2" />
                 Date of Birth (DD-MM-YYYY) *
               </label>
@@ -236,22 +218,22 @@ function UserRegistration() {
                 placeholder="DD-MM-YYYY"
                 pattern="\d{2}-\d{2}-\d{4}"
                 maxLength={10}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm"
                 required
               />
-              <p className="text-white/60 text-xs mt-1">Format: DD-MM-YYYY (e.g., 25-12-1990)</p>
+              <p className="text-gray-500 text-xs mt-1">Format: DD-MM-YYYY (e.g., 25-12-1990)</p>
             </div>
 
             {error && (
-              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3">
-                <p className="text-red-200 text-sm">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-600 text-sm">{error}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-pink-500 hover:bg-pink-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
+              className="w-full bg-pink-500 hover:bg-pink-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-full shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
             >
               {loading ? 'Submitting...' : 'Submit'}
             </button>

@@ -9,6 +9,7 @@ from app.services.outlet_man_service import OutletManService
 from app.services.blacklist_service import BlacklistService
 from app.services.category_service import CategoryService
 from app.services.product_service import ProductService
+from app.services.wishlist_service import WishlistService
 from app.sockets.emitter import emit_product_event
 from app.utils.validators import validate_email
 from datetime import datetime
@@ -894,3 +895,78 @@ def create_category():
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f'Failed to create category: {str(e)}'}), 500
+
+
+@api_bp.route('/wishlist', methods=['GET'])
+@jwt_required()
+def get_wishlist():
+    """Get wishlist items for the current user"""
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        user_type = claims.get('user_type')
+
+        if user_type != 'user':
+            return jsonify({'error': 'Only user accounts can have a wishlist'}), 403
+
+        limit = request.args.get('limit', 50, type=int)
+        skip = request.args.get('skip', 0, type=int)
+
+        items = WishlistService.list_wishlist(str(current_user_id), limit=limit, skip=skip)
+        return jsonify({
+            'items': [item.to_dict() for item in items],
+            'count': len(items)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to fetch wishlist: {str(e)}'}), 500
+
+
+@api_bp.route('/wishlist', methods=['POST'])
+@jwt_required()
+def add_to_wishlist():
+    """Add a product to current user's wishlist"""
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        user_type = claims.get('user_type')
+
+        if user_type != 'user':
+            return jsonify({'error': 'Only user accounts can have a wishlist'}), 403
+
+        data = request.get_json() or {}
+        product_id = data.get('product_id')
+        if not product_id:
+            return jsonify({'error': 'product_id is required'}), 400
+
+        metadata = {
+            'added_at_ip': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent'),
+        }
+
+        item = WishlistService.add_to_wishlist(str(current_user_id), product_id, metadata=metadata)
+        return jsonify({'item': item.to_dict()}), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to add to wishlist: {str(e)}'}), 500
+
+
+@api_bp.route('/wishlist/<product_id>', methods=['DELETE'])
+@jwt_required()
+def remove_from_wishlist(product_id):
+    """Remove a product from current user's wishlist"""
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        user_type = claims.get('user_type')
+
+        if user_type != 'user':
+            return jsonify({'error': 'Only user accounts can have a wishlist'}), 403
+
+        success = WishlistService.remove_from_wishlist(str(current_user_id), product_id)
+        if not success:
+            return jsonify({'error': 'Wishlist item not found'}), 404
+
+        return jsonify({'message': 'Removed from wishlist'}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to remove from wishlist: {str(e)}'}), 500

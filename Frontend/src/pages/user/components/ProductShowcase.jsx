@@ -1,35 +1,143 @@
 import PropTypes from 'prop-types'
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { motion } from 'framer-motion'
-import { FaHeart, FaStar, FaStarHalfAlt, FaShoppingBag } from 'react-icons/fa'
+import { FaHeart, FaStar, FaStarHalfAlt, FaShoppingBag, FaMinus, FaPlus } from 'react-icons/fa'
 import { motionVariants, transitions } from '../../../utils/animations'
-import { addToBag } from '../../../services/api'
+import { addToBag, getBag, updateBagItem, removeFromBag, addToWishlist, removeFromWishlist, getProductRatingStats } from '../../../services/api'
+import RatingBadge from '../../../components/RatingBadge'
 
 const getImageSrc = (image) => image?.preview || image?.data_url || image?.url || image || null
 
-const defaultRating = 4.4
-const defaultReviews = 120
-
 function ProductShowcase({ products = [], loading, error }) {
-  const [likedIds, setLikedIds] = useState(new Set())
   const [addingToBag, setAddingToBag] = useState(new Set())
+  const [bagItemsByProduct, setBagItemsByProduct] = useState({})
+  const [wishlistLoading, setWishlistLoading] = useState(new Set())
+  const [ratingStatsMap, setRatingStatsMap] = useState({})
   const navigate = useNavigate()
+  const dispatch = useDispatch()
   const { isAuthenticated, userType } = useSelector((state) => state.auth)
+  const { home } = useSelector((state) => state.data)
 
-  const toggleLike = (event, productId) => {
+  const wishlistSet = useMemo(() => {
+    if (!home?.wishlist) return new Set()
+    return new Set(home.wishlist.map((id) => String(id)))
+  }, [home])
+
+  // Load current bag so we know which products are already added
+  useEffect(() => {
+    const loadBag = async () => {
+      if (!isAuthenticated || userType !== 'user') {
+        setBagItemsByProduct({})
+        return
+      }
+
+      try {
+        const bagItems = await getBag()
+        const map = {}
+        bagItems.forEach((item) => {
+          const productId =
+            item.product_id ||
+            item.product?.id ||
+            item.product?._id
+          if (productId) {
+            map[String(productId)] = {
+              bagItemId: item.id,
+              quantity: item.quantity || 1
+            }
+          }
+        })
+        setBagItemsByProduct(map)
+      } catch (err) {
+        console.error('Failed to load bag for products grid:', err)
+      }
+    }
+
+    loadBag()
+  }, [isAuthenticated, userType])
+
+  // Load rating stats for all visible products so cards always reflect DB averages
+  useEffect(() => {
+    const loadStats = async () => {
+      if (!products?.length) {
+        setRatingStatsMap({})
+        return
+      }
+      try {
+        const entries = await Promise.all(
+          products.map(async (p) => {
+            const id = p.id || p._id
+            if (!id) return null
+            try {
+              const stats = await getProductRatingStats(id)
+              return { id: String(id), stats }
+            } catch {
+              return null
+            }
+          })
+        )
+        const map = {}
+        entries.forEach((entry) => {
+          if (entry && entry.stats && entry.stats.average_rating !== undefined) {
+            map[entry.id] = entry.stats
+          }
+        })
+        setRatingStatsMap(map)
+      } catch {
+        // ignore stats errors, UI will just show "No reviews yet"
+      }
+    }
+
+    loadStats()
+  }, [products])
+
+  const toggleLike = async (event, productId) => {
     event.preventDefault()
     event.stopPropagation()
-    setLikedIds((prev) => {
+    const idStr = String(productId)
+
+    if (wishlistLoading.has(idStr)) return
+
+    if (!isAuthenticated || userType !== 'user') {
+      navigate('/user/phone-entry', {
+        state: {
+          returnTo: `/product/public/${idStr}`,
+          message: 'Please login to manage your wishlist.'
+        }
+      })
+      return
+    }
+
+    const alreadyLiked = wishlistSet.has(idStr)
+
+    // Show loader on this heart
+    setWishlistLoading((prev) => {
       const next = new Set(prev)
-      if (next.has(productId)) {
-        next.delete(productId)
-      } else {
-        next.add(productId)
-      }
+      next.add(idStr)
       return next
     })
+
+    // Optimistic update in Redux
+    dispatch({ type: 'data/toggleWishlist', payload: idStr })
+
+    try {
+      if (alreadyLiked) {
+        await removeFromWishlist(idStr)
+      } else {
+        await addToWishlist(idStr)
+      }
+    } catch (error) {
+      // Revert on error
+      dispatch({ type: 'data/toggleWishlist', payload: idStr })
+      alert(error.message || 'Failed to update wishlist')
+    } finally {
+      setWishlistLoading((prev) => {
+        const next = new Set(prev)
+        next.delete(idStr)
+        return next
+      })
+    }
   }
 
   const handleCardClick = (product) => {
@@ -81,9 +189,14 @@ function ProductShowcase({ products = [], loading, error }) {
             sellingPrice && maxPrice && maxPrice > sellingPrice
               ? Math.round(((maxPrice - sellingPrice) / maxPrice) * 100)
               : null
-          const rating = Number(product.rating) || defaultRating
-          const reviews = product.reviews || defaultReviews
           const productId = product.id || product._id || `${product.product_name}-${index}`
+          const productIdStr = String(productId)
+          const stats = ratingStatsMap[productIdStr]
+          const hasRating = stats && stats.average_rating !== undefined && stats.total_ratings !== undefined
+          const rating = hasRating ? Number(stats.average_rating) : null
+          const reviews = hasRating ? Number(stats.total_ratings || 0) : 0
+          const bagInfo = bagItemsByProduct[productIdStr]
+          const isLiked = wishlistSet.has(productIdStr)
 
           return (
             <motion.article
@@ -115,14 +228,19 @@ function ProductShowcase({ products = [], loading, error }) {
                 )}
                 <button
                   className={`absolute top-3 right-3 p-1.5 rounded-full border ${
-                    likedIds.has(productId)
+                    isLiked
                       ? 'bg-red-50 border-red-200 text-red-600'
                       : 'bg-white border-gray-200 text-gray-500'
                   }`}
-                  onClick={(event) => toggleLike(event, productId)}
-                  aria-label="Add to wishlist"
+                  onClick={(event) => toggleLike(event, productIdStr)}
+                  aria-label={isLiked ? 'Remove from wishlist' : 'Add to wishlist'}
+                  disabled={wishlistLoading.has(productIdStr)}
                 >
-                  <FaHeart className={`w-4 h-4 ${likedIds.has(productId) ? 'fill-current' : ''}`} />
+                  {wishlistLoading.has(productIdStr) ? (
+                    <span className="block w-4 h-4 border-2 border-t-transparent border-red-400 rounded-full animate-spin" />
+                  ) : (
+                    <FaHeart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                  )}
                 </button>
               </div>
 
@@ -137,56 +255,172 @@ function ProductShowcase({ products = [], loading, error }) {
                   {discountPercentage && (
                     <span className="text-xs font-semibold text-green-600">↓{discountPercentage}%</span>
                   )}
+                  {rating !== null && rating > 0 && (
+                    <span className="ml-auto">
+                      <RatingBadge
+                        value={rating}
+                        displayValue={rating.toFixed(1)}
+                        size="sm"
+                      />
+                    </span>
+                  )}
                 </div>
-                {/* Action: Add to Bag (replaces monthly offers/promo line) */}
+                {/* Action: Add to Bag / Quantity controls */}
                 <div className="pt-1">
-                  <button
-                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const productId = product.id || product._id;
-                      if (!productId) return;
-                      
-                      if (!isAuthenticated || userType !== 'user') {
-                        navigate('/user/phone-entry', {
-                          state: {
-                            returnTo: `/product/public/${productId}`,
-                            message: 'Please login to add items to your bag.'
+                  {bagInfo ? (
+                    <div className="inline-flex items-center rounded-full border border-gray-300 bg-white">
+                      <button
+                        className="p-1.5 text-gray-600 hover:text-gray-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        onClick={async (e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+
+                          const newQty = (bagInfo.quantity || 1) - 1
+
+                          // Optimistic update
+                          setBagItemsByProduct((prev) => {
+                            const next = { ...prev }
+                            if (newQty <= 0) {
+                              delete next[String(productId)]
+                            } else {
+                              next[String(productId)] = {
+                                ...bagInfo,
+                                quantity: newQty
+                              }
+                            }
+                            return next
+                          })
+
+                          try {
+                            if (newQty <= 0) {
+                              await removeFromBag(bagInfo.bagItemId)
+                            } else {
+                              await updateBagItem(bagInfo.bagItemId, newQty)
+                            }
+                          } catch (error) {
+                            alert(error.message || 'Failed to update quantity')
                           }
-                        });
-                        return;
-                      }
-                      
-                      try {
-                        setAddingToBag(prev => new Set(prev).add(productId));
-                        await addToBag(productId, 1);
-                        // Optional: Show success message
-                      } catch (error) {
-                        alert(error.message || 'Failed to add to bag');
-                      } finally {
-                        setAddingToBag(prev => {
-                          const next = new Set(prev);
-                          next.delete(productId);
-                          return next;
-                        });
-                      }
-                    }}
-                    disabled={addingToBag.has(product.id || product._id)}
+                        }}
+                        aria-label="Decrease quantity"
+                      >
+                        <FaMinus className="w-3 h-3" />
+                      </button>
+                      <span className="px-3 text-sm font-semibold min-w-[2.5rem] text-center">
+                        {bagInfo.quantity}
+                      </span>
+                      <button
+                        className="p-1.5 text-gray-600 hover:text-gray-900 transition"
+                        onClick={async (e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+
+                          const newQty = (bagInfo.quantity || 1) + 1
+
+                          // Optimistic update
+                          setBagItemsByProduct((prev) => ({
+                            ...prev,
+                            [String(productId)]: {
+                              ...bagInfo,
+                              quantity: newQty
+                            }
+                          }))
+
+                          try {
+                            await updateBagItem(bagInfo.bagItemId, newQty)
+                          } catch (error) {
+                            alert(error.message || 'Failed to update quantity')
+                          }
+                        }}
+                        aria-label="Increase quantity"
+                      >
+                        <FaPlus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                  <button
+                      className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      onClick={async (e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        const effectiveId = product.id || product._id
+                        if (!effectiveId) return
+
+                        if (!isAuthenticated || userType !== 'user') {
+                          navigate('/user/phone-entry', {
+                            state: {
+                              returnTo: `/product/public/${effectiveId}`,
+                              message: 'Please login to add items to your bag.'
+                            }
+                          })
+                          return
+                        }
+
+                        try {
+                          setAddingToBag((prev) => {
+                            const next = new Set(prev)
+                            next.add(effectiveId)
+                            return next
+                          })
+                          const bagItem = await addToBag(effectiveId, 1)
+
+                          if (bagItem) {
+                            const bagProductId =
+                              bagItem.product_id ||
+                              bagItem.product?.id ||
+                              effectiveId
+
+                            setBagItemsByProduct((prev) => ({
+                              ...prev,
+                              [String(bagProductId)]: {
+                                bagItemId: bagItem.id,
+                                quantity: bagItem.quantity || 1
+                              }
+                            }))
+                          }
+                        } catch (error) {
+                          alert(error.message || 'Failed to add to bag')
+                        } finally {
+                          setAddingToBag((prev) => {
+                            const next = new Set(prev)
+                            next.delete(effectiveId)
+                            return next
+                          })
+                        }
+                      }}
+                      disabled={addingToBag.has(product.id || product._id)}
                     aria-label="Add to bag"
                   >
                     <FaShoppingBag className="w-4 h-4 text-pink-500" />
-                    {addingToBag.has(product.id || product._id) ? 'Adding...' : 'Add to Bag'}
+                      {addingToBag.has(product.id || product._id) ? 'Adding...' : 'Add to Bag'}
                   </button>
+                  )}
                 </div>
-                <div className="flex items-center gap-1 text-xs text-green-600">
-                  <FaStar className="w-3.5 h-3.5" />
-                  <FaStar className="w-3.5 h-3.5" />
-                  <FaStar className="w-3.5 h-3.5" />
-                  <FaStar className="w-3.5 h-3.5" />
-                  <FaStarHalfAlt className="w-3.5 h-3.5" />
-                  <span className="text-[11px] text-gray-600 ml-1">{rating.toFixed(1)} ({reviews} reviews)</span>
-                </div>
+                {rating !== null && rating > 0 ? (
+                  <div className="flex items-center gap-1 text-xs text-green-600">
+                    {Array.from({ length: 5 }, (_, i) => {
+                      const index = i + 1
+                      const fullStars = Math.floor(rating)
+                      const fraction = rating - fullStars
+                      const hasHalf = fraction > 0 // treat any fraction as half for display
+
+                      if (index <= fullStars) {
+                        // Fully filled star
+                        return <FaStar key={index} className="w-3.5 h-3.5" />
+                      }
+                      if (index === fullStars + 1 && hasHalf) {
+                        // Partially filled star (half icon)
+                        return <FaStarHalfAlt key={index} className="w-3.5 h-3.5" />
+                      }
+                      // Empty star
+                      return <FaStar key={index} className="w-3.5 h-3.5 text-gray-300" />
+                    })}
+                    <span className="text-[11px] text-gray-600 ml-1">
+                      {rating.toFixed(1)} ({reviews} reviews)
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-gray-500">No reviews yet</div>
+                )}
               </div>
             </motion.article>
           )

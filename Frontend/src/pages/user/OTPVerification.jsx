@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { verifyUserOTP, sendUserOTP } from '../../services/api'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { loginSuccess } from '../../store/authSlice'
 import { FaArrowLeft } from 'react-icons/fa6'
 import { FaEdit } from 'react-icons/fa'
@@ -10,6 +10,7 @@ function OTPVerification() {
   const navigate = useNavigate()
   const location = useLocation()
   const dispatch = useDispatch()
+  const { isAuthenticated, userType } = useSelector((state) => state.auth)
   
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
@@ -23,6 +24,12 @@ function OTPVerification() {
   const [infoMessage, setInfoMessage] = useState('')
 
   useEffect(() => {
+    // If already logged in as user, do not show OTP screen again
+    if (isAuthenticated && userType === 'user') {
+      navigate('/', { replace: true })
+      return
+    }
+
     // Get data from navigation state
     if (location.state) {
       setOtpSessionId(location.state.otpSessionId)
@@ -33,7 +40,7 @@ function OTPVerification() {
       // If no state, redirect back to phone entry
       navigate('/user/phone-entry')
     }
-  }, [location, navigate])
+  }, [location, navigate, isAuthenticated, userType])
 
   useEffect(() => {
     if (resendTimer <= 0) return

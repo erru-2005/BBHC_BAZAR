@@ -13,8 +13,8 @@ import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
 import ProductShowcase from './components/ProductShowcase'
 import LogoAnimation from '../../components/LogoAnimation'
-import { setHomeProducts, setError, setLoading } from '../../store/dataSlice'
-import { getProducts } from '../../services/api'
+import { setHomeProducts, setHomeWishlist, setError, setLoading } from '../../store/dataSlice'
+import { getProducts, getWishlist } from '../../services/api'
 
 const circleLabels = ['Men', 'Women', 'Kids', 'Footwear', 'Accessories', 'Beauty']
 
@@ -28,6 +28,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
   const prevLocationRef = useRef(location.pathname)
 
   const { home, loading, error } = useSelector((state) => state.data)
+  const { isAuthenticated, userType } = useSelector((state) => state.auth)
   const homeData = home
   const {
     quickCategories,
@@ -53,11 +54,27 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
   }, [location.pathname])
 
   useEffect(() => {
-    const loadProducts = async () => {
+    const load = async () => {
       try {
         dispatch(setLoading(true))
         const backendProducts = await getProducts()
         dispatch(setHomeProducts(backendProducts))
+
+        // Load wishlist only for logged-in users
+        if (isAuthenticated && userType === 'user') {
+          try {
+            const wishlistItems = await getWishlist(50, 0)
+            const ids = wishlistItems
+              .map((item) => item.product_id || item.product_snapshot?.id)
+              .filter(Boolean)
+            dispatch(setHomeWishlist(ids))
+          } catch (e) {
+            // Silently ignore wishlist errors
+          }
+        } else {
+          dispatch(setHomeWishlist([]))
+        }
+
         dispatch(setLoading(false))
       } catch (err) {
         dispatch(setError(err.message || 'Failed to load products'))
@@ -65,9 +82,9 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
       }
     }
 
-    loadProducts()
+    load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [isAuthenticated, userType])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900">

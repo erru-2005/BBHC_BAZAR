@@ -14,15 +14,21 @@ import { initSocket, disconnectSocket } from '../../utils/socket'
 function MasterLogin() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  const { loading, error, userType } = useSelector((state) => state.auth)
+  const { loading, error, userType, isAuthenticated } = useSelector((state) => state.auth)
   
-  // Auto-logout if different user type is logged in
   useEffect(() => {
+    // If already logged in as master, go straight to dashboard and prevent seeing login
+    if (isAuthenticated && userType === 'master') {
+      navigate('/master/dashboard', { replace: true })
+      return
+    }
+
+    // Auto-logout if a different user type somehow hits this page
     if (userType && userType !== 'master') {
       dispatch(logout())
       disconnectSocket()
     }
-  }, [userType, dispatch])
+  }, [userType, isAuthenticated, dispatch, navigate])
   
   const [formData, setFormData] = useState({
     username: '',

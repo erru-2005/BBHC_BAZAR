@@ -117,7 +117,7 @@ const initialState = {
       { label: 'Bag', icon: 'bag' },
       { label: 'Me', icon: 'me' }
     ],
-    // Products from backend and wishlist IDs
+    // Products from backend and wishlist
     products: [],
     wishlist: []
   }
@@ -139,6 +139,9 @@ const dataSlice = createSlice({
     setHomeProducts(state, action) {
       state.home.products = Array.isArray(action.payload) ? action.payload : []
     },
+    setHomeWishlist(state, action) {
+      state.home.wishlist = Array.isArray(action.payload) ? action.payload : []
+    },
     toggleWishlist(state, action) {
       const productId = action.payload
       if (!productId) return
@@ -155,5 +158,5 @@ const dataSlice = createSlice({
   }
 })
 
-export const { setData, setLoading, setError, setHomeProducts, toggleWishlist } = dataSlice.actions
+export const { setData, setLoading, setError, setHomeProducts, setHomeWishlist, toggleWishlist } = dataSlice.actions
 export default dataSlice.reducer
