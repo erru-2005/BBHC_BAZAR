@@ -15,7 +15,7 @@ const defaultItems = [
   { label: 'Product', icon: 'product', path: '/' },
   { label: 'Service', icon: 'service', path: '/' },
   { label: 'Home', icon: 'home', path: '/' },
-  { label: 'Bag', icon: 'bag', path: '/' },
+  { label: 'Bag', icon: 'bag', path: '/user/bag' },
   { label: 'Me', icon: 'me', path: '/user/profile' }
 ]
 
@@ -27,15 +27,27 @@ function MobileBottomNav({ items = defaultItems }) {
   if (!items?.length) return null
 
   // Determine active item based on current route
+  // Only one icon can be active at a time
   const getActiveItem = () => {
     const currentPath = location.pathname
+    
+    // Priority order: check specific routes first
+    // Me routes
     if (currentPath === '/user/profile' || currentPath === '/user/orders') {
       return 'me'
     }
+    
+    // Bag routes - check this before home to ensure bag takes priority
+    if (currentPath === '/user/bag' || currentPath.startsWith('/user/bag/')) {
+      return 'bag'
+    }
+    
+    // Home - only active on exact root path
     if (currentPath === '/') {
       return 'home'
     }
-    // Add more route checks as needed
+    
+    // For all other paths, no item should be active
     return null
   }
 
@@ -51,9 +63,31 @@ function MobileBottomNav({ items = defaultItems }) {
     }
   }
 
+  const handleHomeClick = () => {
+    navigate('/')
+  }
+
+  const handleBagClick = () => {
+    // If not authenticated or not a regular user, redirect to login
+    if (!isAuthenticated || !user || userType === 'seller' || userType === 'master') {
+      navigate('/user/phone-entry', {
+        state: {
+          returnTo: '/user/bag',
+          message: 'Please login to view your bag.'
+        }
+      })
+    } else {
+      navigate('/user/bag')
+    }
+  }
+
   const handleItemClick = (item) => {
     if (item.label === 'Me') {
       handleMeClick()
+    } else if (item.label === 'Bag') {
+      handleBagClick()
+    } else if (item.label === 'Home') {
+      handleHomeClick()
     } else if (item.onClick) {
       item.onClick()
     } else if (item.path) {
@@ -66,8 +100,9 @@ function MobileBottomNav({ items = defaultItems }) {
       <div className="max-w-7xl mx-auto px-2 py-1.5 flex justify-between gap-1">
         {items.map((item) => {
           const IconComponent = iconMap[item.icon] || FaRegCircle
-          // Check if this item should be active based on route or explicit isActive prop
-          const isActive = item.isActive || (activeIcon === item.icon)
+          // Only use route-based active state - ensure only one icon is active at a time
+          // item.isActive prop is ignored to prevent conflicts
+          const isActive = activeIcon === item.icon
 
           return (
             <button

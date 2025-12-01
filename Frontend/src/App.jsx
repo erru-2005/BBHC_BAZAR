@@ -9,11 +9,14 @@ import {
   UserProfile,
   UserOrders,
   BuyNow,
+  Bag,
   Seller,
   Master,
   MasterProductDetail,
   SellerLogin,
   MasterLogin,
+  OutletLogin,
+  Outlet,
   NotFound,
   SellerMyProducts,
   SellerProductDetail,
@@ -87,8 +90,18 @@ function SplashWrapper() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/user/bag"
+        element={
+          <ProtectedRoute requiredUserType="user">
+            <Bag />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/seller/login" element={<SellerLogin />} />
       <Route path="/master/login" element={<MasterLogin />} />
+      <Route path="/outlet/login" element={<OutletLogin />} />
+      <Route path="/outlet" element={<Navigate to="/outlet/login" replace />} />
       <Route path="/seller" element={<Navigate to="/seller/login" replace />} />
       <Route path="/master" element={<Navigate to="/master/login" replace />} />
       <Route path="/product/:productId" element={<PublicProductDetail />} />
@@ -149,6 +162,14 @@ function SplashWrapper() {
             <MasterProductDetail />
           </ProtectedRoute>
         }
+      />
+      <Route 
+        path="/outlet/dashboard" 
+        element={
+          <ProtectedRoute requiredUserType="outlet_man">
+            <Outlet />
+          </ProtectedRoute>
+        } 
       />
             <Route path="*" element={<NotFound />} />
           </Routes>

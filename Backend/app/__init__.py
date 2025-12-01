@@ -94,11 +94,13 @@ def create_app(config_class=Config):
     from app.routes.auth import auth_bp
     from app.routes.ratings import ratings_bp
     from app.routes.orders import orders_bp
+    from app.routes.bag import bag_bp
     
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(auth_bp)
     app.register_blueprint(ratings_bp, url_prefix='/api')
     app.register_blueprint(orders_bp, url_prefix='/api')
+    app.register_blueprint(bag_bp, url_prefix='/api')
     
     # Register Socket.IO events (keeping configuration but minimal)
     from app.sockets import register_socket_events
@@ -136,6 +138,11 @@ def create_indexes():
         mongo.db.sellers.create_index([('trade_id', ASCENDING)], unique=True)
         mongo.db.sellers.create_index([('created_at', ASCENDING)])
         
+        # Create indexes for outlet_men collection
+        mongo.db.outlet_men.create_index([('email', ASCENDING)], unique=True)
+        mongo.db.outlet_men.create_index([('outlet_access_code', ASCENDING)], unique=True)
+        mongo.db.outlet_men.create_index([('created_at', ASCENDING)])
+        
         # Create indexes for master collection
         mongo.db.master.create_index([('email', ASCENDING)], unique=True)
         mongo.db.master.create_index([('username', ASCENDING)], unique=True)
@@ -166,6 +173,12 @@ def create_indexes():
         mongo.db.orders.create_index([('seller_id', ASCENDING)])
         mongo.db.orders.create_index([('status', ASCENDING)])
         mongo.db.orders.create_index([('created_at', ASCENDING)])
+        
+        # Create indexes for bag collection
+        mongo.db.bag.create_index([('user_id', ASCENDING)])
+        mongo.db.bag.create_index([('product_id', ASCENDING)])
+        mongo.db.bag.create_index([('user_id', ASCENDING), ('product_id', ASCENDING)])
+        mongo.db.bag.create_index([('created_at', ASCENDING)])
         
         print("Database indexes created successfully")
     except Exception as e:

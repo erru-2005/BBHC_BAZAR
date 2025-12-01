@@ -53,8 +53,23 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
           </div>
 
           <div className="flex items-center gap-4 text-sm font-medium">
-            <button className="hidden md:flex items-center gap-2 hover:text-amber-300 transition">
+            <button
+              onClick={() => {
+                if (!isAuthenticated || userType !== 'user') {
+                  navigate('/user/phone-entry', {
+                    state: {
+                      returnTo: '/user/bag',
+                      message: 'Please login to view your bag.'
+                    }
+                  })
+                } else {
+                  navigate('/user/bag')
+                }
+              }}
+              className="hidden md:flex items-center gap-2 hover:text-amber-300 transition"
+            >
               <FaBagShopping className="w-5 h-5" />
+              <span className="text-white">Bag</span>
             </button>
             <button 
               onClick={() => {

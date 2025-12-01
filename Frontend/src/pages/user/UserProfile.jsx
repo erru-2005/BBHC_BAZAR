@@ -5,6 +5,9 @@ import { FaLocationDot, FaCalendarDays, FaBoxOpen, FaArrowLeft } from 'react-ico
 import { FaUserCircle, FaPhone, FaEnvelope, FaRegSave, FaSignOutAlt } from 'react-icons/fa'
 import { getUserProfile, updateUserProfile } from '../../services/api'
 import { setUser, logout } from '../../store/authSlice'
+import MainHeader from './components/MainHeader'
+import MobileMenu from './components/MobileMenu'
+import MobileSearchBar from './components/MobileSearchBar'
 import MobileBottomNav from './components/MobileBottomNav'
 
 function formatDate(value) {
@@ -21,6 +24,8 @@ function UserProfile() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { user } = useSelector((state) => state.auth)
+  const { home } = useSelector((state) => state.data)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const [profile, setProfile] = useState({
     first_name: '',
@@ -158,8 +163,17 @@ function UserProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 py-8 px-4 pb-24 lg:pb-8">
-      <div className="max-w-5xl mx-auto space-y-10">
+    <div className="min-h-screen bg-white text-gray-900 pb-24 lg:pb-8">
+      <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
+        <MobileSearchBar />
+      </MainHeader>
+
+      <MobileMenu
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+      />
+
+      <div className="max-w-5xl mx-auto py-8 px-4 space-y-10">
         {/* Navigation Header */}
         <div className="flex items-center gap-4 mb-4">
           <button

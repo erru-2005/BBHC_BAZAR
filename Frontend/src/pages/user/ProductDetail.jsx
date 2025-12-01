@@ -16,7 +16,7 @@ function ProductDetail() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const homeData = useSelector((state) => state.data.home)
-  const { recommendationRows, wishlist, mobileQuickLinks, quickCategories, bottomNavItems } = homeData
+  const { recommendationRows, wishlist, bottomNavItems } = homeData
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
@@ -72,8 +72,6 @@ function ProductDetail() {
       <MobileMenu
         open={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
-        quickLinks={mobileQuickLinks}
-        categories={quickCategories}
       />
 
       <main className="w-full px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 pb-20 lg:pb-16">

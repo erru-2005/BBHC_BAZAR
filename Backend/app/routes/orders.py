@@ -139,10 +139,14 @@ def list_orders():
 
     if user_type == 'master':
         orders = OrderService.get_orders()
+    elif user_type == 'outlet_man':
+        # Outlet men can view all orders (same as master)
+        orders = OrderService.get_orders()
     elif user_type == 'user':
         orders = OrderService.get_orders_by_user(user_id)
     else:
-        return jsonify({'error': 'Unauthorized to view orders'}), 403
+        print(f"[DEBUG] Unauthorized - user_type: {user_type}")
+        return jsonify({'error': f'Unauthorized to view orders. User type: {user_type}'}), 403
 
     return jsonify({'orders': _serialize_orders(orders)}), 200
 
@@ -151,8 +155,10 @@ def list_orders():
 @jwt_required()
 def update_order_status(order_id):
     claims = get_jwt()
-    if claims.get('user_type') != 'master':
-        return jsonify({'error': 'Only masters can update order status'}), 403
+    user_type = claims.get('user_type')
+    # Both master and outlet_man can update order status
+    if user_type not in ['master', 'outlet_man']:
+        return jsonify({'error': 'Only masters and outlet men can update order status'}), 403
 
     data = request.get_json() or {}
     status = data.get('status')

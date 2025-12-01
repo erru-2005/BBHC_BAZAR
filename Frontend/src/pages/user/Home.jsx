@@ -84,8 +84,6 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
       <MobileMenu
         open={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
-        quickLinks={mobileQuickLinks}
-        categories={quickCategories}
       />
 
       <main className="max-w-7xl mx-auto px-4 lg:px-8 pb-24 lg:pb-0">

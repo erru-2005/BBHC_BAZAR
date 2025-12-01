@@ -14,8 +14,10 @@ import { MdList, MdBlock } from 'react-icons/md'
 import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt } from 'react-icons/fa'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
+import AddOutletMan from './components/AddOutletMan'
 import ListSellers from './components/ListSellers'
 import ListMasters from './components/ListMasters'
+import ListOutletMan from './components/ListOutletMan'
 import AddProduct from './components/AddProduct'
 import BlacklistedSellers from './components/BlacklistedSellers'
 import ListProducts from './components/ListProducts'
@@ -40,6 +42,8 @@ function Master() {
     { id: 'list-products', label: 'List Products', icon: FaThList },
     { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
     { id: 'list-sellers', label: 'List Sellers', icon: MdList },
+    { id: 'add-outlet-man', label: 'Add Outlet Man', icon: IoMdPersonAdd },
+    { id: 'list-outlet-men', label: 'List Outlet Men', icon: MdList },
     { id: 'add-master', label: 'Add Master', icon: IoMdPersonAdd },
     { id: 'list-masters', label: 'List Masters', icon: MdList },
     { id: 'blacklisted-sellers', label: 'Blacklisted', icon: MdBlock }
@@ -519,6 +523,8 @@ function Master() {
         
         {activeTab === 'add-seller' && <AddSeller />}
         
+        {activeTab === 'add-outlet-man' && <AddOutletMan />}
+        
         {activeTab === 'add-master' && <AddMaster />}
         
         {activeTab === 'add-product' && (
@@ -533,6 +539,8 @@ function Master() {
         )}
         
         {activeTab === 'list-sellers' && <ListSellers />}
+        
+        {activeTab === 'list-outlet-men' && <ListOutletMan />}
         
         {activeTab === 'list-masters' && <ListMasters />}
 

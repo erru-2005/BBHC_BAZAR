@@ -39,7 +39,6 @@ export const useSocket = (token = null, autoConnect = true) => {
       })
 
       socketInstance.on('connected', (data) => {
-        console.log('Socket connected:', data)
         setIsConnected(true)
       })
 

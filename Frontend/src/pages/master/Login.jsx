@@ -2,19 +2,27 @@
  * Master Login Page Component
  * Neumorphic design login form
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { loginStart, loginSuccess, loginFailure } from '../../store/authSlice'
+import { loginStart, loginSuccess, loginFailure, logout } from '../../store/authSlice'
 import { masterLogin, verifyOTP } from '../../services/api'
 import { Button } from '../../components'
 import { getOrCreateDeviceId, getDeviceToken, setDeviceToken } from '../../utils/device'
-import { initSocket } from '../../utils/socket'
+import { initSocket, disconnectSocket } from '../../utils/socket'
 
 function MasterLogin() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  const { loading, error } = useSelector((state) => state.auth)
+  const { loading, error, userType } = useSelector((state) => state.auth)
+  
+  // Auto-logout if different user type is logged in
+  useEffect(() => {
+    if (userType && userType !== 'master') {
+      dispatch(logout())
+      disconnectSocket()
+    }
+  }, [userType, dispatch])
   
   const [formData, setFormData] = useState({
     username: '',
@@ -52,24 +60,10 @@ function MasterLogin() {
       const deviceToken = (storedUserType === 'master') ? getDeviceToken() : null
 
       // Step 1: Validate credentials and check device token
-      console.log('Attempting login with:', { 
-        username: formData.username, 
-        deviceId, 
-        hasDeviceToken: !!deviceToken,
-        storedUserType,
-        deviceToken: deviceToken ? deviceToken.substring(0, 20) + '...' : null
-      })
       const response = await masterLogin(formData.username, formData.password, deviceId, deviceToken)
-      console.log('Login response:', {
-        hasAccessToken: !!response.access_token,
-        skipOtp: response.skip_otp,
-        hasOtpSessionId: !!response.otp_session_id,
-        response: response
-      })
       
       // Check if device token was valid (skip OTP) - check for access_token presence
       if (response.access_token && (response.skip_otp || !response.otp_session_id)) {
-        console.log('Skipping OTP, navigating to dashboard')
         
         // Save device token if returned from backend (for device_id-only login)
         if (response.device_token) {
@@ -87,7 +81,6 @@ function MasterLogin() {
         // Initialize socket connection and notify server (this will save socket_id to DB)
         const socket = initSocket(response.access_token)
         socket.on('connect', () => {
-          console.log('Socket connected, emitting user_authenticated')
           socket.emit('user_authenticated', {
             user_id: response.user.id,
             user_type: 'master'
@@ -141,7 +134,6 @@ function MasterLogin() {
       // Initialize socket connection and notify server (this will save socket_id to DB)
       const socket = initSocket(response.token)
       socket.on('connect', () => {
-        console.log('Socket connected after OTP, emitting user_authenticated')
         socket.emit('user_authenticated', {
           user_id: response.user.id,
           user_type: 'master'

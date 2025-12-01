@@ -54,10 +54,6 @@ const processQueue = (error, token = null) => {
 // Add response interceptor for error handling and automatic token refresh
 apiClient.interceptors.response.use(
   (response) => {
-    // Return the data, but also log for debugging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('API Response:', response.data)
-    }
     return response.data
   },
   async (error) => {
@@ -177,9 +173,6 @@ export const masterLogin = async (username, password, deviceId = null, deviceTok
     }
     
     const response = await apiClient.post(API_ENDPOINTS.AUTH.MASTER_LOGIN, requestData)
-    
-    // Log response for debugging
-    console.log('Master login API response:', response)
 
     // Check if we have access_token (means skip_otp is true)
     const hasAccessToken = !!(response.access_token)
@@ -195,6 +188,51 @@ export const masterLogin = async (username, password, deviceId = null, deviceTok
       access_token: response.access_token, // JWT token if skip_otp is true
       refresh_token: response.refresh_token, // Refresh token if skip_otp is true
       userType: response.userType || 'master', // User type if skip_otp is true
+      device_token: response.device_token, // Device token if returned (for device_id-only login)
+    }
+  } catch (error) {
+    throw new Error(error.message || 'Login failed')
+  }
+}
+
+/**
+ * Outlet man login - Step 1: Validate credentials and get OTP session
+ * @param {string} outlet_access_code - Outlet man access code
+ * @param {string} password - Outlet man password
+ * @param {string} deviceId - Device ID (optional)
+ * @param {string} deviceToken - Device token (optional)
+ * @returns {Promise} Login response with OTP session ID or JWT tokens if device token valid
+ */
+export const outletManLogin = async (outlet_access_code, password, deviceId = null, deviceToken = null) => {
+  try {
+    const requestData = {
+      outlet_access_code,
+      password,
+    }
+    
+    if (deviceId) {
+      requestData.device_id = deviceId
+    }
+    if (deviceToken) {
+      requestData.device_token = deviceToken
+    }
+    
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.OUTLET_MAN_LOGIN, requestData)
+
+    // Check if we have access_token (means skip_otp is true)
+    const hasAccessToken = !!(response.access_token)
+    const skipOtp = response.skip_otp === true || response.skip_otp === 'true' || hasAccessToken
+
+    return {
+      otp_session_id: response.otp_session_id,
+      otp: response.otp, // Only for development (if present)
+      message: response.message,
+      phone_number: response.phone_number, // Masked phone number (last 4 digits)
+      user: response.user, // User data
+      skip_otp: skipOtp, // True if device token was valid or access_token is present
+      access_token: response.access_token, // JWT token if skip_otp is true
+      refresh_token: response.refresh_token, // Refresh token if skip_otp is true
+      userType: response.userType || 'outlet_man', // User type if skip_otp is true
       device_token: response.device_token, // Device token if returned (for device_id-only login)
     }
   } catch (error) {
@@ -225,9 +263,6 @@ export const sellerLogin = async (trade_id, password, deviceId = null, deviceTok
     }
     
     const response = await apiClient.post(API_ENDPOINTS.AUTH.SELLER_LOGIN, requestData)
-    
-    // Log response for debugging
-    console.log('Seller login API response:', response)
 
     // Check if we have access_token (means skip_otp is true)
     const hasAccessToken = !!(response.access_token)
@@ -272,18 +307,6 @@ export const verifyOTP = async (otp_session_id, otp, deviceId = null) => {
     // Store device token if provided (tokens are stored by Redux loginSuccess)
     if (response.device_token && response.device_id && response.userType) {
       setDeviceToken(response.device_token, response.device_id, response.userType)
-      console.log('Device token stored:', {
-        hasToken: !!response.device_token,
-        deviceId: response.device_id,
-        userType: response.userType
-      })
-    } else {
-      console.warn('Device token not received from backend:', {
-        hasToken: !!response.device_token,
-        hasDeviceId: !!response.device_id,
-        hasUserType: !!response.userType,
-        responseKeys: Object.keys(response)
-      })
     }
 
     return {
@@ -332,6 +355,24 @@ export const registerSeller = async (sellerData) => {
     }
   } catch (error) {
     throw new Error(error.message || 'Seller registration failed')
+  }
+}
+
+/**
+ * Register outlet man
+ * @param {object} outletManData - Outlet man registration data
+ * @returns {Promise} Registration response
+ */
+export const registerOutletMan = async (outletManData) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.REGISTER_OUTLET_MAN, outletManData)
+
+    return {
+      message: response.message,
+      outlet_man: response.outlet_man
+    }
+  } catch (error) {
+    throw new Error(error.message || 'Outlet man registration failed')
   }
 }
 
@@ -483,6 +524,19 @@ export const getSellers = async () => {
     return response.sellers || []
   } catch (error) {
     throw new Error(error.message || 'Failed to get sellers')
+  }
+}
+
+/**
+ * Get all outlet men
+ * @returns {Promise} List of outlet men
+ */
+export const getOutletMen = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.GET_OUTLET_MEN)
+    return response.outlet_men || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to get outlet men')
   }
 }
 
@@ -682,6 +736,63 @@ export const blacklistSeller = async (sellerId, reason = 'Blacklisted by master'
 }
 
 /**
+ * Update outlet man
+ * @param {string} outletManId
+ * @param {object} outletManData
+ * @returns {Promise} Updated outlet man
+ */
+export const updateOutletMan = async (outletManId, outletManData) => {
+  try {
+    const response = await apiClient.put(API_ENDPOINTS.API.UPDATE_OUTLET_MAN(outletManId), outletManData)
+    return response.outlet_man
+  } catch (error) {
+    throw new Error(error.message || 'Failed to update outlet man')
+  }
+}
+
+/**
+ * Blacklist outlet man
+ * @param {string} outletManId
+ * @param {string} reason
+ * @returns {Promise<string>} success message
+ */
+export const blacklistOutletMan = async (outletManId, reason = 'Blacklisted by master') => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.BLACKLIST_OUTLET_MAN(outletManId), { reason })
+    return response.message
+  } catch (error) {
+    throw new Error(error.message || 'Failed to blacklist outlet man')
+  }
+}
+
+/**
+ * Unblacklist outlet man
+ * @param {string} outletManId
+ * @returns {Promise<string>} success message
+ */
+export const unblacklistOutletMan = async (outletManId) => {
+  try {
+    const response = await apiClient.delete(API_ENDPOINTS.API.UNBLACKLIST_OUTLET_MAN(outletManId))
+    return response.message
+  } catch (error) {
+    throw new Error(error.message || 'Failed to unblacklist outlet man')
+  }
+}
+
+/**
+ * Get blacklisted outlet men
+ * @returns {Promise<Array>} Blacklisted outlet men
+ */
+export const getBlacklistedOutletMen = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.GET_BLACKLISTED_OUTLET_MEN)
+    return response.blacklisted_outlet_men || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load blacklisted outlet men')
+  }
+}
+
+/**
  * Refresh access token
  * @param {string} refreshToken - Refresh token
  * @returns {Promise} New access token
@@ -833,6 +944,63 @@ export const cancelOrder = async (orderId) => {
     return response.order
   } catch (error) {
     throw new Error(error.message || 'Failed to cancel order')
+  }
+}
+
+/**
+ * Bag API
+ */
+export const addToBag = async (productId, quantity = 1, selectedSize = null, selectedColor = null) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.BAG, {
+      product_id: productId,
+      quantity,
+      selected_size: selectedSize,
+      selected_color: selectedColor
+    })
+    return response.bag_item
+  } catch (error) {
+    throw new Error(error.message || 'Failed to add to bag')
+  }
+}
+
+export const getBag = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.BAG)
+    return response.bag_items || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch bag')
+  }
+}
+
+export const updateBagItem = async (bagItemId, quantity = null, selectedSize = null, selectedColor = null) => {
+  try {
+    const response = await apiClient.put(API_ENDPOINTS.API.BAG_ITEM(bagItemId), {
+      quantity,
+      selected_size: selectedSize,
+      selected_color: selectedColor
+    })
+    return response.bag_item
+  } catch (error) {
+    throw new Error(error.message || 'Failed to update bag item')
+  }
+}
+
+export const removeFromBag = async (bagItemId) => {
+  try {
+    const response = await apiClient.delete(API_ENDPOINTS.API.BAG_ITEM(bagItemId))
+    return response.message
+  } catch (error) {
+    throw new Error(error.message || 'Failed to remove from bag')
+  }
+}
+
+export const clearBag = async () => {
+  try {
+    const response = await apiClient.delete(API_ENDPOINTS.API.BAG_CLEAR)
+    return response.message
+  } catch (error) {
+    throw new Error(error.message || 'Failed to clear bag')
   }
 }
 

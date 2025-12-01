@@ -38,11 +38,11 @@ export const initSocket = (token = null) => {
 
   // Connection event handlers
   socket.on('connect', () => {
-    console.log('Socket.IO connected:', socket.id)
+    // Socket connected
   })
 
   socket.on('disconnect', (reason) => {
-    console.log('Socket.IO disconnected:', reason)
+    // Socket disconnected
   })
 
   socket.on('connect_error', (error) => {

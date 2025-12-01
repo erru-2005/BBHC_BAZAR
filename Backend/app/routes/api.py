@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
+from app.services.outlet_man_service import OutletManService
 from app.services.blacklist_service import BlacklistService
 from app.services.category_service import CategoryService
 from app.services.product_service import ProductService
@@ -323,10 +324,12 @@ def get_blacklisted_sellers():
         if current_user_type != 'master':
             return jsonify({'error': 'Only masters can view blacklisted sellers'}), 403
 
-        entries = BlacklistService.get_all_blacklisted_entries()
+        entries = BlacklistService.get_all_blacklisted_entries('seller')
         result = []
         for entry in entries:
-            seller = SellerService.get_seller_by_id(str(entry.seller_id), include_blacklisted=True)
+            # Support both new format (user_id) and legacy format (seller_id)
+            user_id = str(entry.user_id) if hasattr(entry, 'user_id') else str(entry.seller_id)
+            seller = SellerService.get_seller_by_id(user_id, include_blacklisted=True)
             if seller:
                 seller_dict = seller.to_dict()
                 seller_dict['blacklist'] = entry.to_dict()
@@ -338,6 +341,263 @@ def get_blacklisted_sellers():
         }), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get blacklisted sellers: {str(e)}'}), 500
+
+
+@api_bp.route('/register_outlet_man', methods=['POST'])
+@jwt_required()
+def register_outlet_man():
+    """Register a new outlet man"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        # Get current user info from JWT token
+        try:
+            current_user_id = get_jwt_identity()
+            if not current_user_id:
+                return jsonify({'error': 'Authentication required. Please log in first.'}), 401
+            
+            claims = get_jwt()
+            current_user_type = claims.get('user_type')
+            current_username = claims.get('username') or 'system'
+        except Exception as jwt_error:
+            return jsonify({'error': f'Token validation failed: {str(jwt_error)}. Please log in again.'}), 401
+        
+        # Only masters can register outlet men
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can register outlet men'}), 403
+        
+        # Validate required fields
+        required_fields = ['outlet_access_code', 'email', 'password']
+        for field in required_fields:
+            if not data or not data.get(field):
+                return jsonify({'error': f'{field} is required'}), 400
+        
+        # Validate email format
+        if not validate_email(data['email']):
+            return jsonify({'error': 'Invalid email format'}), 400
+        
+        # Validate outlet_access_code format (alphanumeric, allow hyphens and underscores)
+        outlet_access_code = data.get('outlet_access_code', '').strip()
+        if not outlet_access_code:
+            return jsonify({'error': 'Outlet Access Code is required'}), 400
+        if not all(c.isalnum() or c in ['-', '_'] for c in outlet_access_code):
+            return jsonify({'error': 'Outlet Access Code must contain only alphanumeric characters, hyphens, and underscores'}), 400
+        
+        # Prepare outlet man data with metadata
+        outlet_man_data = {
+            'outlet_access_code': outlet_access_code,
+            'email': data['email'],
+            'password': data['password'],  # Will be hashed in service
+            'phone_number': data.get('phone_number'),  # Optional but recommended
+            'first_name': data.get('first_name'),  # Optional
+            'last_name': data.get('last_name'),  # Optional
+            'is_active': False,  # Default to False
+            'created_by': current_username,
+            'created_at': datetime.utcnow()
+        }
+        
+        # Create outlet man
+        outlet_man = OutletManService.create_outlet_man(outlet_man_data)
+        
+        return jsonify({
+            'message': 'Outlet man registered successfully',
+            'outlet_man': outlet_man.to_dict()
+        }), 201
+    
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        # Handle duplicate key errors (MongoDB unique index)
+        if 'duplicate key' in str(e).lower() or 'E11000' in str(e) or 'already exists' in str(e).lower():
+            return jsonify({'error': str(e)}), 409
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/outlet_men', methods=['GET'])
+@jwt_required()
+def get_outlet_men():
+    """Get all outlet men"""
+    try:
+        # Get current user info from JWT token
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+        
+        # Only masters can view outlet men
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can view outlet men'}), 403
+        
+        # Get pagination parameters
+        skip = request.args.get('skip', 0, type=int)
+        limit = request.args.get('limit', 100, type=int)
+        
+        # Get all outlet men
+        outlet_men = OutletManService.get_all_outlet_men(skip=skip, limit=limit)
+        
+        return jsonify({
+            'outlet_men': [outlet_man.to_dict() for outlet_man in outlet_men],
+            'count': len(outlet_men)
+        }), 200
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to get outlet men: {str(e)}'}), 500
+
+
+@api_bp.route('/outlet_men/<outlet_man_id>', methods=['PUT'])
+@jwt_required()
+def update_outlet_man(outlet_man_id):
+    """Update an outlet man (only masters can update)"""
+    try:
+        # Get current user info from JWT token
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+        
+        # Only masters can update outlet men
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can update outlet men'}), 403
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        # Get outlet man (include blacklisted to allow editing)
+        outlet_man = OutletManService.get_outlet_man_by_id(outlet_man_id, include_blacklisted=True)
+        if not outlet_man:
+            return jsonify({'error': 'Outlet man not found'}), 404
+        
+        # Prepare update data (only allow certain fields to be updated)
+        allowed_fields = ['email', 'phone_number', 'first_name', 'last_name', 'is_active']
+        update_data = {k: v for k, v in data.items() if k in allowed_fields}
+        
+        # Validate email if provided
+        if 'email' in update_data and not validate_email(update_data['email']):
+            return jsonify({'error': 'Invalid email format'}), 400
+        
+        # Check if email already exists (if changing email)
+        if 'email' in update_data and update_data['email'] != outlet_man.email:
+            existing_outlet_man = OutletManService.get_outlet_man_by_email(update_data['email'], include_blacklisted=True)
+            if existing_outlet_man and str(existing_outlet_man._id) != outlet_man_id:
+                return jsonify({'error': 'Email already exists'}), 409
+        
+        # Update outlet man
+        updated_outlet_man = OutletManService.update_outlet_man(outlet_man_id, update_data)
+        if not updated_outlet_man:
+            return jsonify({'error': 'Failed to update outlet man'}), 500
+        
+        return jsonify({
+            'message': 'Outlet man updated successfully',
+            'outlet_man': updated_outlet_man.to_dict()
+        }), 200
+    
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to update outlet man: {str(e)}'}), 500
+
+
+@api_bp.route('/outlet_men/<outlet_man_id>/blacklist', methods=['POST'])
+@jwt_required()
+def blacklist_outlet_man(outlet_man_id):
+    """Blacklist an outlet man (only masters can blacklist)"""
+    try:
+        # Get current user info from JWT token
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+        
+        # Only masters can blacklist outlet men
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can blacklist outlet men'}), 403
+        
+        data = request.get_json() or {}
+        reason = data.get('reason', 'Blacklisted by master')
+        
+        # Get outlet man (include blacklisted to check if already blacklisted)
+        outlet_man = OutletManService.get_outlet_man_by_id(outlet_man_id, include_blacklisted=True)
+        if not outlet_man:
+            return jsonify({'error': 'Outlet man not found'}), 404
+        
+        # Check if already blacklisted
+        if BlacklistService.is_blacklisted(outlet_man_id, 'outlet_man'):
+            return jsonify({'error': 'Outlet man is already blacklisted'}), 409
+        
+        # Blacklist the outlet man
+        blacklist_entry = BlacklistService.blacklist_user(
+            user_id=outlet_man_id,
+            user_type='outlet_man',
+            blacklisted_by=current_user_id,
+            reason=reason
+        )
+        
+        return jsonify({
+            'message': 'Outlet man blacklisted successfully',
+            'blacklist': blacklist_entry.to_dict()
+        }), 200
+    
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to blacklist outlet man: {str(e)}'}), 500
+
+
+@api_bp.route('/outlet_men/<outlet_man_id>/blacklist', methods=['DELETE'])
+@jwt_required()
+def unblacklist_outlet_man(outlet_man_id):
+    """Remove outlet man from blacklist (masters only)"""
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can modify blacklist'}), 403
+
+        if not BlacklistService.is_blacklisted(outlet_man_id, 'outlet_man'):
+            return jsonify({'error': 'Outlet man is not blacklisted'}), 404
+
+        success = BlacklistService.unblacklist_user(outlet_man_id, 'outlet_man')
+        if not success:
+            return jsonify({'error': 'Failed to remove outlet man from blacklist'}), 500
+
+        return jsonify({
+            'message': 'Outlet man removed from blacklist successfully',
+            'outlet_man_id': outlet_man_id
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to unblacklist outlet man: {str(e)}'}), 500
+
+
+@api_bp.route('/outlet_men/blacklisted', methods=['GET'])
+@jwt_required()
+def get_blacklisted_outlet_men():
+    """List blacklisted outlet men"""
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can view blacklisted outlet men'}), 403
+
+        entries = BlacklistService.get_all_blacklisted_entries('outlet_man')
+        result = []
+        for entry in entries:
+            outlet_man = OutletManService.get_outlet_man_by_id(str(entry.user_id), include_blacklisted=True)
+            if outlet_man:
+                outlet_man_dict = outlet_man.to_dict()
+                outlet_man_dict['blacklist'] = entry.to_dict()
+                result.append(outlet_man_dict)
+
+        return jsonify({
+            'blacklisted_outlet_men': result,
+            'count': len(result)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get blacklisted outlet men: {str(e)}'}), 500
 
 
 @api_bp.route('/masters', methods=['GET'])

@@ -30,7 +30,7 @@ function Chat({ token = null, room = 'general' }) {
     })
 
     socket.on('joined_room', (data) => {
-      console.log('Joined room:', data)
+      // Room joined
     })
 
     socket.on('user_typing', (data) => {

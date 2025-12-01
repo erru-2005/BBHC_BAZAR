@@ -4,6 +4,9 @@ import { useSelector } from 'react-redux'
 import { FaArrowLeft, FaBox, FaClock, FaTruck, FaCircleXmark, FaDownload } from 'react-icons/fa6'
 import { AnimatePresence, motion } from 'framer-motion'
 import QRCode from 'react-qr-code'
+import MainHeader from './components/MainHeader'
+import MobileMenu from './components/MobileMenu'
+import MobileSearchBar from './components/MobileSearchBar'
 import MobileBottomNav from './components/MobileBottomNav'
 import { getOrders, cancelOrder } from '../../services/api'
 
@@ -18,12 +21,14 @@ const STATUS_STYLES = {
 function UserOrders() {
   const navigate = useNavigate()
   const { user } = useSelector((state) => state.auth)
+  const { home } = useSelector((state) => state.data)
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [cancelingId, setCancelingId] = useState(null)
   const [activeOrder, setActiveOrder] = useState(null)
   const qrPreviewRef = useRef(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -167,6 +172,14 @@ function UserOrders() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#131921] via-[#1a2332] to-[#131921] p-4 sm:p-6 pb-24 lg:pb-6">
+      <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
+        <MobileSearchBar />
+      </MainHeader>
+
+      <MobileMenu
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+      />
       <div className="max-w-4xl mx-auto space-y-6 text-white">
         <button
           onClick={() => navigate('/user/profile')}

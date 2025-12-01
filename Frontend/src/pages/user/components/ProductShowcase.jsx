@@ -1,9 +1,11 @@
 import PropTypes from 'prop-types'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 import { motion } from 'framer-motion'
 import { FaHeart, FaStar, FaStarHalfAlt, FaShoppingBag } from 'react-icons/fa'
 import { motionVariants, transitions } from '../../../utils/animations'
+import { addToBag } from '../../../services/api'
 
 const getImageSrc = (image) => image?.preview || image?.data_url || image?.url || image || null
 
@@ -12,7 +14,9 @@ const defaultReviews = 120
 
 function ProductShowcase({ products = [], loading, error }) {
   const [likedIds, setLikedIds] = useState(new Set())
+  const [addingToBag, setAddingToBag] = useState(new Set())
   const navigate = useNavigate()
+  const { isAuthenticated, userType } = useSelector((state) => state.auth)
 
   const toggleLike = (event, productId) => {
     event.preventDefault()
@@ -137,16 +141,42 @@ function ProductShowcase({ products = [], loading, error }) {
                 {/* Action: Add to Bag (replaces monthly offers/promo line) */}
                 <div className="pt-1">
                   <button
-                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50"
-                    onClick={(e) => {
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      // TODO: wire up add-to-bag/cart action
+                      const productId = product.id || product._id;
+                      if (!productId) return;
+                      
+                      if (!isAuthenticated || userType !== 'user') {
+                        navigate('/user/phone-entry', {
+                          state: {
+                            returnTo: `/product/public/${productId}`,
+                            message: 'Please login to add items to your bag.'
+                          }
+                        });
+                        return;
+                      }
+                      
+                      try {
+                        setAddingToBag(prev => new Set(prev).add(productId));
+                        await addToBag(productId, 1);
+                        // Optional: Show success message
+                      } catch (error) {
+                        alert(error.message || 'Failed to add to bag');
+                      } finally {
+                        setAddingToBag(prev => {
+                          const next = new Set(prev);
+                          next.delete(productId);
+                          return next;
+                        });
+                      }
                     }}
+                    disabled={addingToBag.has(product.id || product._id)}
                     aria-label="Add to bag"
                   >
                     <FaShoppingBag className="w-4 h-4 text-pink-500" />
-                    Add to Bag
+                    {addingToBag.has(product.id || product._id) ? 'Adding...' : 'Add to Bag'}
                   </button>
                 </div>
                 <div className="flex items-center gap-1 text-xs text-green-600">

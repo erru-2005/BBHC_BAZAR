@@ -181,7 +181,7 @@ function StarRating({
 
     // Check if productId is provided
     if (!productId) {
-      console.warn('Product ID not provided. Rating will not be saved.')
+      // Product ID not provided. Rating will not be saved.
       // Still allow local rating change for UI purposes
       animateStars(starValue)
       return

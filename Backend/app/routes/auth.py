@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
 from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
+from app.services.outlet_man_service import OutletManService
 from app.services.user_service import UserService
 from app.utils.otp import OTPManager
 from app.utils.sms import SMSService
@@ -353,6 +354,86 @@ def seller_login():
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 
+@auth_bp.route('/outlet_man/login', methods=['POST'])
+def outlet_man_login():
+    """
+    Outlet man login endpoint - validates credentials and checks device token
+    Expects: { "outlet_access_code": "...", "password": "...", "device_id": "...", "device_token": "..." }
+    Returns: 
+        - If device token valid: { "message": "...", "access_token": "...", "user": {...}, "skip_otp": true }
+        - If device token invalid/missing: { "message": "...", "otp_session_id": "...", "user": {...}, "phone_number": "..." }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        outlet_access_code = data.get('outlet_access_code')
+        password = data.get('password')
+        device_id = data.get('device_id')
+        device_token = data.get('device_token')
+        
+        if not outlet_access_code or not password:
+            return jsonify({'error': 'Outlet access code and password are required'}), 400
+        
+        # Check if outlet man is blacklisted (check before authentication)
+        from app.services.blacklist_service import BlacklistService
+        outlet_man_temp = OutletManService.get_outlet_man_by_access_code(outlet_access_code, include_blacklisted=True)
+        if not outlet_man_temp:
+            return jsonify({'error': 'Invalid outlet access code or password'}), 401
+        
+        # Check if blacklisted
+        if BlacklistService.is_blacklisted(str(outlet_man_temp._id), 'outlet_man'):
+            return jsonify({'error': 'This account has been blacklisted. Please contact support.'}), 403
+        
+        # Authenticate outlet man
+        outlet_man = outlet_man_temp
+        if not outlet_man.check_password(password):
+            return jsonify({'error': 'Invalid outlet access code or password'}), 401
+        
+        user_id = str(outlet_man._id)
+        user_data = outlet_man.to_dict(include_password=False)
+        
+        # Outlet man login: No OTP required, return JWT tokens directly
+        # Create device token if device_id is provided
+        device_token = None
+        if device_id:
+            device_token = DeviceTokenManager.create_device_token(user_id, 'outlet_man', device_id)
+        
+        additional_claims = {
+            'user_type': 'outlet_man',
+            'user_id': user_id,
+            'outlet_access_code': outlet_man.outlet_access_code
+        }
+        
+        access_token = create_access_token(
+            identity=user_id,
+            additional_claims=additional_claims
+        )
+        refresh_token = create_refresh_token(
+            identity=user_id,
+            additional_claims=additional_claims
+        )
+        
+        response_data = {
+            'message': 'Login successful',
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': user_data,
+            'userType': 'outlet_man',
+            'skip_otp': True
+        }
+        
+        if device_token:
+            response_data['device_token'] = device_token
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Login failed: {str(e)}'}), 500
+
+
 @auth_bp.route('/verify-otp', methods=['POST'])
 def verify_otp():
     """
@@ -389,6 +470,12 @@ def verify_otp():
                 return jsonify({'error': 'User not found'}), 404
             user_dict = master.to_dict()
             username = master.username
+        elif user_info['user_type'] == 'outlet_man':
+            outlet_man = OutletManService.get_outlet_man_by_id(user_info['user_id'])
+            if not outlet_man:
+                return jsonify({'error': 'User not found'}), 404
+            user_dict = outlet_man.to_dict()
+            username = outlet_man.outlet_access_code
         else:  # seller
             seller = SellerService.get_seller_by_id(user_info['user_id'])
             if not seller:
@@ -399,9 +486,15 @@ def verify_otp():
         # Create JWT tokens
         additional_claims = {
             'user_type': user_info['user_type'],
-            'user_id': user_info['user_id'],
-            'username': username
+            'user_id': user_info['user_id']
         }
+        
+        if user_info['user_type'] == 'master':
+            additional_claims['username'] = username
+        elif user_info['user_type'] == 'outlet_man':
+            additional_claims['outlet_access_code'] = username
+        else:  # seller
+            additional_claims['trade_id'] = username
         
         access_token = create_access_token(
             identity=user_info['user_id'],
@@ -497,6 +590,11 @@ def get_current_user():
             if not seller:
                 return jsonify({'error': 'User not found'}), 404
             user_data = seller.to_dict(include_password=False)
+        elif user_type == 'outlet_man':
+            outlet_man = OutletManService.get_outlet_man_by_id(current_user_id)
+            if not outlet_man:
+                return jsonify({'error': 'User not found'}), 404
+            user_data = outlet_man.to_dict(include_password=False)
         elif user_type == 'user':
             user = UserService.get_user_by_id(current_user_id)
             if not user:

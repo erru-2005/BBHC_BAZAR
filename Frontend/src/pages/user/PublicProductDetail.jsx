@@ -8,9 +8,9 @@ import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
 import ProductMediaViewer from '../../components/ProductMediaViewer'
 import { setHomeProducts } from '../../store/dataSlice'
-import { getProducts } from '../../services/api'
+import { getProducts, addToBag } from '../../services/api'
 import { FaStar } from 'react-icons/fa'
-import { FaHeart, FaShoppingBag } from 'react-icons/fa'
+import { FaHeart, FaShoppingBag, FaMinus, FaPlus } from 'react-icons/fa'
 import StarRating from '../../components/StarRating'
 import useProductSocket from '../../hooks/useProductSocket'
 
@@ -30,6 +30,8 @@ function PublicProductDetail() {
   const productFromStore = home.products?.find((prod) => String(prod.id || prod._id) === productId)
   const [product, setProduct] = useState(location.state?.product || productFromStore)
   const [userRating, setUserRating] = useState(0)
+  const [addingToBag, setAddingToBag] = useState(false)
+  const [quantity, setQuantity] = useState(1)
 
   useEffect(() => {
     if (!product) {
@@ -89,7 +91,7 @@ function PublicProductDetail() {
         <MobileSearchBar />
       </MainHeader>
 
-      <MobileMenu open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} quickLinks={home.mobileQuickLinks} categories={home.quickCategories} />
+      <MobileMenu open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
       <main className="w-full px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
         <button
@@ -164,6 +166,32 @@ function PublicProductDetail() {
               </div>
             )}
 
+            {/* Quantity Selector */}
+            <div className="pt-2">
+              <p className="text-[10px] sm:text-xs uppercase tracking-widest text-gray-500 mb-2 sm:mb-3">Quantity</p>
+              <div className="inline-flex items-center rounded-full border border-gray-300 bg-white">
+                <button
+                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                  disabled={quantity <= 1}
+                  className="p-2 sm:p-2.5 text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  aria-label="Decrease quantity"
+                >
+                  <FaMinus className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
+                <span className="px-4 sm:px-6 font-semibold text-base sm:text-lg min-w-[3rem] text-center">{quantity}</span>
+                <button
+                  onClick={() => {
+                    const maxQty = Number(product.quantity || product.stock || 10)
+                    setQuantity((prev) => Math.min(maxQty, prev + 1))
+                  }}
+                  className="p-2 sm:p-2.5 text-gray-600 hover:text-gray-900 transition"
+                  aria-label="Increase quantity"
+                >
+                  <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-2 sm:gap-3 pt-2">
               <button
                 onClick={() => {
@@ -184,9 +212,34 @@ function PublicProductDetail() {
               >
                 Buy Now
               </button>
-              <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 rounded-full border border-gray-300 text-sm sm:text-base font-semibold text-gray-800 hover:bg-gray-50 transition">
+              <button
+                onClick={async () => {
+                  if (!product) return
+                  if (!isAuthenticated || userType !== 'user') {
+                    navigate('/user/phone-entry', {
+                      state: {
+                        returnTo: `/product/public/${productId}`,
+                        message: 'Please login to add items to your bag.'
+                      }
+                    })
+                    return
+                  }
+                  try {
+                    setAddingToBag(true)
+                    await addToBag(product.id || product._id, quantity)
+                    alert('Item added to bag successfully!')
+                    setQuantity(1) // Reset quantity after adding
+                  } catch (error) {
+                    alert(error.message || 'Failed to add to bag')
+                  } finally {
+                    setAddingToBag(false)
+                  }
+                }}
+                disabled={!product || addingToBag}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 rounded-full border border-gray-300 text-sm sm:text-base font-semibold text-gray-800 hover:bg-gray-50 transition disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
                 <FaShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
-                Add to bag
+                {addingToBag ? 'Adding...' : 'Add to bag'}
               </button>
               
               {/* Star Rating Panel */}
@@ -198,7 +251,6 @@ function PublicProductDetail() {
                   productId={productId}
                   onRatingChange={(rating) => {
                     setUserRating(rating)
-                    console.log('User rated:', rating)
                   }}
                   showRatingText={true}
                   disabled={false}

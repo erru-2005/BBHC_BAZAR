@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import QRCode from 'react-qr-code'
 import { FaDownload } from 'react-icons/fa6'
 import MainHeader from './components/MainHeader'
+import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
 import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
@@ -33,6 +34,7 @@ function BuyNow() {
   const [successOrder, setSuccessOrder] = useState(null)
   const [showSuccess, setShowSuccess] = useState(false)
   const successQrRef = useRef(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const downloadSvgFromRef = (node, filename) => {
     if (!node) return
@@ -142,9 +144,14 @@ function BuyNow() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-gray-100 text-gray-900">
-      <MainHeader>
+      <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
         <MobileSearchBar />
       </MainHeader>
+
+      <MobileMenu
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+      />
 
       <main className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-5xl mx-auto space-y-6">
         <button
