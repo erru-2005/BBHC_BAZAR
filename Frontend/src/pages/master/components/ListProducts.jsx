@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Skeleton from 'react-loading-skeleton'
 import 'react-loading-skeleton/dist/skeleton.css'
-import { deleteProduct, getProducts, getPendingProducts, approveProduct, rejectProduct } from '../../../services/api'
-import { FaSyncAlt, FaTag, FaCheck, FaTimes } from 'react-icons/fa'
+import { deleteProduct, getProducts, getPendingProducts, approveProduct, rejectProduct, getCategories } from '../../../services/api'
+import { FaSyncAlt, FaTag, FaCheck, FaTimes, FaSearch } from 'react-icons/fa'
 import { FiEdit, FiTrash2 } from 'react-icons/fi'
 import useProductSocket from '../../../hooks/useProductSocket'
 
@@ -22,6 +22,10 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
   const [pendingLoading, setPendingLoading] = useState(true)
   const [error, setError] = useState(null)
   const [processingId, setProcessingId] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [categories, setCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
 
   const navigate = useNavigate()
 
@@ -50,9 +54,27 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
     }
   }
 
+  const fetchCategories = async () => {
+    setCategoriesLoading(true)
+    try {
+      const data = await getCategories()
+      // Handle both array of strings and array of objects
+      const categoryList = Array.isArray(data) 
+        ? data.map(cat => typeof cat === 'string' ? cat : (cat.name || cat.category || cat))
+        : []
+      setCategories(categoryList)
+    } catch (err) {
+      console.error('Failed to load categories', err)
+      setCategories([])
+    } finally {
+      setCategoriesLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchProducts()
     fetchPendingProducts()
+    fetchCategories()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshSignal])
 
@@ -110,6 +132,93 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
       setError(err.message || 'Failed to delete product')
     }
   }
+
+  // Filter products based on search query and category
+  const filteredProducts = useMemo(() => {
+    let filtered = products
+
+    // Filter by category
+    if (selectedCategory) {
+      filtered = filtered.filter(product => {
+        const productCategories = product.categories || []
+        const categoriesArray = Array.isArray(productCategories) 
+          ? productCategories 
+          : productCategories ? [productCategories] : []
+        return categoriesArray.some(cat => {
+          const catName = typeof cat === 'string' ? cat : (cat.name || cat.category || cat)
+          return catName.toLowerCase() === selectedCategory.toLowerCase()
+        })
+      })
+    }
+
+    // Filter by search query (searches all fields)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter(product => {
+        const productName = (product.product_name || product.productName || '').toLowerCase()
+        const sellerName = (product.seller_name || product.created_by || '').toLowerCase()
+        const sellerTradeId = (product.seller_trade_id || product.created_by_user_id || '').toLowerCase()
+        const specification = (product.specification || '').toLowerCase()
+        const productId = String(product.id || product._id || '').toLowerCase()
+        
+        // Search in categories
+        const productCategories = product.categories || []
+        const categoriesArray = Array.isArray(productCategories) 
+          ? productCategories 
+          : productCategories ? [productCategories] : []
+        const categoryMatch = categoriesArray.some(cat => {
+          const catName = typeof cat === 'string' ? cat : (cat.name || cat.category || cat)
+          return catName.toLowerCase().includes(query)
+        })
+
+        return (
+          productName.includes(query) ||
+          sellerName.includes(query) ||
+          sellerTradeId.includes(query) ||
+          specification.includes(query) ||
+          productId.includes(query) ||
+          categoryMatch
+        )
+      })
+    }
+
+    return filtered
+  }, [products, searchQuery, selectedCategory])
+
+  // Filter pending products by search query (category filter doesn't apply to pending)
+  const filteredPendingProducts = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return pendingProducts
+    }
+
+    const query = searchQuery.toLowerCase().trim()
+    return pendingProducts.filter(product => {
+      const productName = (product.product_name || product.productName || '').toLowerCase()
+      const sellerName = (product.seller_name || product.created_by || '').toLowerCase()
+      const sellerTradeId = (product.seller_trade_id || product.created_by_user_id || '').toLowerCase()
+      const specification = (product.specification || '').toLowerCase()
+      const productId = String(product.id || product._id || '').toLowerCase()
+      
+      // Search in categories
+      const productCategories = product.categories || []
+      const categoriesArray = Array.isArray(productCategories) 
+        ? productCategories 
+        : productCategories ? [productCategories] : []
+      const categoryMatch = categoriesArray.some(cat => {
+        const catName = typeof cat === 'string' ? cat : (cat.name || cat.category || cat)
+        return catName.toLowerCase().includes(query)
+      })
+
+      return (
+        productName.includes(query) ||
+        sellerName.includes(query) ||
+        sellerTradeId.includes(query) ||
+        specification.includes(query) ||
+        productId.includes(query) ||
+        categoryMatch
+      )
+    })
+  }, [pendingProducts, searchQuery])
 
   const renderProductCard = (product, isPending = false) => {
     const productName = product.product_name || product.productName || 'Untitled product'
@@ -291,23 +400,74 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
         </button>
       </div>
 
+      {/* Search and Filter Section */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-3">
+        {/* Search Bar */}
+        <div className="flex-1 relative">
+          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="Search products by name, seller, category, ID, or specification..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+          />
+        </div>
+
+        {/* Category Filter Dropdown */}
+        <div className="w-full sm:w-64">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base bg-white"
+            disabled={categoriesLoading}
+          >
+            <option value="">All Categories</option>
+            {categories.map((category, index) => {
+              const categoryName = typeof category === 'string' ? category : (category.name || category.category || category)
+              return (
+                <option key={index} value={categoryName}>
+                  {categoryName}
+                </option>
+              )
+            })}
+          </select>
+        </div>
+      </div>
+
+      {/* Search Results Info */}
+      {(searchQuery || selectedCategory) && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            Showing {filteredProducts.length} of {products.length} products
+            {searchQuery && ` matching "${searchQuery}"`}
+            {selectedCategory && ` in category "${selectedCategory}"`}
+          </p>
+        </div>
+      )}
+
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
       )}
 
       {/* Pending Products Section */}
-      {pendingProducts.length > 0 && (
+      {filteredPendingProducts.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Pending Approval ({pendingProducts.length})</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+            Pending Approval ({filteredPendingProducts.length}{searchQuery && ` of ${pendingProducts.length}`})
+          </h3>
           <div className="grid gap-5">
-            {pendingProducts.map((product) => renderProductCard(product, true))}
+            {filteredPendingProducts.map((product) => renderProductCard(product, true))}
           </div>
         </div>
       )}
 
       {/* Approved Products Section */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">Approved Products</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">
+          Approved Products
+          {(searchQuery || selectedCategory) && ` (${filteredProducts.length}${searchQuery || selectedCategory ? ` of ${products.length}` : ''})`}
+        </h3>
 
       {loading && products.length === 0 ? (
         <div className="space-y-4" role="status" aria-live="polite" aria-busy="true">
@@ -362,9 +522,17 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
         <p className="text-sm text-gray-500">No products have been added yet.</p>
       ) : null}
 
-        {products.length > 0 && (
+      {!loading && products.length > 0 && filteredProducts.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          No products found
+          {searchQuery && ` matching "${searchQuery}"`}
+          {selectedCategory && ` in category "${selectedCategory}"`}
+        </p>
+      ) : null}
+
+        {filteredProducts.length > 0 && (
           <div className="grid gap-5">
-            {products.map((product) => renderProductCard(product, false))}
+            {filteredProducts.map((product) => renderProductCard(product, false))}
           </div>
         )}
       </div>

@@ -7,8 +7,11 @@ import { getSocket } from '../../../utils/socket'
 import { FaSearch, FaFileExcel, FaCheckCircle, FaTimesCircle, FaFilter } from 'react-icons/fa'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getOrders, updateOrderStatus, masterCancelOrder } from '../../../services/api'
-import XLSX from 'xlsx-js-style'
 import { saveAs } from 'file-saver'
+// Import xlsx-js-style as namespace (UMD bundle)
+import * as XLSXModule from 'xlsx-js-style'
+// Extract XLSX from the module (handles different export formats)
+const XLSX = XLSXModule.default || XLSXModule.XLSX || XLSXModule
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 

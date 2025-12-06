@@ -38,7 +38,8 @@ export const initSocket = (token = null) => {
 
   // Connection event handlers
   socket.on('connect', () => {
-    // Socket connected
+    // Socket connected - backend will automatically handle user/seller connection tracking
+    // if auth token is provided, backend connect handler will emit user:connected or seller:connected
   })
 
   socket.on('disconnect', (reason) => {

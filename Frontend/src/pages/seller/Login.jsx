@@ -11,6 +11,7 @@ import { sellerLogin, verifyOTP, requestSellerForgotPasswordOtp } from '../../se
 import { Button } from '../../components'
 import { getOrCreateDeviceId, getDeviceToken, setDeviceToken } from '../../utils/device'
 import { initSocket } from '../../utils/socket'
+import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
 
 function SellerLogin() {
   const navigate = useNavigate()
@@ -136,12 +137,24 @@ function SellerLogin() {
         
         // Initialize socket connection and notify server (this will save socket_id to DB)
         const socket = initSocket(response.access_token)
-        socket.on('connect', () => {
-          socket.emit('user_authenticated', {
-            user_id: response.user.id,
-            user_type: 'seller'
+        if (socket) {
+          socket.on('connect', () => {
+            // Socket connection with auth token will automatically update seller status
+            // The backend connect handler will emit seller:connected event
+            socket.emit('user_authenticated', {
+              user_id: response.user.id,
+              user_type: 'seller'
+            })
           })
-        })
+          
+          // If already connected, emit immediately
+          if (socket.connected) {
+            socket.emit('user_authenticated', {
+              user_id: response.user.id,
+              user_type: 'seller'
+            })
+          }
+        }
         
         navigate('/seller/dashboard')
         return
@@ -181,7 +194,10 @@ function SellerLogin() {
         refresh_token: response.refreshToken
       }))
       
-      // Initialize socket connection and notify server (this will save socket_id to DB)
+      // Initialize active counter socket with role='seller'
+      initActiveCounterSocket('seller')
+      
+      // Initialize regular socket connection and notify server (this will save socket_id to DB)
       const socket = initSocket(response.token)
       socket.on('connect', () => {
         socket.emit('user_authenticated', {

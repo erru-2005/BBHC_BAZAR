@@ -9,6 +9,7 @@ import { FaQrcode, FaCheck } from 'react-icons/fa6'
 import { logout } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
+import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
 import { getOrders, sellerAcceptOrder, sellerRejectOrder } from '../../services/api'
 import QRCode from 'react-qr-code'
 import SellerOrders from './components/SellerOrders'
@@ -64,13 +65,28 @@ function Seller() {
       return
     }
     
+    // Initialize active counter socket with role='seller'
+    initActiveCounterSocket('seller')
+    
     const socket = initSocket(token)
-    socket.on('connect', () => {
-      socket.emit('user_authenticated', {
-        user_id: user.id,
-        user_type: 'seller'
+    if (socket) {
+      socket.on('connect', () => {
+        // Socket connection with auth token will automatically update seller status
+        // The backend connect handler will emit seller:connected event
+        socket.emit('user_authenticated', {
+          user_id: user.id,
+          user_type: 'seller'
+        })
       })
-    })
+      
+      // If already connected, emit immediately
+      if (socket.connected) {
+        socket.emit('user_authenticated', {
+          user_id: user.id,
+          user_type: 'seller'
+        })
+      }
+    }
 
     socket.on('new_order', (orderData) => {
       // Only add if this order is for current seller

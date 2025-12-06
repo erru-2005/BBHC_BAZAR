@@ -10,6 +10,7 @@ import { masterLogin, verifyOTP, requestMasterForgotPasswordOtp } from '../../se
 import { Button } from '../../components'
 import { getOrCreateDeviceId, getDeviceToken, setDeviceToken } from '../../utils/device'
 import { initSocket, disconnectSocket } from '../../utils/socket'
+import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
 
 function MasterLogin() {
   const navigate = useNavigate()
@@ -186,7 +187,10 @@ function MasterLogin() {
         refresh_token: response.refreshToken
       }))
       
-      // Initialize socket connection and notify server (this will save socket_id to DB)
+      // Initialize active counter socket with role='master'
+      initActiveCounterSocket('master')
+      
+      // Initialize regular socket connection and notify server (this will save socket_id to DB)
       const socket = initSocket(response.token)
       socket.on('connect', () => {
         socket.emit('user_authenticated', {

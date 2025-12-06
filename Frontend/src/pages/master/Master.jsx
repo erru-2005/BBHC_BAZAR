@@ -24,6 +24,8 @@ import BlacklistedSellers from './components/BlacklistedSellers'
 import ListProducts from './components/ListProducts'
 import OrdersList from './components/OrdersList'
 import CommissionManagement from './components/CommissionManagement'
+import Analysis from './components/analysis/Analysis'
+import ActiveCounters from './components/ActiveCounters'
 
 const TAB_ORDER_VERSION = '2'
 
@@ -538,9 +540,14 @@ function Master() {
       {/* Tab Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {activeTab === 'home' && (
-          <div className="text-center">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Master Dashboard</h2>
-            <p className="text-xl text-gray-600">Manage the entire BBHCBazaar platform</p>
+          <div className="space-y-6">
+            {/* Master Dashboard Title */}
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Master Dashboard</h2>
+              <p className="text-base sm:text-lg lg:text-xl text-gray-600">Comprehensive Analytics & Insights</p>
+            </div>
+            <ActiveCounters />
+            <Analysis />
           </div>
         )}
         

@@ -1,7 +1,7 @@
 """
 Flask application factory
 """
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_pymongo import PyMongo
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -56,11 +56,26 @@ def create_app(config_class=Config):
     cors.init_app(app, resources={
         r"/*": {
             "origins": app.config['CORS_ORIGINS'],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+            "supports_credentials": True,
+            "expose_headers": ["Content-Type", "Authorization"]
         }
     })
+    
+    # Explicitly handle OPTIONS requests for CORS preflight
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = jsonify({})
+            response.headers.add("Access-Control-Allow-Origin", 
+                               app.config['CORS_ORIGINS'] if isinstance(app.config['CORS_ORIGINS'], str) 
+                               else ", ".join(app.config['CORS_ORIGINS']) if isinstance(app.config['CORS_ORIGINS'], list) 
+                               else "*")
+            response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+            response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+            response.headers.add("Access-Control-Allow-Credentials", "true")
+            return response
     
     # Initialize JWT
     jwt.init_app(app)
@@ -95,12 +110,16 @@ def create_app(config_class=Config):
     from app.routes.ratings import ratings_bp
     from app.routes.orders import orders_bp
     from app.routes.bag import bag_bp
+    from app.routes.analytics import analytics_bp
+    from app.routes.debug import debug_bp
     
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(auth_bp)
     app.register_blueprint(ratings_bp, url_prefix='/api')
     app.register_blueprint(orders_bp, url_prefix='/api')
     app.register_blueprint(bag_bp, url_prefix='/api')
+    app.register_blueprint(analytics_bp)
+    app.register_blueprint(debug_bp, url_prefix='/api/debug')
     
     # Simple root route for connectivity testing
     @app.route('/', methods=['GET'])
@@ -187,6 +206,11 @@ def create_indexes():
         mongo.db.bag.create_index([('product_id', ASCENDING)])
         mongo.db.bag.create_index([('user_id', ASCENDING), ('product_id', ASCENDING)])
         mongo.db.bag.create_index([('created_at', ASCENDING)])
+        
+        # Create indexes for statistics collection
+        mongo.db.statistics.create_index([('date', ASCENDING)])
+        mongo.db.statistics.create_index([('seller_id', ASCENDING)])
+        mongo.db.statistics.create_index([('date', ASCENDING), ('seller_id', ASCENDING)])
 
         # Create indexes for users collection
         try:

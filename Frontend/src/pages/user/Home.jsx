@@ -16,6 +16,7 @@ import LogoAnimation from '../../components/LogoAnimation'
 import { setHomeProducts, setHomeWishlist, setError, setLoading, setRefreshing, updateProductInCache } from '../../store/dataSlice'
 import { getProducts, getWishlist } from '../../services/api'
 import { initSocket, getSocket } from '../../utils/socket'
+import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
 
 const circleLabels = ['Men', 'Women', 'Kids', 'Footwear', 'Accessories', 'Beauty']
 
@@ -223,9 +224,44 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
     }
   }, [token, dispatch, home.products])
 
-  // Initialize socket connection for real-time updates
+  // Initialize socket connection for real-time updates and track home visits
   useEffect(() => {
-    initSocket(token)
+    // Initialize active counter socket with role='user' (for counting active users)
+    const activeCounterSocket = initActiveCounterSocket('user')
+    
+    // Also initialize regular socket for other features (if needed)
+    const socket = initSocket(token)
+    
+    if (socket) {
+      // Handle socket connection
+      const handleConnect = () => {
+        // Emit home visit event when socket connects
+        socket.emit('user:visit-home', {
+          timestamp: new Date().toISOString(),
+          hasAuth: !!token
+        })
+      }
+      
+      // If already connected, emit immediately
+      if (socket.connected) {
+        handleConnect()
+      } else {
+        // Wait for connection
+        socket.once('connect', handleConnect)
+      }
+    }
+    
+    // Cleanup: disconnect active counter socket when component unmounts
+    return () => {
+      if (activeCounterSocket && activeCounterSocket.connected) {
+        activeCounterSocket.disconnect()
+      }
+      if (socket && socket.connected) {
+        socket.emit('user:leave-home', {
+          timestamp: new Date().toISOString()
+        })
+      }
+    }
   }, [token])
 
   return (

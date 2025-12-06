@@ -63,7 +63,21 @@ export const API_ENDPOINTS = {
     COMMISSION_CATEGORY_RATES: `${API_BASE_URL}/api/commission/category-rates`,
     PENDING_PRODUCTS: `${API_BASE_URL}/api/products/pending`,
     APPROVE_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/approve`,
-    REJECT_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/reject`
+    REJECT_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/reject`,
+    ANALYTICS: {
+      STATS: `${API_BASE_URL}/api/analytics/stats`,
+      USERS: `${API_BASE_URL}/api/analytics/users`,
+      SALES_BY_CATEGORY: `${API_BASE_URL}/api/analytics/sales-by-category`,
+      SALES_TREND: `${API_BASE_URL}/api/analytics/sales-trend`,
+      ORDERS_BY_STATUS: `${API_BASE_URL}/api/analytics/orders-by-status`,
+      REVENUE_VS_COMMISSIONS: `${API_BASE_URL}/api/analytics/revenue-vs-commissions`,
+      CUSTOMER_GROWTH: `${API_BASE_URL}/api/analytics/customer-growth`,
+      RETURNING_VS_NEW: `${API_BASE_URL}/api/analytics/returning-vs-new`,
+      STOCK_LEVELS: `${API_BASE_URL}/api/analytics/stock-levels`,
+      TOP_PRODUCTS: `${API_BASE_URL}/api/analytics/top-products`,
+      SALES_BY_SELLER: `${API_BASE_URL}/api/analytics/sales-by-seller`,
+      ACTIVE_COUNTS: `${API_BASE_URL}/api/analytics/active-counts`
+    }
   }
 }
 

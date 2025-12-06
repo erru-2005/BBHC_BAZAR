@@ -145,7 +145,15 @@ apiClient.interceptors.response.use(
 
     // For non-401 errors or if retry already attempted, throw normally
     const message = error.response?.data?.error || error.response?.data?.message || error.message || 'Request failed'
+    
+    // Skip logging CORS/network errors for analytics endpoints (they're handled gracefully with fallback)
+    const isAnalyticsEndpoint = originalRequest?.url?.includes('/api/analytics/')
+    const isNetworkError = !error.response || error.code === 'ERR_NETWORK' || error.message?.includes('Network Error') || error.message?.includes('CORS')
+    
+    if (!(isAnalyticsEndpoint && isNetworkError)) {
     console.error('API Error:', error.response?.data || error.message)
+    }
+    
     throw new Error(message)
   }
 )
@@ -1280,6 +1288,137 @@ export const clearBag = async () => {
     return response.message
   } catch (error) {
     throw new Error(error.message || 'Failed to clear bag')
+  }
+}
+
+// Analytics API functions
+export const getAnalyticsStats = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.STATS)
+    return response.stats || response
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return null to trigger fallback
+    // Browser will log CORS errors - we silently handle them
+    return null
+  }
+}
+
+export const getAnalyticsUsers = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.USERS)
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch users analytics')
+  }
+}
+
+export const getSalesByCategory = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.SALES_BY_CATEGORY, { params })
+    return response.data || response || []
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return null to trigger fallback
+    // Browser will log CORS errors - we silently handle them
+    return null
+  }
+}
+
+export const getSalesTrend = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.SALES_TREND, { params })
+    return response.data || response || []
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return empty array
+    // Browser will log CORS errors - we silently handle them
+    return []
+  }
+}
+
+export const getOrdersByStatus = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.ORDERS_BY_STATUS, { params })
+    return response.data || response || []
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return null to trigger fallback
+    // Browser will log CORS errors - we silently handle them
+    return null
+  }
+}
+
+export const getRevenueVsCommissions = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.REVENUE_VS_COMMISSIONS, { params })
+    return response.data || response || []
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return empty array
+    // Browser will log CORS errors - we silently handle them
+    return []
+  }
+}
+
+export const getCustomerGrowth = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.CUSTOMER_GROWTH, { params })
+    return response.data || response || []
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return empty array
+    // Browser will log CORS errors - we silently handle them
+    return []
+  }
+}
+
+export const getReturningVsNew = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.RETURNING_VS_NEW, { params })
+    return response.data || response || null
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return null
+    // Browser will log CORS errors - we silently handle them
+    return null
+  }
+}
+
+export const getStockLevels = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.STOCK_LEVELS, { params })
+    return response.data || response || []
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return null to trigger fallback
+    // Browser will log CORS errors - we silently handle them
+    return null
+  }
+}
+
+export const getTopProducts = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.TOP_PRODUCTS, { params })
+    return response.data || response || []
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return null to trigger fallback
+    // Browser will log CORS errors - we silently handle them
+    return null
+  }
+}
+
+export const getSalesBySeller = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.SALES_BY_SELLER, { params })
+    return response.data || response || []
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return empty array
+    // Browser will log CORS errors - we silently handle them
+    return []
+  }
+}
+
+export const getActiveCounts = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.ACTIVE_COUNTS)
+    return response.data || response || { activeUsers: 0, activeSellers: 0 }
+  } catch (error) {
+    // If endpoint doesn't exist (404) or CORS/network error, return default values
+    // Browser will log CORS errors - we silently handle them
+    return { activeUsers: 0, activeSellers: 0 }
   }
 }
 

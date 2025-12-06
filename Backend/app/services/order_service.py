@@ -10,6 +10,7 @@ from bson import ObjectId
 from app import mongo
 from app.models.order import Order
 from app.services.product_service import ProductService
+from app.services.statistics_service import StatisticsService
 from app.sockets.emitter import emit_product_event
 
 
@@ -216,7 +217,30 @@ class OrderService:
         )
         if result.matched_count == 0:
             return None
-        return OrderService.get_order_by_id(order_id)
+        
+        updated_order = OrderService.get_order_by_id(order_id)
+        
+        # If order is completed, add to statistics
+        if status == 'completed' and updated_order:
+            try:
+                order_total = float(updated_order.total_amount or 0)
+                seller_id = str(updated_order.seller_id) if updated_order.seller_id else None
+                # Get commission rate from product snapshot or default to 10%
+                product_snapshot = updated_order.product_snapshot or {}
+                commission_rate = product_snapshot.get('commission_rate', 0.10)
+                if commission_rate > 1:
+                    commission_rate = commission_rate / 100  # Convert percentage to decimal
+                
+                StatisticsService.add_revenue_and_commission(
+                    order_total=order_total,
+                    commission_rate=commission_rate,
+                    seller_id=seller_id
+                )
+            except Exception as e:
+                print(f"Error adding to statistics: {e}")
+                # Don't fail the order update if statistics fails
+        
+        return updated_order
 
     @staticmethod
     def seller_accept_order(order_id, seller_id):
