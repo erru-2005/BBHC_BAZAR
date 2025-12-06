@@ -12,7 +12,7 @@ function OTPVerification() {
   const dispatch = useDispatch()
   const { isAuthenticated, userType } = useSelector((state) => state.auth)
   
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [otpSessionId, setOtpSessionId] = useState(null)
@@ -48,43 +48,14 @@ function OTPVerification() {
     return () => clearTimeout(timer)
   }, [resendTimer])
 
-  const handleOtpChange = (index, value) => {
-    if (value.length > 1) return // Only allow single digit
-    
-    const newOtp = [...otp]
-    newOtp[index] = value.replace(/\D/g, '') // Only digits
-    setOtp(newOtp)
+  const handleOtpChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 6) // Only digits, max 6
+    setOtp(value)
     setError(null)
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-${index + 1}`)
-      if (nextInput) nextInput.focus()
-    }
-  }
-
-  const handleKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      const prevInput = document.getElementById(`otp-${index - 1}`)
-      if (prevInput) prevInput.focus()
-    }
-  }
-
-  const handlePaste = (e) => {
-    e.preventDefault()
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
-    if (pastedData.length === 6) {
-      const newOtp = pastedData.split('')
-      setOtp(newOtp)
-      // Focus last input
-      document.getElementById('otp-5')?.focus()
-    }
   }
 
   const handleVerify = async () => {
-    const otpString = otp.join('')
-    
-    if (otpString.length !== 6) {
+    if (otp.length !== 6) {
       setError('Please enter the complete 6-digit OTP')
       return
     }
@@ -93,7 +64,7 @@ function OTPVerification() {
     setError(null)
 
     try {
-      const response = await verifyUserOTP(otpSessionId, otpString)
+      const response = await verifyUserOTP(otpSessionId, otp)
       
       if (response.user_exists) {
         // User exists - login successful
@@ -183,21 +154,20 @@ function OTPVerification() {
           </div>
 
           <div className="relative z-10 space-y-6">
-            <div className="flex justify-center gap-3">
-              {otp.map((digit, index) => (
-                <input
-                  key={index}
-                  id={`otp-${index}`}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleOtpChange(index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  onPaste={handlePaste}
-                  className="w-12 h-14 text-center text-2xl font-bold bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition"
-                />
-              ))}
+            <div>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otp}
+                onChange={handleOtpChange}
+                placeholder="000000"
+                className="w-full px-4 py-4 text-center text-3xl font-bold bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition tracking-widest"
+                autoFocus
+              />
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Enter the 6-digit verification code
+              </p>
             </div>
 
             {error && (
@@ -226,7 +196,7 @@ function OTPVerification() {
 
             <button
               onClick={handleVerify}
-              disabled={loading || otp.join('').length !== 6}
+              disabled={loading || otp.length !== 6}
               className="w-full bg-gray-900 hover:bg-black disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3.5 px-4 rounded-xl transition-colors duration-200 tracking-wide uppercase"
             >
               {loading ? 'Verifying...' : 'Verify'}

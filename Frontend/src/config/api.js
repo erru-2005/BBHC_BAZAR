@@ -1,12 +1,16 @@
 /**
  * API Configuration
  */
-export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:5000'
+export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL 
 
 export const API_ENDPOINTS = {
   AUTH: {
     MASTER_LOGIN: `${API_BASE_URL}/api/auth/master/login`,
+    MASTER_FORGOT_PASSWORD: `${API_BASE_URL}/api/auth/master/forgot-password`,
+    MASTER_RESET_PASSWORD: `${API_BASE_URL}/api/auth/master/reset-password`,
     SELLER_LOGIN: `${API_BASE_URL}/api/auth/seller/login`,
+    SELLER_FORGOT_PASSWORD: `${API_BASE_URL}/api/auth/seller/forgot-password`,
+    SELLER_RESET_PASSWORD: `${API_BASE_URL}/api/auth/seller/reset-password`,
     OUTLET_MAN_LOGIN: `${API_BASE_URL}/api/auth/outlet_man/login`,
     VERIFY_OTP: `${API_BASE_URL}/api/auth/verify-otp`,
     REGISTER: `${API_BASE_URL}/api/auth/register`,
@@ -52,7 +56,14 @@ export const API_ENDPOINTS = {
     ORDER_CANCEL_MASTER: (orderId) => `${API_BASE_URL}/api/orders/${orderId}/cancel-master`,
     BAG: `${API_BASE_URL}/api/bag`,
     BAG_ITEM: (bagItemId) => `${API_BASE_URL}/api/bag/${bagItemId}`,
-    BAG_CLEAR: `${API_BASE_URL}/api/bag/clear`
+    BAG_CLEAR: `${API_BASE_URL}/api/bag/clear`,
+    COMMISSION_APPLY_ALL: `${API_BASE_URL}/api/commission/apply-all`,
+    COMMISSION_APPLY_CATEGORY: `${API_BASE_URL}/api/commission/apply-category`,
+    COMMISSION_APPLY_PRODUCT: `${API_BASE_URL}/api/commission/apply-product`,
+    COMMISSION_CATEGORY_RATES: `${API_BASE_URL}/api/commission/category-rates`,
+    PENDING_PRODUCTS: `${API_BASE_URL}/api/products/pending`,
+    APPROVE_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/approve`,
+    REJECT_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/reject`
   }
 }
 

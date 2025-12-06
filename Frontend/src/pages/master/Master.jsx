@@ -11,7 +11,8 @@ import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt } from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent } from 'react-icons/fa'
+import PasswordResetDialog from '../../components/PasswordResetDialog'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
 import AddOutletMan from './components/AddOutletMan'
@@ -22,6 +23,7 @@ import AddProduct from './components/AddProduct'
 import BlacklistedSellers from './components/BlacklistedSellers'
 import ListProducts from './components/ListProducts'
 import OrdersList from './components/OrdersList'
+import CommissionManagement from './components/CommissionManagement'
 
 const TAB_ORDER_VERSION = '2'
 
@@ -33,6 +35,7 @@ function Master() {
   const [productsRefreshKey, setProductsRefreshKey] = useState(0)
   const [activeTab, setActiveTab] = useState('home')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
 
   // Default tab order (Home always first, others can be reordered)
   const defaultTabs = [
@@ -40,6 +43,7 @@ function Master() {
     { id: 'orders', label: 'Orders', icon: FaShoppingBag },
     { id: 'add-product', label: 'Add Product', icon: FaBox },
     { id: 'list-products', label: 'List Products', icon: FaThList },
+    { id: 'commission', label: 'Commission', icon: FaPercent },
     { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
     { id: 'list-sellers', label: 'List Sellers', icon: MdList },
     { id: 'add-outlet-man', label: 'Add Outlet Man', icon: IoMdPersonAdd },
@@ -423,7 +427,7 @@ function Master() {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header Row */}
-          <div className="flex justify-between items-center py-4">
+          <div className="flex justify-between items-end py-4">
             {/* Logo and Brand Name */}
             <div className="flex items-center gap-3">
               <img 
@@ -433,7 +437,15 @@ function Master() {
               />
               <h1 className="text-2xl font-bold text-gray-900">BBHCBazaar</h1>
             </div>
-            
+            <div className="flex items-end">
+              <button
+                type="button"
+                className="text-sm font-semibold text-gray-700 underline underline-offset-4 hover:text-gray-900"
+                onClick={() => setResetPasswordOpen(true)}
+              >
+                Reset password
+              </button>
+            </div>
           </div>
 
           {/* Tabs Navigation - Integrated with Header */}
@@ -442,9 +454,12 @@ function Master() {
             className="flex items-center gap-2 overflow-x-auto pb-3 relative"
             style={{ 
               WebkitOverflowScrolling: 'touch',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
               overflowY: 'hidden'
+            }}
+            onWheel={(e) => {
+              if (tabsContainerRef.current) {
+                tabsContainerRef.current.scrollLeft += e.deltaY
+              }
             }}
           >
             <button
@@ -512,6 +527,14 @@ function Master() {
         </div>
       </div>
 
+      <PasswordResetDialog
+        open={resetPasswordOpen}
+        onClose={() => setResetPasswordOpen(false)}
+        userType="master"
+        identifier={user?.username}
+        displayLabel="Master"
+      />
+
       {/* Tab Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {activeTab === 'home' && (
@@ -557,6 +580,8 @@ function Master() {
         )}
 
         {activeTab === 'orders' && <OrdersList />}
+
+        {activeTab === 'commission' && <CommissionManagement />}
       </div>
 
       {/* Right-side Menu */}

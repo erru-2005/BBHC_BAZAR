@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import {
   createSellerProduct,
   updateSellerProduct,
-  getCategories
+  getCategories,
+  getCategoryCommissionRates
 } from '../../../services/api'
 
 const INITIAL_POINTS = ['', '', '']
@@ -33,6 +34,7 @@ function SellerProductForm({ initialProduct = null }) {
   const [thumbnail, setThumbnail] = useState(null)
   const [gallery, setGallery] = useState([])
   const [categories, setCategories] = useState([])
+  const [categoryCommissionRates, setCategoryCommissionRates] = useState({})
   const [status, setStatus] = useState({ type: null, message: '' })
   const [submitting, setSubmitting] = useState(false)
 
@@ -42,7 +44,16 @@ function SellerProductForm({ initialProduct = null }) {
     const loadCategories = async () => {
       try {
         const data = await getCategories()
-        setCategories(data)
+        const categoriesList = Array.isArray(data) ? data : (data?.categories || [])
+        setCategories(categoriesList)
+        
+        // Load category commission rates
+        try {
+          const rates = await getCategoryCommissionRates()
+          setCategoryCommissionRates(rates || {})
+        } catch (err) {
+          console.warn('Failed to load category commission rates', err)
+        }
       } catch (error) {
         console.error('Failed to load categories', error)
       }
@@ -90,6 +101,20 @@ function SellerProductForm({ initialProduct = null }) {
     const { name, value } = event.target
     setForm((prev) => ({ ...prev, [name]: value }))
     setStatus({ type: null, message: '' })
+  }
+
+  // Calculate total selling price with commission
+  const calculateTotalPrice = () => {
+    const sellingPrice = parseFloat(form.sellingPrice) || 0
+    if (sellingPrice <= 0) return ''
+    
+    // Get commission rate from category if available
+    const commissionRate = categoryCommissionRates[form.category] || 0
+    if (commissionRate > 0) {
+      const commissionAmount = (sellingPrice * commissionRate) / 100
+      return (sellingPrice + commissionAmount).toFixed(2)
+    }
+    return sellingPrice.toFixed(2)
   }
 
   const handlePointChange = (index, value) => {
@@ -294,6 +319,30 @@ function SellerProductForm({ initialProduct = null }) {
         </div>
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Category <span className="text-xs text-gray-500">(optional)</span>
+        </label>
+        <select
+          value={form.category}
+          name="category"
+          onChange={handleChange}
+          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white"
+        >
+          <option value="">Select category</option>
+          {categories.map((category) => {
+            const categoryName = category.name || category
+            const categoryId = category.id || category._id || categoryName
+            const commissionRate = categoryCommissionRates[categoryName]
+            return (
+              <option key={categoryId} value={categoryName}>
+                {categoryName}{commissionRate ? ` (${commissionRate}% commission)` : ''}
+              </option>
+            )
+          })}
+        </select>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -310,6 +359,19 @@ function SellerProductForm({ initialProduct = null }) {
             placeholder="Enter selling price"
             required
           />
+          {form.sellingPrice && (
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
+              <div className="text-gray-700">
+                <span className="font-medium">Total Price (with commission):</span>{' '}
+                <span className="text-blue-700 font-semibold">₹{calculateTotalPrice()}</span>
+              </div>
+              {categoryCommissionRates[form.category] && (
+                <div className="text-xs text-gray-600 mt-1">
+                  Commission: {categoryCommissionRates[form.category]}%
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div>
@@ -362,24 +424,6 @@ function SellerProductForm({ initialProduct = null }) {
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Category <span className="text-xs text-gray-500">(optional)</span>
-        </label>
-        <select
-          value={form.category}
-          name="category"
-          onChange={handleChange}
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white"
-        >
-          <option value="">Select category</option>
-          {categories.map((category) => (
-            <option key={category.id || category.name} value={category.name}>
-              {category.name}
-            </option>
-          ))}
-        </select>
-      </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">

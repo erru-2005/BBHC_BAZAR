@@ -26,6 +26,11 @@ class Product:
         seller_name=None,
         seller_email=None,
         seller_phone=None,
+        commission_rate=None,
+        total_selling_price=None,
+        approval_status=None,
+        pending_changes=None,
+        original_product_id=None,
         created_at=None,
         updated_at=None,
         registration_ip=None,
@@ -49,6 +54,11 @@ class Product:
         self.seller_name = seller_name
         self.seller_email = seller_email
         self.seller_phone = seller_phone
+        self.commission_rate = commission_rate
+        self.total_selling_price = total_selling_price
+        self.approval_status = approval_status  # 'pending', 'approved', 'rejected'
+        self.pending_changes = pending_changes  # For edit requests
+        self.original_product_id = original_product_id  # For edit requests
         self.registration_ip = registration_ip
         self.registration_user_agent = registration_user_agent
         self.created_at = created_at or datetime.utcnow()
@@ -73,6 +83,11 @@ class Product:
             'seller_name': self.seller_name,
             'seller_email': self.seller_email,
             'seller_phone': self.seller_phone,
+            'commission_rate': self.commission_rate,
+            'total_selling_price': self.total_selling_price,
+            'approval_status': self.approval_status,
+            'pending_changes': self.pending_changes,
+            'original_product_id': self.original_product_id,
             'registration_ip': self.registration_ip,
             'registration_user_agent': self.registration_user_agent,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
@@ -98,6 +113,11 @@ class Product:
             'seller_name': self.seller_name,
             'seller_email': self.seller_email,
             'seller_phone': self.seller_phone,
+            'commission_rate': self.commission_rate,
+            'total_selling_price': self.total_selling_price,
+            'approval_status': self.approval_status,
+            'pending_changes': self.pending_changes,
+            'original_product_id': self.original_product_id,
             'registration_ip': self.registration_ip,
             'registration_user_agent': self.registration_user_agent,
             'created_at': self.created_at,
@@ -127,6 +147,11 @@ class Product:
             seller_name=bson_doc.get('seller_name'),
             seller_email=bson_doc.get('seller_email'),
             seller_phone=bson_doc.get('seller_phone'),
+            commission_rate=bson_doc.get('commission_rate'),
+            total_selling_price=bson_doc.get('total_selling_price'),
+            approval_status=bson_doc.get('approval_status'),
+            pending_changes=bson_doc.get('pending_changes'),
+            original_product_id=bson_doc.get('original_product_id'),
             registration_ip=bson_doc.get('registration_ip'),
             registration_user_agent=bson_doc.get('registration_user_agent'),
             created_at=bson_doc.get('created_at'),

@@ -98,7 +98,8 @@ function BuyNow() {
   const isOutOfStock = product && (product.quantity === 0 || product.stock === 0)
   const total = useMemo(() => {
     if (!product) return 0
-    const price = Number(product.selling_price || product.max_price || product.price || 0)
+    // Use total_selling_price (with commission) if available, otherwise fall back to selling_price
+    const price = Number(product.total_selling_price || product.selling_price || product.max_price || product.price || 0)
     return price * quantity
   }, [product, quantity])
 
@@ -136,14 +137,14 @@ function BuyNow() {
 
   if (!product) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-600">
+      <div className="min-h-screen flex items-center justify-center bg-white text-black">
         Loading product details...
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-gray-100 text-gray-900">
+    <div className="min-h-screen bg-white text-black">
       <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
         <MobileSearchBar />
       </MainHeader>
@@ -153,51 +154,51 @@ function BuyNow() {
         onClose={() => setMobileMenuOpen(false)}
       />
 
-      <main className="px-4 sm:px-6 lg:px-12 py-6 lg:py-10 max-w-5xl mx-auto space-y-6">
+      <main className="max-w-5xl mx-auto space-y-6">
         <button
           onClick={() => navigate(`/product/${productId}`)}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-black hover:opacity-70 transition-opacity"
         >
           <FaArrowLeft className="w-4 h-4" /> Back to product
         </button>
 
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white border border-black overflow-hidden">
           <div className="grid lg:grid-cols-2 gap-0">
-            <div className="p-8 border-b lg:border-b-0 lg:border-r border-gray-100 flex flex-col gap-5">
+            <div className="p-8 border-b lg:border-b-0 lg:border-r border-black flex flex-col gap-5">
               <div className="flex items-start gap-4">
                 <img
                   src={product.thumbnail}
                   alt={product.product_name}
-                  className="w-24 h-24 rounded-2xl object-cover border border-gray-100"
+                  className="w-24 h-24 object-cover border border-black"
                 />
                 <div className="flex-1">
-                  <p className="text-xs uppercase tracking-widest text-gray-500">Product</p>
-                  <h1 className="text-2xl font-semibold mt-1">{product.product_name}</h1>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-xs uppercase tracking-widest text-black">Product</p>
+                  <h1 className="text-2xl font-semibold mt-1 text-black">{product.product_name}</h1>
+                  <p className="text-sm text-black mt-1">
                     {product.categories?.[0] || 'BBHCBazaar Collection'}
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
+              <div className="border border-black p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-widest text-gray-500">Quantity</p>
-                    <p className="text-sm text-gray-600">Max available: {availableQuantity}</p>
+                    <p className="text-xs uppercase tracking-widest text-black">Quantity</p>
+                    <p className="text-sm text-black">Max available: {availableQuantity}</p>
                   </div>
-                  <div className="inline-flex items-center rounded-full bg-white border border-gray-200">
+                  <div className="inline-flex items-center bg-white border border-black">
                     <button
                       onClick={handleDecrease}
-                      className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-40"
+                      className="p-2 text-black hover:opacity-70 disabled:opacity-40"
                       disabled={quantity <= 1}
                       aria-label="Decrease quantity"
                     >
                       <FaMinus className="w-3 h-3" />
                     </button>
-                    <span className="px-4 font-semibold text-lg">{quantity}</span>
+                    <span className="px-4 font-semibold text-lg text-black">{quantity}</span>
                     <button
                       onClick={handleIncrease}
-                      className="p-2 text-gray-600 hover:text-gray-900 disabled:opacity-40"
+                      className="p-2 text-black hover:opacity-70 disabled:opacity-40"
                       disabled={quantity >= availableQuantity || isOutOfStock}
                       aria-label="Increase quantity"
                     >
@@ -206,38 +207,44 @@ function BuyNow() {
                   </div>
                 </div>
                 {isOutOfStock && (
-                  <p className="text-sm text-red-500 mt-3">Currently out of stock.</p>
+                  <p className="text-sm text-black mt-3">Currently out of stock.</p>
                 )}
               </div>
 
-              <div className="rounded-2xl border border-gray-100 p-4 bg-white">
-                <p className="text-xs uppercase tracking-widest text-gray-500 mb-2">Order info</p>
-                <ul className="text-sm text-gray-600 space-y-2 list-disc list-inside">
+              <div className="border border-black p-4 bg-white">
+                <p className="text-xs uppercase tracking-widest text-black mb-2">Order info</p>
+                <ul className="text-sm text-black space-y-2 list-disc list-inside">
                   <li>Collect your product at the BBHCBazaar outlet.</li>
                   <li>Scan the generated QR code at the pickup counter to pay securely.</li>
-                  <li>Your order will be visible instantly under Menu &gt; Orders for masters.</li>
+                  <li>Your Orders will be visible instantly under Menu &gt; Orders .</li>
                 </ul>
               </div>
             </div>
 
             <div className="p-8 space-y-5">
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-2">
-                <div className="flex justify-between text-sm text-gray-600">
+              <div className="border border-black bg-white p-4 space-y-2">
+                <div className="flex justify-between text-sm text-black">
                   <span>Unit price</span>
-                  <span>₹{Number(product.selling_price || product.max_price || 0).toLocaleString('en-IN')}</span>
+                  <span>₹{Number(product.total_selling_price || product.selling_price || product.max_price || 0).toLocaleString('en-IN')}</span>
                 </div>
-                <div className="flex justify-between text-sm text-gray-600">
+                {product.commission_rate && product.commission_rate > 0 && (
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Commission ({product.commission_rate}%)</span>
+                    <span>₹{Number((product.selling_price * product.commission_rate / 100) || 0).toLocaleString('en-IN')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm text-black">
                   <span>Quantity</span>
                   <span>{quantity}</span>
                 </div>
-                <div className="border-t border-gray-200 pt-3 flex justify-between items-center">
-                  <span className="text-sm font-semibold text-gray-500">Total</span>
-                  <span className="text-2xl font-black text-gray-900">₹{total.toLocaleString('en-IN')}</span>
+                <div className="border-t border-black pt-3 flex justify-between items-center">
+                  <span className="text-sm font-semibold text-black">Total</span>
+                  <span className="text-2xl font-black text-black">₹{total.toLocaleString('en-IN')}</span>
                 </div>
               </div>
 
               {error && (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                <div className="border border-black bg-white px-4 py-3 text-sm text-black">
                   {error}
                 </div>
               )}
@@ -245,7 +252,7 @@ function BuyNow() {
               <button
                 onClick={handleConfirm}
                 disabled={loading || isOutOfStock}
-                className="w-full rounded-full bg-gray-900 text-white font-semibold py-3.5 text-sm uppercase tracking-widest hover:bg-black transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="w-full bg-black text-white font-semibold py-3.5 text-sm uppercase tracking-widest hover:opacity-80 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {loading ? 'Processing...' : 'Confirm purchase'}
               </button>

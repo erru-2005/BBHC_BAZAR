@@ -8,7 +8,7 @@ import { store } from '../store'
 import { setToken, logout } from '../store/authSlice'
 
 // Create axios instance
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:5000'
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -196,6 +196,62 @@ export const masterLogin = async (username, password, deviceId = null, deviceTok
 }
 
 /**
+ * Request master OTP without password (forgot password flow)
+ * @param {string} username - Master username
+ * @returns {Promise} OTP session info
+ */
+export const requestMasterForgotPasswordOtp = async (username) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.MASTER_FORGOT_PASSWORD, { username })
+    return {
+      otp_session_id: response.otp_session_id,
+      message: response.message,
+      phone_number: response.phone_number,
+      user: response.user,
+      skip_otp: false,
+    }
+  } catch (error) {
+    const message = error.response?.data?.error || error.message || 'Failed to send OTP'
+    throw new Error(message)
+  }
+}
+
+/**
+ * Reset master password via current password or OTP
+ */
+export const resetMasterPassword = async ({
+  username,
+  currentPassword,
+  otpSessionId,
+  otp,
+  newPassword,
+  confirmPassword
+}) => {
+  try {
+    const payload = {
+      username,
+      new_password: newPassword,
+      confirm_password: confirmPassword
+    }
+
+    if (currentPassword) {
+      payload.current_password = currentPassword
+    }
+
+    if (otpSessionId && otp) {
+      payload.otp_session_id = otpSessionId
+      payload.otp = otp
+    }
+
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.MASTER_RESET_PASSWORD, payload)
+    return response?.message || 'Password updated successfully'
+  } catch (error) {
+    const message = error.response?.data?.error || error.message || 'Failed to reset password'
+    throw new Error(message)
+  }
+}
+
+/**
  * Outlet man login - Step 1: Validate credentials and get OTP session
  * @param {string} outlet_access_code - Outlet man access code
  * @param {string} password - Outlet man password
@@ -282,6 +338,62 @@ export const sellerLogin = async (trade_id, password, deviceId = null, deviceTok
     }
   } catch (error) {
     throw new Error(error.message || 'Login failed')
+  }
+}
+
+/**
+ * Request seller OTP without password (forgot password flow)
+ * @param {string} trade_id - Seller trade ID
+ * @returns {Promise} OTP session info
+ */
+export const requestSellerForgotPasswordOtp = async (trade_id) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.SELLER_FORGOT_PASSWORD, { trade_id })
+    return {
+      otp_session_id: response.otp_session_id,
+      message: response.message,
+      phone_number: response.phone_number,
+      user: response.user,
+      skip_otp: false,
+    }
+  } catch (error) {
+    const message = error.response?.data?.error || error.message || 'Failed to send OTP'
+    throw new Error(message)
+  }
+}
+
+/**
+ * Reset seller password via current password or OTP
+ */
+export const resetSellerPassword = async ({
+  tradeId,
+  currentPassword,
+  otpSessionId,
+  otp,
+  newPassword,
+  confirmPassword
+}) => {
+  try {
+    const payload = {
+      trade_id: tradeId,
+      new_password: newPassword,
+      confirm_password: confirmPassword
+    }
+
+    if (currentPassword) {
+      payload.current_password = currentPassword
+    }
+
+    if (otpSessionId && otp) {
+      payload.otp_session_id = otpSessionId
+      payload.otp = otp
+    }
+
+    const response = await apiClient.post(API_ENDPOINTS.AUTH.SELLER_RESET_PASSWORD, payload)
+    return response?.message || 'Password updated successfully'
+  } catch (error) {
+    const message = error.response?.data?.error || error.message || 'Failed to reset password'
+    throw new Error(message)
   }
 }
 
@@ -702,6 +814,91 @@ export const createCategory = async (name) => {
     return response.category
   } catch (error) {
     throw new Error(error.message || 'Failed to create category')
+  }
+}
+
+/**
+ * Commission Management
+ */
+export const applyCommissionToAll = async (commissionRate) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.COMMISSION_APPLY_ALL, {
+      commission_rate: commissionRate
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to apply commission')
+  }
+}
+
+export const applyCommissionByCategory = async (category, commissionRate) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.COMMISSION_APPLY_CATEGORY, {
+      category,
+      commission_rate: commissionRate
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to apply commission')
+  }
+}
+
+export const applyCommissionToProduct = async (productId, commissionRate) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.COMMISSION_APPLY_PRODUCT, {
+      product_id: productId,
+      commission_rate: commissionRate
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to apply commission')
+  }
+}
+
+export const getCategoryCommissionRates = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.COMMISSION_CATEGORY_RATES)
+    return response.category_commissions || {}
+  } catch (error) {
+    throw new Error(error.message || 'Failed to get category commission rates')
+  }
+}
+
+/**
+ * Get pending products (masters only)
+ */
+export const getPendingProducts = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.PENDING_PRODUCTS)
+    return response.products || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to get pending products')
+  }
+}
+
+/**
+ * Approve a pending product (masters only)
+ */
+export const approveProduct = async (productId) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.APPROVE_PRODUCT(productId))
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to approve product')
+  }
+}
+
+/**
+ * Reject a pending product (masters only)
+ */
+export const rejectProduct = async (productId, moveToBin = true) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.REJECT_PRODUCT(productId), {
+      move_to_bin: moveToBin
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to reject product')
   }
 }
 

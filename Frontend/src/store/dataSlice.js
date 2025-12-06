@@ -1,9 +1,36 @@
 import { createSlice } from '@reduxjs/toolkit'
 
+// Load cached products from localStorage on initialization
+const loadCachedProducts = () => {
+  try {
+    const cached = localStorage.getItem('bbhc_home_products_cache')
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      // Check if cache is still valid (not older than 10 minutes)
+      const maxAge = 10 * 60 * 1000 // 10 minutes for localStorage cache
+      if (parsed.timestamp && (Date.now() - parsed.timestamp) < maxAge) {
+        return {
+          products: parsed.products || [],
+          timestamp: parsed.timestamp
+        }
+      }
+    }
+  } catch (e) {
+    // Ignore localStorage errors
+  }
+  return null
+}
+
+const cachedData = loadCachedProducts()
+
 const initialState = {
   loading: false,
   error: null,
   home: {
+    // Cache metadata
+    productsCacheTimestamp: cachedData?.timestamp || null,
+    productsCacheMaxAge: 5 * 60 * 1000, // 5 minutes in milliseconds
+    isRefreshing: false,
     // Layout content (static/sample data)
     heroSlides: [
       {
@@ -118,7 +145,7 @@ const initialState = {
       { label: 'Me', icon: 'me' }
     ],
     // Products from backend and wishlist
-    products: [],
+    products: cachedData?.products || [],
     wishlist: []
   }
 }
@@ -137,10 +164,41 @@ const dataSlice = createSlice({
       state.error = action.payload
     },
     setHomeProducts(state, action) {
-      state.home.products = Array.isArray(action.payload) ? action.payload : []
+      const products = Array.isArray(action.payload) ? action.payload : []
+      state.home.products = products
+      const timestamp = Date.now()
+      state.home.productsCacheTimestamp = timestamp
+      state.home.isRefreshing = false
+      
+      // Persist to localStorage for cross-session caching
+      try {
+        localStorage.setItem('bbhc_home_products_cache', JSON.stringify({
+          products,
+          timestamp
+        }))
+      } catch (e) {
+        // Ignore localStorage errors (quota exceeded, etc.)
+      }
     },
     setHomeWishlist(state, action) {
       state.home.wishlist = Array.isArray(action.payload) ? action.payload : []
+    },
+    setRefreshing(state, action) {
+      state.home.isRefreshing = action.payload
+    },
+    updateProductInCache(state, action) {
+      // Update a single product in cache (for real-time updates)
+      const updatedProduct = action.payload
+      if (!updatedProduct || !state.home.products) return
+      
+      const productId = String(updatedProduct.id || updatedProduct._id)
+      const index = state.home.products.findIndex(
+        (p) => String(p.id || p._id) === productId
+      )
+      
+      if (index >= 0) {
+        state.home.products[index] = { ...state.home.products[index], ...updatedProduct }
+      }
     },
     toggleWishlist(state, action) {
       const productId = action.payload
@@ -158,5 +216,5 @@ const dataSlice = createSlice({
   }
 })
 
-export const { setData, setLoading, setError, setHomeProducts, setHomeWishlist, toggleWishlist } = dataSlice.actions
+export const { setData, setLoading, setError, setHomeProducts, setHomeWishlist, setRefreshing, updateProductInCache, toggleWishlist } = dataSlice.actions
 export default dataSlice.reducer

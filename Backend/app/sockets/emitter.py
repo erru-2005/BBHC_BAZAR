@@ -96,3 +96,19 @@ def emit_order_event(event_name, order_dict, target_user_id=None, target_seller_
     
     # Also broadcast generally (for any other listeners)
     socketio.emit(event_name, order_dict)
+
+
+def emit_rating_update(product_id, rating_stats):
+    """
+    Broadcast rating update event to all connected clients.
+    This allows real-time updates of product ratings on product cards and detail pages.
+    """
+    if not product_id or not rating_stats:
+        return
+    
+    # Broadcast to all connected clients (users viewing products)
+    payload = {
+        'product_id': str(product_id),
+        'rating_stats': rating_stats
+    }
+    socketio.emit('rating_updated', payload)

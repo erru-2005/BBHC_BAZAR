@@ -102,6 +102,11 @@ def create_app(config_class=Config):
     app.register_blueprint(orders_bp, url_prefix='/api')
     app.register_blueprint(bag_bp, url_prefix='/api')
     
+    # Simple root route for connectivity testing
+    @app.route('/', methods=['GET'])
+    def root_hello_world():
+        return 'Hello, World!', 200
+    
     # Register Socket.IO events (keeping configuration but minimal)
     from app.sockets import register_socket_events
     register_socket_events(socketio)

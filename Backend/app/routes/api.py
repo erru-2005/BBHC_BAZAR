@@ -417,6 +417,8 @@ def register_outlet_man():
         return jsonify({'error': str(e)}), 500
 
 
+
+
 @api_bp.route('/outlet_men', methods=['GET'])
 @jwt_required()
 def get_outlet_men():
@@ -784,13 +786,14 @@ def seller_create_product():
         data['created_by'] = seller_trade_id
         data['created_by_user_id'] = seller_user_id
         data['created_by_user_type'] = 'seller'
+        data['approval_status'] = 'pending'  # Seller products need approval
 
         product = ProductService.create_product(data)
         product_dict = product.to_dict()
         emit_product_event('product_created', product_dict)
 
         return jsonify({
-            'message': 'Product created successfully',
+            'message': 'Product submitted for approval. It will be visible after master confirmation.',
             'product': product_dict
         }), 201
     except ValueError as e:
@@ -815,26 +818,129 @@ def seller_update_product(product_id):
         seller_trade_id = claims.get('trade_id')
         seller_user_id = str(get_jwt_identity())
 
-        data['seller_trade_id'] = seller_trade_id
-        data['updated_by'] = seller_trade_id
-        data['updated_by_user_id'] = seller_user_id
-        data['updated_by_user_type'] = 'seller'
-
-        product = ProductService.update_product(product_id, data)
-        if not product:
+        # Check if product exists and belongs to seller
+        existing_product = ProductService.get_product_by_id(product_id)
+        if not existing_product:
             return jsonify({'error': 'Product not found'}), 404
+        
+        if existing_product.seller_trade_id != seller_trade_id:
+            return jsonify({'error': 'You can only edit your own products'}), 403
 
-        product_dict = product.to_dict()
-        emit_product_event('product_updated', product_dict)
+        # For seller edits, create a pending edit request instead of updating directly
+        data['seller_trade_id'] = seller_trade_id
+        data['created_by'] = seller_trade_id
+        data['created_by_user_id'] = seller_user_id
+        data['created_by_user_type'] = 'seller'
+        data['approval_status'] = 'pending'
+        data['pending_changes'] = data.copy()  # Store the changes
+        data['original_product_id'] = product_id  # Reference to original product
+        data['product_name'] = data.get('product_name', existing_product.product_name)
+        data['specification'] = data.get('specification', existing_product.specification)
+        data['points'] = data.get('points', existing_product.points)
+        data['thumbnail'] = data.get('thumbnail', existing_product.thumbnail)
+        data['gallery'] = data.get('gallery', existing_product.gallery)
+        data['selling_price'] = data.get('selling_price', existing_product.selling_price)
+        data['max_price'] = data.get('max_price', existing_product.max_price)
+        data['quantity'] = data.get('quantity', existing_product.quantity)
+        data['categories'] = data.get('categories', existing_product.categories)
+
+        # Create pending edit request
+        edit_request = ProductService.create_product(data)
+        edit_request_dict = edit_request.to_dict()
+        emit_product_event('product_updated', edit_request_dict)
 
         return jsonify({
-            'message': 'Product updated successfully',
-            'product': product_dict
+            'message': 'Product edit submitted for approval. Changes will be applied after master confirmation.',
+            'product': edit_request_dict
         }), 200
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f'Failed to update product: {str(e)}'}), 500
+
+
+@api_bp.route('/products/pending', methods=['GET'])
+@jwt_required()
+def get_pending_products():
+    """Get all pending products (masters only)"""
+    try:
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can view pending products'}), 403
+
+        pending_products = ProductService.get_pending_products()
+        products_list = [product.to_dict() for product in pending_products]
+
+        return jsonify({
+            'products': products_list,
+            'count': len(products_list)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get pending products: {str(e)}'}), 500
+
+
+@api_bp.route('/products/<product_id>/approve', methods=['POST'])
+@jwt_required()
+def approve_product(product_id):
+    """Approve a pending product (masters only)"""
+    try:
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can approve products'}), 403
+
+        product, error = ProductService.accept_product(product_id)
+        if error:
+            return jsonify({'error': error}), 400
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+
+        product_dict = product.to_dict()
+        emit_product_event('product_approved', product_dict)
+
+        return jsonify({
+            'message': 'Product approved successfully',
+            'product': product_dict
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to approve product: {str(e)}'}), 500
+
+
+@api_bp.route('/products/<product_id>/reject', methods=['POST'])
+@jwt_required()
+def reject_product(product_id):
+    """Reject a pending product (masters only)"""
+    try:
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can reject products'}), 403
+
+        data = request.get_json() or {}
+        move_to_bin = data.get('move_to_bin', True)
+        reason = data.get('reason', '').strip()
+        recommendation = data.get('recommendation', '').strip()
+
+        if not reason:
+            return jsonify({'error': 'Rejection reason is required'}), 400
+
+        success, error = ProductService.reject_product(product_id, move_to_bin, reason, recommendation)
+        if error:
+            return jsonify({'error': error}), 400
+        if not success:
+            return jsonify({'error': 'Failed to reject product'}), 400
+
+        return jsonify({
+            'message': 'Product rejected successfully',
+            'reason': reason,
+            'recommendation': recommendation if recommendation else None
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to reject product: {str(e)}'}), 500
 
 
 @api_bp.route('/products/<product_id>', methods=['DELETE'])
@@ -895,6 +1001,110 @@ def create_category():
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f'Failed to create category: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/apply-all', methods=['POST'])
+@jwt_required()
+def apply_commission_to_all():
+    """Apply commission to all products (masters only)"""
+    try:
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can apply commission'}), 403
+
+        data = request.get_json()
+        commission_rate = data.get('commission_rate')
+        
+        if commission_rate is None or commission_rate < 0:
+            return jsonify({'error': 'Valid commission_rate (percentage) is required'}), 400
+
+        updated_count = ProductService.apply_commission_to_all(float(commission_rate))
+        
+        return jsonify({
+            'message': f'Commission applied to {updated_count} products',
+            'updated_count': updated_count
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to apply commission: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/apply-category', methods=['POST'])
+@jwt_required()
+def apply_commission_by_category():
+    """Apply commission to products by category (masters only)"""
+    try:
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can apply commission'}), 403
+
+        data = request.get_json()
+        category = data.get('category')
+        commission_rate = data.get('commission_rate')
+        
+        if not category:
+            return jsonify({'error': 'Category is required'}), 400
+        if commission_rate is None or commission_rate < 0:
+            return jsonify({'error': 'Valid commission_rate (percentage) is required'}), 400
+
+        updated_count = ProductService.apply_commission_by_category(category, float(commission_rate))
+        
+        return jsonify({
+            'message': f'Commission applied to {updated_count} products in category "{category}"',
+            'updated_count': updated_count
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to apply commission: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/apply-product', methods=['POST'])
+@jwt_required()
+def apply_commission_to_product():
+    """Apply commission to a specific product (masters only)"""
+    try:
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can apply commission'}), 403
+
+        data = request.get_json()
+        product_id = data.get('product_id')
+        commission_rate = data.get('commission_rate')
+        
+        if not product_id:
+            return jsonify({'error': 'product_id is required'}), 400
+        if commission_rate is None or commission_rate < 0:
+            return jsonify({'error': 'Valid commission_rate (percentage) is required'}), 400
+
+        updated_product = ProductService.apply_commission_to_product(product_id, float(commission_rate))
+        
+        if not updated_product:
+            return jsonify({'error': 'Product not found'}), 404
+
+        product_dict = updated_product.to_dict()
+        emit_product_event('product_updated', product_dict)
+        
+        return jsonify({
+            'message': 'Commission applied successfully',
+            'product': product_dict
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to apply commission: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/category-rates', methods=['GET'])
+@jwt_required()
+def get_category_commission_rates():
+    """Get all category commission rates (masters only)"""
+    try:
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can view commission rates'}), 403
+
+        rates = ProductService.get_all_category_commissions()
+        return jsonify({
+            'category_commissions': rates
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get category commissions: {str(e)}'}), 500
 
 
 @api_bp.route('/wishlist', methods=['GET'])

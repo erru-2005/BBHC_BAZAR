@@ -35,6 +35,8 @@ class Order:
         status_history=None,
         cancelled_by_master=False,
         cancellation_code=None,
+        rejection_reason=None,
+        rejected_by=None,
         metadata=None,
         created_at=None,
         updated_at=None,
@@ -69,6 +71,8 @@ class Order:
         self.status_history = status_history or []
         self.cancelled_by_master = cancelled_by_master
         self.cancellation_code = cancellation_code
+        self.rejection_reason = rejection_reason
+        self.rejected_by = rejected_by
         self.metadata = metadata or {}
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or datetime.utcnow()
@@ -99,6 +103,8 @@ class Order:
             'statusHistory': [self._format_status_entry(entry) for entry in self.status_history],
             'cancelledByMaster': self.cancelled_by_master,
             'cancellationCode': self.cancellation_code,
+            'rejectionReason': self.rejection_reason,
+            'rejectedBy': self.rejected_by,
             'product': self.product_snapshot,
             'user': self.user_snapshot,
             'seller': self.seller_snapshot,
@@ -133,6 +139,8 @@ class Order:
             'status_history': self.status_history,
             'cancelled_by_master': self.cancelled_by_master,
             'cancellation_code': self.cancellation_code,
+            'rejection_reason': self.rejection_reason,
+            'rejected_by': self.rejected_by,
             'product_snapshot': self.product_snapshot,
             'user_snapshot': self.user_snapshot,
             'seller_snapshot': self.seller_snapshot,
@@ -169,6 +177,8 @@ class Order:
             status_history=bson_doc.get('status_history', []),
             cancelled_by_master=bson_doc.get('cancelled_by_master', False),
             cancellation_code=bson_doc.get('cancellation_code'),
+            rejection_reason=bson_doc.get('rejection_reason'),
+            rejected_by=bson_doc.get('rejected_by'),
             product_snapshot=bson_doc.get('product_snapshot', {}),
             user_snapshot=bson_doc.get('user_snapshot', {}),
             seller_snapshot=bson_doc.get('seller_snapshot', {}),

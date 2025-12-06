@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.services.rating_service import RatingService
 from app.services.product_service import ProductService
+from app import mongo
 from bson import ObjectId
 
 ratings_bp = Blueprint('ratings', __name__)
@@ -55,9 +56,21 @@ def create_or_update_rating(product_id):
         # Create or update rating
         rating = RatingService.create_or_update_rating(rating_data)
         
+        # Get updated rating stats for the product
+        rating_stats = RatingService.get_product_rating_stats(product_id)
+        
+        # Emit real-time rating update event
+        try:
+            from app.sockets.emitter import emit_rating_update
+            emit_rating_update(product_id, rating_stats)
+        except Exception as e:
+            # Don't fail the request if socket emission fails
+            print(f"Failed to emit rating update: {str(e)}")
+        
         return jsonify({
             'message': 'Rating saved successfully',
-            'rating': rating.to_dict()
+            'rating': rating.to_dict(),
+            'rating_stats': rating_stats
         }), 200
 
     except ValueError as e:
@@ -149,9 +162,29 @@ def delete_rating(rating_id):
     try:
         current_user_id = get_jwt_identity()
         
+        # Get product_id before deletion
+        product_id = None
+        try:
+            rating_doc = mongo.db.ratings.find_one({'_id': ObjectId(rating_id)})
+            if rating_doc:
+                product_id = str(rating_doc.get('product_id'))
+        except:
+            pass
+        
         deleted = RatingService.delete_rating(rating_id, current_user_id)
         
         if deleted:
+            # Emit real-time rating update if we have product_id
+            if product_id:
+                try:
+                    # Get updated rating stats
+                    rating_stats = RatingService.get_product_rating_stats(product_id)
+                    # Emit real-time rating update event
+                    from app.sockets.emitter import emit_rating_update
+                    emit_rating_update(product_id, rating_stats)
+                except Exception as e:
+                    print(f"Failed to emit rating update: {str(e)}")
+            
             return jsonify({'message': 'Rating deleted successfully'}), 200
         else:
             return jsonify({'error': 'Rating not found or could not be deleted'}), 404

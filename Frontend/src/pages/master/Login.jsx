@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { loginStart, loginSuccess, loginFailure, logout } from '../../store/authSlice'
-import { masterLogin, verifyOTP } from '../../services/api'
+import { masterLogin, verifyOTP, requestMasterForgotPasswordOtp } from '../../services/api'
 import { Button } from '../../components'
 import { getOrCreateDeviceId, getDeviceToken, setDeviceToken } from '../../utils/device'
 import { initSocket, disconnectSocket } from '../../utils/socket'
@@ -36,6 +36,7 @@ function MasterLogin() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showOTP, setShowOTP] = useState(false)
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
   const [otp, setOtp] = useState('')
   const [otpSessionId, setOtpSessionId] = useState(null)
   const [phoneNumber, setPhoneNumber] = useState(null)
@@ -49,8 +50,56 @@ function MasterLogin() {
     })
   }
 
+  const resetOtpFlow = () => {
+    setShowOTP(false)
+    setOtp('')
+    setOtpSessionId(null)
+    setPhoneNumber(null)
+    setResendMessage(null)
+  }
+
+  const startForgotPasswordMode = () => {
+    resetOtpFlow()
+    dispatch(loginFailure(null))
+    setIsForgotPassword(true)
+    setFormData((prev) => ({ ...prev, password: '' }))
+  }
+
+  const exitForgotPasswordMode = () => {
+    resetOtpFlow()
+    dispatch(loginFailure(null))
+    setIsForgotPassword(false)
+  }
+
+  const initiateForgotPassword = async () => {
+    dispatch(loginStart())
+
+    if (!formData.username) {
+      dispatch(loginFailure('Username is required to send OTP'))
+      return
+    }
+
+    try {
+      const response = await requestMasterForgotPasswordOtp(formData.username)
+      setOtpSessionId(response.otp_session_id)
+      setPhoneNumber(response.phone_number || null)
+      setShowOTP(true)
+      setOtp('')
+      setResendMessage(null)
+      dispatch(loginFailure(null))
+    } catch (error) {
+      dispatch(loginFailure(error.message || 'Failed to send OTP. Please try again.'))
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (isForgotPassword) {
+      await initiateForgotPassword()
+      return
+    }
+
     dispatch(loginStart())
     
     try {
@@ -153,13 +202,27 @@ function MasterLogin() {
   }
 
   const handleResendOtp = async () => {
-    if (!formData.username || !formData.password) {
-      dispatch(loginFailure('Enter username and password before resending OTP'))
+    if (!formData.username || (!isForgotPassword && !formData.password)) {
+      if (isForgotPassword) {
+        dispatch(loginFailure('Username is required to resend OTP'))
+      } else {
+        dispatch(loginFailure('Enter username and password before resending OTP'))
+      }
       return
     }
     setResendLoading(true)
     setResendMessage(null)
     try {
+      if (isForgotPassword) {
+        const response = await requestMasterForgotPasswordOtp(formData.username)
+        setOtpSessionId(response.otp_session_id)
+        setPhoneNumber(response.phone_number || phoneNumber)
+        setOtp('')
+        setResendMessage('A new OTP has been sent. Please check your phone.')
+        dispatch(loginFailure(null))
+        return
+      }
+
       const deviceId = getOrCreateDeviceId()
       const response = await masterLogin(formData.username, formData.password, deviceId, null)
 
@@ -236,6 +299,11 @@ function MasterLogin() {
           {/* Form */}
           {!showOTP ? (
             <form onSubmit={handleSubmit}>
+              {isForgotPassword && (
+                <div className="mb-4 p-3 rounded-lg bg-blue-50 text-blue-700 text-sm">
+                  Enter your username and we'll send a one-time login code to your registered phone number.
+                </div>
+              )}
               {/* Username Field */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -256,39 +324,41 @@ function MasterLogin() {
               </div>
 
               {/* Password Field */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Password"
-                    className="w-full px-4 py-3 rounded-xl bg-gray-100 shadow-[inset_4px_4px_8px_#bebebe,inset_-4px_-4px_8px_#ffffff] border-none outline-none text-gray-800 placeholder-gray-400 focus:shadow-[inset_6px_6px_12px_#bebebe,inset_-6px_-6px_12px_#ffffff] transition-all pr-12"
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showPassword ? (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                      </svg>
-                    ) : (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
-                  </button>
+              {!isForgotPassword && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Password"
+                      className="w-full px-4 py-3 rounded-xl bg-gray-100 shadow-[inset_4px_4px_8px_#bebebe,inset_-4px_-4px_8px_#ffffff] border-none outline-none text-gray-800 placeholder-gray-400 focus:shadow-[inset_6px_6px_12px_#bebebe,inset_-6px_-6px_12px_#ffffff] transition-all pr-12"
+                      required
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {showPassword ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Error Message */}
               {error && (
@@ -303,7 +373,7 @@ function MasterLogin() {
                 disabled={loading}
                 className="w-full py-3 rounded-xl bg-gray-100 shadow-[8px_8px_16px_#bebebe,-8px_-8px_16px_#ffffff] text-pink-500 font-semibold text-lg hover:shadow-[inset_4px_4px_8px_#bebebe,inset_-4px_-4px_8px_#ffffff] active:shadow-[inset_4px_4px_8px_#bebebe,inset_-4px_-4px_8px_#ffffff] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mb-6"
               >
-                {loading ? 'Verifying...' : 'Continue'}
+                {isForgotPassword ? (loading ? 'Sending OTP...' : 'Send OTP') : (loading ? 'Verifying...' : 'Continue')}
               </button>
             </form>
           ) : (
@@ -361,11 +431,9 @@ function MasterLogin() {
               <button
                 type="button"
                 onClick={() => {
-                  setShowOTP(false)
-                  setOtp('')
-                  setOtpSessionId(null)
-                  setPhoneNumber(null)
+                  resetOtpFlow()
                   dispatch(loginFailure(null))
+                  setIsForgotPassword(false)
                 }}
                 className="w-full py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
               >
@@ -391,7 +459,23 @@ function MasterLogin() {
             </div>
           ) : (
             <div className="text-center text-xs sm:text-sm text-slate-500">
-              
+              {!isForgotPassword ? (
+                <button
+                  type="button"
+                  onClick={startForgotPasswordMode}
+                  className="font-medium text-[#c53688] hover:underline"
+                >
+                  Forgot Password?
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={exitForgotPasswordMode}
+                  className="font-medium text-[#c53688] hover:underline"
+                >
+                  Remember password? Use password login
+                </button>
+              )}
             </div>
           )}
         </div>

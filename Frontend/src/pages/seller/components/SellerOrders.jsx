@@ -1,9 +1,7 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { FaCheck, FaXmark, FaQrcode, FaDownload, FaClock } from 'react-icons/fa6'
-import { AnimatePresence, motion } from 'framer-motion'
-import QRCode from 'react-qr-code'
-import { getOrders, sellerAcceptOrder, sellerRejectOrder } from '../../../services/api'
+import { FaCheck, FaXmark } from 'react-icons/fa6'
+import { getOrders } from '../../../services/api'
 import { initSocket } from '../../../utils/socket'
 
 function SellerOrders() {
@@ -11,9 +9,7 @@ function SellerOrders() {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [processingId, setProcessingId] = useState(null)
-  const [activeOrder, setActiveOrder] = useState(null)
-  const qrRef = useRef(null)
+  const [statusFilter, setStatusFilter] = useState('all') // all | accepted | completed | cancelled | rejected
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -36,7 +32,7 @@ function SellerOrders() {
     }
   }, [user])
 
-  // Real-time Socket.IO updates
+  // Real-time Socket.IO updates for history view
   useEffect(() => {
     if (!token || !user?.id) return
 
@@ -65,81 +61,61 @@ function SellerOrders() {
         setOrders((prev) =>
           prev.map((order) => (order.id === orderData.id ? orderData : order))
         )
-        if (activeOrder && activeOrder.id === orderData.id) {
-          setActiveOrder(orderData)
-        }
       }
     })
 
     return () => {
       socket.disconnect()
     }
-  }, [token, user, activeOrder])
+  }, [token, user])
 
-  const handleAccept = async (orderId) => {
-    setProcessingId(orderId)
-    setError(null)
-    try {
-      const updated = await sellerAcceptOrder(orderId)
-      setOrders((prev) => prev.map((order) => (order.id === orderId ? updated : order)))
-      if (activeOrder && activeOrder.id === orderId) {
-        setActiveOrder(updated)
-      }
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setProcessingId(null)
-    }
-  }
+  // History-only view: accepted / completed / delivered / cancelled / rejected
+  const acceptedOrders = orders.filter((o) => o.status === 'seller_accepted')
+  const completedOrders = orders.filter((o) =>
+    ['handed_over', 'completed', 'delivered'].includes(o.status)
+  )
+  const cancelledOrders = orders.filter((o) => o.status === 'cancelled')
+  const rejectedOrders = orders.filter((o) =>
+    ['seller_rejected', 'rejected'].includes(o.status)
+  )
 
-  const handleReject = async (orderId, reason = null) => {
-    setProcessingId(orderId)
-    setError(null)
-    try {
-      const updated = await sellerRejectOrder(orderId, reason)
-      setOrders((prev) => prev.map((order) => (order.id === orderId ? updated : order)))
-      if (activeOrder && activeOrder.id === orderId) {
-        setActiveOrder(updated)
-      }
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
-  const downloadQR = () => {
-    if (!qrRef.current || !activeOrder) return
-    const svg = qrRef.current.querySelector('svg')
-    if (!svg) return
-
-    const serializer = new XMLSerializer()
-    const svgString = serializer.serializeToString(svg)
-    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `seller-qr-${activeOrder.orderNumber}.svg`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
-
-  const pendingOrders = orders.filter((o) => o.status === 'pending_seller')
-  const acceptedOrders = orders.filter((o) => o.status === 'seller_accepted' || o.status === 'handed_over')
+  const showAccepted = statusFilter === 'all' || statusFilter === 'accepted'
+  const showCompleted = statusFilter === 'all' || statusFilter === 'completed'
+  const showCancelled = statusFilter === 'all' || statusFilter === 'cancelled'
+  const showRejected = statusFilter === 'all' || statusFilter === 'rejected'
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-900">My Orders</h2>
-        <div className="flex gap-2 text-sm">
-          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-semibold">
-            {pendingOrders.length} Pending
-          </span>
-          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold">
-            {acceptedOrders.length} Accepted
-          </span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-2xl font-bold text-slate-900">My Orders (History)</h2>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <div className="flex flex-wrap gap-2">
+            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+              {acceptedOrders.length} Accepted
+            </span>
+            <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold">
+              {completedOrders.length} Completed
+            </span>
+            <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 font-semibold">
+              {cancelledOrders.length} Cancelled
+            </span>
+            <span className="px-3 py-1 rounded-full bg-rose-100 text-rose-700 font-semibold">
+              {rejectedOrders.length} Rejected
+            </span>
+          </div>
+          <div className="ml-auto">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm"
+            >
+              <option value="all">All statuses</option>
+              <option value="accepted">Accepted</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -153,64 +129,8 @@ function SellerOrders() {
         <div className="text-center py-10 text-slate-600">Loading orders...</div>
       ) : (
         <div className="space-y-4">
-          {/* Pending Orders */}
-          {pendingOrders.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                <FaClock className="w-5 h-5 text-amber-500" />
-                Pending Confirmation ({pendingOrders.length})
-              </h3>
-              <div className="space-y-3">
-                {pendingOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                      <div className="flex-1">
-                        <p className="text-xs text-slate-500 uppercase tracking-widest">
-                          Order #{order.orderNumber}
-                        </p>
-                        <h4 className="text-lg font-semibold text-slate-900 mt-1">
-                          {order.product?.name || 'Product'}
-                        </h4>
-                        <p className="text-sm text-slate-600 mt-1">
-                          Quantity: {order.quantity} × ₹{Number(order.unitPrice || 0).toLocaleString('en-IN')}
-                        </p>
-                        <p className="text-lg font-bold text-slate-900 mt-2">
-                          Total: ₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-2">
-                          Customer: {order.user?.name || 'N/A'}
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <button
-                          onClick={() => handleAccept(order.id)}
-                          disabled={processingId === order.id}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition disabled:opacity-50"
-                        >
-                          <FaCheck className="w-4 h-4" />
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleReject(order.id)}
-                          disabled={processingId === order.id}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-red-300 bg-red-50 text-red-600 font-semibold hover:bg-red-100 transition disabled:opacity-50"
-                        >
-                          <FaXmark className="w-4 h-4" />
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Accepted Orders */}
-          {acceptedOrders.length > 0 && (
+          {showAccepted && acceptedOrders.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
                 <FaCheck className="w-5 h-5 text-emerald-500" />
@@ -220,30 +140,111 @@ function SellerOrders() {
                 {acceptedOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm cursor-pointer hover:shadow-md transition"
-                    onClick={() => setActiveOrder(order)}
+                    className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <p className="text-xs text-slate-500 uppercase tracking-widest">
-                          Order #{order.orderNumber}
-                        </p>
-                        <h4 className="text-lg font-semibold text-slate-900 mt-1">
-                          {order.product?.name || 'Product'}
-                        </h4>
-                        <p className="text-sm text-slate-600 mt-1">
-                          Status: {order.status === 'handed_over' ? 'Handed Over' : 'Accepted'}
-                        </p>
-                        {order.secureTokenSeller && (
-                          <p className="text-xs text-slate-500 font-mono mt-2">
-                            Token: {order.secureTokenSeller}
-                          </p>
-                        )}
-                      </div>
-                      <button className="p-3 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition">
-                        <FaQrcode className="w-5 h-5" />
-                      </button>
-                    </div>
+                    <p className="text-xs text-slate-500 uppercase tracking-widest">
+                      Order #{order.orderNumber}
+                    </p>
+                    <h4 className="text-lg font-semibold text-slate-900 mt-1">
+                      {order.product?.name || 'Product'}
+                    </h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      Quantity: {order.quantity} × ₹
+                      {Number(order.unitPrice || 0).toLocaleString('en-IN')}
+                    </p>
+                    <p className="text-xs text-emerald-700 mt-2 font-semibold">Status: Accepted</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Completed Orders */}
+          {showCompleted && completedOrders.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <FaCheck className="w-5 h-5 text-emerald-500" />
+                Completed Orders ({completedOrders.length})
+              </h3>
+              <div className="space-y-3">
+                {completedOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm"
+                  >
+                    <p className="text-xs text-slate-500 uppercase tracking-widest">
+                      Order #{order.orderNumber}
+                    </p>
+                    <h4 className="text-lg font-semibold text-slate-900 mt-1">
+                      {order.product?.name || 'Product'}
+                    </h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      Quantity: {order.quantity} × ₹
+                      {Number(order.unitPrice || 0).toLocaleString('en-IN')}
+                    </p>
+                    <p className="text-xs text-emerald-700 mt-2 font-semibold">Status: Completed</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Cancelled Orders */}
+          {showCancelled && cancelledOrders.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <FaXmark className="w-5 h-5 text-yellow-500" />
+                Cancelled Orders ({cancelledOrders.length})
+              </h3>
+              <div className="space-y-3">
+                {cancelledOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm"
+                  >
+                    <p className="text-xs text-slate-500 uppercase tracking-widest">
+                      Order #{order.orderNumber}
+                    </p>
+                    <h4 className="text-lg font-semibold text-slate-900 mt-1">
+                      {order.product?.name || 'Product'}
+                    </h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      Quantity: {order.quantity} × ₹
+                      {Number(order.unitPrice || 0).toLocaleString('en-IN')}
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-2 font-semibold">Status: Cancelled</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Rejected Orders */}
+          {showRejected && rejectedOrders.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <FaXmark className="w-5 h-5 text-rose-500" />
+                Rejected Orders ({rejectedOrders.length})
+              </h3>
+              <div className="space-y-3">
+                {rejectedOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm"
+                  >
+                    <p className="text-xs text-slate-500 uppercase tracking-widest">
+                      Order #{order.orderNumber}
+                    </p>
+                    <h4 className="text-lg font-semibold text-slate-900 mt-1">
+                      {order.product?.name || 'Product'}
+                    </h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      Quantity: {order.quantity} × ₹
+                      {Number(order.unitPrice || 0).toLocaleString('en-IN')}
+                    </p>
+                    <p className="text-xs text-rose-700 mt-2 font-semibold">
+                      Status: Rejected
+                    </p>
                   </div>
                 ))}
               </div>
@@ -257,55 +258,6 @@ function SellerOrders() {
           )}
         </div>
       )}
-
-      {/* QR Code Modal */}
-      <AnimatePresence>
-        {activeOrder && (activeOrder.status === 'seller_accepted' || activeOrder.status === 'handed_over') && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4"
-            onClick={() => setActiveOrder(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md text-center space-y-4 shadow-2xl"
-            >
-              <h3 className="text-xl font-semibold text-slate-900">Seller QR Code</h3>
-              <p className="text-sm text-slate-600">
-                Scan this QR code at the outlet when handing over the product.
-              </p>
-              {activeOrder.secureTokenSeller && (
-                <>
-                  <div className="inline-block bg-gray-50 border border-gray-200 rounded-2xl p-4" ref={qrRef}>
-                    <QRCode value={activeOrder.secureTokenSeller} size={200} />
-                  </div>
-                  <p className="text-xs text-slate-500 font-mono">
-                    Token: {activeOrder.secureTokenSeller}
-                  </p>
-                  <button
-                    onClick={downloadQR}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 text-white font-semibold py-3 hover:bg-slate-800 transition"
-                  >
-                    <FaDownload className="w-4 h-4" />
-                    Download QR
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setActiveOrder(null)}
-                className="w-full rounded-full border border-slate-300 text-slate-700 font-semibold py-3 hover:bg-slate-50 transition"
-              >
-                Close
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

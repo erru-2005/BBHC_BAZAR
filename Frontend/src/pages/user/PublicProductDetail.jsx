@@ -14,6 +14,7 @@ import StarRating from '../../components/StarRating'
 import RatingBadge from '../../components/RatingBadge'
 import { addToWishlist, removeFromWishlist, getProductRatingStats } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
+import { getSocket, initSocket } from '../../utils/socket'
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null) return '—'
@@ -27,7 +28,7 @@ function PublicProductDetail() {
   const dispatch = useDispatch()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { home } = useSelector((state) => state.data)
-  const { isAuthenticated, userType } = useSelector((state) => state.auth)
+  const { isAuthenticated, userType, token } = useSelector((state) => state.auth)
   const productFromStore = home.products?.find((prod) => String(prod.id || prod._id) === productId)
   const [product, setProduct] = useState(location.state?.product || productFromStore)
   const [userRating, setUserRating] = useState(0)
@@ -76,6 +77,34 @@ function PublicProductDetail() {
     loadStats()
   }, [productId])
 
+  // Listen for real-time rating updates
+  useEffect(() => {
+    if (!productId) return
+    
+    let socket = getSocket()
+    
+    // Initialize socket if not already connected
+    if (!socket || !socket.connected) {
+      socket = initSocket(token)
+    }
+    
+    if (!socket) return
+
+    const handleRatingUpdate = (data) => {
+      if (data && data.product_id === String(productId) && data.rating_stats) {
+        setRatingStats(data.rating_stats)
+      }
+    }
+
+    socket.on('rating_updated', handleRatingUpdate)
+
+    return () => {
+      if (socket) {
+        socket.off('rating_updated', handleRatingUpdate)
+      }
+    }
+  }, [productId, token])
+
   useProductSocket((updatedProduct) => {
     if (
       updatedProduct &&
@@ -100,11 +129,12 @@ function PublicProductDetail() {
     )
   }
 
-  const sellingPrice = Number(product.selling_price || product.price || product.max_price || 0)
-  const maxPrice = Number(product.max_price || product.selling_price || product.price || sellingPrice)
+  // Use total_selling_price (with commission) if available, otherwise fall back to selling_price
+  const displayPrice = Number(product.total_selling_price || product.selling_price || product.price || product.max_price || 0)
+  const maxPrice = Number(product.max_price || product.selling_price || product.price || displayPrice)
   const discount =
-    sellingPrice && maxPrice && maxPrice > sellingPrice
-      ? Math.round(((maxPrice - sellingPrice) / maxPrice) * 100)
+    displayPrice && maxPrice && maxPrice > displayPrice
+      ? Math.round(((maxPrice - displayPrice) / maxPrice) * 100)
       : null
 
   return (
@@ -189,15 +219,20 @@ function PublicProductDetail() {
               </div>
             </div>
 
-            {(product.selling_price || product.max_price) && (
+            {(displayPrice || product.max_price) && (
               <div className="space-y-1.5 sm:space-y-2">
                 <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                  <p className="text-2xl sm:text-3xl font-black text-gray-900">{formatCurrency(product.selling_price || product.max_price)}</p>
+                  <p className="text-2xl sm:text-3xl font-black text-gray-900">{formatCurrency(displayPrice || product.max_price)}</p>
                   {discount && <span className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-red-600 text-white text-[10px] sm:text-xs font-bold">{discount}% OFF</span>}
                 </div>
-                {product.selling_price && product.max_price && discount && (
+                {displayPrice && product.max_price && discount && (
                   <p className="text-xs sm:text-sm text-gray-500">
                     MRP: <span className="line-through">{formatCurrency(product.max_price)}</span>
+                  </p>
+                )}
+                {product.commission_rate && product.commission_rate > 0 && (
+                  <p className="text-xs text-gray-500">
+                    Includes {product.commission_rate}% commission
                   </p>
                 )}
                 {ratingStats && ratingStats.average_rating && ratingStats.total_ratings > 0 && (

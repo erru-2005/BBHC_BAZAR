@@ -7,6 +7,7 @@ from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
 from app.services.outlet_man_service import OutletManService
 from app.services.user_service import UserService
+from app.services.blacklist_service import BlacklistService
 from app.utils.otp import OTPManager
 from app.utils.sms import SMSService
 from app.utils.device import DeviceTokenManager
@@ -183,6 +184,123 @@ def master_login():
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 
+@auth_bp.route('/master/forgot-password', methods=['POST'])
+def master_forgot_password():
+    """
+    Initiate master forgot password flow by sending OTP without password validation.
+    Expects: { "username": "..." }
+    """
+    try:
+        data = request.get_json() or {}
+        username = data.get('username')
+        
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+        
+        master = MasterService.get_master_by_username(username)
+        if not master:
+            return jsonify({'error': 'Invalid username or account not found'}), 404
+        
+        if not master.phone_number:
+            return jsonify({'error': 'Phone number not found for this account. Please contact support.'}), 400
+        
+        user_id = str(master._id)
+        user_data = master.to_dict(include_password=False)
+        
+        otp = OTPManager.generate_otp()
+        session_id = OTPManager.store_otp(user_id, 'master', otp)
+        
+        masked_phone = mask_phone_number(master.phone_number)
+        
+        sms_sent = False
+        sms_error = None
+        try:
+            success, message = SMSService.send_otp(master.phone_number, otp)
+            if success:
+                sms_sent = True
+            else:
+                sms_error = message
+        except Exception as e:
+            sms_error = str(e)
+        
+        response_data = {
+            'message': 'OTP sent successfully',
+            'otp_session_id': session_id,
+            'user': user_data,
+            'phone_number': masked_phone,
+            'skip_otp': False
+        }
+        
+        if current_app.config.get('DEBUG'):
+            response_data['sms_sent'] = sms_sent
+            if sms_error:
+                response_data['sms_error'] = sms_error
+        
+        return jsonify(response_data), 200
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to process forgot password request: {str(e)}'}), 500
+
+
+@auth_bp.route('/master/reset-password', methods=['POST'])
+def master_reset_password():
+    """
+    Reset master password using either current password or OTP session.
+    Expects (current password flow):
+      { "username": "...", "current_password": "...", "new_password": "...", "confirm_password": "..." }
+    Expects (OTP flow):
+      { "username": "...", "otp_session_id": "...", "otp": "...", "new_password": "...", "confirm_password": "..." }
+    """
+    try:
+        data = request.get_json() or {}
+        username = data.get('username')
+        current_password = data.get('current_password')
+        otp_session_id = data.get('otp_session_id')
+        otp = data.get('otp')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+
+        if not new_password or not confirm_password:
+            return jsonify({'error': 'New password and confirmation are required'}), 400
+
+        if new_password != confirm_password:
+            return jsonify({'error': 'Passwords do not match'}), 400
+
+        master = MasterService.get_master_by_username(username)
+        if not master:
+            return jsonify({'error': 'Account not found'}), 404
+
+        # Validate authentication method
+        if current_password:
+            if not master.check_password(current_password):
+                return jsonify({'error': 'Current password is incorrect'}), 401
+        else:
+            if not otp_session_id or not otp:
+                return jsonify({'error': 'OTP session and code are required for OTP reset'}), 400
+
+            session_data, error = OTPManager.verify_otp(otp_session_id, otp)
+            if error:
+                return jsonify({'error': error}), 400
+
+            if not session_data:
+                return jsonify({'error': 'Invalid OTP session'}), 400
+
+            if str(session_data.get('user_id')) != str(master._id) or session_data.get('user_type') != 'master':
+                return jsonify({'error': 'OTP does not belong to this account'}), 400
+
+        updated_master = MasterService.update_master(str(master._id), {'password': new_password})
+        if not updated_master:
+            return jsonify({'error': 'Failed to reset password'}), 500
+
+        return jsonify({'message': 'Password updated successfully'}), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Failed to reset password: {str(e)}'}), 500
+
+
 @auth_bp.route('/seller/login', methods=['POST'])
 def seller_login():
     """
@@ -207,7 +325,6 @@ def seller_login():
             return jsonify({'error': 'Trade ID and password are required'}), 400
         
         # Check if seller is blacklisted (check before authentication)
-        from app.services.blacklist_service import BlacklistService
         seller_temp = SellerService.get_seller_by_trade_id(trade_id, include_blacklisted=True)
         if not seller_temp:
             return jsonify({'error': 'Invalid Trade ID or password'}), 401
@@ -354,6 +471,126 @@ def seller_login():
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
 
 
+@auth_bp.route('/seller/forgot-password', methods=['POST'])
+def seller_forgot_password():
+    """
+    Initiate seller forgot password flow by sending OTP without password validation.
+    Expects: { "trade_id": "..." }
+    """
+    try:
+        data = request.get_json() or {}
+        trade_id = data.get('trade_id')
+        
+        if not trade_id:
+            return jsonify({'error': 'Trade ID is required'}), 400
+        
+        seller = SellerService.get_seller_by_trade_id(trade_id, include_blacklisted=True)
+        if not seller:
+            return jsonify({'error': 'Invalid Trade ID or account not found'}), 404
+        
+        if BlacklistService.is_blacklisted(str(seller._id)):
+            return jsonify({'error': 'This account has been blacklisted. Please contact support.'}), 403
+        
+        if not getattr(seller, 'phone_number', None):
+            return jsonify({'error': 'Phone number is required for seller login. Please contact administrator to add phone number to your account.'}), 400
+        
+        user_id = str(seller._id)
+        user_data = seller.to_dict(include_password=False)
+        
+        otp = OTPManager.generate_otp()
+        session_id = OTPManager.store_otp(user_id, 'seller', otp)
+        
+        masked_phone = mask_phone_number(seller.phone_number)
+        
+        sms_sent = False
+        sms_error = None
+        try:
+            success, message = SMSService.send_otp(seller.phone_number, otp)
+            if success:
+                sms_sent = True
+            else:
+                sms_error = message
+        except Exception as e:
+            sms_error = str(e)
+        
+        response_data = {
+            'message': 'OTP sent successfully',
+            'otp_session_id': session_id,
+            'user': user_data,
+            'phone_number': masked_phone,
+            'skip_otp': False
+        }
+        
+        if current_app.config.get('DEBUG'):
+            response_data['sms_sent'] = sms_sent
+            if sms_error:
+                response_data['sms_error'] = sms_error
+        
+        return jsonify(response_data), 200
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to process forgot password request: {str(e)}'}), 500
+
+
+@auth_bp.route('/seller/reset-password', methods=['POST'])
+def seller_reset_password():
+    """
+    Reset seller password using either current password or OTP session.
+    Expects (current password flow):
+      { "trade_id": "...", "current_password": "...", "new_password": "...", "confirm_password": "..." }
+    Expects (OTP flow):
+      { "trade_id": "...", "otp_session_id": "...", "otp": "...", "new_password": "...", "confirm_password": "..." }
+    """
+    try:
+        data = request.get_json() or {}
+        trade_id = data.get('trade_id')
+        current_password = data.get('current_password')
+        otp_session_id = data.get('otp_session_id')
+        otp = data.get('otp')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+
+        if not trade_id:
+            return jsonify({'error': 'Trade ID is required'}), 400
+
+        if not new_password or not confirm_password:
+            return jsonify({'error': 'New password and confirmation are required'}), 400
+
+        if new_password != confirm_password:
+            return jsonify({'error': 'Passwords do not match'}), 400
+
+        seller = SellerService.get_seller_by_trade_id(trade_id, include_blacklisted=True)
+        if not seller:
+            return jsonify({'error': 'Account not found'}), 404
+
+        # Validate authentication method
+        if current_password:
+            if not seller.check_password(current_password):
+                return jsonify({'error': 'Current password is incorrect'}), 401
+        else:
+            if not otp_session_id or not otp:
+                return jsonify({'error': 'OTP session and code are required for OTP reset'}), 400
+
+            session_data, error = OTPManager.verify_otp(otp_session_id, otp)
+            if error:
+                return jsonify({'error': error}), 400
+
+            if not session_data:
+                return jsonify({'error': 'Invalid OTP session'}), 400
+
+            if str(session_data.get('user_id')) != str(seller._id) or session_data.get('user_type') != 'seller':
+                return jsonify({'error': 'OTP does not belong to this account'}), 400
+
+        updated_seller = SellerService.update_seller(str(seller._id), {'password': new_password})
+        if not updated_seller:
+            return jsonify({'error': 'Failed to reset password'}), 500
+
+        return jsonify({'message': 'Password updated successfully'}), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Failed to reset password: {str(e)}'}), 500
+
+
 @auth_bp.route('/outlet_man/login', methods=['POST'])
 def outlet_man_login():
     """
@@ -378,7 +615,6 @@ def outlet_man_login():
             return jsonify({'error': 'Outlet access code and password are required'}), 400
         
         # Check if outlet man is blacklisted (check before authentication)
-        from app.services.blacklist_service import BlacklistService
         outlet_man_temp = OutletManService.get_outlet_man_by_access_code(outlet_access_code, include_blacklisted=True)
         if not outlet_man_temp:
             return jsonify({'error': 'Invalid outlet access code or password'}), 401

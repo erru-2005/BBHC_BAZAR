@@ -9,6 +9,8 @@ from bson import ObjectId
 
 from app import mongo
 from app.models.order import Order
+from app.services.product_service import ProductService
+from app.sockets.emitter import emit_product_event
 
 
 class OrderService:
@@ -63,7 +65,17 @@ class OrderService:
                     '$set': {'updated_at': datetime.utcnow()}
                 }
             )
-            return result.matched_count > 0
+            if result.matched_count > 0:
+                # Emit real-time product update so quantity changes are reflected everywhere
+                try:
+                    product = ProductService.get_product_by_id(str(product_obj_id))
+                    if product:
+                        emit_product_event('product_updated', product.to_dict())
+                except Exception as exc:
+                    # Log but don't break order flow
+                    print(f"[OrderService] Failed to emit product update after reduce: {exc}")
+                return True
+            return False
         except Exception:
             return False
 
@@ -72,14 +84,22 @@ class OrderService:
         """Restore product quantity (e.g., on order cancellation)."""
         try:
             product_obj_id = ObjectId(product_id)
-            mongo.db.products.update_one(
+            result = mongo.db.products.update_one(
                 {'_id': product_obj_id},
                 {
                     '$inc': {'quantity': quantity},
                     '$set': {'updated_at': datetime.utcnow()}
                 }
             )
-            return True
+            if result.matched_count > 0:
+                try:
+                    product = ProductService.get_product_by_id(str(product_obj_id))
+                    if product:
+                        emit_product_event('product_updated', product.to_dict())
+                except Exception as exc:
+                    print(f"[OrderService] Failed to emit product update after restore: {exc}")
+                return True
+            return False
         except Exception:
             return False
 
@@ -258,13 +278,16 @@ class OrderService:
         return updated_order, None
 
     @staticmethod
-    def seller_reject_order(order_id, seller_id, reason=None):
+    def seller_reject_order(order_id, seller_id, reason):
         """Seller rejects order."""
         try:
             order_obj_id = ObjectId(order_id)
             seller_obj_id = ObjectId(seller_id)
         except Exception:
             return None, "Invalid IDs"
+
+        if not reason or not reason.strip():
+            return None, "Rejection reason is required"
 
         order = OrderService.get_order_by_id(order_id)
         if not order:
@@ -279,12 +302,31 @@ class OrderService:
         # Restore product quantity
         OrderService.restore_product_quantity(str(order.product_id), order.quantity)
 
-        updated_order = OrderService.update_order_status(
-            order_id,
-            'seller_rejected',
-            note=f'Seller rejected: {reason or "No reason provided"}',
-            updated_by=f'seller:{seller_id}'
+        # Update order with rejection reason
+        result = mongo.db.orders.update_one(
+            {'_id': order_obj_id},
+            {
+                '$set': {
+                    'status': 'seller_rejected',
+                    'rejection_reason': reason.strip(),
+                    'rejected_by': f'seller:{seller_id}',
+                    'updated_at': datetime.utcnow()
+                },
+                '$push': {
+                    'status_history': {
+                        'status': 'seller_rejected',
+                        'timestamp': datetime.utcnow(),
+                        'note': f'Seller rejected: {reason.strip()}',
+                        'updated_by': f'seller:{seller_id}'
+                    }
+                }
+            }
         )
+
+        if result.matched_count == 0:
+            return None, "Failed to update order"
+
+        updated_order = OrderService.get_order_by_id(order_id)
         return updated_order, None
 
     @staticmethod
@@ -401,12 +443,15 @@ class OrderService:
             return None, f"Error processing scan: {str(e)}"
 
     @staticmethod
-    def master_cancel_order(order_id, master_id, confirmation_code):
-        """Master cancels order with confirmation code."""
+    def master_cancel_order(order_id, master_id, confirmation_code, reason):
+        """Master cancels order with confirmation code and reason."""
         try:
             order_obj_id = ObjectId(order_id)
         except Exception:
             return None, "Invalid order ID"
+
+        if not reason or not reason.strip():
+            return None, "Rejection reason is required"
 
         order = OrderService.get_order_by_id(order_id)
         if not order:
@@ -430,13 +475,15 @@ class OrderService:
                     'status': 'cancelled_master',
                     'cancelled_by_master': True,
                     'cancellation_code': cancellation_code,
+                    'rejection_reason': reason.strip(),
+                    'rejected_by': f'master:{master_id}',
                     'updated_at': datetime.utcnow()
                 },
                 '$push': {
                     'status_history': {
                         'status': 'cancelled_master',
                         'timestamp': datetime.utcnow(),
-                        'note': f'Cancelled by master (confirmation: {confirmation_code})',
+                        'note': f'Cancelled by master (confirmation: {confirmation_code}, reason: {reason.strip()})',
                         'updated_by': f'master:{master_id}'
                     }
                 }

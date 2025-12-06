@@ -5,10 +5,14 @@ import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { FiBox, FiMenu, FiX, FiHome, FiBriefcase, FiLogOut, FiPlusSquare } from 'react-icons/fi'
+import { FaQrcode, FaCheck } from 'react-icons/fa6'
 import { logout } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
+import { getOrders, sellerAcceptOrder, sellerRejectOrder } from '../../services/api'
+import QRCode from 'react-qr-code'
 import SellerOrders from './components/SellerOrders'
+import PasswordResetDialog from '../../components/PasswordResetDialog'
 
 function Seller() {
   const dispatch = useDispatch()
@@ -23,6 +27,13 @@ function Seller() {
   const tabListRef = useRef(null)
   const fadeTimeoutRef = useRef(null)
   const [tabIndicatorStyle, setTabIndicatorStyle] = useState({ width: 0, left: 0 })
+  const [orders, setOrders] = useState([])
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const [ordersError, setOrdersError] = useState(null)
+  const [notificationProcessingId, setNotificationProcessingId] = useState(null)
+  const [qrOrder, setQrOrder] = useState(null)
+  const autoHideCompletedRef = useRef(new Set())
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
 
   const handleLogout = () => {
     // Notify server about logout via socket
@@ -47,15 +58,12 @@ function Seller() {
     navigate('/seller/login')
   }
 
-  // Initialize socket connection on component mount
+  // Initialize socket connection on component mount & listen for order updates
   useEffect(() => {
-    // User data should be in Redux state from login
     if (!user || !user.id || !token) {
-      // If no user or token in Redux, ProtectedRoute will handle redirect
       return
     }
     
-    // Initialize socket connection
     const socket = initSocket(token)
     socket.on('connect', () => {
       socket.emit('user_authenticated', {
@@ -63,12 +71,41 @@ function Seller() {
         user_type: 'seller'
       })
     })
+
+    socket.on('new_order', (orderData) => {
+      // Only add if this order is for current seller
+      if (!orderData?.seller_id || String(orderData.seller_id) !== String(user.id)) return
+
+      setOrders((prev) => {
+        const exists = prev.find((o) => o.id === orderData.id)
+        if (exists) return prev
+        return [orderData, ...prev]
+      })
+    })
+
+    socket.on('order_updated', (orderData) => {
+      if (!orderData?.seller_id || String(orderData.seller_id) !== String(user.id)) return
+
+      setOrders((prev) =>
+        prev.map((order) => (order.id === orderData.id ? orderData : order))
+      )
+
+      // If order is now completed, schedule auto-removal from incoming list
+      if (['handed_over', 'completed', 'delivered'].includes(orderData.status)) {
+        const idStr = String(orderData.id)
+        if (!autoHideCompletedRef.current.has(idStr)) {
+          autoHideCompletedRef.current.add(idStr)
+          setTimeout(() => {
+            setOrders((prev) => prev.filter((o) => String(o.id) !== idStr))
+          }, 2 * 60 * 1000) // 2 minutes
+        }
+      }
+    })
     
     return () => {
-      // Cleanup on unmount
-      const socket = getSocket()
-      if (socket && socket.connected && user) {
-        socket.emit('user_logout', {
+      const socketInstance = getSocket()
+      if (socketInstance && socketInstance.connected && user) {
+        socketInstance.emit('user_logout', {
           user_id: user.id,
           user_type: 'seller'
         })
@@ -76,9 +113,31 @@ function Seller() {
     }
   }, [user, token])
 
+  // Load seller orders for dashboard summaries
+  useEffect(() => {
+    const loadOrders = async () => {
+      if (!user?.id) return
+      try {
+        setOrdersLoading(true)
+        setOrdersError(null)
+        const data = await getOrders()
+        const sellerOrders = data.filter(
+          (order) => order.seller_id && String(order.seller_id) === String(user.id)
+        )
+        setOrders(sellerOrders)
+      } catch (error) {
+        setOrdersError(error.message || 'Failed to load orders')
+      } finally {
+        setOrdersLoading(false)
+      }
+    }
+    loadOrders()
+  }, [user])
+
   const menuItems = [
     { label: 'Home', icon: FiHome, action: () => { setShowOrders(false); navigate('/seller/dashboard') } },
-    { label: 'My Orders', icon: FiBox, action: () => setShowOrders(true) },
+    // Treat this as full order history view
+    { label: 'My Orders (History)', icon: FiBox, action: () => setShowOrders(true) },
     { label: 'My Products', icon: FiBox, action: () => navigate('/seller/products') },
     { label: 'Add Product', icon: FiPlusSquare, action: () => navigate('/seller/products/new') },
     { label: 'My Services', icon: FiBriefcase, action: () => null }
@@ -105,24 +164,17 @@ function Seller() {
     }
   ]
 
+  // Tabs for notifications: incoming requests + admin notifications
   const notificationTabs = [
     {
       id: 'orders',
-      label: 'Order Notifications',
-      accent: 'from-sky-500 via-blue-500 to-indigo-500',
-      items: [
-        '3 new orders placed in the last 15 minutes.',
-        '2 orders are awaiting shipment confirmation.'
-      ]
+      label: 'Incoming Requests',
+      accent: 'from-sky-500 via-blue-500 to-indigo-500'
     },
     {
       id: 'admin',
       label: 'Admin Notifications',
-      accent: 'from-pink-500 via-fuchsia-500 to-rose-500',
-      items: [
-        'New update from Master Admin: Stock synchronization completed successfully.',
-        'Policy reminder: Update service hours for the upcoming holiday.'
-      ]
+      accent: 'from-pink-500 via-fuchsia-500 to-rose-500'
     }
   ]
 
@@ -132,6 +184,11 @@ function Seller() {
   const activeIndicatorAccent =
     notificationTabs.find((tab) => tab.id === activeNotificationTab)?.accent ||
     'from-white to-white'
+
+  // Orders to show in Incoming Requests: pending + accepted (awaiting scan/completion)
+  const pendingOrders = orders.filter((o) =>
+    ['pending_seller', 'seller_accepted'].includes(o.status)
+  )
 
   const renderStatIcon = (label) => {
     if (label === 'Total Products') {
@@ -234,6 +291,33 @@ function Seller() {
     setActiveNotificationTab(tabId)
   }
 
+  const handleQuickAccept = async (orderId) => {
+    setNotificationProcessingId(orderId)
+    setOrdersError(null)
+    try {
+      const updated = await sellerAcceptOrder(orderId)
+      setOrders((prev) => prev.map((order) => (order.id === orderId ? updated : order)))
+      // Do not auto-open QR; seller can click "QR Code" button to view it
+    } catch (error) {
+      setOrdersError(error.message || 'Failed to accept order')
+    } finally {
+      setNotificationProcessingId(null)
+    }
+  }
+
+  const handleQuickReject = async (orderId) => {
+    setNotificationProcessingId(orderId)
+    setOrdersError(null)
+    try {
+      const updated = await sellerRejectOrder(orderId)
+      setOrders((prev) => prev.map((order) => (order.id === orderId ? updated : order)))
+    } catch (error) {
+      setOrdersError(error.message || 'Failed to reject order')
+    } finally {
+      setNotificationProcessingId(null)
+    }
+  }
+
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-[#EAF3FF] via-[#F7F7FA] to-[#F4ECFF] text-slate-900">
       {/* Header */}
@@ -267,6 +351,13 @@ function Seller() {
             <span className="hidden text-xs text-slate-100 sm:inline sm:text-sm">
               Welcome, <span className="font-semibold text-white">{user?.trade_id || 'Seller'}</span>
             </span>
+            <button
+              type="button"
+              onClick={() => setResetPasswordOpen(true)}
+              className="text-xs font-semibold text-slate-100 underline-offset-4 hover:underline sm:text-sm"
+            >
+              Reset password
+            </button>
             <button
               onClick={handleLogout}
               className="inline-flex items-center gap-1.5 rounded-full border border-red-100/60 bg-white/10 px-3 py-1.5 text-xs font-medium text-red-50 shadow-sm shadow-slate-900/40 transition-transform transition-colors duration-200 hover:-translate-y-0.5 hover:border-red-200 hover:bg-red-500/90 hover:text-white sm:px-4 sm:py-2 sm:text-sm"
@@ -416,26 +507,89 @@ function Seller() {
                       {displayedTabData.label}
                     </p>
                     <p className="text-base font-semibold text-slate-900 sm:text-lg">
-                      Stay in control of the latest updates
+                      {displayedNotificationTab === 'orders'
+                        ? 'Incoming order requests waiting for your action'
+                        : 'Important updates and announcements from admin'}
                     </p>
                   </div>
                 </div>
-                <ul className="mt-2 space-y-2 text-sm text-slate-700">
-                  {displayedTabData.items.map((item, index) => (
-                    <li
-                      key={item}
-                      className={`flex items-start gap-2 transition-all duration-300 ease-out ${
-                        isNotificationContentFading
-                          ? 'opacity-0 translate-y-2'
-                          : 'opacity-100 translate-y-0'
-                      }`}
-                      style={{ transitionDelay: `${index * 80}ms` }}
-                    >
-                      <span className="text-slate-400">•</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+
+                {displayedNotificationTab === 'admin' ? (
+                  <div className="mt-2 space-y-2 text-sm text-slate-700">
+                    <p className="text-xs text-slate-500">
+                      No new admin notifications at the moment.
+                    </p>
+                  </div>
+                ) : ordersLoading ? (
+                  <p className="mt-2 text-sm text-slate-600">Loading orders...</p>
+                ) : ordersError ? (
+                  <p className="mt-2 text-sm text-red-600">{ordersError}</p>
+                ) : (
+                  <div className="mt-2 space-y-2 text-sm text-slate-700">
+                    {pendingOrders.length === 0 ? (
+                      <p className="text-xs text-slate-500">
+                        No new order requests. You&apos;re all caught up!
+                      </p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {orders
+                          .filter((order) =>
+                            ['pending_seller', 'seller_accepted'].includes(order.status)
+                          )
+                          .slice(0, 12)
+                          .map((order) => (
+                            <li
+                              key={order.id}
+                              className="flex items-start justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2"
+                            >
+                              <div className="flex-1">
+                                <p className="text-xs font-semibold text-slate-800">
+                                  #{order.orderNumber} · {order.product?.name || 'Product'}
+                                </p>
+                                <p className="text-[11px] text-slate-600">
+                                  {order.user?.name || 'Customer'} requested {order.quantity} × ₹
+                                  {Number(order.unitPrice || 0).toLocaleString('en-IN')}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {order.status === 'pending_seller' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickAccept(order.id)}
+                                      disabled={notificationProcessingId === order.id}
+                                      className="rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+                                    >
+                                      {notificationProcessingId === order.id ? 'Accepting…' : 'Accept'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickReject(order.id)}
+                                      disabled={notificationProcessingId === order.id}
+                                      className="rounded-full border border-rose-300 px-3 py-1 text-[11px] font-semibold text-rose-600 bg-white hover:bg-rose-50 disabled:opacity-50"
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
+                                {order.status === 'seller_accepted' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setQrOrder(order)}
+                                    className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100"
+                                  >
+                                    <FaQrcode className="h-3 w-3" />
+                                    QR Code
+                                  </button>
+                                )}
+                                {/* Completed orders are moved to history and not shown here */}
+                              </div>
+                            </li>
+                          ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </section>
@@ -443,6 +597,39 @@ function Seller() {
           )}
         </div>
       </main>
+
+      <PasswordResetDialog
+        open={resetPasswordOpen}
+        onClose={() => setResetPasswordOpen(false)}
+        userType="seller"
+        identifier={user?.trade_id}
+        displayLabel="Seller"
+      />
+
+      {/* QR Code modal for accepted orders */}
+      {qrOrder && qrOrder.secureTokenSeller && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Seller QR Code</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Ask the outlet to scan this code when handing over the product to complete the order.
+            </p>
+            <div className="inline-block rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-3">
+              <QRCode value={qrOrder.secureTokenSeller} size={200} />
+            </div>
+            <p className="mb-4 text-xs font-mono text-slate-500 break-all">
+              Token: {qrOrder.secureTokenSeller}
+            </p>
+            <button
+              type="button"
+              onClick={() => setQrOrder(null)}
+              className="w-full rounded-full border border-slate-300 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

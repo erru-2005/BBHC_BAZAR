@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { FaArrowLeft, FaBox, FaClock, FaTruck, FaCircleXmark, FaDownload } from 'react-icons/fa6'
+import { FaArrowLeft, FaBox, FaClock, FaTruck, FaCircleXmark, FaDownload, FaCopy, FaQrcode } from 'react-icons/fa6'
 import { AnimatePresence, motion } from 'framer-motion'
 import QRCode from 'react-qr-code'
 import MainHeader from './components/MainHeader'
@@ -12,17 +12,17 @@ import { getOrders, cancelOrder } from '../../services/api'
 import { initSocket } from '../../utils/socket'
 
 const STATUS_STYLES = {
-  pending_seller: { label: 'Waiting for seller confirmation', className: 'bg-yellow-500/10 text-yellow-300 border border-yellow-500/40' },
-  seller_accepted: { label: 'Seller confirmed - Ready at outlet', className: 'bg-blue-500/10 text-blue-200 border border-blue-500/40' },
-  seller_rejected: { label: 'Rejected by seller', className: 'bg-red-500/10 text-red-300 border border-red-500/40' },
-  ready_for_pickup: { label: 'Ready for pickup', className: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/40' },
-  handed_over: { label: 'Handed over - Ready to collect', className: 'bg-green-500/10 text-green-300 border border-green-500/40' },
-  completed: { label: 'Completed', className: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/40' },
-  cancelled: { label: 'Cancelled', className: 'bg-gray-500/10 text-gray-300 border border-gray-500/40' },
-  cancelled_master: { label: 'Cancelled by admin', className: 'bg-red-500/10 text-red-300 border border-red-500/40' },
-  pending: { label: 'Pending', className: 'bg-yellow-500/10 text-yellow-300 border border-yellow-500/40' },
-  accepted: { label: 'Accepted', className: 'bg-blue-500/10 text-blue-200 border border-blue-500/40' },
-  rejected: { label: 'Rejected', className: 'bg-red-500/10 text-red-300 border border-red-500/40' }
+  pending_seller: { label: 'Pending', className: 'bg-red-100 text-red-800 border border-red-500' },
+  seller_accepted: { label: 'Accepted', className: 'bg-blue-100 text-blue-800 border border-blue-500' },
+  seller_rejected: { label: 'Rejected', className: 'bg-red-100 text-red-800 border border-red-500' },
+  ready_for_pickup: { label: 'Ready', className: 'bg-green-100 text-green-800 border border-green-500' },
+  handed_over: { label: 'Handed Over', className: 'bg-yellow-100 text-yellow-800 border border-yellow-500' },
+  completed: { label: 'Completed', className: 'bg-green-100 text-green-800 border border-green-500' },
+  cancelled: { label: 'Cancelled', className: 'bg-gray-100 text-gray-800 border border-gray-500' },
+  cancelled_master: { label: 'Cancelled', className: 'bg-red-100 text-red-800 border border-red-500' },
+  pending: { label: 'Pending', className: 'bg-red-100 text-red-800 border border-red-500' },
+  accepted: { label: 'Accepted', className: 'bg-blue-100 text-blue-800 border border-blue-500' },
+  rejected: { label: 'Rejected', className: 'bg-red-100 text-red-800 border border-red-500' }
 }
 
 function UserOrders() {
@@ -36,6 +36,7 @@ function UserOrders() {
   const [activeOrder, setActiveOrder] = useState(null)
   const qrPreviewRef = useRef(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [copiedToken, setCopiedToken] = useState(null)
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -103,6 +104,56 @@ function UserOrders() {
       setError(err.message)
     } finally {
       setCancelingId(null)
+    }
+  }
+
+  const copyToken = async (token) => {
+    if (!token) return
+    
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(token)
+        setCopiedToken(token)
+        setTimeout(() => setCopiedToken(null), 2000)
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea')
+        textArea.value = token
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-999999px'
+        textArea.style.top = '-999999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        try {
+          document.execCommand('copy')
+          setCopiedToken(token)
+          setTimeout(() => setCopiedToken(null), 2000)
+        } catch (err) {
+          console.error('Fallback copy failed:', err)
+          alert('Failed to copy token. Please copy manually: ' + token)
+        }
+        document.body.removeChild(textArea)
+      }
+    } catch (err) {
+      console.error('Failed to copy token:', err)
+      // Fallback: show token in alert
+      const textArea = document.createElement('textarea')
+      textArea.value = token
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-999999px'
+      textArea.style.top = '-999999px'
+      document.body.appendChild(textArea)
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        setCopiedToken(token)
+        setTimeout(() => setCopiedToken(null), 2000)
+      } catch (fallbackErr) {
+        alert('Failed to copy token. Please copy manually: ' + token)
+      }
+      document.body.removeChild(textArea)
     }
   }
 
@@ -178,66 +229,105 @@ function UserOrders() {
     const canCancel = order.status === 'pending_seller'
     const hasQR = order.status === 'seller_accepted' || order.status === 'handed_over' || order.status === 'ready_for_pickup'
     const qrValue = order.secureTokenUser || order.qrCodeData || order.qr_code_data || ''
+    const token = order.secureTokenUser || order.secure_token_user || ''
 
     return (
       <div
         key={order.id}
-        className="flex flex-col gap-4 bg-white/5 border border-white/10 rounded-3xl p-5 sm:p-6 cursor-pointer"
-        onClick={() => {
-          if (order.status !== 'cancelled' && order.status !== 'cancelled_master' && order.status !== 'seller_rejected') {
-            setActiveOrder(order)
-          }
-        }}
+        className="flex flex-col gap-3 bg-gray-50 border border-black"
       >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase text-white/50 tracking-widest">Order #{order.orderNumber}</p>
-            <p className="text-sm text-white/60 flex items-center gap-2 mt-1">
-              <FaClock className="w-4 h-4 text-white/40" />
-              {createdAt ? new Date(createdAt).toLocaleString() : '—'}
+        <div className="flex items-start justify-between gap-3 p-4 border-b border-black">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs uppercase text-black tracking-widest truncate">Order #{order.orderNumber}</p>
+            <p className="text-xs text-black flex items-center gap-1 mt-1">
+              <FaClock className="w-3 h-3" />
+              {createdAt ? new Date(createdAt).toLocaleString('en-IN', { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              }) : '—'}
             </p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.className}`}>
+          <span className={`px-2 py-1 text-xs font-semibold whitespace-nowrap ${status.className}`}>
             {status.label}
           </span>
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex gap-3 p-4">
           <img
             src={productImg}
             alt={productName}
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border border-white/10"
+            className="w-16 h-16 object-cover border border-black flex-shrink-0"
           />
-          <div className="flex-1 space-y-2">
-            <h3 className="text-lg font-semibold text-white">{productName}</h3>
-            <p className="text-sm text-white/60">Quantity: {order.quantity}</p>
-            <p className="text-sm text-white">
+          <div className="flex-1 min-w-0 space-y-1">
+            <h3 className="text-sm font-semibold text-black truncate">{productName}</h3>
+            <p className="text-xs text-black">Quantity: {order.quantity}</p>
+            <p className="text-sm text-black">
               Total: <span className="font-bold">₹{totalAmount}</span>
             </p>
-            <p className="text-xs text-white/50 flex items-center gap-2">
-              <FaTruck className="w-4 h-4" />
-              Pickup: {order.pickupLocation || order.pickup_location || 'BBHCBazaar outlet'}
+            <p className="text-xs text-black flex items-center gap-1">
+              <FaTruck className="w-3 h-3" />
+              <span className="truncate">{order.pickupLocation || order.pickup_location || 'BBHCBazaar outlet'}</span>
             </p>
-            {hasQR && qrValue && (
-              <p className="text-xs text-emerald-300 font-mono">
-                Token: {order.secureTokenUser || 'N/A'}
-              </p>
-            )}
           </div>
         </div>
 
+        {token && (
+          <div className="px-4 pb-3 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-black font-medium">Token:</span>
+              <div className="flex-1 min-w-0 flex items-center gap-2 bg-white border border-gray-300 px-2 py-1">
+                <p className="text-xs font-mono text-black break-all flex-1">{token}</p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    copyToken(token)
+                  }}
+                  className="flex-shrink-0 p-1 hover:bg-black hover:text-white transition border-0 bg-transparent cursor-pointer"
+                  title="Copy token"
+                >
+                  <FaCopy className="w-3 h-3" />
+                </button>
+                {hasQR && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setActiveOrder(order)
+                    }}
+                    className="flex-shrink-0 p-1 hover:bg-black hover:text-white transition border-0 bg-transparent cursor-pointer"
+                    title="View QR Code"
+                  >
+                    <FaQrcode className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {copiedToken === token && (
+              <p className="text-xs text-green-600 font-medium">✓ Token copied!</p>
+            )}
+          </div>
+        )}
+
         {canCancel && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              handleCancelOrder(order.id)
-            }}
-            disabled={cancelingId === order.id}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-400/40 bg-red-500/10 text-red-200 font-semibold py-2.5 hover:bg-red-500/20 transition disabled:opacity-50"
-          >
-            <FaCircleXmark className="w-4 h-4" />
-            {cancelingId === order.id ? 'Cancelling...' : 'Cancel Order'}
-          </button>
+          <div className="px-4 pb-4">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleCancelOrder(order.id)
+              }}
+              disabled={cancelingId === order.id}
+              className="w-full inline-flex items-center justify-center gap-2 border border-red-500 bg-red-50 text-red-700 font-semibold py-2 hover:bg-red-100 transition disabled:opacity-50"
+            >
+              <FaCircleXmark className="w-4 h-4" />
+              {cancelingId === order.id ? 'Cancelling...' : 'Cancel Order'}
+            </button>
+          </div>
         )}
       </div>
     )
@@ -246,7 +336,7 @@ function UserOrders() {
   const showEmptyState = !loading && orders.length === 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#131921] via-[#1a2332] to-[#131921] p-4 sm:p-6 pb-24 lg:pb-6">
+    <div className="min-h-screen bg-white pb-24 lg:pb-6">
       <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
         <MobileSearchBar />
       </MainHeader>
@@ -255,46 +345,40 @@ function UserOrders() {
         open={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
       />
-      <div className="max-w-4xl mx-auto space-y-6 text-white">
-        <button
-          onClick={() => navigate('/user/profile')}
-          className="inline-flex items-center gap-2 text-white/70 hover:text-white transition"
-        >
-          <FaArrowLeft />
-          Back to Profile
-        </button>
+      <div className="space-y-4 text-black">
+        
 
-        <div className="bg-white/10 border border-white/15 rounded-3xl p-6 sm:p-8 backdrop-blur-lg shadow-2xl space-y-6">
+        <div className="border-b border-black p-4 space-y-3">
           <div className="text-center space-y-2">
-            <FaBox className="w-12 h-12 text-amber-400 mx-auto" />
-            <h1 className="text-2xl sm:text-3xl font-bold">Your Orders</h1>
-            <p className="text-white/70">
+            <FaBox className="w-10 h-10 text-black mx-auto" />
+            <h1 className="text-xl font-bold">Your Orders</h1>
+            <p className="text-sm text-black">
               Hi {user?.first_name || 'there'}, track your purchases and pickup instructions here.
             </p>
           </div>
 
           {error && (
-            <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-200">
+            <div className="border border-red-500 bg-red-50 p-3 text-sm text-red-700">
               {error}
             </div>
           )}
 
           {loading ? (
-            <div className="text-center text-white/70 py-10">Loading your orders...</div>
+            <div className="text-center text-black py-10">Loading your orders...</div>
           ) : showEmptyState ? (
-            <div className="bg-black/20 rounded-2xl border border-white/10 p-8 text-center space-y-4">
-              <p className="text-white/70">
+            <div className="border border-black bg-gray-50 p-6 text-center space-y-4">
+              <p className="text-black">
                 Once you place an order, it will appear here with real-time status updates.
               </p>
               <button
                 onClick={() => navigate('/')}
-                className="px-6 py-3 rounded-2xl bg-amber-400/90 text-black font-semibold hover:bg-amber-300 transition"
+                className="px-6 py-3 border border-black bg-white text-black font-semibold hover:bg-black hover:text-white transition"
               >
                 Start Shopping
               </button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {orders.map(renderOrderCard)}
             </div>
           )}
@@ -316,55 +400,72 @@ function UserOrders() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md text-center space-y-4 shadow-2xl"
+              className="bg-white border border-black w-full max-w-md text-center space-y-4 p-6"
             >
-              <h3 className="text-xl font-semibold text-gray-900">Order Details</h3>
-              <p className="text-sm text-gray-600">{getStatusMessage(activeOrder)}</p>
+              <h3 className="text-lg font-semibold text-black">Order Details</h3>
+              <p className="text-sm text-black">{getStatusMessage(activeOrder)}</p>
               
               {(activeOrder.status === 'cancelled' || activeOrder.status === 'cancelled_master' || activeOrder.status === 'seller_rejected') ? (
-                <p className="text-sm text-red-500">
+                <p className="text-sm text-black">
                   This order is no longer active. QR code is not available.
                 </p>
               ) : (activeOrder.status === 'pending_seller') ? (
-                <p className="text-sm text-amber-600">
+                <p className="text-sm text-black">
                   Waiting for seller to accept your order. QR code will be available once accepted.
                 </p>
               ) : (activeOrder.secureTokenUser || activeOrder.qrCodeData) ? (
                 <>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-black">
                     Show this code at the BBHCBazaar outlet to complete payment and collect your product.
                   </p>
-                  <div className="inline-block bg-gray-50 border border-gray-200 rounded-2xl p-4" ref={qrPreviewRef}>
+                  <div className="inline-block bg-white border border-black p-4" ref={qrPreviewRef}>
                     <QRCode
                       value={activeOrder.secureTokenUser || activeOrder.qrCodeData || activeOrder.qr_code_data || ''}
                       size={200}
                     />
                   </div>
                   {activeOrder.secureTokenUser && (
-                    <p className="text-xs text-gray-500 font-mono">
-                      Token: {activeOrder.secureTokenUser}
-                    </p>
+                    <div className="flex items-center gap-2 justify-center flex-wrap">
+                      <p className="text-xs text-black font-mono break-all">
+                        Token: {activeOrder.secureTokenUser}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          copyToken(activeOrder.secureTokenUser)
+                        }}
+                        className="p-1 border border-black hover:bg-black hover:text-white transition bg-white cursor-pointer"
+                        title="Copy token"
+                      >
+                        <FaCopy className="w-3 h-3" />
+                      </button>
+                      {copiedToken === activeOrder.secureTokenUser && (
+                        <span className="text-xs text-green-600 font-medium">✓ Copied!</span>
+                      )}
+                    </div>
                   )}
                   <button
                     onClick={downloadActiveOrderQR}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-gray-900 text-white font-semibold py-3 hover:bg-black transition"
+                    className="w-full inline-flex items-center justify-center gap-2 border border-black bg-white text-black font-semibold py-3 hover:bg-black hover:text-white transition"
                   >
                     <FaDownload className="w-4 h-4" />
                     Download QR
                   </button>
                 </>
               ) : (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-black">
                   QR code will be available once the seller accepts your order.
                 </p>
               )}
               
-              <p className="text-xs text-gray-500 uppercase tracking-widest">
+              <p className="text-xs text-black uppercase tracking-widest">
                 Order #{activeOrder.orderNumber}
               </p>
               <button
                 onClick={() => setActiveOrder(null)}
-                className="w-full rounded-full border border-gray-300 text-gray-700 font-semibold py-3 hover:bg-gray-50 transition"
+                className="w-full border border-black bg-white text-black font-semibold py-3 hover:bg-black hover:text-white transition"
               >
                 Close
               </button>

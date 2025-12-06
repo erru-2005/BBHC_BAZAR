@@ -38,10 +38,18 @@ class Config:
     MONGODB_PORT = int(os.environ.get('MONGODB_PORT', 27017))
     
     # CORS Configuration
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
+    _cors_origins_raw = os.environ.get('CORS_ORIGINS', '*')
+    if _cors_origins_raw.strip() == '*':
+        CORS_ORIGINS = '*'
+    else:
+        CORS_ORIGINS = [
+            origin.strip()
+            for origin in _cors_origins_raw.split(',')
+            if origin.strip()
+        ]
     
     # Socket.IO Configuration
-    SOCKETIO_CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
+    SOCKETIO_CORS_ALLOWED_ORIGINS = CORS_ORIGINS
     SOCKETIO_ASYNC_MODE = 'threading'  # Changed from 'eventlet' for Python 3.13 compatibility
     
     # JWT Configuration

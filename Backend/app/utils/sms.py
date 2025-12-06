@@ -104,6 +104,43 @@ class SMSService:
                 return False, f"Twilio phone number not valid for SMS. Please check your TWILIO_PHONE_NUMBER. Error: {error_msg}"
             else:
                 return False, f"Error sending SMS to {phone_number}: {error_type} - {error_msg}"
+
+    @staticmethod
+    def send_message(phone_number, message_body):
+        """
+        Send a custom SMS using Twilio.
+        Args:
+            phone_number (str): Recipient phone number
+            message_body (str): Text message body
+        Returns:
+            tuple: (success: bool, message: str)
+        """
+        try:
+            account_sid = current_app.config.get('TWILIO_ACCOUNT_SID')
+            auth_token = current_app.config.get('TWILIO_AUTH_TOKEN')
+            twilio_phone = current_app.config.get('TWILIO_PHONE_NUMBER')
+
+            if not account_sid or not auth_token or not twilio_phone:
+                return False, "Twilio credentials not configured."
+
+            normalized_phone = SMSService.normalize_phone_number(phone_number)
+            if not normalized_phone:
+                return False, "Invalid phone number format"
+
+            client = Client(account_sid, auth_token)
+            message = client.messages.create(
+                body=message_body,
+                from_=twilio_phone,
+                to=normalized_phone
+            )
+
+            if message.sid:
+                return True, f"SMS sent successfully. Message SID: {message.sid}"
+            return False, "Failed to send SMS"
+        except Exception as e:
+            error_msg = getattr(e, 'msg', None) or getattr(e, 'message', None) or str(e)
+            error_type = type(e).__name__
+            return False, f"Error sending SMS to {phone_number}: {error_type} - {error_msg}"
     
     @staticmethod
     def is_configured():

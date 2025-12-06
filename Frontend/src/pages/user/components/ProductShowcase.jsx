@@ -7,6 +7,7 @@ import { FaHeart, FaStar, FaStarHalfAlt, FaShoppingBag, FaMinus, FaPlus } from '
 import { motionVariants, transitions } from '../../../utils/animations'
 import { addToBag, getBag, updateBagItem, removeFromBag, addToWishlist, removeFromWishlist, getProductRatingStats } from '../../../services/api'
 import RatingBadge from '../../../components/RatingBadge'
+import { getSocket, initSocket } from '../../../utils/socket'
 
 const getImageSrc = (image) => image?.preview || image?.data_url || image?.url || image || null
 
@@ -17,7 +18,7 @@ function ProductShowcase({ products = [], loading, error }) {
   const [ratingStatsMap, setRatingStatsMap] = useState({})
   const navigate = useNavigate()
   const dispatch = useDispatch()
-  const { isAuthenticated, userType } = useSelector((state) => state.auth)
+  const { isAuthenticated, userType, token } = useSelector((state) => state.auth)
   const { home } = useSelector((state) => state.data)
 
   const wishlistSet = useMemo(() => {
@@ -91,6 +92,36 @@ function ProductShowcase({ products = [], loading, error }) {
 
     loadStats()
   }, [products])
+
+  // Listen for real-time rating updates
+  useEffect(() => {
+    let socket = getSocket()
+    
+    // Initialize socket if not already connected
+    if (!socket || !socket.connected) {
+      socket = initSocket(token)
+    }
+    
+    if (!socket) return
+
+    const handleRatingUpdate = (data) => {
+      if (data && data.product_id && data.rating_stats) {
+        const productId = String(data.product_id)
+        setRatingStatsMap((prev) => ({
+          ...prev,
+          [productId]: data.rating_stats
+        }))
+      }
+    }
+
+    socket.on('rating_updated', handleRatingUpdate)
+
+    return () => {
+      if (socket) {
+        socket.off('rating_updated', handleRatingUpdate)
+      }
+    }
+  }, [token])
 
   const toggleLike = async (event, productId) => {
     event.preventDefault()
@@ -183,11 +214,12 @@ function ProductShowcase({ products = [], loading, error }) {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {products.map((product, index) => {
           const thumbnail = product.thumbnail || product.media?.thumbnail
-          const sellingPrice = Number(product.selling_price || product.price || product.max_price || 0)
-          const maxPrice = Number(product.max_price || product.selling_price || product.price || sellingPrice)
+          // Use total_selling_price (with commission) if available, otherwise fall back to selling_price
+          const displayPrice = Number(product.total_selling_price || product.selling_price || product.price || product.max_price || 0)
+          const maxPrice = Number(product.max_price || product.selling_price || product.price || displayPrice)
           const discountPercentage =
-            sellingPrice && maxPrice && maxPrice > sellingPrice
-              ? Math.round(((maxPrice - sellingPrice) / maxPrice) * 100)
+            displayPrice && maxPrice && maxPrice > displayPrice
+              ? Math.round(((maxPrice - displayPrice) / maxPrice) * 100)
               : null
           const productId = product.id || product._id || `${product.product_name}-${index}`
           const productIdStr = String(productId)
@@ -248,8 +280,8 @@ function ProductShowcase({ products = [], loading, error }) {
               
                 <h3 className="text-base font-semibold text-gray-900 line-clamp-2 min-h-[48px]">{product.product_name}</h3>
                 <div className="flex items-center gap-2">
-                  <p className="text-lg font-black text-gray-900">₹{sellingPrice.toLocaleString('en-IN')}</p>
-                  {maxPrice > sellingPrice && (
+                  <p className="text-lg font-black text-gray-900">₹{displayPrice.toLocaleString('en-IN')}</p>
+                  {maxPrice > displayPrice && (
                     <span className="text-xs text-gray-500 line-through">₹{maxPrice.toLocaleString('en-IN')}</span>
                   )}
                   {discountPercentage && (

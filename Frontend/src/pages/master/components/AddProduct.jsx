@@ -2,12 +2,12 @@
  * Add Product Component
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createCategory, createProduct, getCategories, getSellers, updateProduct } from '../../../services/api'
+import { createCategory, createProduct, getCategories, getSellers, updateProduct, getCategoryCommissionRates } from '../../../services/api'
 
 const INITIAL_POINTS = ['', '', '']
 
 function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancelEdit = () => {} }) {
-  const [form, setForm] = useState({ productName: '', specification: '', sellingPrice: '', maxPrice: '', quantity: '' })
+  const [form, setForm] = useState({ productName: '', specification: '', sellingPrice: '', maxPrice: '', quantity: '', commissionRate: '' })
   const [media, setMedia] = useState({ thumbnail: null, gallery: [] })
   const [points, setPoints] = useState(INITIAL_POINTS)
   const [status, setStatus] = useState({ type: null, message: '' })
@@ -19,6 +19,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryStatus, setCategoryStatus] = useState({ type: null, message: '' })
+  const [categoryCommissionRates, setCategoryCommissionRates] = useState({})
+  const [appliedCategoryCommission, setAppliedCategoryCommission] = useState(null)
   const statusRef = useRef(null)
 
   const selectedSeller = useMemo(() => {
@@ -31,16 +33,64 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   }, [selectedSellerId, availableSellers])
 
   const resetForm = () => {
-    setForm({ productName: '', specification: '', sellingPrice: '', maxPrice: '', quantity: '' })
+    setForm({ productName: '', specification: '', sellingPrice: '', maxPrice: '', quantity: '', commissionRate: '' })
     setPoints(INITIAL_POINTS)
     setMedia({ thumbnail: null, gallery: [] })
     setSelectedCategory('')
     setSelectedSellerId('')
   }
+
+  // Auto-apply category commission when category is selected
+  useEffect(() => {
+    if (selectedCategory && categoryCommissionRates[selectedCategory] && !form.commissionRate) {
+      // Only auto-apply if no product-specific commission is set (priority: product > category)
+      const categoryRate = categoryCommissionRates[selectedCategory]
+      setForm(prev => ({ ...prev, commissionRate: String(categoryRate) }))
+      setAppliedCategoryCommission(selectedCategory)
+    } else if (!selectedCategory || !categoryCommissionRates[selectedCategory]) {
+      setAppliedCategoryCommission(null)
+    }
+  }, [selectedCategory, categoryCommissionRates])
+
+  // Calculate total selling price with commission
+  // Priority: product-specific commission > category commission
+  const calculateTotalSellingPrice = () => {
+    const sellingPrice = parseFloat(form.sellingPrice) || 0
+    if (sellingPrice <= 0) return ''
+    
+    // Priority 1: Product-specific commission
+    let commissionRate = parseFloat(form.commissionRate) || 0
+    
+    // Priority 2: Category commission (only if no product-specific commission)
+    if (commissionRate === 0 && selectedCategory && categoryCommissionRates[selectedCategory]) {
+      commissionRate = parseFloat(categoryCommissionRates[selectedCategory]) || 0
+    }
+    
+    if (commissionRate > 0) {
+      const commissionAmount = (sellingPrice * commissionRate) / 100
+      return (sellingPrice + commissionAmount).toFixed(2)
+    }
+    return sellingPrice.toFixed(2)
+  }
+
+  // Get the effective commission rate being used
+  const getEffectiveCommissionRate = () => {
+    const productRate = parseFloat(form.commissionRate) || 0
+    if (productRate > 0) return { rate: productRate, source: 'product' }
+    if (selectedCategory && categoryCommissionRates[selectedCategory]) {
+      return { rate: parseFloat(categoryCommissionRates[selectedCategory]) || 0, source: 'category' }
+    }
+    return { rate: 0, source: 'none' }
+  }
   const handleChange = (e) => {
     const { name, value } = e.target
     setForm((prev) => ({ ...prev, [name]: value }))
     setStatus({ type: null, message: '' })
+    
+    // If product-specific commission is entered, clear category commission indicator
+    if (name === 'commissionRate' && value) {
+      setAppliedCategoryCommission(null)
+    }
   }
 
   const handlePointChange = (index, value) => {
@@ -146,9 +196,14 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   useEffect(() => {
     const loadCategoriesAndSellers = async () => {
       try {
-        const [categories, sellers] = await Promise.all([getCategories(), getSellers()])
+        const [categories, sellers, commissionRates] = await Promise.all([
+          getCategories(),
+          getSellers(),
+          getCategoryCommissionRates().catch(() => ({})) // Fallback to empty object if fails
+        ])
         setAvailableCategories(categories)
         setAvailableSellers(sellers)
+        setCategoryCommissionRates(commissionRates)
       } catch (error) {
         console.error('Failed to load categories or sellers', error)
       }
@@ -170,7 +225,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
           editingProduct.stock ||
           editingProduct.available_quantity ||
           editingProduct.inventory ||
-          ''
+          '',
+        commissionRate: editingProduct.commission_rate || editingProduct.commissionRate || ''
       })
       setPoints(
         Array.isArray(editingProduct.points) && editingProduct.points.length
@@ -286,6 +342,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       selling_price: selling,
       max_price: max,
       quantity,
+      commission_rate: form.commissionRate ? parseFloat(form.commissionRate) : null,
       categories: selectedCategory ? [selectedCategory] : [],
       created_by: selectedSeller.trade_id || `${selectedSeller.first_name || ''} ${selectedSeller.last_name || ''}`.trim() || selectedSeller.email,
       created_by_user_id: selectedSeller.id || selectedSeller._id || selectedSeller.trade_id,
@@ -540,6 +597,55 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Commission Rate (%) <span className="text-xs text-gray-500">(optional)</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                name="commissionRate"
+                value={form.commissionRate}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+                placeholder="e.g., 5.5"
+              />
+              {appliedCategoryCommission && !form.commissionRate && (
+                <p className="text-xs text-blue-600 mt-1">
+                  Category "{appliedCategoryCommission}" commission ({categoryCommissionRates[appliedCategoryCommission]}%) applied
+                </p>
+              )}
+              {form.commissionRate && (
+                <p className="text-xs text-green-600 mt-1">
+                  Product-specific commission (overrides category)
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">Commission is calculated on selling price. Product commission has priority over category.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Total Selling Price (₹)
+              </label>
+              <div className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                {calculateTotalSellingPrice() ? `₹${Number(calculateTotalSellingPrice()).toLocaleString('en-IN')}` : 'Enter selling price'}
+              </div>
+              {(() => {
+                const effective = getEffectiveCommissionRate()
+                if (effective.rate > 0) {
+                  return (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Includes {effective.rate}% commission ({effective.source === 'product' ? 'product-specific' : 'category'})
+                    </p>
+                  )
+                }
+                return <p className="text-xs text-gray-500 mt-1">Selling price + Commission</p>
+              })()}
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Specification <span className="text-red-500">*</span>
@@ -557,18 +663,25 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Category <span className="text-xs text-gray-500">(optional)</span>
+              Category <span className="text-xs text-gray-500">(optional - commission auto-applied if set)</span>
             </label>
             <div className="flex gap-3">
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value)
+                  // Clear product-specific commission when category changes to allow category commission
+                  if (e.target.value && categoryCommissionRates[e.target.value]) {
+                    setForm(prev => ({ ...prev, commissionRate: '' }))
+                  }
+                }}
                 className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white"
               >
                 <option value="">Select category</option>
                 {availableCategories.map((category) => (
                   <option key={category.id} value={category.name}>
                     {category.name}
+                    {categoryCommissionRates[category.name] ? ` (${categoryCommissionRates[category.name]}% commission)` : ''}
                   </option>
                 ))}
               </select>

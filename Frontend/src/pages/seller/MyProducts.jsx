@@ -83,15 +83,43 @@ function SellerMyProducts() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#EAF3FF] via-white to-[#F4ECFF] text-slate-900">
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-0">
-        <button
-          onClick={() => navigate('/seller/dashboard')}
-          className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-black transition-colors"
-        >
-          <FiArrowLeft className="h-4 w-4" />
-          Back to dashboard
-        </button>
+      {/* Top header consistent with seller dashboard */}
+      <header className="sticky top-0 z-20 border-b border-slate-900/80 bg-black text-white shadow-md shadow-black/60">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-4 sm:px-4 sm:py-5">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/seller/dashboard')}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white shadow-sm shadow-black/40 transition hover:-translate-y-0.5 hover:scale-105 hover:border-white/40 hover:bg-white/10"
+            >
+              <FiArrowLeft className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="inline-flex items-center gap-1 rounded-full bg-white px-3.5 py-1.5 shadow-[0_15px_32px_rgba(0,0,0,0.3)] sm:gap-1.5 sm:px-4 sm:py-2">
+                <span className="text-sm font-extrabold tracking-[0.08em] text-black sm:text-base">
+                  BBHC
+                </span>
+                <span className="text-sm font-semibold tracking-wide text-pink-500 sm:text-base">
+                  Bazaar
+                </span>
+              </div>
+              <p className="hidden text-[11px] uppercase tracking-[0.32em] text-slate-300 sm:inline">
+                Seller · My Products
+              </p>
+            </div>
+          </div>
+          <span className="hidden text-xs text-slate-100 sm:inline sm:text-sm">
+            {user?.trade_id && (
+              <>
+                Seller&nbsp;
+                <span className="font-semibold text-white">{user.trade_id}</span>
+              </>
+            )}
+          </span>
+        </div>
+      </header>
 
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-0">
         <div className="flex flex-col gap-3 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">My Products</h1>
