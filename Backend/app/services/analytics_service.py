@@ -11,6 +11,126 @@ class AnalyticsService:
     """Service for computing analytics data"""
     
     @staticmethod
+    def _get_seller_info(seller_id=None, seller_trade_id=None, created_by_user_id=None, product_doc=None, rating_doc=None):
+        """
+        Comprehensive helper to get seller information from multiple sources.
+        Returns: {'name': 'FirstName LastName', 'trade_id': 'TRADE_ID', 'display_name': 'FirstName LastName (TRADE_ID)'}
+        """
+        seller_name = None
+        trade_id = None
+        
+        # Priority 1: Use seller_id from rating/order if available
+        if seller_id:
+            try:
+                seller_id_obj = ObjectId(seller_id) if isinstance(seller_id, str) else seller_id
+                seller = mongo.db.sellers.find_one({'_id': seller_id_obj})
+                if seller:
+                    first_name = seller.get('first_name', '')
+                    last_name = seller.get('last_name', '')
+                    trade_id = seller.get('trade_id', '')
+                    if first_name or last_name:
+                        seller_name = f"{first_name} {last_name}".strip()
+                    else:
+                        seller_name = trade_id or 'Unknown'
+            except Exception:
+                pass
+        
+        # Priority 2: Use seller_trade_id from product
+        if (not seller_name or seller_name == 'Unknown') and seller_trade_id:
+            seller = mongo.db.sellers.find_one({'trade_id': seller_trade_id})
+            if seller:
+                first_name = seller.get('first_name', '')
+                last_name = seller.get('last_name', '')
+                trade_id = seller.get('trade_id', '')
+                if first_name or last_name:
+                    seller_name = f"{first_name} {last_name}".strip()
+                else:
+                    seller_name = trade_id or 'Unknown'
+        
+        # Priority 3: Use created_by_user_id from product (might be seller ID)
+        if (not seller_name or seller_name == 'Unknown') and created_by_user_id:
+            try:
+                user_id_obj = ObjectId(created_by_user_id) if isinstance(created_by_user_id, str) else created_by_user_id
+                seller = mongo.db.sellers.find_one({'_id': user_id_obj})
+                if seller:
+                    first_name = seller.get('first_name', '')
+                    last_name = seller.get('last_name', '')
+                    trade_id = seller.get('trade_id', '')
+                    if first_name or last_name:
+                        seller_name = f"{first_name} {last_name}".strip()
+                    else:
+                        seller_name = trade_id or 'Unknown'
+            except Exception:
+                pass
+        
+        # Priority 4: Check product document for seller_trade_id or created_by_user_id
+        if (not seller_name or seller_name == 'Unknown') and product_doc:
+            product_trade_id = product_doc.get('seller_trade_id')
+            if product_trade_id:
+                seller = mongo.db.sellers.find_one({'trade_id': product_trade_id})
+                if seller:
+                    first_name = seller.get('first_name', '')
+                    last_name = seller.get('last_name', '')
+                    trade_id = seller.get('trade_id', '')
+                    if first_name or last_name:
+                        seller_name = f"{first_name} {last_name}".strip()
+                    else:
+                        seller_name = trade_id or 'Unknown'
+            
+            if (not seller_name or seller_name == 'Unknown') and not trade_id:
+                product_user_id = product_doc.get('created_by_user_id')
+                if product_user_id:
+                    try:
+                        user_id_obj = ObjectId(product_user_id) if isinstance(product_user_id, str) else product_user_id
+                        seller = mongo.db.sellers.find_one({'_id': user_id_obj})
+                        if seller:
+                            first_name = seller.get('first_name', '')
+                            last_name = seller.get('last_name', '')
+                            trade_id = seller.get('trade_id', '')
+                            if first_name or last_name:
+                                seller_name = f"{first_name} {last_name}".strip()
+                            else:
+                                seller_name = trade_id or 'Unknown'
+                    except Exception:
+                        pass
+        
+        # Priority 5: Check rating document for seller_id
+        if (not seller_name or seller_name == 'Unknown') and rating_doc:
+            rating_seller_id = rating_doc.get('seller_id')
+            if rating_seller_id:
+                try:
+                    seller_id_obj = ObjectId(rating_seller_id) if isinstance(rating_seller_id, str) else rating_seller_id
+                    seller = mongo.db.sellers.find_one({'_id': seller_id_obj})
+                    if seller:
+                        first_name = seller.get('first_name', '')
+                        last_name = seller.get('last_name', '')
+                        trade_id = seller.get('trade_id', '')
+                        if first_name or last_name:
+                            seller_name = f"{first_name} {last_name}".strip()
+                        else:
+                            seller_name = trade_id or 'Unknown'
+                except Exception:
+                    pass
+        
+        # Final fallback
+        if not seller_name or seller_name == 'Unknown':
+            seller_name = trade_id or 'Unknown'
+        
+        # Create display name with trade_id
+        if trade_id and seller_name != trade_id and seller_name != 'Unknown':
+            display_name = f"{seller_name} ({trade_id})"
+        elif trade_id:
+            display_name = trade_id
+        else:
+            display_name = seller_name
+        
+        return {
+            'name': seller_name,
+            'trade_id': trade_id or '',
+            'display_name': display_name
+        }
+    
+    @staticmethod
     def get_stats():
         """Get overall statistics"""
         try:
@@ -62,7 +182,7 @@ class AnalyticsService:
     
     @staticmethod
     def get_sales_by_category(period='monthly'):
-        """Get sales by category - count completed orders by category"""
+        """Get sales by category - calculate total revenue by category"""
         try:
             date_filter = AnalyticsService._get_date_filter(period)
             
@@ -76,10 +196,21 @@ class AnalyticsService:
                 'created_at': date_filter
             }))
             
-            # Count orders by category
-            category_counts = defaultdict(int)
+            # Calculate revenue by category (not just count)
+            category_sales = defaultdict(float)
+            category_counts = defaultdict(int)  # Also track order count for reference
             
             for order in completed_orders:
+                # Get order total amount
+                order_total = order.get('total_amount') or order.get('totalAmount') or order.get('order_total') or 0
+                
+                # If total_amount is 0, try to calculate from quantity and unit_price
+                if order_total == 0:
+                    quantity = order.get('quantity', 0)
+                    unit_price = order.get('unit_price') or order.get('unitPrice', 0)
+                    if quantity > 0 and unit_price > 0:
+                        order_total = quantity * unit_price
+                
                 # Get category from product_snapshot or product
                 product_snapshot = order.get('product_snapshot', {})
                 categories_list = product_snapshot.get('categories', [])
@@ -106,23 +237,29 @@ class AnalyticsService:
                     else:
                         category_name = 'Uncategorized'
                 
+                # Add revenue to category
+                category_sales[category_name] += order_total
                 category_counts[category_name] += 1
             
-            # Create result with all categories (even if count is 0)
+            # Create result with all categories (even if sales is 0)
             result = []
             for cat_name in category_names:
                 result.append({
                     'category': cat_name,
                     'name': cat_name,
-                    'value': category_counts.get(cat_name, 0)
+                    'value': round(category_sales.get(cat_name, 0), 2),  # Revenue amount
+                    'sales': round(category_sales.get(cat_name, 0), 2),  # Also include as 'sales' for compatibility
+                    'orders': category_counts.get(cat_name, 0)  # Order count for reference
                 })
             
-            # Sort by count descending
+            # Sort by revenue descending
             result.sort(key=lambda x: x['value'], reverse=True)
             
             return result
         except Exception as e:
             print(f"Error computing sales by category: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     @staticmethod
@@ -303,43 +440,13 @@ class AnalyticsService:
                 # Get stock quantity - check multiple possible field names
                 stock = product.get('quantity') or product.get('stock_quantity') or product.get('inventory') or 0
                 
-                # Get seller name - first try direct field, then look up from sellers collection
-                seller_name = product.get('seller_name')
-                
-                # If seller_name is not available or is empty/Unknown, try to get it from sellers collection
-                if not seller_name or seller_name == 'Unknown' or seller_name.strip() == '':
-                    seller_trade_id = product.get('seller_trade_id')
-                    created_by_user_id = product.get('created_by_user_id')
-                    
-                    # Try to find seller by trade_id first
-                    if seller_trade_id:
-                        seller = mongo.db.sellers.find_one({'trade_id': seller_trade_id})
-                        if seller:
-                            seller_name = seller.get('name') or seller.get('seller_name') or 'Unknown'
-                    
-                    # If still not found, try by created_by_user_id (could be string or ObjectId)
-                    if (not seller_name or seller_name == 'Unknown' or seller_name.strip() == '') and created_by_user_id:
-                        try:
-                            # Try as ObjectId first
-                            if isinstance(created_by_user_id, str):
-                                seller = mongo.db.sellers.find_one({'_id': ObjectId(created_by_user_id)})
-                            else:
-                                seller = mongo.db.sellers.find_one({'_id': created_by_user_id})
-                            
-                            if seller:
-                                seller_name = seller.get('name') or seller.get('seller_name') or 'Unknown'
-                        except Exception as e:
-                            # If ObjectId conversion fails, try as string match
-                            try:
-                                seller = mongo.db.sellers.find_one({'trade_id': str(created_by_user_id)})
-                                if seller:
-                                    seller_name = seller.get('name') or seller.get('seller_name') or 'Unknown'
-                            except:
-                                pass
-                
-                # Default to 'Unknown' if still not found
-                if not seller_name or seller_name.strip() == '':
-                    seller_name = 'Unknown'
+                # Get seller info using comprehensive helper
+                seller_info = AnalyticsService._get_seller_info(
+                    seller_trade_id=product.get('seller_trade_id'),
+                    created_by_user_id=product.get('created_by_user_id'),
+                    product_doc=product
+                )
+                seller_name = seller_info['display_name']
                 
                 result.append({
                     'product_id': str(product_id),
@@ -393,14 +500,19 @@ class AnalyticsService:
                     product = mongo.db.products.find_one({'_id': ObjectId(product_id)})
                     
                     if product:
-                        # Get seller info
-                        seller_id = product.get('seller_id')
-                        seller = None
-                        seller_name = 'Unknown'
-                        if seller_id:
-                            seller = mongo.db.sellers.find_one({'_id': ObjectId(seller_id)})
-                            if seller:
-                                seller_name = seller.get('name', 'Unknown')
+                        # Get seller info - check rating document for seller_id first (most reliable)
+                        # Get the first rating for this product to get seller_id
+                        rating_doc = mongo.db.ratings.find_one({'product_id': ObjectId(product_id)})
+                        seller_id_from_rating = rating_doc.get('seller_id') if rating_doc else None
+                        
+                        seller_info = AnalyticsService._get_seller_info(
+                            seller_id=seller_id_from_rating,
+                            seller_trade_id=product.get('seller_trade_id'),
+                            created_by_user_id=product.get('created_by_user_id'),
+                            product_doc=product,
+                            rating_doc=rating_doc
+                        )
+                        seller_name = seller_info['display_name']
                         
                         result.append({
                             'product_id': str(product_id),
@@ -411,7 +523,7 @@ class AnalyticsService:
                             'selling_price': product.get('selling_price', 0),
                             'specification': product.get('specification', ''),
                             'seller_name': seller_name,
-                            'quantity': product.get('stock_quantity', 0)
+                            'quantity': product.get('quantity') or product.get('stock_quantity', 0)
                         })
                 
                 return result
@@ -448,13 +560,13 @@ class AnalyticsService:
                 for name, data in sorted(product_sales.items(), key=lambda x: x[1]['revenue'], reverse=True)[:limit]:
                     product = mongo.db.products.find_one({'_id': ObjectId(data['product_id'])})
                     if product:
-                        # Get seller info
-                        seller_id = product.get('seller_id')
-                        seller_name = 'Unknown'
-                        if seller_id:
-                            seller = mongo.db.sellers.find_one({'_id': ObjectId(seller_id)})
-                            if seller:
-                                seller_name = seller.get('name', 'Unknown')
+                        # Get seller info using comprehensive helper
+                        seller_info = AnalyticsService._get_seller_info(
+                            seller_trade_id=product.get('seller_trade_id'),
+                            created_by_user_id=product.get('created_by_user_id'),
+                            product_doc=product
+                        )
+                        seller_name = seller_info['display_name']
                         
                         # Get rating stats
                         rating_pipeline = [
@@ -506,7 +618,22 @@ class AnalyticsService:
             
             for seller in sellers:
                 seller_id = seller.get('_id')
-                seller_name = seller.get('name') or seller.get('seller_name') or 'Unknown'
+                # Get seller name from first_name and last_name
+                first_name = seller.get('first_name', '')
+                last_name = seller.get('last_name', '')
+                trade_id = seller.get('trade_id', '')
+                
+                # Construct seller name
+                if first_name or last_name:
+                    seller_name = f"{first_name} {last_name}".strip()
+                else:
+                    seller_name = 'Unknown'
+                
+                # Include trade_id in the name if available
+                if trade_id and seller_name != 'Unknown':
+                    seller_name = f"{seller_name} ({trade_id})"
+                elif trade_id:
+                    seller_name = trade_id
                 
                 # Find all completed orders for this seller within the period
                 # Handle both ObjectId and string seller_id
@@ -545,6 +672,7 @@ class AnalyticsService:
                     result.append({
                         'seller': seller_name,
                         'seller_id': str(seller_id),
+                        'trade_id': trade_id,
                         'sales': round(seller_revenue, 2),
                         'revenue': round(seller_revenue, 2),  # Revenue earned by seller (after commission)
                         'orders': len(orders),

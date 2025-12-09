@@ -2,7 +2,7 @@
  * Top Products Bar Chart Component (Chart.js)
  * Shows top-rated products with thumbnails and rating badges
  */
-import { Bar, getElementAtEvent } from 'react-chartjs-2'
+import { Bar } from 'react-chartjs-2'
 import { motion } from 'framer-motion'
 import { useState, useRef } from 'react'
 import { CHART_COLORS, defaultOptions } from '../../../../utils/chartConfig'
@@ -67,8 +67,9 @@ const TopProductsChart = ({ data, isLoading }) => {
   const options = {
     ...defaultOptions,
     indexAxis: 'y',
+    maintainAspectRatio: false,
     onHover: (event, elements) => {
-      event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default'
+      event.native.target.style.cursor = 'default' // No pointer cursor on bars
     },
     scales: {
       x: {
@@ -90,6 +91,9 @@ const TopProductsChart = ({ data, isLoading }) => {
         },
         ticks: {
           display: false // Hide default labels since we're showing thumbnails
+        },
+        afterFit: function(scale) {
+          scale.width = 0; // Remove y-axis width to save space
         }
       }
     },
@@ -113,22 +117,14 @@ const TopProductsChart = ({ data, isLoading }) => {
             ]
           },
           afterBody: function(context) {
-            return ['Click to view details']
+            return ['Click thumbnail to view details']
           }
         }
       }
     }
   }
 
-  const handleChartClick = (event) => {
-    if (chartRef.current) {
-      const elements = getElementAtEvent(chartRef.current, event)
-      if (elements.length > 0) {
-        const index = elements[0].index
-        setSelectedProduct(topProducts[index])
-      }
-    }
-  }
+  // Removed handleChartClick - only thumbnails are clickable now
 
   return (
     <>
@@ -154,44 +150,56 @@ const TopProductsChart = ({ data, isLoading }) => {
           </div>
         </div>
 
-        {/* Product Thumbnails with Rating Badges */}
-        <div className="mb-4 overflow-x-auto">
-          <div className="flex gap-2 sm:gap-3 pb-2">
-            {topProducts.map((item, index) => (
-              <div
-                key={index}
-                onClick={() => setSelectedProduct(item)}
-                className="flex-shrink-0 cursor-pointer group relative"
-              >
-                <div className="relative">
-                  <img
-                    src={item.thumbnail || 'https://via.placeholder.com/80x80?text=No+Image'}
-                    alt={item.name}
-                    className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border-2 border-gray-200 group-hover:border-blue-500 transition-colors"
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/80x80?text=No+Image'
-                    }}
-                  />
-                  {/* Rating Badge */}
-                  <div className="absolute -top-2 -right-2 bg-yellow-400 text-white text-xs font-bold rounded-full w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center shadow-lg">
-                    {item.rating.toFixed(1)}
-                  </div>
-                  {/* Position Badge */}
-                  <div className="absolute -bottom-1 -left-1 bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center shadow-lg">
-                    #{index + 1}
+        <p className="text-xs sm:text-sm text-gray-500 mb-4 px-2">Click on thumbnail to view product details</p>
+        
+        {/* Chart with thumbnails on the left */}
+        <div className="relative" style={{ height: `${Math.max(300, topProducts.length * 60)}px` }}>
+          {/* Thumbnails positioned on the left - aligned with bars */}
+          <div className="absolute left-0 top-0 h-full z-10 flex flex-col" style={{ width: '70px' }}>
+            {topProducts.map((item, index) => {
+              // Calculate position to align with chart bars
+              const barHeight = 100 / topProducts.length
+              const topPosition = `${(index * barHeight) + (barHeight / 2) - 2.5}%`
+              
+              return (
+                <div
+                  key={index}
+                  onClick={() => setSelectedProduct(item)}
+                  className="absolute cursor-pointer group"
+                  style={{ 
+                    top: topPosition,
+                    transform: 'translateY(-50%)',
+                    width: '60px',
+                    height: '50px'
+                  }}
+                >
+                  <div className="relative w-full h-full">
+                    <img
+                      src={item.thumbnail || 'https://via.placeholder.com/50x50?text=No+Image'}
+                      alt={item.name}
+                      className="w-full h-full object-cover rounded-lg border-2 border-gray-200 group-hover:border-blue-500 transition-colors"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/50x50?text=No+Image'
+                      }}
+                    />
+                    {/* Rating Badge - positioned inside top-right corner */}
+                    <div className="absolute top-0 right-0 bg-yellow-400 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg" style={{ transform: 'translate(25%, -25%)' }}>
+                      {item.rating.toFixed(1)}
+                    </div>
+                    {/* Position Badge - positioned inside bottom-left corner */}
+                    <div className="absolute bottom-0 left-0 bg-blue-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center shadow-lg" style={{ transform: 'translate(-25%, 25%)' }}>
+                      #{index + 1}
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs text-gray-600 mt-1 text-center max-w-[80px] sm:max-w-[100px] truncate">
-                  {item.name}
-                </p>
-              </div>
-            ))}
+              )
+            })}
           </div>
-        </div>
-
-        <p className="text-xs sm:text-sm text-gray-500 mb-2 px-2">Click on any bar or thumbnail to view product details</p>
-        <div className="px-2" style={{ height: '300px' }} onClick={handleChartClick}>
-          <Bar ref={chartRef} data={chartData} options={options} />
+          
+          {/* Chart positioned with left margin for thumbnails - NO click handler */}
+          <div className="ml-20 pr-2" style={{ height: '100%' }}>
+            <Bar ref={chartRef} data={chartData} options={options} />
+          </div>
         </div>
       </motion.div>
 

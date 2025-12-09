@@ -638,10 +638,22 @@ export const updateUserProfile = async (profileData) => {
  * Get all sellers
  * @returns {Promise} List of sellers
  */
-export const getSellers = async () => {
+export const getSellers = async (params = {}) => {
   try {
-    const response = await apiClient.get(API_ENDPOINTS.API.GET_SELLERS)
-    return response.sellers || []
+    // Support pagination: page, limit
+    const queryParams = {
+      page: params.page || 1,
+      limit: params.limit || 10,
+      ...params
+    }
+    const response = await apiClient.get(API_ENDPOINTS.API.GET_SELLERS, { params: queryParams })
+    return {
+      sellers: response.sellers || [],
+      total: response.total || response.sellers?.length || 0,
+      page: response.page || queryParams.page,
+      limit: response.limit || queryParams.limit,
+      totalPages: response.totalPages || Math.ceil((response.total || response.sellers?.length || 0) / queryParams.limit)
+    }
   } catch (error) {
     throw new Error(error.message || 'Failed to get sellers')
   }
@@ -651,10 +663,23 @@ export const getSellers = async () => {
  * Get all outlet men
  * @returns {Promise} List of outlet men
  */
-export const getOutletMen = async () => {
+export const getOutletMen = async (params = {}) => {
   try {
-    const response = await apiClient.get(API_ENDPOINTS.API.GET_OUTLET_MEN)
-    return response.outlet_men || []
+    // Support pagination: page, limit, sort (default: recent first)
+    const queryParams = {
+      page: params.page || 1,
+      limit: params.limit || 10,
+      sort: params.sort || '-created_at', // Default: newest first
+      ...params
+    }
+    const response = await apiClient.get(API_ENDPOINTS.API.GET_OUTLET_MEN, { params: queryParams })
+    return {
+      outlet_men: response.outlet_men || [],
+      total: response.total || response.outlet_men?.length || 0,
+      page: response.page || queryParams.page,
+      limit: response.limit || queryParams.limit,
+      totalPages: response.totalPages || Math.ceil((response.total || response.outlet_men?.length || 0) / queryParams.limit)
+    }
   } catch (error) {
     throw new Error(error.message || 'Failed to get outlet men')
   }
@@ -1160,8 +1185,21 @@ export const createOrder = async (orderPayload) => {
 
 export const getOrders = async (params = {}) => {
   try {
-    const response = await apiClient.get(API_ENDPOINTS.API.ORDERS, { params })
-    return response.orders || []
+    // Support pagination: page, limit, sort
+    const queryParams = {
+      page: params.page || 1,
+      limit: params.limit || 10,
+      sort: params.sort || '-created_at', // Default: newest first
+      ...params
+    }
+    const response = await apiClient.get(API_ENDPOINTS.API.ORDERS, { params: queryParams })
+    return {
+      orders: response.orders || [],
+      total: response.total || response.orders?.length || 0,
+      page: response.page || queryParams.page,
+      limit: response.limit || queryParams.limit,
+      totalPages: response.totalPages || Math.ceil((response.total || response.orders?.length || 0) / queryParams.limit)
+    }
   } catch (error) {
     throw new Error(error.message || 'Failed to fetch orders')
   }
