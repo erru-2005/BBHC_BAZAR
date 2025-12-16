@@ -15,6 +15,7 @@ import RatingBadge from '../../components/RatingBadge'
 import { addToWishlist, removeFromWishlist, getProductRatingStats } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
 import { getSocket, initSocket } from '../../utils/socket'
+import HeartBurst from '../../components/HeartBurst'
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null) return '—'
@@ -38,6 +39,7 @@ function PublicProductDetail() {
   const isWishlisted = product ? wishlistIds.includes(String(product.id || product._id)) : false
   const [wishlistLoading, setWishlistLoading] = useState(false)
   const [ratingStats, setRatingStats] = useState(null)
+  const [heartBurstTrigger, setHeartBurstTrigger] = useState(0)
 
   useEffect(() => {
     if (!product) {
@@ -168,54 +170,63 @@ function PublicProductDetail() {
                     </span>
                   )}
                 </div>
-                <button
-                  className={`flex-shrink-0 p-2 sm:p-2.5 rounded-full border transition-colors ${
-                    isWishlisted
-                      ? 'bg-red-50 border-red-200 text-red-600'
-                      : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                  }`}
-                  aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-                  title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-                  onClick={async () => {
-                    if (!product) return
-                    const currentId = String(product.id || product._id)
-                    if (!isAuthenticated || userType !== 'user') {
-                      navigate('/user/phone-entry', {
-                        state: {
-                          returnTo: `/product/public/${productId}`,
-                          message: 'Please login to manage your wishlist.'
-                        }
-                      })
-                      return
-                    }
-
-                    if (wishlistLoading) return
-
-                    // Optimistic toggle
-                    dispatch({ type: 'data/toggleWishlist', payload: currentId })
-                    setWishlistLoading(true)
-                    try {
-                      if (isWishlisted) {
-                        await removeFromWishlist(currentId)
-                      } else {
-                        await addToWishlist(currentId)
+                <div className="relative z-30">
+                  <button
+                    className={`flex-shrink-0 p-2 sm:p-2.5 rounded-full border transition-colors ${
+                      isWishlisted
+                        ? 'bg-red-50 border-red-200 text-red-600'
+                        : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                    }`}
+                    aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                    title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                    onClick={async () => {
+                      if (!product) return
+                      const currentId = String(product.id || product._id)
+                      if (!isAuthenticated || userType !== 'user') {
+                        navigate('/user/phone-entry', {
+                          state: {
+                            returnTo: `/product/public/${productId}`,
+                            message: 'Please login to manage your wishlist.'
+                          }
+                        })
+                        return
                       }
-                    } catch (error) {
-                      // Revert on error
+
+                      if (wishlistLoading) return
+
+                      // Optimistic toggle
                       dispatch({ type: 'data/toggleWishlist', payload: currentId })
-                      alert(error.message || 'Failed to update wishlist')
-                    } finally {
-                      setWishlistLoading(false)
-                    }
-                  }}
-                  disabled={wishlistLoading}
-                >
-                  {wishlistLoading ? (
-                    <span className="block w-5 h-5 border-2 border-t-transparent border-red-400 rounded-full animate-spin" />
-                  ) : (
-                    <FaHeart className={`w-5 h-5 sm:w-6 sm:h-6 ${isWishlisted ? 'fill-current' : ''}`} />
-                  )}
-                </button>
+                      setWishlistLoading(true)
+                      let addedSuccessfully = false
+                      try {
+                        if (isWishlisted) {
+                          await removeFromWishlist(currentId)
+                        } else {
+                          await addToWishlist(currentId)
+                          addedSuccessfully = true
+                        }
+                      } catch (error) {
+                        // Revert on error
+                        dispatch({ type: 'data/toggleWishlist', payload: currentId })
+                        alert(error.message || 'Failed to update wishlist')
+                      } finally {
+                        setWishlistLoading(false)
+                      }
+
+                      if (addedSuccessfully) {
+                        setHeartBurstTrigger((prev) => prev + 1)
+                      }
+                    }}
+                    disabled={wishlistLoading}
+                  >
+                    {wishlistLoading ? (
+                      <span className="block w-5 h-5 border-2 border-t-transparent border-red-400 rounded-full animate-spin" />
+                    ) : (
+                      <FaHeart className={`w-5 h-5 sm:w-6 sm:h-6 ${isWishlisted ? 'fill-current' : ''}`} />
+                    )}
+                  </button>
+                  <HeartBurst trigger={heartBurstTrigger} />
+                </div>
               </div>
             </div>
 
