@@ -8,6 +8,7 @@ import { motionVariants, transitions } from '../../../utils/animations'
 import { addToBag, getBag, updateBagItem, removeFromBag, addToWishlist, removeFromWishlist, getProductRatingStats } from '../../../services/api'
 import RatingBadge from '../../../components/RatingBadge'
 import { getSocket, initSocket } from '../../../utils/socket'
+import HeartBurst from '../../../components/HeartBurst'
 
 const getImageSrc = (image) => image?.preview || image?.data_url || image?.url || image || null
 
@@ -15,6 +16,7 @@ function ProductShowcase({ products = [], loading, error }) {
   const [addingToBag, setAddingToBag] = useState(new Set())
   const [bagItemsByProduct, setBagItemsByProduct] = useState({})
   const [wishlistLoading, setWishlistLoading] = useState(new Set())
+  const [heartBursts, setHeartBursts] = useState({})
   const [ratingStatsMap, setRatingStatsMap] = useState({})
   const navigate = useNavigate()
   const dispatch = useDispatch()
@@ -123,6 +125,13 @@ function ProductShowcase({ products = [], loading, error }) {
     }
   }, [token])
 
+  const triggerHeartBurst = (productId) => {
+    setHeartBursts((prev) => ({
+      ...prev,
+      [productId]: (prev[productId] || 0) + 1
+    }))
+  }
+
   const toggleLike = async (event, productId) => {
     event.preventDefault()
     event.stopPropagation()
@@ -152,11 +161,14 @@ function ProductShowcase({ products = [], loading, error }) {
     // Optimistic update in Redux
     dispatch({ type: 'data/toggleWishlist', payload: idStr })
 
+    let addedSuccessfully = false
+
     try {
       if (alreadyLiked) {
         await removeFromWishlist(idStr)
       } else {
         await addToWishlist(idStr)
+        addedSuccessfully = true
       }
     } catch (error) {
       // Revert on error
@@ -168,6 +180,10 @@ function ProductShowcase({ products = [], loading, error }) {
         next.delete(idStr)
         return next
       })
+
+    if (addedSuccessfully) {
+      triggerHeartBurst(idStr)
+    }
     }
   }
 
@@ -233,7 +249,7 @@ function ProductShowcase({ products = [], loading, error }) {
           return (
             <motion.article
               key={productId}
-              className="group rounded-[28px] border border-gray-200 bg-white p-3 flex flex-col gap-3 hover:shadow-lg transition-shadow cursor-pointer focus-within:ring-2 focus-within:ring-black"
+              className="group relative rounded-[28px] border border-gray-200 bg-white p-3 flex flex-col gap-3 hover:shadow-lg transition-shadow cursor-pointer focus-within:ring-2 focus-within:ring-black"
               initial={motionVariants.fadeIn.initial}
               whileInView={motionVariants.fadeIn.animate}
               viewport={{ once: true }}
@@ -258,22 +274,28 @@ function ProductShowcase({ products = [], loading, error }) {
                 ) : (
                   <div className="text-xs text-gray-400">No image</div>
                 )}
-                <button
-                  className={`absolute top-3 right-3 p-1.5 rounded-full border ${
-                    isLiked
-                      ? 'bg-red-50 border-red-200 text-red-600'
-                      : 'bg-white border-gray-200 text-gray-500'
-                  }`}
-                  onClick={(event) => toggleLike(event, productIdStr)}
-                  aria-label={isLiked ? 'Remove from wishlist' : 'Add to wishlist'}
-                  disabled={wishlistLoading.has(productIdStr)}
-                >
-                  {wishlistLoading.has(productIdStr) ? (
-                    <span className="block w-4 h-4 border-2 border-t-transparent border-red-400 rounded-full animate-spin" />
-                  ) : (
-                    <FaHeart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-                  )}
-                </button>
+              </div>
+
+              <div className="absolute top-3 right-3 z-40">
+                <div className="relative z-40">
+                  <button
+                    className={`p-1.5 rounded-full border ${
+                      isLiked
+                        ? 'bg-red-50 border-red-200 text-red-600'
+                        : 'bg-white border-gray-200 text-gray-500'
+                    }`}
+                    onClick={(event) => toggleLike(event, productIdStr)}
+                    aria-label={isLiked ? 'Remove from wishlist' : 'Add to wishlist'}
+                    disabled={wishlistLoading.has(productIdStr)}
+                  >
+                    {wishlistLoading.has(productIdStr) ? (
+                      <span className="block w-4 h-4 border-2 border-t-transparent border-red-400 rounded-full animate-spin" />
+                    ) : (
+                      <FaHeart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                    )}
+                  </button>
+                  <HeartBurst trigger={heartBursts[productIdStr]} />
+                </div>
               </div>
 
               <div className="flex-1 space-y-1">
