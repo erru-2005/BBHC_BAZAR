@@ -16,7 +16,54 @@ orders_bp = Blueprint('orders', __name__)
 
 
 def _serialize_orders(order_list):
-    return [order.to_dict() for order in order_list if order]
+    """Serialize orders and populate current product/user/seller data from IDs"""
+    from app.services.product_service import ProductService
+    from app.services.user_service import UserService
+    from app.services.seller_service import SellerService
+    
+    serialized = []
+    for order in order_list:
+        if not order:
+            continue
+        order_dict = order.to_dict()
+        
+        # Populate current product data (snapshot is kept for historical reference)
+        if order.product_id:
+            product = ProductService.get_product_by_id(str(order.product_id))
+            if product:
+                product_dict = product.to_dict()
+                order_dict['product_current'] = {
+                    'id': product_dict.get('id'),
+                    'product_name': product_dict.get('product_name'),
+                    'thumbnail': product_dict.get('thumbnail'),
+                    'selling_price': product_dict.get('selling_price'),
+                    'max_price': product_dict.get('max_price'),
+                    'quantity': product_dict.get('quantity'),
+                }
+        
+        # Populate current user data
+        if order.user_id:
+            user = UserService.get_user_by_id(str(order.user_id))
+            if user:
+                user_dict = user.to_dict(include_password=False)
+                order_dict['user_current'] = {
+                    'id': user_dict.get('id'),
+                    'name': f"{(user_dict.get('first_name') or '').strip()} {(user_dict.get('last_name') or '').strip()}".strip() or user_dict.get('username'),
+                    'email': user_dict.get('email'),
+                    'phone': user_dict.get('phone_number'),
+                    'address': user_dict.get('address'),
+                }
+        
+        # Populate current seller data
+        if order.seller_id:
+            seller = SellerService.get_seller_by_id(str(order.seller_id))
+            if seller:
+                seller_dict = seller.to_dict(include_password=False)
+                order_dict['seller_current'] = seller_dict
+        
+        serialized.append(order_dict)
+    
+    return serialized
 
 
 @orders_bp.route('/orders', methods=['POST'])
@@ -180,7 +227,7 @@ def list_orders():
 @orders_bp.route('/orders/<order_id>', methods=['GET'])
 @jwt_required()
 def get_order(order_id):
-    """Get a specific order by ID."""
+    """Get a specific order by ID with populated current data."""
     claims = get_jwt()
     user_type = claims.get('user_type')
     user_id = get_jwt_identity()
@@ -195,7 +242,44 @@ def get_order(order_id):
     if user_type == 'seller' and str(order.seller_id) != str(user_id):
         return jsonify({'error': 'Unauthorized'}), 403
 
-    return jsonify({'order': order.to_dict()}), 200
+    # Populate current data from IDs
+    order_dict = order.to_dict()
+    
+    # Populate current product data
+    if order.product_id:
+        product = ProductService.get_product_by_id(str(order.product_id))
+        if product:
+            product_dict = product.to_dict()
+            order_dict['product_current'] = {
+                'id': product_dict.get('id'),
+                'product_name': product_dict.get('product_name'),
+                'thumbnail': product_dict.get('thumbnail'),
+                'selling_price': product_dict.get('selling_price'),
+                'max_price': product_dict.get('max_price'),
+                'quantity': product_dict.get('quantity'),
+            }
+    
+    # Populate current user data
+    if order.user_id:
+        user = UserService.get_user_by_id(str(order.user_id))
+        if user:
+            user_dict = user.to_dict(include_password=False)
+            order_dict['user_current'] = {
+                'id': user_dict.get('id'),
+                'name': f"{(user_dict.get('first_name') or '').strip()} {(user_dict.get('last_name') or '').strip()}".strip() or user_dict.get('username'),
+                'email': user_dict.get('email'),
+                'phone': user_dict.get('phone_number'),
+                'address': user_dict.get('address'),
+            }
+    
+    # Populate current seller data
+    if order.seller_id:
+        seller = SellerService.get_seller_by_id(str(order.seller_id))
+        if seller:
+            seller_dict = seller.to_dict(include_password=False)
+            order_dict['seller_current'] = seller_dict
+
+    return jsonify({'order': order_dict}), 200
 
 
 @orders_bp.route('/orders/<order_id>/accept', methods=['POST'])

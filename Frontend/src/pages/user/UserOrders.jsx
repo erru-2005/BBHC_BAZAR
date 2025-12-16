@@ -43,7 +43,9 @@ function UserOrders() {
       try {
         setLoading(true)
         const data = await getOrders()
-        setOrders(data)
+        // Handle both old format (array) and new format (object with orders property)
+        const ordersArray = Array.isArray(data) ? data : (data.orders || [])
+        setOrders(ordersArray)
       } catch (err) {
         setError(err.message)
       } finally {

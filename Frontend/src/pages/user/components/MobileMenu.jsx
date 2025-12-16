@@ -1,9 +1,9 @@
 import PropTypes from 'prop-types'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { getCategories } from '../../../services/api'
-import { FaStore, FaHandshake, FaBagShopping, FaUserLarge, FaHeart, FaRegCircle } from 'react-icons/fa6'
+import { FaStore, FaHandshake, FaBagShopping, FaUserLarge, FaHeart, FaHouse, FaRegCircle } from 'react-icons/fa6'
 
 // Reuse the same icons from MobileBottomNav
 const quickLinkIconMap = {
@@ -11,7 +11,8 @@ const quickLinkIconMap = {
   services: FaHandshake, // Maps to "service" icon from bottom nav
   products: FaStore, // Maps to "product" icon from bottom nav
   wishlist: FaHeart, // No direct match, using heart icon
-  bag: FaBagShopping // Maps to "bag" icon from bottom nav
+  bag: FaBagShopping, // Maps to "bag" icon from bottom nav
+  home: FaHouse
 }
 
 function MobileMenu({ open, onClose }) {
@@ -21,6 +22,13 @@ function MobileMenu({ open, onClose }) {
   const [apiCategories, setApiCategories] = useState([])
   
   const { mobileQuickLinks = [], quickCategories = [] } = home || {}
+
+  // Ensure Home quick link is present
+  const quickLinks = useMemo(() => {
+    const hasHome = mobileQuickLinks.some((link) => (link.label || '').toLowerCase() === 'home')
+    if (hasHome) return mobileQuickLinks
+    return [{ label: 'Home', icon: 'home' }, ...mobileQuickLinks]
+  }, [mobileQuickLinks])
 
   useEffect(() => {
     if (open) {
@@ -51,13 +59,16 @@ function MobileMenu({ open, onClose }) {
 
   const handleQuickLinkClick = (link) => {
     onClose()
-    if (link.label === 'Profile') {
+    const label = (link.label || '').toLowerCase()
+    if (label === 'home') {
+      navigate('/')
+    } else if (label === 'profile') {
       if (!isAuthenticated || userType !== 'user') {
         navigate('/user/phone-entry')
       } else {
         navigate('/user/profile')
       }
-    } else if (link.label === 'Bag') {
+    } else if (label === 'bag') {
       if (!isAuthenticated || userType !== 'user') {
         navigate('/user/phone-entry', {
           state: {
@@ -68,20 +79,32 @@ function MobileMenu({ open, onClose }) {
       } else {
         navigate('/user/bag')
       }
-    } else if (link.label === 'Products') {
-      navigate('/')
-    } else if (link.label === 'Services') {
-      navigate('/')
-    } else if (link.label === 'Wishlist') {
-      // Placeholder for wishlist
+    } else if (label === 'products') {
+      navigate('/products')
+    } else if (label === 'services') {
+      navigate('/services')
+    } else if (label === 'wishlist') {
+      if (!isAuthenticated || userType !== 'user') {
+        navigate('/user/phone-entry', {
+          state: {
+            returnTo: '/wishlist',
+            message: 'Please login to view your wishlist.'
+          }
+        })
+      } else {
+        navigate('/wishlist')
+      }
+    } else {
       navigate('/')
     }
   }
 
   const handleCategoryClick = (category) => {
     onClose()
-    // Navigate to category page or home with category filter
-    navigate('/')
+    const target = category.id || category._id || encodeURIComponent(category.name)
+    navigate(`/category/${target}`, {
+      state: { categoryName: category.name }
+    })
   }
 
   if (!open) {
@@ -122,7 +145,7 @@ function MobileMenu({ open, onClose }) {
           <div className="px-4 py-3 border-b">
             <p className="text-xs uppercase text-gray-500 mb-2">Quick links</p>
             <div className="grid grid-cols-2 gap-3">
-              {mobileQuickLinks.map((link) => {
+              {quickLinks.map((link) => {
                 const iconKey = typeof link.icon === 'string' ? link.icon.toLowerCase() : null
                 const IconComponent = iconKey ? quickLinkIconMap[iconKey] : null
                 return (
@@ -131,7 +154,7 @@ function MobileMenu({ open, onClose }) {
                     onClick={() => handleQuickLinkClick(link)}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 text-sm font-medium text-slate-800 hover:bg-amber-50 transition"
                   >
-                    <span className="text-lg text-amber-500">
+                    <span className="text-lg text-black">
                       {IconComponent ? (
                         <IconComponent className="w-5 h-5" />
                       ) : link.icon ? (

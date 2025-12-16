@@ -18,7 +18,6 @@ import { getProducts, getWishlist } from '../../services/api'
 import { initSocket, getSocket } from '../../utils/socket'
 import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
 
-const circleLabels = ['Men', 'Women', 'Kids', 'Footwear', 'Accessories', 'Beauty']
 
 function Home({ headerLogoRef: externalHeaderLogoRef }) {
   const dispatch = useDispatch()
@@ -282,7 +281,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
       />
 
       <main className="max-w-7xl mx-auto px-4 lg:px-8 pb-24 lg:pb-0">
-        <CircleCategoryScroller labels={circleLabels} />
+        <CircleCategoryScroller />
         <SpotlightSlider slides={spotlightProducts} />
         {recommendationRows.map((row) => (
           <RecommendationRow key={row.id} title={row.title} products={row.products} />

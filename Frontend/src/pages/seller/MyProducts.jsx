@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { FiArrowLeft, FiRefreshCw, FiPackage, FiTag } from 'react-icons/fi'
+import { FiMenu, FiRefreshCw, FiPackage, FiTag } from 'react-icons/fi'
 import { getProducts } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
 
@@ -89,10 +89,11 @@ function SellerMyProducts() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/seller/dashboard')}
+              onClick={() => navigate('/seller/dashboard', { state: { openMenu: true } })}
               className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white shadow-sm shadow-black/40 transition hover:-translate-y-0.5 hover:scale-105 hover:border-white/40 hover:bg-white/10"
+              aria-label="Open menu"
             >
-              <FiArrowLeft className="h-4 w-4" />
+              <FiMenu className="h-4 w-4" />
             </button>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="inline-flex items-center gap-1 rounded-full bg-white px-3.5 py-1.5 shadow-[0_15px_32px_rgba(0,0,0,0.3)] sm:gap-1.5 sm:px-4 sm:py-2">

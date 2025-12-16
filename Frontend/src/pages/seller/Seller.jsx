@@ -1,16 +1,16 @@
 /**
  * Seller Dashboard Page Component
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { FiBox, FiMenu, FiX, FiHome, FiBriefcase, FiLogOut, FiPlusSquare } from 'react-icons/fi'
 import { FaQrcode, FaCheck } from 'react-icons/fa6'
 import { logout } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
 import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
-import { getOrders, sellerAcceptOrder, sellerRejectOrder } from '../../services/api'
+import { getOrders, getProducts, sellerAcceptOrder, sellerRejectOrder } from '../../services/api'
 import QRCode from 'react-qr-code'
 import SellerOrders from './components/SellerOrders'
 import PasswordResetDialog from '../../components/PasswordResetDialog'
@@ -18,6 +18,7 @@ import PasswordResetDialog from '../../components/PasswordResetDialog'
 function Seller() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, token } = useSelector((state) => state.auth)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [activeNotificationTab, setActiveNotificationTab] = useState('orders')
@@ -35,6 +36,17 @@ function Seller() {
   const [qrOrder, setQrOrder] = useState(null)
   const autoHideCompletedRef = useRef(new Set())
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
+  const [sellerProducts, setSellerProducts] = useState([])
+  const [productsLoading, setProductsLoading] = useState(false)
+
+  // Open sidebar if coming from another page requesting menu
+  useEffect(() => {
+    if (location.state?.openMenu) {
+      setIsSidebarOpen(true)
+      const { openMenu, ...rest } = location.state || {}
+      navigate(location.pathname + location.search, { replace: true, state: rest })
+    }
+  }, [location.state?.openMenu, location.state?.search, location.pathname, location.search, navigate])
 
   const handleLogout = () => {
     // Notify server about logout via socket
@@ -137,7 +149,12 @@ function Seller() {
         setOrdersLoading(true)
         setOrdersError(null)
         const data = await getOrders()
-        const sellerOrders = data.filter(
+        const orderList = Array.isArray(data?.orders)
+          ? data.orders
+          : Array.isArray(data)
+          ? data
+          : []
+        const sellerOrders = orderList.filter(
           (order) => order.seller_id && String(order.seller_id) === String(user.id)
         )
         setOrders(sellerOrders)
@@ -148,6 +165,45 @@ function Seller() {
       }
     }
     loadOrders()
+  }, [user])
+
+  // Load seller products for dashboard stats
+  useEffect(() => {
+    const loadProducts = async () => {
+      if (!user) return
+      try {
+        setProductsLoading(true)
+        const productList = await getProducts()
+        const normalized = Array.isArray(productList?.products)
+          ? productList.products
+          : Array.isArray(productList)
+          ? productList
+          : []
+
+        const sellerTradeId = user.trade_id
+        const sellerId = String(user.id || user._id || '')
+
+        const owned = normalized.filter((product) => {
+          const matchTradeId =
+            sellerTradeId &&
+            (product.seller_trade_id === sellerTradeId ||
+              product.created_by === sellerTradeId ||
+              product.created_by_user_id === sellerTradeId)
+          const matchId =
+            sellerId &&
+            (String(product.created_by_user_id || '') === sellerId ||
+              String(product.seller_id || '') === sellerId)
+          return matchTradeId || matchId
+        })
+        setSellerProducts(owned)
+      } catch (err) {
+        // silent fail for dashboard badge
+        setSellerProducts([])
+      } finally {
+        setProductsLoading(false)
+      }
+    }
+    loadProducts()
   }, [user])
 
   const menuItems = [
@@ -162,20 +218,20 @@ function Seller() {
   const stats = [
     {
       label: 'Total Products',
-      value: '152',
-      change: '+12 added this week',
+      value: productsLoading ? '...' : productCount.toString(),
+      change: '',
       gradient: 'from-indigo-500/80 to-indigo-400/60'
     },
     {
       label: 'Total Sales',
-      value: '₹2.4L',
-      change: '+18% vs last week',
+      value: formatCurrency(totalSales),
+      change: '',
       gradient: 'from-emerald-500/80 to-teal-400/60'
     },
     {
       label: 'Orders Pending',
-      value: '27',
-      change: '5 need attention',
+      value: pendingCount.toString(),
+      change: '',
       gradient: 'from-amber-500/80 to-orange-400/60'
     }
   ]
@@ -205,6 +261,38 @@ function Seller() {
   const pendingOrders = orders.filter((o) =>
     ['pending_seller', 'seller_accepted'].includes(o.status)
   )
+
+  const completedStatuses = ['handed_over', 'completed', 'delivered', 'seller_completed']
+  const cancelledStatuses = ['cancelled', 'seller_rejected', 'rejected', 'buyer_cancelled']
+
+  const pendingCount = useMemo(
+    () =>
+      orders.filter(
+        (o) => !completedStatuses.includes(o.status) && !cancelledStatuses.includes(o.status)
+      ).length,
+    [orders]
+  )
+
+  const totalSales = useMemo(() => {
+    return orders.reduce((sum, order) => {
+      const amount =
+        order.total_amount ??
+        order.total ??
+        order.amount ??
+        order.grand_total ??
+        order.payable ??
+        0
+      return sum + Number(amount || 0)
+    }, 0)
+  }, [orders])
+
+  const productCount = sellerProducts.length
+
+  const formatCurrency = (value) => {
+    const num = Number(value || 0)
+    if (!Number.isFinite(num)) return '₹0'
+    return `₹${num.toLocaleString('en-IN')}`
+  }
 
   const renderStatIcon = (label) => {
     if (label === 'Total Products') {

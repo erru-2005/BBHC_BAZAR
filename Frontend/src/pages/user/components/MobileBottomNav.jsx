@@ -12,8 +12,8 @@ const iconMap = {
 }
 
 const defaultItems = [
-  { label: 'Product', icon: 'product', path: '/' },
-  { label: 'Service', icon: 'service', path: '/' },
+  { label: 'Product', icon: 'product', path: '/products' },
+  { label: 'Service', icon: 'service', path: '/services' },
   { label: 'Home', icon: 'home', path: '/' },
   { label: 'Bag', icon: 'bag', path: '/user/bag' },
   { label: 'Me', icon: 'me', path: '/user/profile' }
@@ -46,6 +46,9 @@ function MobileBottomNav({ items = defaultItems }) {
     if (currentPath === '/') {
       return 'home'
     }
+    if (currentPath === '/products') return 'product'
+    if (currentPath === '/services') return 'service'
+    if (currentPath === '/wishlist') return 'wishlist'
     
     // For all other paths, no item should be active
     return null
@@ -88,6 +91,10 @@ function MobileBottomNav({ items = defaultItems }) {
       handleBagClick()
     } else if (item.label === 'Home') {
       handleHomeClick()
+    } else if (item.label === 'Product') {
+      navigate('/products')
+    } else if (item.label === 'Service') {
+      navigate('/services')
     } else if (item.onClick) {
       item.onClick()
     } else if (item.path) {

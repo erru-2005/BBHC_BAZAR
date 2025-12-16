@@ -174,18 +174,6 @@ function UserProfile() {
       />
 
       <div className="max-w-5xl mx-auto py-8 px-4 space-y-10">
-        {/* Navigation Header */}
-        <div className="flex items-center gap-4 mb-4">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-amber-700 hover:text-amber-800 transition-colors"
-            aria-label="Back to dashboard"
-          >
-            <FaArrowLeft className="w-5 h-5" />
-            <span className="font-medium">Back to dashboard</span>
-          </button>
-        </div>
-
         <section className="space-y-8 border-b border-gray-200 pb-8">
           <div className="flex flex-col lg:flex-row items-center gap-8">
             <div className="text-center lg:text-left">

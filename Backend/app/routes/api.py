@@ -1110,7 +1110,7 @@ def get_category_commission_rates():
 @api_bp.route('/wishlist', methods=['GET'])
 @jwt_required()
 def get_wishlist():
-    """Get wishlist items for the current user"""
+    """Get wishlist items for the current user with populated product data"""
     try:
         current_user_id = get_jwt_identity()
         claims = get_jwt()
@@ -1123,9 +1123,32 @@ def get_wishlist():
         skip = request.args.get('skip', 0, type=int)
 
         items = WishlistService.list_wishlist(str(current_user_id), limit=limit, skip=skip)
+        
+        # Populate product data from product_id
+        from app.services.product_service import ProductService
+        items_with_products = []
+        for item in items:
+            item_dict = item.to_dict()
+            # Fetch current product data
+            product = ProductService.get_product_by_id(str(item.product_id))
+            if product:
+                product_dict = product.to_dict()
+                item_dict['product'] = {
+                    'id': product_dict.get('id'),
+                    'product_name': product_dict.get('product_name'),
+                    'thumbnail': product_dict.get('thumbnail'),
+                    'selling_price': product_dict.get('selling_price'),
+                    'max_price': product_dict.get('max_price'),
+                    'categories': product_dict.get('categories'),
+                    'rating': product_dict.get('rating'),
+                    'reviews': product_dict.get('reviews'),
+                    'quantity': product_dict.get('quantity'),
+                }
+            items_with_products.append(item_dict)
+        
         return jsonify({
-            'items': [item.to_dict() for item in items],
-            'count': len(items)
+            'items': items_with_products,
+            'count': len(items_with_products)
         }), 200
     except Exception as e:
         return jsonify({'error': f'Failed to fetch wishlist: {str(e)}'}), 500

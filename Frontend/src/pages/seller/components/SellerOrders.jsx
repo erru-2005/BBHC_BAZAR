@@ -16,8 +16,13 @@ function SellerOrders() {
       try {
         setLoading(true)
         const data = await getOrders()
+        const orderList = Array.isArray(data?.orders)
+          ? data.orders
+          : Array.isArray(data)
+          ? data
+          : []
         // Filter orders for this seller
-        const sellerOrders = data.filter((order) => 
+        const sellerOrders = orderList.filter((order) => 
           order.seller_id && String(order.seller_id) === String(user?.id)
         )
         setOrders(sellerOrders)

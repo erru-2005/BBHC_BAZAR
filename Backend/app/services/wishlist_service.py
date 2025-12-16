@@ -28,27 +28,15 @@ class WishlistService:
       user_oid = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
       prod_oid = ObjectId(product_id) if not isinstance(product_id, ObjectId) else product_id
 
-      # Get a lightweight snapshot of the product for quick display
+      # Verify product exists
       product = ProductService.get_product_by_id(str(prod_oid))
-      product_snapshot = {}
-      if product:
-          prod = product.to_dict()
-          product_snapshot = {
-              "id": prod.get("id") or prod.get("_id"),
-              "product_name": prod.get("product_name"),
-              "thumbnail": prod.get("thumbnail"),
-              "selling_price": prod.get("selling_price"),
-              "max_price": prod.get("max_price"),
-              "categories": prod.get("categories"),
-              "rating": prod.get("rating"),
-              "reviews": prod.get("reviews"),
-          }
+      if not product:
+          raise ValueError("Product not found")
 
       doc = {
           "user_id": user_oid,
           "product_id": prod_oid,
           "created_at": datetime.utcnow(),
-          "product_snapshot": product_snapshot,
           "metadata": metadata or {},
       }
 

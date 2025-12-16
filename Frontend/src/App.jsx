@@ -17,6 +17,11 @@ import {
   MasterLogin,
   OutletLogin,
   Outlet,
+  CategoryProducts,
+  AllProducts,
+  Services,
+  Wishlist,
+  SearchResults,
   NotFound,
   SellerMyProducts,
   SellerProductDetail,
@@ -71,6 +76,11 @@ function SplashWrapper() {
         <div style={{ opacity: showSplash ? 0 : 1, transition: 'opacity 0.3s', pointerEvents: showSplash ? 'none' : 'auto' }}>
           <Routes>
             <Route path="/" element={<Home headerLogoRef={headerLogoRef} />} />
+            <Route path="/category/:categoryId" element={<CategoryProducts headerLogoRef={headerLogoRef} />} />
+            <Route path="/products" element={<AllProducts headerLogoRef={headerLogoRef} />} />
+            <Route path="/services" element={<Services headerLogoRef={headerLogoRef} />} />
+            <Route path="/wishlist" element={<Wishlist headerLogoRef={headerLogoRef} />} />
+            <Route path="/search" element={<SearchResults headerLogoRef={headerLogoRef} />} />
       <Route path="/user/phone-entry" element={<PhoneNumberEntry />} />
       <Route path="/user/verify-otp" element={<OTPVerification />} />
       <Route path="/user/register" element={<UserRegistration />} />

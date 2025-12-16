@@ -103,7 +103,33 @@ class ProductService:
     def get_product_by_id(product_id):
         try:
             product_doc = mongo.db.products.find_one({'_id': ObjectId(product_id)})
-            return Product.from_bson(product_doc)
+            if not product_doc:
+                return None
+            
+            product = Product.from_bson(product_doc)
+            
+            # Ensure total_selling_price is calculated if missing
+            if product and product.selling_price and (not product.total_selling_price or product.total_selling_price == 0):
+                commission_rate = product.commission_rate
+                
+                # If no product-level commission, check category-level commission
+                if (commission_rate is None or commission_rate == 0) and product.categories:
+                    for category in product.categories:
+                        category_rate = ProductService.get_category_commission_rate(category)
+                        if category_rate:
+                            commission_rate = category_rate
+                            break
+                
+                # Calculate total_selling_price with commission
+                if commission_rate and commission_rate > 0:
+                    product.total_selling_price = ProductService.calculate_total_selling_price(
+                        product.selling_price, commission_rate
+                    )
+                else:
+                    # No commission, total_selling_price equals selling_price
+                    product.total_selling_price = product.selling_price
+            
+            return product
         except Exception:
             return None
 
@@ -126,7 +152,37 @@ class ProductService:
                 .skip(skip)
                 .limit(limit)
             )
-            return [Product.from_bson(product_doc) for product_doc in products_cursor]
+            
+            products = []
+            # Get all category commissions once for efficiency
+            category_commissions = ProductService.get_all_category_commissions()
+            
+            for product_doc in products_cursor:
+                product = Product.from_bson(product_doc)
+                
+                # Ensure total_selling_price is calculated if missing
+                if product.selling_price and (not product.total_selling_price or product.total_selling_price == 0):
+                    commission_rate = product.commission_rate
+                    
+                    # If no product-level commission, check category-level commission
+                    if (commission_rate is None or commission_rate == 0) and product.categories:
+                        for category in product.categories:
+                            if category in category_commissions:
+                                commission_rate = category_commissions[category]
+                                break
+                    
+                    # Calculate total_selling_price with commission
+                    if commission_rate and commission_rate > 0:
+                        product.total_selling_price = ProductService.calculate_total_selling_price(
+                            product.selling_price, commission_rate
+                        )
+                    else:
+                        # No commission, total_selling_price equals selling_price
+                        product.total_selling_price = product.selling_price
+                
+                products.append(product)
+            
+            return products
         except Exception:
             return []
 
@@ -261,7 +317,37 @@ class ProductService:
             products_cursor = mongo.db.products.find({
                 'approval_status': 'pending'
             }).sort('created_at', -1)
-            return [Product.from_bson(product_doc) for product_doc in products_cursor]
+            
+            products = []
+            # Get all category commissions once for efficiency
+            category_commissions = ProductService.get_all_category_commissions()
+            
+            for product_doc in products_cursor:
+                product = Product.from_bson(product_doc)
+                
+                # Ensure total_selling_price is calculated if missing
+                if product.selling_price and (not product.total_selling_price or product.total_selling_price == 0):
+                    commission_rate = product.commission_rate
+                    
+                    # If no product-level commission, check category-level commission
+                    if (commission_rate is None or commission_rate == 0) and product.categories:
+                        for category in product.categories:
+                            if category in category_commissions:
+                                commission_rate = category_commissions[category]
+                                break
+                    
+                    # Calculate total_selling_price with commission
+                    if commission_rate and commission_rate > 0:
+                        product.total_selling_price = ProductService.calculate_total_selling_price(
+                            product.selling_price, commission_rate
+                        )
+                    else:
+                        # No commission, total_selling_price equals selling_price
+                        product.total_selling_price = product.selling_price
+                
+                products.append(product)
+            
+            return products
         except Exception:
             return []
 

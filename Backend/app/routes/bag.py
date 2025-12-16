@@ -90,7 +90,9 @@ def get_bag():
                     'product_name': product_dict.get('product_name'),
                     'thumbnail': product_dict.get('thumbnail'),
                     'selling_price': product_dict.get('selling_price'),
+                    'total_selling_price': product_dict.get('total_selling_price'),  # Price with commission
                     'max_price': product_dict.get('max_price'),
+                    'commission_rate': product_dict.get('commission_rate'),
                     'quantity': product_dict.get('quantity'),
                     'stock': product_dict.get('quantity', 0)
                 }

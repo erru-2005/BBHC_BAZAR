@@ -41,7 +41,7 @@ export const initActiveCounterSocket = (role = 'user', options = {}) => {
 
   // Create new socket with role in query parameters
   const socketOptions = {
-    transports: ['polling', 'websocket'], // Try polling first, then websocket
+    transports: ['polling'], // Force polling to avoid websocket invalid frame header
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionAttempts: 10,

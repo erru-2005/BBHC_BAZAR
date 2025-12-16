@@ -20,7 +20,7 @@ export const initSocket = (token = null) => {
   }
 
   const options = {
-    transports: ['websocket', 'polling'],
+    transports: ['polling'], // force polling to avoid invalid frame header on ws
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionAttempts: 5,

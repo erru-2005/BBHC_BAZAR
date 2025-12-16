@@ -122,7 +122,7 @@ def register_events(socketio):
                         socketio.emit('seller:connected', {
                             'seller_id': str(user_id),
                             'timestamp': datetime.utcnow().isoformat()
-                        }, namespace='/', broadcast=True)
+                        }, namespace='/')
                     elif user_type == 'user':
                         mongo.db.users.update_one(
                             {'_id': user_obj_id},
@@ -135,7 +135,7 @@ def register_events(socketio):
                         socketio.emit('user:connected', {
                             'user_id': str(user_id),
                             'timestamp': datetime.utcnow().isoformat()
-                        }, namespace='/', broadcast=True)
+                        }, namespace='/')
                     elif user_type == 'outlet_man':
                         mongo.db.outlet_men.update_one(
                             {'_id': user_obj_id},
@@ -265,7 +265,7 @@ def register_events(socketio):
                         socketio.emit('seller:connected', {
                             'seller_id': str(user_id),
                             'timestamp': datetime.utcnow().isoformat()
-                        }, namespace='/', broadcast=True)
+                        }, namespace='/')
                     elif user_type == 'user':
                         mongo.db.users.update_one(
                             {'_id': user_obj_id},
@@ -278,7 +278,7 @@ def register_events(socketio):
                         socketio.emit('user:connected', {
                             'user_id': str(user_id),
                             'timestamp': datetime.utcnow().isoformat()
-                        }, namespace='/', broadcast=True)
+                        }, namespace='/')
                     elif user_type == 'outlet_man':
                         mongo.db.outlet_men.update_one(
                             {'_id': user_obj_id},
