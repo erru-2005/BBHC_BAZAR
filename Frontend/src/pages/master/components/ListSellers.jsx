@@ -34,9 +34,15 @@ function ListSellers() {
       setLoading(true)
       setError(null)
       const data = await getSellers()
-      setSellers(data)
+      const list =
+        Array.isArray(data?.sellers) ? data.sellers :
+        Array.isArray(data?.data) ? data.data :
+        Array.isArray(data?.items) ? data.items :
+        Array.isArray(data) ? data : []
+      setSellers(list)
     } catch (err) {
       setError(err.message || 'Failed to fetch sellers')
+      setSellers([])
     } finally {
       setLoading(false)
     }
@@ -100,14 +106,19 @@ function ListSellers() {
     }))
   }
 
+  const sellersList = useMemo(
+    () => (Array.isArray(sellers) ? sellers : []),
+    [sellers]
+  )
+
   // Filter sellers based on search query
   const filteredSellers = useMemo(() => {
     if (!searchQuery.trim()) {
-      return sellers
+      return sellersList
     }
 
     const query = searchQuery.toLowerCase().trim()
-    return sellers.filter(seller => {
+    return sellersList.filter(seller => {
       // Search across all attributes
       const tradeId = (seller.trade_id || '').toLowerCase()
       const email = (seller.email || '').toLowerCase()
@@ -131,7 +142,7 @@ function ListSellers() {
         createdDate.includes(query)
       )
     })
-  }, [sellers, searchQuery])
+  }, [sellersList, searchQuery])
 
   if (loading) {
     return (

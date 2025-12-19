@@ -34,9 +34,15 @@ function ListOutletMan() {
       setLoading(true)
       setError(null)
       const data = await getOutletMen()
-      setOutletMen(data)
+      const list =
+        Array.isArray(data?.outlet_men) ? data.outlet_men :
+        Array.isArray(data?.data) ? data.data :
+        Array.isArray(data?.items) ? data.items :
+        Array.isArray(data) ? data : []
+      setOutletMen(list)
     } catch (err) {
       setError(err.message || 'Failed to fetch outlet men')
+      setOutletMen([])
     } finally {
       setLoading(false)
     }
@@ -100,14 +106,19 @@ function ListOutletMan() {
     }))
   }
 
+  const outletMenList = useMemo(
+    () => (Array.isArray(outletMen) ? outletMen : []),
+    [outletMen]
+  )
+
   // Filter outlet men based on search query
   const filteredOutletMen = useMemo(() => {
     if (!searchQuery.trim()) {
-      return outletMen
+      return outletMenList
     }
 
     const query = searchQuery.toLowerCase().trim()
-    return outletMen.filter(outletMan => {
+    return outletMenList.filter(outletMan => {
       // Search across all attributes
       const accessCode = (outletMan.outlet_access_code || '').toLowerCase()
       const email = (outletMan.email || '').toLowerCase()
@@ -131,7 +142,7 @@ function ListOutletMan() {
         createdDate.includes(query)
       )
     })
-  }, [outletMen, searchQuery])
+  }, [outletMenList, searchQuery])
 
   if (loading) {
     return (

@@ -133,7 +133,7 @@ function AddSeller({ onSuccess, onError }) {
                 value={form.trade_id}
                 onChange={handleChange}
                 required
-                pattern="[A-Za-z0-9_-]+"
+                pattern="[-A-Za-z0-9_]+"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
                 placeholder="Enter Trade ID (alphanumeric, hyphens, underscores)"
               />

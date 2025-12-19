@@ -60,6 +60,35 @@ function ProductShowcase({ products = [], loading, error }) {
     loadBag()
   }, [isAuthenticated, userType])
 
+  const normalizeRatingStats = (raw) => {
+    if (!raw) return null
+    const source =
+      raw.stats ||
+      raw.data ||
+      raw.rating_stats ||
+      raw
+
+    const average =
+      source.average_rating ??
+      source.avg_rating ??
+      source.rating_average ??
+      source.rating ??
+      source.average ??
+      null
+
+    const total =
+      source.total_ratings ??
+      source.rating_count ??
+      source.reviews_count ??
+      source.totalReviews ??
+      source.count ??
+      source.total ??
+      0
+
+    if (average === null || average === undefined) return null
+    return { average_rating: Number(average), total_ratings: Number(total || 0) }
+  }
+
   // Load rating stats for all visible products so cards always reflect DB averages
   useEffect(() => {
     const loadStats = async () => {
@@ -70,11 +99,11 @@ function ProductShowcase({ products = [], loading, error }) {
       try {
         const entries = await Promise.all(
           products.map(async (p) => {
-            const id = p.id || p._id
+            const id = p.id || p._id || p.product_id || p.productId
             if (!id) return null
             try {
               const stats = await getProductRatingStats(id)
-              return { id: String(id), stats }
+              return { id: String(id), stats: normalizeRatingStats(stats) }
             } catch {
               return null
             }
@@ -237,10 +266,35 @@ function ProductShowcase({ products = [], loading, error }) {
             displayPrice && maxPrice && maxPrice > displayPrice
               ? Math.round(((maxPrice - displayPrice) / maxPrice) * 100)
               : null
-          const productId = product.id || product._id || `${product.product_name}-${index}`
+          const productId = product.id || product._id || product.product_id || product.productId || `${product.product_name}-${index}`
           const productIdStr = String(productId)
-          const stats = ratingStatsMap[productIdStr]
-          const hasRating = stats && stats.average_rating !== undefined && stats.total_ratings !== undefined
+          const stats =
+            ratingStatsMap[productIdStr] ||
+            normalizeRatingStats(
+              product.rating_stats ||
+              product.ratingStats ||
+              product.ratings ||
+              {
+                average_rating:
+                  product.average_rating ??
+                  product.rating ??
+                  product.avg_rating ??
+                  product.rating_average ??
+                  null,
+                total_ratings:
+                  product.total_ratings ??
+                  product.reviews_count ??
+                  product.rating_count ??
+                  product.num_reviews ??
+                  product.totalReviews ??
+                  0
+              }
+            )
+          const hasRating =
+            stats &&
+            stats.average_rating !== undefined &&
+            stats.average_rating !== null &&
+            stats.total_ratings !== undefined
           const rating = hasRating ? Number(stats.average_rating) : null
           const reviews = hasRating ? Number(stats.total_ratings || 0) : 0
           const bagInfo = bagItemsByProduct[productIdStr]

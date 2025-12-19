@@ -26,7 +26,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   const selectedSeller = useMemo(() => {
     if (!selectedSellerId) return null
     return (
-      availableSellers.find(
+      (Array.isArray(availableSellers) ? availableSellers : []).find(
         (seller) => String(seller.id || seller._id || seller.trade_id) === String(selectedSellerId)
       ) || null
     )
@@ -202,7 +202,12 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
           getCategoryCommissionRates().catch(() => ({})) // Fallback to empty object if fails
         ])
         setAvailableCategories(categories)
-        setAvailableSellers(sellers)
+        const sellerList =
+          Array.isArray(sellers?.sellers) ? sellers.sellers :
+          Array.isArray(sellers?.data) ? sellers.data :
+          Array.isArray(sellers?.items) ? sellers.items :
+          Array.isArray(sellers) ? sellers : []
+        setAvailableSellers(sellerList)
         setCategoryCommissionRates(commissionRates)
       } catch (error) {
         console.error('Failed to load categories or sellers', error)
@@ -261,8 +266,13 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingProduct])
 
+  const sellerList = useMemo(
+    () => (Array.isArray(availableSellers) ? availableSellers : []),
+    [availableSellers]
+  )
+
   useEffect(() => {
-    if (!editingProduct || !availableSellers.length) return
+    if (!editingProduct || !sellerList.length) return
 
     const sellerIdFromProduct =
       editingProduct.created_by_user_id ||
@@ -274,7 +284,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     if (!sellerIdFromProduct) return
 
     const matchingSeller =
-      availableSellers.find(
+      sellerList.find(
         (seller) =>
           String(seller.id || seller._id || seller.trade_id) === String(sellerIdFromProduct) ||
           seller.trade_id === sellerIdFromProduct
@@ -283,7 +293,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     if (matchingSeller) {
       setSelectedSellerId(String(matchingSeller.id || matchingSeller._id || matchingSeller.trade_id))
     }
-  }, [editingProduct, availableSellers])
+  }, [editingProduct, sellerList])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -402,7 +412,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               Assign Seller <span className="text-red-500">*</span>
             </label>
             <p className="text-xs text-gray-500 mb-3">Select the seller account that owns this product listing.</p>
-            {availableSellers.length === 0 ? (
+            {sellerList.length === 0 ? (
               <div className="w-full rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
                 Loading sellers... Please ensure sellers are registered.
               </div>
@@ -417,7 +427,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 required
               >
                 <option value="">Select seller</option>
-                {availableSellers.map((seller) => {
+                {sellerList.map((seller) => {
                   const sellerId = String(seller.id || seller._id || seller.trade_id)
                   const sellerName = `${seller.first_name || ''} ${seller.last_name || ''}`.trim()
                   return (

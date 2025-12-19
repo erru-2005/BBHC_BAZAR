@@ -46,12 +46,19 @@ function Outlet() {
     setLoadingOrders(true)
     try {
       const orders = await getOrders()
+      const orderList = Array.isArray(orders?.orders)
+        ? orders.orders
+        : Array.isArray(orders?.data)
+        ? orders.data
+        : Array.isArray(orders)
+        ? orders
+        : []
       // Filter completed orders and sort by most recent
-      const completed = orders
-        .filter(order => order.status === 'completed')
+      const completed = orderList
+        .filter(order => order?.status === 'completed')
         .sort((a, b) => {
-          const dateA = new Date(a.updatedAt || a.createdAt || 0)
-          const dateB = new Date(b.updatedAt || b.createdAt || 0)
+          const dateA = new Date(a?.updatedAt || a?.createdAt || 0)
+          const dateB = new Date(b?.updatedAt || b?.createdAt || 0)
           return dateB - dateA
         })
         .slice(0, 10) // Show last 10 completed orders

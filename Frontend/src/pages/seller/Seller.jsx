@@ -215,27 +215,6 @@ function Seller() {
     { label: 'My Services', icon: FiBriefcase, action: () => null }
   ]
 
-  const stats = [
-    {
-      label: 'Total Products',
-      value: productsLoading ? '...' : productCount.toString(),
-      change: '',
-      gradient: 'from-indigo-500/80 to-indigo-400/60'
-    },
-    {
-      label: 'Total Sales',
-      value: formatCurrency(totalSales),
-      change: '',
-      gradient: 'from-emerald-500/80 to-teal-400/60'
-    },
-    {
-      label: 'Orders Pending',
-      value: pendingCount.toString(),
-      change: '',
-      gradient: 'from-amber-500/80 to-orange-400/60'
-    }
-  ]
-
   // Tabs for notifications: incoming requests + admin notifications
   const notificationTabs = [
     {
@@ -293,6 +272,27 @@ function Seller() {
     if (!Number.isFinite(num)) return '₹0'
     return `₹${num.toLocaleString('en-IN')}`
   }
+
+  const stats = [
+    {
+      label: 'Total Products',
+      value: productsLoading ? '...' : productCount.toString(),
+      change: '',
+      gradient: 'from-indigo-500/80 to-indigo-400/60'
+    },
+    {
+      label: 'Total Sales',
+      value: formatCurrency(totalSales),
+      change: '',
+      gradient: 'from-emerald-500/80 to-teal-400/60'
+    },
+    {
+      label: 'Orders Pending',
+      value: pendingCount.toString(),
+      change: '',
+      gradient: 'from-amber-500/80 to-orange-400/60'
+    }
+  ]
 
   const renderStatIcon = (label) => {
     if (label === 'Total Products') {

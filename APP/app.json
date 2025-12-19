@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "APP",
+    "name": "Chakshu",
     "slug": "APP",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.avif",
     "scheme": "app",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -35,11 +35,11 @@
       "networkSecurityConfig": {
         "cleartextTrafficPermitted": true
       },
-      "package": "com.erru2005.APP"
+      "package": "com.erru2005.chakshu"
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/logo.avif"
     },
     "plugins": [
       "expo-router",

@@ -95,26 +95,39 @@ function OrdersList() {
 
   // Filter and search orders
   useEffect(() => {
-    let filtered = orders
+    let filtered = Array.isArray(orders) ? [...orders] : []
 
     // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => order.status === statusFilter)
+      filtered = filtered.filter(order => order?.status === statusFilter)
     }
 
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(order =>
-        order.orderNumber.toLowerCase().includes(query) ||
-        order.product.name.toLowerCase().includes(query) ||
-        order.seller.name.toLowerCase().includes(query) ||
-        order.user.name.toLowerCase().includes(query)
-      )
+      filtered = filtered.filter(order => {
+        const orderNumber = String(order?.orderNumber || '').toLowerCase()
+        const productName = String(order?.product?.name || order?.product?.product_name || '').toLowerCase()
+        const sellerName =
+          String(order?.seller?.name ||
+            [order?.seller?.first_name, order?.seller?.last_name].filter(Boolean).join(' ') ||
+            order?.seller?.trade_id ||
+            '').toLowerCase()
+        const userName =
+          String(order?.user?.name ||
+            [order?.user?.first_name, order?.user?.last_name].filter(Boolean).join(' ')).toLowerCase()
+
+        return (
+          orderNumber.includes(query) ||
+          productName.includes(query) ||
+          sellerName.includes(query) ||
+          userName.includes(query)
+        )
+      })
     }
 
     // Sort by latest first
-    filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    filtered.sort((a, b) => new Date(b?.createdAt) - new Date(a?.createdAt))
 
     setFilteredOrders(filtered)
   }, [orders, searchQuery, statusFilter])
