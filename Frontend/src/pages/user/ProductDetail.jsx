@@ -99,9 +99,8 @@ function ProductDetail() {
                   <button
                     key={img}
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex-shrink-0 rounded-lg sm:rounded-xl border-2 overflow-hidden ${
-                      idx === activeImageIndex ? 'border-amber-500' : 'border-transparent'
-                    }`}
+                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex-shrink-0 rounded-lg sm:rounded-xl border-2 overflow-hidden ${idx === activeImageIndex ? 'border-amber-500' : 'border-transparent'
+                      }`}
                   >
                     <img src={img} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
@@ -127,7 +126,7 @@ function ProductDetail() {
                 <span className="text-xs sm:text-sm font-semibold text-emerald-600">{product.discount}</span>
               </div>
               <p className="text-[10px] sm:text-xs text-slate-500 mt-1">inclusive of all taxes</p>
-              <p className="text-xs sm:text-sm text-slate-700 mt-1">or ₹{Math.ceil(parseFloat(product.price.replace(/[^\d.]/g, ''))/6)} /month</p>
+              <p className="text-xs sm:text-sm text-slate-700 mt-1">or ₹{Math.ceil(parseFloat(product.price.replace(/[^\d.]/g, '')) / 6)} /month</p>
             </div>
 
             {product.sizes?.length ? (
@@ -186,6 +185,7 @@ function ProductDetail() {
               name={item.name}
               price={item.price}
               image={item.image}
+              product={item}
               wished={wishlist.includes(item.id)}
               onToggleWishlist={() => dispatch(toggleWishlist(item.id))}
             />

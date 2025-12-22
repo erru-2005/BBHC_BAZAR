@@ -1,6 +1,8 @@
+import { useNavigate } from 'react-router-dom'
 import PropTypes from 'prop-types'
 
 function WishlistCarousel({ products }) {
+  const navigate = useNavigate()
   if (!products?.length) return null
 
   return (
@@ -10,7 +12,8 @@ function WishlistCarousel({ products }) {
         {products.map((product) => (
           <div
             key={product.id}
-            className="flex flex-col items-center flex-shrink-0 w-20"
+            onClick={() => navigate(`/product/public/${product.id}`, { state: { product } })}
+            className="flex flex-col items-center flex-shrink-0 w-20 cursor-pointer"
           >
             <div className="w-16 h-16 rounded-full bg-white shadow flex items-center justify-center overflow-hidden">
               {product.image ? (

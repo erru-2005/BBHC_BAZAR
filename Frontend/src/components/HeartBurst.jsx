@@ -14,7 +14,7 @@ const GRADIENT_PALETTES = [
 
 const HEART_PATH = 'M10 17s-6.5-4.35-9-9C-1.5 1.5 4.5-1 10 4.5 15.5-1 21.5 1.5 19 8c-2.5 6-9 9-9 9z'
 
-function HeartBurst({ trigger }) {
+function HeartBurst({ trigger, direction = 'up' }) {
   const [particles, setParticles] = useState([])
 
   const paletteSequence = useMemo(() => GRADIENT_PALETTES, [])
@@ -27,13 +27,34 @@ function HeartBurst({ trigger }) {
       const palette = paletteSequence[idx % paletteSequence.length]
       const gradId = `${burstId}-grad-${idx}`
       const radialId = `${burstId}-rad-${idx}`
+
+      // Calculate trajectories based on direction
+      let xBase, yBase
+
+      switch (direction) {
+        case 'bottom-right':
+          // Fly down and right (ideal for top-left buttons)
+          xBase = 20 + Math.random() * 80
+          yBase = 20 + Math.random() * 80
+          break
+        case 'down':
+          xBase = (Math.random() - 0.5) * 70
+          yBase = 60 + Math.random() * 80
+          break
+        case 'up':
+        default:
+          xBase = (Math.random() - 0.5) * 70
+          yBase = -(60 + Math.random() * 80)
+          break
+      }
+
       return {
         id: `${burstId}-${idx}`,
         palette,
         gradId,
         radialId,
-        x: (Math.random() - 0.5) * 70,
-        y: 60 + Math.random() * 80,
+        x: xBase, // Target X relative to center
+        y: yBase, // Target Y relative to center
         scale: 0.85 + Math.random() * 0.7,
         rotate: -18 + Math.random() * 36,
         delay: idx * 0.03
@@ -43,7 +64,7 @@ function HeartBurst({ trigger }) {
     setParticles(hearts)
     const timeout = setTimeout(() => setParticles([]), 2200)
     return () => clearTimeout(timeout)
-  }, [trigger, paletteSequence])
+  }, [trigger, paletteSequence, direction])
 
   if (!particles.length) return null
 
@@ -53,12 +74,12 @@ function HeartBurst({ trigger }) {
         {particles.map((heart) => (
           <motion.span
             key={heart.id}
-            initial={{ opacity: 0, scale: 0.6, y: 0 }}
+            initial={{ opacity: 0, scale: 0.6, x: 0, y: 0 }}
             animate={{
               opacity: [0, 1, 0],
               scale: [0.6, heart.scale, heart.scale * 0.9],
               x: heart.x,
-              y: [-10, -heart.y, -heart.y - 10],
+              y: heart.y,
               rotate: heart.rotate
             }}
             exit={{ opacity: 0 }}
