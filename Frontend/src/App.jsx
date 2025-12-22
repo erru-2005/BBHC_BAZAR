@@ -28,6 +28,7 @@ import {
   SellerAddProduct,
   SellerEditProduct
 } from './pages'
+import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import SplashScreen from './components/SplashScreen'
 import { useEffect, useState, useRef } from 'react'
@@ -42,7 +43,7 @@ function SplashWrapper() {
   })
   const [showContent, setShowContent] = useState(!showSplash)
   const headerLogoRef = useRef(null)
-  
+
   useEffect(() => {
     if (location.pathname === '/') {
       const hasSeenSplash = sessionStorage.getItem('hasSeenSplash')
@@ -67,8 +68,8 @@ function SplashWrapper() {
   return (
     <>
       {showSplash && (
-        <SplashScreen 
-          onComplete={handleSplashComplete} 
+        <SplashScreen
+          onComplete={handleSplashComplete}
           headerLogoRef={headerLogoRef}
         />
       )}
@@ -81,106 +82,73 @@ function SplashWrapper() {
             <Route path="/services" element={<Services headerLogoRef={headerLogoRef} />} />
             <Route path="/wishlist" element={<Wishlist headerLogoRef={headerLogoRef} />} />
             <Route path="/search" element={<SearchResults headerLogoRef={headerLogoRef} />} />
-      <Route path="/user/phone-entry" element={<PhoneNumberEntry />} />
-      <Route path="/user/verify-otp" element={<OTPVerification />} />
-      <Route path="/user/register" element={<UserRegistration />} />
-      <Route
-        path="/user/profile"
-        element={
-          <ProtectedRoute requiredUserType="user">
-            <UserProfile />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/user/orders"
-        element={
-          <ProtectedRoute requiredUserType="user">
-            <UserOrders />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/user/bag"
-        element={
-          <ProtectedRoute requiredUserType="user">
-            <Bag />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/seller/login" element={<SellerLogin />} />
-      <Route path="/master/login" element={<MasterLogin />} />
-      <Route path="/outlet/login" element={<OutletLogin />} />
-      <Route path="/outlet" element={<Navigate to="/outlet/login" replace />} />
-      <Route path="/seller" element={<Navigate to="/seller/login" replace />} />
-      <Route path="/master" element={<Navigate to="/master/login" replace />} />
-      <Route path="/product/:productId" element={<PublicProductDetail />} />
-      <Route path="/product/public/:productId" element={<PublicProductDetail />} />
-      <Route path="/product/:productId/buy" element={<BuyNow />} />
-      <Route 
-        path="/seller/dashboard" 
-        element={
-          <ProtectedRoute requiredUserType="seller">
-            <Seller />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/seller/products" 
-        element={
-          <ProtectedRoute requiredUserType="seller">
-            <SellerMyProducts />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/seller/products/new" 
-        element={
-          <ProtectedRoute requiredUserType="seller">
-            <SellerAddProduct />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/seller/products/:productId" 
-        element={
-          <ProtectedRoute requiredUserType="seller">
-            <SellerProductDetail />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/seller/products/:productId/edit" 
-        element={
-          <ProtectedRoute requiredUserType="seller">
-            <SellerEditProduct />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/master/dashboard" 
-        element={
-          <ProtectedRoute requiredUserType="master">
-            <Master />
-          </ProtectedRoute>
-        } 
-      />
-      <Route
-        path="/master/products/:productId"
-        element={
-          <ProtectedRoute requiredUserType="master">
-            <MasterProductDetail />
-          </ProtectedRoute>
-        }
-      />
-      <Route 
-        path="/outlet/dashboard" 
-        element={
-          <ProtectedRoute requiredUserType="outlet_man">
-            <Outlet />
-          </ProtectedRoute>
-        } 
-      />
+            <Route path="/user/phone-entry" element={<PhoneNumberEntry />} />
+            <Route path="/user/verify-otp" element={<OTPVerification />} />
+            <Route path="/user/register" element={<UserRegistration />} />
+            <Route
+              path="/user/profile"
+              element={
+                <ProtectedRoute requiredUserType="user">
+                  <UserProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/user/orders"
+              element={
+                <ProtectedRoute requiredUserType="user">
+                  <UserOrders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/user/bag"
+              element={
+                <ProtectedRoute requiredUserType="user">
+                  <Bag />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/seller/login" element={<SellerLogin />} />
+            <Route path="/master/login" element={<MasterLogin />} />
+            <Route path="/outlet/login" element={<OutletLogin />} />
+            <Route path="/outlet" element={<Navigate to="/outlet/login" replace />} />
+            <Route path="/seller" element={<Navigate to="/seller/login" replace />} />
+            <Route path="/master" element={<Navigate to="/master/login" replace />} />
+            <Route path="/product/:productId" element={<PublicProductDetail />} />
+            <Route path="/product/public/:productId" element={<PublicProductDetail />} />
+            <Route path="/product/:productId/buy" element={<BuyNow />} />
+            <Route element={<ProtectedRoute requiredUserType="seller"><SellerLayout /></ProtectedRoute>}>
+              <Route path="/seller/dashboard" element={<Seller />} />
+              <Route path="/seller/products" element={<SellerMyProducts />} />
+              <Route path="/seller/products/new" element={<SellerAddProduct />} />
+              <Route path="/seller/products/:productId" element={<SellerProductDetail />} />
+              <Route path="/seller/products/:productId/edit" element={<SellerEditProduct />} />
+            </Route>
+            <Route
+              path="/master/dashboard"
+              element={
+                <ProtectedRoute requiredUserType="master">
+                  <Master />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/master/products/:productId"
+              element={
+                <ProtectedRoute requiredUserType="master">
+                  <MasterProductDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/outlet/dashboard"
+              element={
+                <ProtectedRoute requiredUserType="outlet_man">
+                  <Outlet />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
