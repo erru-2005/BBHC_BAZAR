@@ -1,13 +1,31 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { FiMenu, FiRefreshCw, FiPackage, FiTag } from 'react-icons/fi'
+import { FiMenu, FiRefreshCw, FiPackage, FiSearch } from 'react-icons/fi'
+import { motion, AnimatePresence } from 'framer-motion'
 import { getProducts } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null || value === '') return '₹0'
   return `₹${Number(value).toLocaleString('en-IN')}`
+}
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 300, damping: 25 }
+  }
 }
 
 function SellerMyProducts() {
@@ -17,6 +35,7 @@ function SellerMyProducts() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -24,12 +43,11 @@ function SellerMyProducts() {
       setError(null)
       try {
         const productList = await getProducts()
-        // getProducts returns array according to api service
         const normalized = Array.isArray(productList?.products)
           ? productList.products
           : Array.isArray(productList)
-          ? productList
-          : []
+            ? productList
+            : []
         setProducts(normalized)
       } catch (err) {
         setError(err.message || 'Failed to load products')
@@ -66,7 +84,7 @@ function SellerMyProducts() {
     const sellerTradeId = user.trade_id
     const sellerId = String(user.id || user._id || '')
 
-    return products.filter((product) => {
+    const filtered = products.filter((product) => {
       const matchTradeId =
         sellerTradeId &&
         (product.seller_trade_id === sellerTradeId ||
@@ -79,162 +97,173 @@ function SellerMyProducts() {
 
       return matchTradeId || matchId
     })
-  }, [products, user])
+
+    if (!searchQuery) return filtered
+    const lowerQuery = searchQuery.toLowerCase()
+    return filtered.filter(p => p.product_name?.toLowerCase().includes(lowerQuery))
+  }, [products, user, searchQuery])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#EAF3FF] via-white to-[#F4ECFF] text-slate-900">
-      {/* Top header consistent with seller dashboard */}
-      <header className="sticky top-0 z-20 border-b border-slate-900/80 bg-black text-white shadow-md shadow-black/60">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-4 sm:px-4 sm:py-5">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
+    <div className="min-h-screen spatial-bg text-white pb-[96px] md:pb-0">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-40 glass-panel border-b border-white/5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-4 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
               onClick={() => navigate('/seller/dashboard', { state: { openMenu: true } })}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white shadow-sm shadow-black/40 transition hover:-translate-y-0.5 hover:scale-105 hover:border-white/40 hover:bg-white/10"
-              aria-label="Open menu"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/90 border border-white/10 md:hidden"
             >
-              <FiMenu className="h-4 w-4" />
-            </button>
+              <FiMenu className="h-5 w-5" />
+            </motion.button>
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="inline-flex items-center gap-1 rounded-full bg-white px-3.5 py-1.5 shadow-[0_15px_32px_rgba(0,0,0,0.3)] sm:gap-1.5 sm:px-4 sm:py-2">
-                <span className="text-sm font-extrabold tracking-[0.08em] text-black sm:text-base">
-                  BBHC
-                </span>
-                <span className="text-sm font-semibold tracking-wide text-pink-500 sm:text-base">
-                  Bazaar
-                </span>
+              <div className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3.5 py-1.5 shadow-inner ring-1 ring-white/10 backdrop-blur-sm sm:gap-1.5 sm:px-4 sm:py-2">
+                <span className="text-sm font-extrabold tracking-[0.08em] text-white sm:text-base">BBHC</span>
+                <span className="text-sm font-bold text-rose-300 sm:text-base active-glow">Bazaar</span>
               </div>
-              <p className="hidden text-[11px] uppercase tracking-[0.32em] text-slate-300 sm:inline">
-                Seller · My Products
-              </p>
             </div>
           </div>
-          <span className="hidden text-xs text-slate-100 sm:inline sm:text-sm">
-            {user?.trade_id && (
-              <>
-                Seller&nbsp;
-                <span className="font-semibold text-white">{user.trade_id}</span>
-              </>
-            )}
+          <span className="hidden text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 sm:inline">
+            Inventory Management
           </span>
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-0">
-        <div className="flex flex-col gap-3 pb-6 sm:flex-row sm:items-center sm:justify-between">
+      <main className="relative mx-auto max-w-5xl px-4 pt-24 pb-12 sm:px-6 lg:px-0">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between"
+        >
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Products</h1>
-            <p className="text-sm text-gray-500">
-              Review every product associated with{' '}
-              <span className="font-semibold text-gray-700">{user?.trade_id}</span>.
+            <h1 className="text-2xl font-black text-white tracking-tighter">My Products</h1>
+            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-1">
+              Active Listings: {ownedProducts.length}
             </p>
           </div>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => setRefreshToken((prev) => prev + 1)}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
-          >
-            <FiRefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Refreshing…' : 'Refresh'}
-          </button>
-        </div>
+          <div className="flex gap-3">
+            <div className="relative group flex-1 sm:flex-none">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-500 transition-colors" strokeWidth={2.5} />
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 pr-4 py-3 bg-white/5 border border-white/5 rounded-2xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-rose-500/30 focus:bg-white/10 transition-all w-full sm:w-72 shadow-inner"
+              />
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.9, rotate: 180 }}
+              disabled={loading}
+              onClick={() => setRefreshToken((prev) => prev + 1)}
+              className="p-3 rounded-2xl bg-white/5 border border-white/5 text-slate-400 hover:text-white transition-colors"
+            >
+              <FiRefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+            </motion.button>
+          </div>
+        </motion.div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-6 spatial-card border-rose-500/20 bg-rose-500/5 p-4 text-sm text-rose-400">
+            {error}
+          </motion.div>
         )}
 
-        {!loading && ownedProducts.length === 0 && !error && (
-          <div className="rounded-3xl border border-dashed border-gray-300 bg-white/80 px-6 py-10 text-center text-gray-500">
-            <p className="text-base font-semibold text-gray-700">No products found</p>
-            <p className="text-sm text-gray-500">Once products are created for this seller, they will appear here automatically.</p>
-          </div>
-        )}
+        <AnimatePresence mode="popLayout">
+          {loading ? (
+            <motion.div key="loading" className="grid grid-cols-1 gap-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-32 w-full animate-pulse rounded-[32px] bg-white/[0.03] border border-white/5" />
+              ))}
+            </motion.div>
+          ) : ownedProducts.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="spatial-card px-6 py-20 text-center flex flex-col items-center gap-4 opacity-50 grayscale"
+            >
+              <FiPackage className="h-12 w-12 text-rose-500/30" />
+              <p className="text-sm font-black uppercase tracking-widest">No products found</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="list"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 gap-4"
+            >
+              {ownedProducts.map((product) => {
+                const quantity = product.quantity || product.stock || 0
+                return (
+                  <motion.div
+                    key={product.id || product._id}
+                    layout
+                    variants={itemVariants}
+                    whileHover={{ x: 8, backgroundColor: 'rgba(255,255,255,0.03)' }}
+                    className="spatial-card p-4 flex gap-5 items-center group cursor-pointer relative overflow-hidden"
+                    onClick={() => navigate(`/seller/products/${product.id || product._id}`, { state: { product } })}
+                  >
+                    {/* Glowing Accent on Hover */}
+                    <div className="absolute top-0 left-0 w-1 h-full bg-rose-500 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-        <div className="space-y-4">
-          {ownedProducts.map((product) => {
-            const quantity =
-              product.quantity ||
-              product.stock ||
-              product.available_quantity ||
-              product.inventory ||
-              0
-            return (
-              <div
-                key={product.id || product._id}
-                role="button"
-                tabIndex={0}
-                onClick={() =>
-                  navigate(`/seller/products/${product.id || product._id}`, { state: { product } })
-                }
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    navigate(`/seller/products/${product.id || product._id}`, { state: { product } })
-                  }
-                }}
-                className="relative rounded-3xl border border-white/40 bg-white/90 px-5 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(15,23,42,0.12)] focus:outline-none focus:ring-2 focus:ring-slate-400"
-              >
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    navigate(`/seller/products/${product.id || product._id}/edit`, { state: { product } })
-                  }}
-                  className="absolute right-4 top-4 rounded-full border border-gray-200 bg-white/80 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                >
-                  Edit
-                </button>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex items-start gap-4">
-                    <div className="hidden h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 sm:block">
+                    <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-900 border border-white/5">
                       {product.thumbnail ? (
                         <img
                           src={typeof product.thumbnail === 'string' ? product.thumbnail : product.thumbnail.preview}
                           alt={product.product_name}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">No image</div>
+                        <div className="flex h-full w-full items-center justify-center text-[10px] font-black uppercase text-slate-500">No Image</div>
                       )}
                     </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.3em] text-gray-400">Product</p>
-                      <h2 className="text-xl font-semibold text-gray-900">{product.product_name}</h2>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-500">
-                        <span className="font-semibold text-gray-800">{formatCurrency(product.selling_price)}</span>
-                        {product.max_price && (
-                          <span className="text-xs text-gray-400">
-                            MRP <span className="line-through">{formatCurrency(product.max_price)}</span>
-                          </span>
-                        )}
-                        <span className="text-gray-400">•</span>
-                        <span className="text-gray-600">Qty: {quantity}</span>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-black uppercase tracking-tighter text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded">
+                          #{product.categories?.[0] || 'Uncategorized'}
+                        </span>
                       </div>
-                      {product.categories?.length > 0 && (
-                        <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
-                          <FiTag className="h-3 w-3" />
-                          {Array.isArray(product.categories) ? product.categories[0] : product.categories}
-                        </div>
-                      )}
+                      <h2 className="text-base font-bold text-white group-hover:text-rose-400 transition-colors truncate">
+                        {product.product_name}
+                      </h2>
+                      <div className="flex items-center gap-4 mt-2">
+                        <p className="text-sm font-black text-white">
+                          {formatCurrency(product.selling_price)}
+                        </p>
+                        <div className="h-3 w-px bg-white/10" />
+                        <p className="text-xs font-bold text-slate-400">
+                          Stock: <span className={quantity > 5 ? 'text-slate-200' : 'text-amber-500'}>{quantity}</span>
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                    <p className="text-[11px] uppercase tracking-[0.3em] text-gray-500 mb-1">Last updated</p>
-                    <p>{product.updated_at ? new Date(product.updated_at).toLocaleString() : 'N/A'}</p>
-                  </div>
-                </div>
-                {product.description && (
-                  <p className="mt-3 text-sm text-gray-600 line-clamp-2">{product.description}</p>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+
+                    <div className="flex flex-col items-end gap-2">
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/seller/products/${product.id || product._id}/edit`, { state: { product } })
+                        }}
+                        className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <FiRefreshCw className="w-4 h-4" />
+                      </motion.button>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">
+                        {product.updated_at ? new Date(product.updated_at).toLocaleDateString() : 'N/A'}
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
     </div>
   )
 }
 
 export default SellerMyProducts
-
