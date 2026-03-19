@@ -6,7 +6,8 @@ import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
 import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
-import { toggleWishlist } from '../../store/dataSlice'
+import { setHomeProducts, updateProductInCache, toggleWishlist } from '../../store/dataSlice'
+import { initSocket, getSocket } from '../../utils/socket'
 import ProductCard from './components/ProductCard'
 
 function ProductDetail() {
@@ -15,22 +16,89 @@ function ProductDetail() {
   const dispatch = useDispatch()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const homeData = useSelector((state) => state.data.home)
-  const { recommendationRows, wishlist, bottomNavItems } = homeData
+  const { home } = useSelector((state) => state.data)
+  const { recommendationRows, wishlist, bottomNavItems, products } = home
+  const { token } = useSelector((state) => state.auth)
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [productId])
 
   const product = useMemo(() => {
-    const map = {}
+    // Priority 1: Check main products list (live updated)
+    const inMainList = products?.find(p => String(p.id || p._id) === String(productId))
+    if (inMainList) return inMainList
+
+    // Priority 2: Check recommendation rows (static/fallback)
+    let found = null
     recommendationRows.forEach((row) => {
-      row.products.forEach((prod) => {
-        map[prod.id] = prod
-      })
+      // Avoid breaking loop if already found
+      if (found) return
+      const match = row.products.find((prod) => String(prod.id) === String(productId))
+      if (match) {
+        found = match
+      }
     })
-    return map[productId]
-  }, [recommendationRows, productId])
+    return found
+  }, [recommendationRows, products, productId])
+
+  // Listen for real-time rating updates to keep Redux store in sync
+  useEffect(() => {
+    let socket = getSocket()
+
+    if (!socket || !socket.connected) {
+      socket = initSocket(token)
+    }
+
+    if (!socket) return
+
+    const handleRatingUpdate = (data) => {
+      if (data && data.product_id && data.rating_stats) {
+        const targetId = String(data.product_id)
+
+        // Only proceed if we have products loaded
+        if (!products || products.length === 0) return
+
+        const currentProducts = products
+        let hasChanges = false
+
+        const updatedProducts = currentProducts.map((p) => {
+          if (String(p.id || p._id) === targetId) {
+            hasChanges = true
+            return {
+              ...p,
+              rating: data.rating_stats.average_rating,
+              total_ratings: data.rating_stats.total_ratings
+            }
+          }
+          return p
+        })
+
+        if (hasChanges) {
+          dispatch(setHomeProducts(updatedProducts))
+        }
+
+        // Also update the current view if it's the product being viewed (though memo handles this via products dependency)
+        // The memoized 'product' will update automatically because 'products' changed
+      }
+    }
+
+    const handleProductUpdate = (updatedProduct) => {
+      if (updatedProduct && updatedProduct.id) {
+        dispatch(updateProductInCache(updatedProduct))
+      }
+    }
+
+    socket.on('rating_updated', handleRatingUpdate)
+    socket.on('product_updated', handleProductUpdate)
+
+    return () => {
+      if (socket) {
+        socket.off('rating_updated', handleRatingUpdate)
+        socket.off('product_updated', handleProductUpdate)
+      }
+    }
+  }, [token, dispatch, products])
 
   const imageList = product?.images?.length ? product.images : product?.image ? [product.image] : []
   const [activeImageIndex, setActiveImageIndex] = useState(0)
@@ -99,9 +167,8 @@ function ProductDetail() {
                   <button
                     key={img}
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex-shrink-0 rounded-lg sm:rounded-xl border-2 overflow-hidden ${
-                      idx === activeImageIndex ? 'border-amber-500' : 'border-transparent'
-                    }`}
+                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex-shrink-0 rounded-lg sm:rounded-xl border-2 overflow-hidden ${idx === activeImageIndex ? 'border-amber-500' : 'border-transparent'
+                      }`}
                   >
                     <img src={img} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
@@ -127,7 +194,7 @@ function ProductDetail() {
                 <span className="text-xs sm:text-sm font-semibold text-emerald-600">{product.discount}</span>
               </div>
               <p className="text-[10px] sm:text-xs text-slate-500 mt-1">inclusive of all taxes</p>
-              <p className="text-xs sm:text-sm text-slate-700 mt-1">or ₹{Math.ceil(parseFloat(product.price.replace(/[^\d.]/g, ''))/6)} /month</p>
+              <p className="text-xs sm:text-sm text-slate-700 mt-1">or ₹{Math.ceil(parseFloat(product.price.replace(/[^\d.]/g, '')) / 6)} /month</p>
             </div>
 
             {product.sizes?.length ? (
