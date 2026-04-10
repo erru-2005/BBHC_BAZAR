@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { useState, useRef } from 'react'
 import { CHART_COLORS, defaultOptions } from '../../../../utils/chartConfig'
 import ProductDetailPopup from './ProductDetailPopup'
+import { getImageUrl } from '../../../../utils/image'
 
 const TopProductsChart = ({ data, isLoading }) => {
   const [selectedProduct, setSelectedProduct] = useState(null)
@@ -175,7 +176,7 @@ const TopProductsChart = ({ data, isLoading }) => {
                 >
                   <div className="relative w-full h-full">
                     <img
-                      src={item.thumbnail || 'https://via.placeholder.com/50x50?text=No+Image'}
+                      src={getImageUrl(item.thumbnail)}
                       alt={item.name}
                       className="w-full h-full object-cover rounded-lg border-2 border-gray-200 group-hover:border-blue-500 transition-colors"
                       onError={(e) => {

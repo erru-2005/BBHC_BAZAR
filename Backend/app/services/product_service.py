@@ -6,6 +6,7 @@ from datetime import datetime
 
 from app import mongo
 from app.models.product import Product
+from app.utils.image_handler import save_base64_image, delete_entity_images
 
 
 class ProductService:
@@ -62,14 +63,25 @@ class ProductService:
                 else:
                     approval_status = 'approved'
 
+            # Generate ID beforehand to use it for folder naming
+            product_id = ObjectId()
+            
+            # Save images to filesystem
+            thumbnail_url = save_base64_image(product_data['thumbnail'], str(product_id), 0, 'products')
+            gallery_urls = []
+            if 'gallery' in product_data and isinstance(product_data['gallery'], list):
+                for i, img_b64 in enumerate(product_data['gallery']):
+                    url = save_base64_image(img_b64, str(product_id), i + 1, 'products')
+                    gallery_urls.append(url)
+
             product = Product(
                 product_name=product_data['product_name'],
                 specification=product_data['specification'],
                 points=normalized_points,
-                thumbnail=product_data['thumbnail'],
+                thumbnail=thumbnail_url,
                 selling_price=selling_price,
                 max_price=max_price,
-                gallery=product_data.get('gallery', []),
+                gallery=gallery_urls,
                 categories=normalized_categories,
                 created_by=product_data.get('created_by', 'system'),
                 created_by_user_id=product_data.get('created_by_user_id'),
@@ -89,10 +101,10 @@ class ProductService:
                 registration_ip=product_data.get('registration_ip'),
                 registration_user_agent=product_data.get('registration_user_agent')
             )
+            product._id = product_id
 
             product_bson = product.to_bson()
-            result = mongo.db.products.insert_one(product_bson)
-            product._id = result.inserted_id
+            mongo.db.products.insert_one(product_bson)
             return product
         except ValueError as e:
             raise e
@@ -142,7 +154,8 @@ class ProductService:
                 query = {
                     '$or': [
                         {'approval_status': 'approved'},
-                        {'approval_status': {'$exists': False}}
+                        {'approval_status': {'$exists': False}},
+                        {'approval_status': None}
                     ]
                 }
             
@@ -237,8 +250,16 @@ class ProductService:
                     raise ValueError("Categories must be a list")
                 update_fields['categories'] = [str(cat).strip() for cat in categories if str(cat).strip()]
 
+            if 'thumbnail' in product_data:
+                update_fields['thumbnail'] = save_base64_image(product_data['thumbnail'], str(product_id), 0, 'products')
+
             if 'gallery' in product_data:
-                update_fields['gallery'] = product_data['gallery']
+                gallery_urls = []
+                if isinstance(product_data['gallery'], list):
+                    for i, img_b64 in enumerate(product_data['gallery']):
+                        url = save_base64_image(img_b64, str(product_id), i + 1, 'products')
+                        gallery_urls.append(url)
+                update_fields['gallery'] = gallery_urls
 
             if not update_fields:
                 raise ValueError("No data provided to update")
@@ -263,7 +284,10 @@ class ProductService:
     def delete_product(product_id):
         try:
             result = mongo.db.products.delete_one({'_id': ObjectId(product_id)})
-            return result.deleted_count > 0
+            if result.deleted_count > 0:
+                delete_entity_images(product_id, 'products')
+                return True
+            return False
         except Exception as e:
             raise Exception(f"Error deleting product: {str(e)}")
 

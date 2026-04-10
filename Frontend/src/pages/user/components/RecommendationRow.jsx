@@ -11,7 +11,14 @@ function RecommendationRow({ title, products }) {
       </div>
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
         {products.map((product) => (
-          <ProductCard key={product.id} name={product.name} price={product.price} image={product.image} />
+          <ProductCard
+            key={product.id}
+            id={product.id}
+            name={product.name}
+            price={product.price}
+            image={product.image}
+            product={product}
+          />
         ))}
       </div>
     </section>

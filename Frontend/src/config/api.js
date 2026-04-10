@@ -64,6 +64,11 @@ export const API_ENDPOINTS = {
     PENDING_PRODUCTS: `${API_BASE_URL}/api/products/pending`,
     APPROVE_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/approve`,
     REJECT_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/reject`,
+    SERVICES: `${API_BASE_URL}/api/services`,
+    SELLER_SERVICES: `${API_BASE_URL}/api/seller/services`,
+    PENDING_SERVICES: `${API_BASE_URL}/api/services/pending`,
+    APPROVE_SERVICE: (serviceId) => `${API_BASE_URL}/api/services/${serviceId}/accept`,
+    REJECT_SERVICE: (serviceId) => `${API_BASE_URL}/api/services/${serviceId}/reject`,
     ANALYTICS: {
       STATS: `${API_BASE_URL}/api/analytics/stats`,
       USERS: `${API_BASE_URL}/api/analytics/users`,

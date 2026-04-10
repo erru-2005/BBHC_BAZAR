@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types'
+import { getImageUrl } from '../../../utils/image'
 
 function HeroBanner({ slide, updatedText }) {
   if (!slide) return null
@@ -18,7 +19,7 @@ function HeroBanner({ slide, updatedText }) {
           </div>
           <div className="relative overflow-hidden">
             <div className={`absolute inset-0 bg-gradient-to-br ${slide.accent} blur-3xl opacity-80`}></div>
-            <img src={slide.image} alt={slide.title} className="relative w-full h-full object-cover" />
+            <img src={getImageUrl(slide.image)} alt={slide.title} className="relative w-full h-full object-cover" />
           </div>
         </div>
       </div>

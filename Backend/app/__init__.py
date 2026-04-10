@@ -22,8 +22,17 @@ socketio = SocketIO(cors_allowed_origins="*")
 
 def create_app(config_class=Config):
     """Application factory pattern"""
-    app = Flask(__name__)
+    # static_folder is relative to this file's folder (app/)
+    # So we want it to be Backend/static/
+    app = Flask(__name__, static_folder='../static', static_url_path='/static')
     app.config.from_object(config_class)
+    
+    # Ensure static directories exist
+    static_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static')
+    products_dir = os.path.join(static_root, 'products')
+    services_dir = os.path.join(static_root, 'services')
+    os.makedirs(products_dir, exist_ok=True)
+    os.makedirs(services_dir, exist_ok=True)
     
     # Initialize MongoDB connection
     # Flask-PyMongo expects MONGO_URI, construct it from config

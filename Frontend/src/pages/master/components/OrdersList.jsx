@@ -14,6 +14,7 @@ import * as XLSXModule from 'xlsx-js-style'
 const XLSX = XLSXModule.default || XLSXModule.XLSX || XLSXModule
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { getImageUrl } from '../../../utils/image'
 
 function OrdersList() {
   const [orders, setOrders] = useState([])
@@ -580,7 +581,7 @@ function OrdersList() {
                       <td className="px-4 py-4">
                         <div className="flex items-start gap-3">
                           <img
-                            src={productImage}
+                            src={getImageUrl(productImage)}
                             alt={productName}
                             className="w-12 h-12 rounded-lg object-cover"
                           />
@@ -756,7 +757,7 @@ function OrderDetailModal({ order, onClose, onAccept, onReject, onCancel }) {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Product Details</h3>
             <div className="flex gap-4 bg-gray-50 rounded-lg p-4">
               <img
-                src={productImage}
+                src={getImageUrl(productImage)}
                 alt={productName}
                 className="w-24 h-24 rounded-lg object-cover"
               />

@@ -212,12 +212,14 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
 
     socket.on('product_updated', handleProductUpdate)
     socket.on('product_created', handleProductCreated)
+    socket.on('product_approved', handleProductCreated)
     socket.on('rating_updated', handleRatingUpdate)
 
     return () => {
       if (socket) {
         socket.off('product_updated', handleProductUpdate)
         socket.off('product_created', handleProductCreated)
+        socket.off('product_approved', handleProductCreated)
         socket.off('rating_updated', handleRatingUpdate)
       }
     }

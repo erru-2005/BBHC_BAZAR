@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { FaMagnifyingGlass, FaXmark, FaHeart } from 'react-icons/fa6'
 import { addToWishlist, removeFromWishlist } from '../../../services/api'
+import { getImageUrl } from '../../../utils/image'
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null) return '₹0'
@@ -217,7 +218,7 @@ function SearchOverlay({ isOpen, onClose, initialQuery = '' }) {
                         <div className="relative aspect-square bg-gray-50 rounded-lg overflow-hidden mb-2">
                           {thumbnail ? (
                             <img
-                              src={thumbnail?.preview || thumbnail?.data_url || thumbnail?.url || thumbnail}
+                              src={getImageUrl(thumbnail?.preview || thumbnail?.data_url || thumbnail?.url || thumbnail)}
                               alt={product.product_name}
                               className="w-full h-full object-contain"
                             />

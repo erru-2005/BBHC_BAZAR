@@ -21,6 +21,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   const [categoryStatus, setCategoryStatus] = useState({ type: null, message: '' })
   const [categoryCommissionRates, setCategoryCommissionRates] = useState({})
   const [appliedCategoryCommission, setAppliedCategoryCommission] = useState(null)
+  const [isLoadingSellers, setIsLoadingSellers] = useState(true)
   const statusRef = useRef(null)
 
   const selectedSeller = useMemo(() => {
@@ -196,21 +197,20 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   useEffect(() => {
     const loadCategoriesAndSellers = async () => {
       try {
-        const [categories, sellers, commissionRates] = await Promise.all([
+        setIsLoadingSellers(true)
+        const [categories, sellersData, commissionRates] = await Promise.all([
           getCategories(),
-          getSellers(),
-          getCategoryCommissionRates().catch(() => ({})) // Fallback to empty object if fails
+          getSellers({ limit: 500 }),
+          getCategoryCommissionRates().catch(() => ({}))
         ])
-        setAvailableCategories(categories)
-        const sellerList =
-          Array.isArray(sellers?.sellers) ? sellers.sellers :
-          Array.isArray(sellers?.data) ? sellers.data :
-          Array.isArray(sellers?.items) ? sellers.items :
-          Array.isArray(sellers) ? sellers : []
-        setAvailableSellers(sellerList)
-        setCategoryCommissionRates(commissionRates)
+        setAvailableCategories(categories || [])
+        // The getSellers utility now returns { sellers: [...] }
+        setAvailableSellers(sellersData?.sellers || [])
+        setCategoryCommissionRates(commissionRates || {})
       } catch (error) {
         console.error('Failed to load categories or sellers', error)
+      } finally {
+        setIsLoadingSellers(false)
       }
     }
     loadCategoriesAndSellers()
@@ -412,9 +412,14 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               Assign Seller <span className="text-red-500">*</span>
             </label>
             <p className="text-xs text-gray-500 mb-3">Select the seller account that owns this product listing.</p>
-            {sellerList.length === 0 ? (
-              <div className="w-full rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
-                Loading sellers... Please ensure sellers are registered.
+            {isLoadingSellers ? (
+              <div className="w-full rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                Fetching all registered sellers...
+              </div>
+            ) : sellerList.length === 0 ? (
+              <div className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                No active sellers found. Please register a seller first.
               </div>
             ) : (
               <select
@@ -423,7 +428,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                   setSelectedSellerId(e.target.value)
                   setStatus({ type: null, message: '' })
                 }}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white text-black font-bold"
                 required
               >
                 <option value="">Select seller</option>
@@ -548,7 +553,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               name="productName"
               value={form.productName}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium"
               placeholder="Enter product name"
               required
             />
@@ -566,7 +571,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 name="sellingPrice"
                 value={form.sellingPrice}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium"
                 placeholder="Enter current selling price"
                 required
               />
@@ -583,7 +588,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 name="maxPrice"
                 value={form.maxPrice}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium"
                 placeholder="Enter MRP (maximum price)"
                 required
               />
@@ -600,7 +605,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 name="quantity"
                 value={form.quantity}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium"
                 placeholder="Enter available quantity"
                 required
               />
@@ -619,7 +624,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 name="commissionRate"
                 value={form.commissionRate}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium"
                 placeholder="e.g., 5.5"
               />
               {appliedCategoryCommission && !form.commissionRate && (
@@ -665,7 +670,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               value={form.specification}
               onChange={handleChange}
               rows={4}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition resize-none"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition resize-none text-black font-bold"
               placeholder="Describe the specification"
               required
             />
@@ -685,7 +690,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                     setForm(prev => ({ ...prev, commissionRate: '' }))
                   }
                 }}
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white"
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white text-black font-bold"
               >
                 <option value="">Select category</option>
                 {availableCategories.map((category) => (
@@ -723,7 +728,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                     type="text"
                     value={point}
                     onChange={(e) => handlePointChange(index, e.target.value)}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-black font-bold"
                     placeholder="Enter a bullet point"
                   />
                   {points.length > 1 && (

@@ -22,6 +22,80 @@ body {
   position: relative;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+/* Spatial UI Utility Classes */
+.spatial-bg {
+  background: radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 100%);
+  background-attachment: fixed;
+}
+
+.spatial-card {
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.05),
+    0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 2px 4px -1px rgba(0, 0, 0, 0.1);
+}
+
+.glass-panel {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.active-glow {
+  text-shadow: 0 0 15px rgba(244, 63, 94, 0.5);
+  filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.3));
+}
+
+/* Visibility Utilities */
+.text-heading {
+  color: #f1f5f9;
+  /* slate-100 */
+  letter-spacing: -0.01em;
+}
+
+.text-meta {
+  color: #94a3b8;
+  /* slate-400 */
+}
+
+.icon-vibrant {
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.1));
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 #root {

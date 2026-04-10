@@ -16,6 +16,55 @@ import { addToWishlist, removeFromWishlist, getProductRatingStats } from '../../
 import useProductSocket from '../../hooks/useProductSocket'
 import { getSocket, initSocket } from '../../utils/socket'
 import HeartBurst from '../../components/HeartBurst'
+import Toast from '../../components/Toast'
+import { getImageUrl } from '../../utils/image'
+
+// Sub-component for animated wishlist button (Other Products)
+const WishlistActionButton = ({ productId, isWishlisted, onToggle, isAuthenticated, userType, navigate }) => {
+  const [burst, setBurst] = useState(0)
+  const [isAnimating, setIsAnimating] = useState(false)
+
+  const handleClick = (e) => {
+    e.stopPropagation()
+
+    if (!isAuthenticated || userType !== 'user') {
+      navigate('/user/phone-entry', {
+        state: {
+          returnTo: `/product/public/${productId}`,
+          message: 'Please login to manage your wishlist.'
+        }
+      })
+      return
+    }
+
+    // Trigger local animation
+    if (!isWishlisted) {
+      setBurst((prev) => prev + 1)
+    }
+    setIsAnimating(true)
+    setTimeout(() => setIsAnimating(false), 300)
+
+    onToggle()
+  }
+
+  return (
+    <div className="absolute top-2 left-2 z-10 w-8 h-8 flex items-center justify-center">
+      <button
+        onClick={handleClick}
+        className={`relative p-1.5 rounded-full border shadow-sm transition-all duration-300 ${isWishlisted
+          ? 'bg-red-50 border-red-200 text-red-600'
+          : 'bg-white border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-100'
+          } ${isAnimating ? 'scale-125' : 'scale-100'} hover:scale-110 active:scale-95`}
+        aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+      >
+        <FaHeart className={`w-3.5 h-3.5 transition-colors duration-300 ${isWishlisted ? 'fill-current' : ''}`} />
+      </button>
+      <div className="absolute inset-0 pointer-events-none overflow-visible">
+        <HeartBurst trigger={burst} direction="bottom-right" />
+      </div>
+    </div>
+  )
+}
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null) return '—'
@@ -24,6 +73,7 @@ const formatCurrency = (value) => {
 
 function PublicProductDetail() {
   const { productId } = useParams()
+  // ... (lines 27+)
   const location = useLocation()
   const navigate = useNavigate()
   const dispatch = useDispatch()
@@ -40,15 +90,48 @@ function PublicProductDetail() {
   const [wishlistLoading, setWishlistLoading] = useState(false)
   const [ratingStats, setRatingStats] = useState(null)
 
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type })
+  }
+
   const [otherProducts, setOtherProducts] = useState([])
 
   const [heartBurstTrigger, setHeartBurstTrigger] = useState(0)
 
 
+  // Handle product change when URL changes
+  useEffect(() => {
+    // If we have state passed from navigation (clicking a card)
+    if (location.state?.product) {
+      setProduct(location.state.product)
+    }
+    // If no state (direct URL access), try to find in store or clear to trigger fetch
+    else {
+      const found = home.products?.find((prod) => String(prod.id || prod._id) === productId)
+      if (found) {
+        setProduct(found)
+      } else {
+        // If not found in store, set to null so the data fetching effect runs
+        setProduct(null)
+      }
+    }
+  }, [productId, location.state, home.products])
+
   useEffect(() => {
     if (!product) {
       const loadProducts = async () => {
         try {
+          // If we already have products in store, check there first before fetching all
+          if (home.products?.length > 0) {
+            const found = home.products.find((prod) => String(prod.id || prod._id) === productId)
+            if (found) {
+              setProduct(found)
+              return
+            }
+          }
+
           const backendProducts = await getProducts()
           dispatch(setHomeProducts(backendProducts))
           const found = backendProducts.find((prod) => String(prod.id || prod._id) === productId)
@@ -66,25 +149,42 @@ function PublicProductDetail() {
   useEffect(() => {
     const loadOtherProducts = async () => {
       try {
+        // Use home.products if available to avoid unnecessary API call
         const allProducts = home.products?.length > 0 ? home.products : await getProducts()
-        const currentProductId = String(product?.id || product?._id || productId)
-        
-        // Filter out current product and get 3 random products
-        const filtered = allProducts
-          .filter((prod) => String(prod.id || prod._id) !== currentProductId)
-          .slice(0, 3)
-        
-        setOtherProducts(filtered)
+
+        // Robust ID cleanup
+        const cleanId = (id) => String(id || '').trim()
+        const currentId = cleanId(product?.id || product?._id || productId)
+        const currentName = product?.product_name?.trim().toLowerCase()
+
+        // Filter out current product by ID and Name (to handle duplicates)
+        let filtered = allProducts.filter((prod) => {
+          const prodId = cleanId(prod.id || prod._id)
+          const prodName = prod.product_name?.trim().toLowerCase()
+
+          const isSameId = prodId === currentId
+          const isSameName = currentName && prodName === currentName
+
+          return !isSameId && !isSameName
+        })
+
+        // Shuffle logic (Fisher-Yates) to show different products each time
+        for (let i = filtered.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
+        }
+
+        setOtherProducts(filtered.slice(0, 3))
       } catch (err) {
         console.error('Failed to load other products', err)
       }
     }
-    
-    if (product || home.products?.length > 0) {
+
+    if (productId) {
       loadOtherProducts()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId, product, home.products])
+  }, [productId, home.products, product?.product_name]) // Re-run if product details load to ensure name filtering works
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -110,14 +210,14 @@ function PublicProductDetail() {
   // Listen for real-time rating updates
   useEffect(() => {
     if (!productId) return
-    
+
     let socket = getSocket()
-    
+
     // Initialize socket if not already connected
     if (!socket || !socket.connected) {
       socket = initSocket(token)
     }
-    
+
     if (!socket) return
 
     const handleRatingUpdate = (data) => {
@@ -145,23 +245,22 @@ function PublicProductDetail() {
     }
   })
 
-  if (!product) {
+  useEffect(() => {
+    // Force re-render of wishlist status when product changes
+  }, [productId, home.wishlist])
+
+  if (!product && !location.state?.product) {
+    // Only show not found if we don't have a product AND we aren't in the process of loading new state
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
-        <p className="text-lg font-semibold text-slate-700 mb-4">Product not found.</p>
-        <button
-          onClick={() => navigate('/')}
-          className="px-6 py-3 rounded-full bg-[#131921] text-white font-semibold"
-        >
-          Back to home
-        </button>
+        <p className="text-lg font-semibold text-slate-700 mb-4">Loading product...</p>
       </div>
     )
   }
 
   // Use total_selling_price (with commission) if available, otherwise fall back to selling_price
-  const displayPrice = Number(product.total_selling_price || product.selling_price || product.price || product.max_price || 0)
-  const maxPrice = Number(product.max_price || product.selling_price || product.price || displayPrice)
+  const displayPrice = Number(product?.total_selling_price || product?.selling_price || product?.price || product?.max_price || 0)
+  const maxPrice = Number(product?.max_price || product?.selling_price || product?.price || displayPrice)
   const discount =
     displayPrice && maxPrice && maxPrice > displayPrice
       ? Math.round(((maxPrice - displayPrice) / maxPrice) * 100)
@@ -175,18 +274,18 @@ function PublicProductDetail() {
 
       <MobileMenu open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
-      <main className="w-full px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
+      <main className="w-full max-w-full overflow-hidden px-5 sm:px-6 lg:px-8 py-5 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 mx-auto">
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 hover:text-black transition-colors"
+          className="hidden sm:inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 hover:text-black transition-colors"
         >
           ← Back
         </button>
 
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 w-full items-start">
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 w-full max-w-full items-start overflow-hidden">
           <ProductMediaViewer thumbnail={product.thumbnail} gallery={product.gallery} productName={product.product_name} />
 
-          <div className="space-y-4 sm:space-y-5 lg:space-y-6 w-full">
+          <div className="space-y-4 sm:space-y-5 lg:space-y-6 w-full max-w-full min-w-0">
             <div>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
@@ -200,11 +299,10 @@ function PublicProductDetail() {
                 </div>
                 <div className="relative z-30">
                   <button
-                    className={`flex-shrink-0 p-2 sm:p-2.5 rounded-full border transition-colors ${
-                      isWishlisted
-                        ? 'bg-red-50 border-red-200 text-red-600'
-                        : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}
+                    className={`flex-shrink-0 p-2 sm:p-2.5 rounded-full border transition-colors ${isWishlisted
+                      ? 'bg-red-50 border-red-200 text-red-600'
+                      : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                      }`}
                     aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                     title={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
                     onClick={async () => {
@@ -331,7 +429,7 @@ function PublicProductDetail() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 sm:gap-3 pt-2">
+            <div className="flex flex-col gap-2 sm:gap-3 pt-2 w-full max-w-full">
               <button
                 onClick={() => {
                   if (!product) return
@@ -366,10 +464,10 @@ function PublicProductDetail() {
                   try {
                     setAddingToBag(true)
                     await addToBag(product.id || product._id, quantity)
-                    alert('Item added to bag successfully!')
+                    showToast('Item added to bag successfully!', 'success')
                     setQuantity(1) // Reset quantity after adding
                   } catch (error) {
-                    alert(error.message || 'Failed to add to bag')
+                    showToast(error.message || 'Failed to add to bag', 'error')
                   } finally {
                     setAddingToBag(false)
                   }
@@ -380,7 +478,7 @@ function PublicProductDetail() {
                 <FaShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
                 {addingToBag ? 'Adding...' : 'Add to bag'}
               </button>
-              
+
               {/* Star Rating Panel */}
               <div className="pt-3 sm:pt-4 border-t border-gray-200">
                 <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">Rate this product</p>
@@ -398,120 +496,119 @@ function PublicProductDetail() {
                 />
               </div>
 
-        {/* Other Products Section */}
-        {otherProducts.length > 0 && (
-                <div className="pt-6 sm:pt-8 border-t border-gray-200 mt-4 sm:mt-6">
+              {/* Other Products Section */}
+              {otherProducts.length > 0 && (
+                <div className="pt-6 sm:pt-8 border-t border-gray-200 mt-4 sm:mt-6 w-full max-w-full">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Other Products</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {otherProducts.map((otherProduct) => {
-                const otherProductId = String(otherProduct.id || otherProduct._id)
-                const otherDisplayPrice = Number(otherProduct.total_selling_price || otherProduct.selling_price || otherProduct.max_price || 0)
-                const otherMaxPrice = Number(otherProduct.max_price || otherProduct.selling_price || 0)
-                const otherDiscount = otherDisplayPrice && otherMaxPrice && otherMaxPrice > otherDisplayPrice
-                  ? Math.round(((otherMaxPrice - otherDisplayPrice) / otherMaxPrice) * 100)
-                  : null
-                const otherThumbnail = otherProduct.thumbnail || otherProduct.media?.thumbnail
-                const isOtherWishlisted = wishlistIds.includes(otherProductId)
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 w-full max-w-full">
+                    {otherProducts.map((otherProduct) => {
+                      const otherProductId = String(otherProduct.id || otherProduct._id)
+                      const otherDisplayPrice = Number(otherProduct.total_selling_price || otherProduct.selling_price || otherProduct.max_price || 0)
+                      const otherMaxPrice = Number(otherProduct.max_price || otherProduct.selling_price || 0)
+                      const otherDiscount = otherDisplayPrice && otherMaxPrice && otherMaxPrice > otherDisplayPrice
+                        ? Math.round(((otherMaxPrice - otherDisplayPrice) / otherMaxPrice) * 100)
+                        : null
+                      const otherThumbnail = otherProduct.thumbnail || otherProduct.media?.thumbnail
+                      const isOtherWishlisted = wishlistIds.includes(otherProductId)
 
-                return (
-                  <div
-                    key={otherProductId}
-                    onClick={() => navigate(`/product/public/${otherProductId}`, { state: { product: otherProduct } })}
-                    className="bg-white rounded-lg border border-gray-200 p-4 cursor-pointer hover:shadow-lg transition-shadow"
-                  >
-                    <div className="relative aspect-[4/3] bg-gray-50 rounded-lg overflow-hidden mb-3">
-                      {otherThumbnail ? (
-                        <img
-                          src={otherThumbnail?.preview || otherThumbnail?.data_url || otherThumbnail?.url || otherThumbnail}
-                          alt={otherProduct.product_name}
-                          className="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">No image</div>
-                      )}
-                      <button
-                        className={`absolute top-2 right-2 p-1.5 rounded-full border ${
-                          isOtherWishlisted
-                            ? 'bg-red-50 border-red-200 text-red-600'
-                            : 'bg-white border-gray-200 text-gray-500'
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (!isAuthenticated || userType !== 'user') {
-                            navigate('/user/phone-entry', {
-                              state: {
-                                returnTo: `/product/public/${otherProductId}`,
-                                message: 'Please login to manage your wishlist.'
-                              }
-                            })
-                            return
-                          }
-                          if (isOtherWishlisted) {
-                            removeFromWishlist(otherProductId).then(() => {
-                              dispatch({ type: 'data/toggleWishlist', payload: otherProductId })
-                            }).catch(() => {
-                              alert('Failed to remove from wishlist')
-                            })
-                          } else {
-                            addToWishlist(otherProductId).then(() => {
-                              dispatch({ type: 'data/toggleWishlist', payload: otherProductId })
-                            }).catch(() => {
-                              alert('Failed to add to wishlist')
-                            })
-                          }
-                        }}
-                        aria-label={isOtherWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-                      >
-                        <FaHeart className={`w-4 h-4 ${isOtherWishlisted ? 'fill-current' : ''}`} />
-                      </button>
-                    </div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2 line-clamp-2">{otherProduct.product_name}</h3>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg font-bold text-gray-900">{formatCurrency(otherDisplayPrice)}</span>
-                      {otherDiscount && (
-                        <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-xs font-bold">{otherDiscount}% OFF</span>
-                      )}
-                    </div>
-                    {otherDisplayPrice && otherMaxPrice && otherDiscount && (
-                      <p className="text-xs text-gray-500 line-through mb-2">{formatCurrency(otherMaxPrice)}</p>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (!isAuthenticated || userType !== 'user') {
-                          navigate('/user/phone-entry', {
-                            state: {
-                              returnTo: `/product/public/${otherProductId}`,
-                              message: 'Please login to add items to your bag.'
-                            }
-                          })
-                          return
-                        }
-                        addToBag(otherProductId, 1).then(() => {
-                          alert('Item added to bag successfully!')
-                        }).catch((error) => {
-                          alert(error.message || 'Failed to add to bag')
-                        })
-                      }}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-gray-300 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition"
-                    >
-                      <FaShoppingBag className="w-4 h-4" />
-                      Add to bag
-                    </button>
+                      return (
+                        <div
+                          key={otherProductId}
+                          onClick={() => {
+                            navigate(`/product/public/${otherProductId}`, { state: { product: otherProduct } })
+                          }}
+                          className="bg-white rounded-xl border border-gray-200 overflow-hidden w-full max-w-full min-w-0 cursor-pointer hover:shadow-lg transition-shadow group"
+                        >
+                          <div className="relative aspect-square bg-gray-50 overflow-hidden">
+                            {otherThumbnail ? (
+                              <img
+                                src={getImageUrl(otherThumbnail?.preview || otherThumbnail?.data_url || otherThumbnail?.url || otherThumbnail)}
+                                alt={otherProduct.product_name}
+                                className="w-full h-full object-contain p-2"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">No image</div>
+                            )}
+                            <WishlistActionButton
+                              productId={otherProductId}
+                              isWishlisted={isOtherWishlisted}
+                              isAuthenticated={isAuthenticated}
+                              userType={userType}
+                              navigate={navigate}
+                              onToggle={() => {
+                                if (isOtherWishlisted) {
+                                  removeFromWishlist(otherProductId).then(() => {
+                                    dispatch({ type: 'data/toggleWishlist', payload: otherProductId })
+                                  }).catch(() => {
+                                    alert('Failed to remove from wishlist')
+                                  })
+                                } else {
+                                  addToWishlist(otherProductId).then(() => {
+                                    dispatch({ type: 'data/toggleWishlist', payload: otherProductId })
+                                  }).catch(() => {
+                                    alert('Failed to add to wishlist')
+                                  })
+                                }
+                              }}
+                            />
+                          </div>
+                          <div className="p-3 space-y-2">
+                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 min-h-[2.5rem]">{otherProduct.product_name}</h3>
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg font-bold text-gray-900">{formatCurrency(otherDisplayPrice)}</span>
+                              {otherDiscount && (
+                                <>
+                                  <span className="text-xs text-gray-500 line-through">{formatCurrency(otherMaxPrice)}</span>
+                                  <span className="text-xs font-bold text-green-600">{otherDiscount}%</span>
+                                </>
+                              )}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                console.log('Add to Bag button clicked')
+                                if (!isAuthenticated || userType !== 'user') {
+                                  navigate('/user/phone-entry', {
+                                    state: {
+                                      returnTo: `/product/public/${otherProductId}`,
+                                      message: 'Please login to add items to your bag.'
+                                    }
+                                  })
+                                  return
+                                }
+                                addToBag(otherProductId, 1).then(() => {
+                                  showToast('Item added to bag successfully!', 'success')
+                                }).catch((error) => {
+                                  showToast(error.message || 'Failed to add to bag', 'error')
+                                })
+                              }}
+                              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-pink-50 text-pink-600 text-xs font-semibold hover:bg-pink-100 transition"
+                            >
+                              <FaShoppingBag className="w-3 h-3" />
+                              Add to Bag
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </main>
 
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.show}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+      />
+
       <SiteFooter />
       <MobileBottomNav items={home.bottomNavItems} />
-    </div>
+    </div >
   )
 }
 

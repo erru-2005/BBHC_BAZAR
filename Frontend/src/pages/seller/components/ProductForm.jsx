@@ -46,7 +46,7 @@ function SellerProductForm({ initialProduct = null }) {
         const data = await getCategories()
         const categoriesList = Array.isArray(data) ? data : (data?.categories || [])
         setCategories(categoriesList)
-        
+
         // Load category commission rates
         try {
           const rates = await getCategoryCommissionRates()
@@ -90,8 +90,8 @@ function SellerProductForm({ initialProduct = null }) {
       setGallery(
         Array.isArray(initialProduct.gallery)
           ? initialProduct.gallery.map((item) =>
-              typeof item === 'string' ? { preview: item } : item
-            )
+            typeof item === 'string' ? { preview: item } : item
+          )
           : []
       )
     }
@@ -107,7 +107,7 @@ function SellerProductForm({ initialProduct = null }) {
   const calculateTotalPrice = () => {
     const sellingPrice = parseFloat(form.sellingPrice) || 0
     if (sellingPrice <= 0) return ''
-    
+
     // Get commission rate from category if available
     const commissionRate = categoryCommissionRates[form.category] || 0
     if (commissionRate > 0) {
@@ -250,52 +250,56 @@ function SellerProductForm({ initialProduct = null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-gray-200 shadow-lg p-6 space-y-6">
+    <form onSubmit={handleSubmit} className="bg-[#1e293b] rounded-3xl border border-white/5 shadow-xl p-6 space-y-6">
       {status.type && status.message && (
         <div
           id="seller-product-status"
-          className={`rounded-xl border px-4 py-3 text-sm ${
-            status.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-700'
-              : 'bg-red-50 border-red-200 text-red-700'
-          }`}
+          className={`rounded-xl border px-4 py-3 text-sm font-medium ${status.type === 'success'
+            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+            : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+            }`}
         >
           {status.message}
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-semibold text-gray-800 mb-1">
-          Thumbnail Image <span className="text-red-500">*</span>
+        <label className="block text-sm font-black text-slate-100 mb-2">
+          Thumbnail Image <span className="text-rose-500">*</span>
         </label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleThumbnailChange}
-          className="w-full text-sm text-gray-700 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-900 border border-dashed border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-black"
-          required={!isEditing}
-        />
+        <div className="relative">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleThumbnailChange}
+            className="w-full text-sm text-slate-300 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-black file:bg-white/10 file:text-white hover:file:bg-white/20 border border-dashed border-white/10 rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-rose-500/50 bg-[#0f172a]/50 placeholder-slate-400"
+            required={!isEditing}
+          />
+        </div>
         {thumbnail && (
-          <img src={thumbnail.preview} alt="Thumbnail preview" className="mt-3 h-40 w-full object-cover rounded-xl border" />
+          <div className="mt-3 relative h-48 w-full rounded-2xl overflow-hidden border border-white/10 group">
+            <img src={thumbnail.preview} alt="Thumbnail preview" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors" />
+          </div>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Gallery Images <span className="text-xs text-gray-400">(optional)</span>
+        <label className="block text-sm font-black text-slate-100 mb-2">
+          Gallery Images <span className="text-xs text-slate-400">(optional)</span>
         </label>
         <input
           type="file"
           accept="image/*"
           multiple
           onChange={handleGalleryChange}
-          className="w-full text-sm text-gray-700 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-white file:text-black border border-dashed border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-black"
+          className="w-full text-sm text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20 border border-dashed border-white/10 rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-rose-500/50 bg-[#0f172a]/50"
         />
         {gallery.length > 0 && (
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-3">
             {gallery.map((image, index) => (
-              <div key={`${image.preview}-${index}`} className="relative">
-                <img src={image.preview} className="h-20 w-full object-cover rounded-lg border" alt={`Gallery ${index}`} />
+              <div key={`${image.preview}-${index}`} className="relative h-20 rounded-xl overflow-hidden border border-white/10 bg-[#0f172a]">
+                <img src={image.preview} className="h-full w-full object-cover" alt={`Gallery ${index}`} />
               </div>
             ))}
           </div>
@@ -304,15 +308,15 @@ function SellerProductForm({ initialProduct = null }) {
 
       <div className="grid grid-cols-1 gap-5">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Product Name <span className="text-red-500">*</span>
+          <label className="block text-sm font-black text-slate-100 mb-2">
+            Product Name <span className="text-rose-500">*</span>
           </label>
           <input
             type="text"
             name="productName"
             value={form.productName}
             onChange={handleChange}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+            className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition"
             placeholder="Enter product name"
             required
           />
@@ -320,16 +324,16 @@ function SellerProductForm({ initialProduct = null }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Category <span className="text-xs text-gray-500">(optional)</span>
+        <label className="block text-sm font-black text-slate-100 mb-2">
+          Category <span className="text-xs text-slate-400">(optional)</span>
         </label>
         <select
           value={form.category}
           name="category"
           onChange={handleChange}
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white"
+          className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition appearance-none"
         >
-          <option value="">Select category</option>
+          <option value="" className="text-slate-500">Select category</option>
           {categories.map((category) => {
             const categoryName = category.name || category
             const categoryId = category.id || category._id || categoryName
@@ -345,8 +349,8 @@ function SellerProductForm({ initialProduct = null }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Selling Price (₹) <span className="text-red-500">*</span>
+          <label className="block text-sm font-black text-slate-100 mb-2">
+            Selling Price (₹) <span className="text-rose-500">*</span>
           </label>
           <input
             type="number"
@@ -355,18 +359,18 @@ function SellerProductForm({ initialProduct = null }) {
             name="sellingPrice"
             value={form.sellingPrice}
             onChange={handleChange}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+            className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition"
             placeholder="Enter selling price"
             required
           />
           {form.sellingPrice && (
-            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
-              <div className="text-gray-700">
-                <span className="font-medium">Total Price (with commission):</span>{' '}
-                <span className="text-blue-700 font-semibold">₹{calculateTotalPrice()}</span>
+            <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-sm">
+              <div className="text-slate-300">
+                <span className="font-medium text-slate-200">Total Price (with commission):</span>{' '}
+                <span className="text-blue-400 font-bold">₹{calculateTotalPrice()}</span>
               </div>
               {categoryCommissionRates[form.category] && (
-                <div className="text-xs text-gray-600 mt-1">
+                <div className="text-xs text-slate-400 mt-1">
                   Commission: {categoryCommissionRates[form.category]}%
                 </div>
               )}
@@ -375,8 +379,8 @@ function SellerProductForm({ initialProduct = null }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            MRP / Max Price (₹) <span className="text-red-500">*</span>
+          <label className="block text-sm font-black text-slate-100 mb-2">
+            MRP / Max Price (₹) <span className="text-rose-500">*</span>
           </label>
           <input
             type="number"
@@ -385,15 +389,15 @@ function SellerProductForm({ initialProduct = null }) {
             name="maxPrice"
             value={form.maxPrice}
             onChange={handleChange}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+            className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition"
             placeholder="Enter MRP"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Quantity <span className="text-red-500">*</span>
+          <label className="block text-sm font-black text-slate-100 mb-2">
+            Quantity <span className="text-rose-500">*</span>
           </label>
           <input
             type="number"
@@ -402,7 +406,7 @@ function SellerProductForm({ initialProduct = null }) {
             name="quantity"
             value={form.quantity}
             onChange={handleChange}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+            className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition"
             placeholder="Enter available quantity"
             required
           />
@@ -410,41 +414,40 @@ function SellerProductForm({ initialProduct = null }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Specification <span className="text-red-500">*</span>
+        <label className="block text-sm font-black text-slate-100 mb-2">
+          Specification <span className="text-rose-500">*</span>
         </label>
         <textarea
           name="specification"
           value={form.specification}
           onChange={handleChange}
           rows={4}
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition resize-none"
+          className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition resize-none"
           placeholder="Describe the specification"
           required
         />
       </div>
 
-
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Highlights <span className="text-red-500">*</span>
+        <label className="block text-sm font-black text-slate-100 mb-2">
+          Highlights <span className="text-rose-500">*</span>
         </label>
         <div className="space-y-3">
           {points.map((point, index) => (
             <div key={index} className="flex items-center gap-2">
-              <span className="mt-2 text-xs text-gray-400 w-4 text-right">{index + 1}.</span>
+              <span className="mt-2 text-xs text-slate-500 w-4 text-right">{index + 1}.</span>
               <input
                 type="text"
                 value={point}
                 onChange={(event) => handlePointChange(index, event.target.value)}
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition"
+                className="flex-1 px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition"
                 placeholder="Enter a bullet point"
               />
               {points.length > 1 && (
                 <button
                   type="button"
                   onClick={() => handleRemovePointField(index)}
-                  className="p-2 text-xs text-red-600 hover:text-red-800"
+                  className="p-2 text-xs text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
                   title="Remove this point"
                 >
                   ✕
@@ -455,25 +458,25 @@ function SellerProductForm({ initialProduct = null }) {
           <button
             type="button"
             onClick={handleAddPointField}
-            className="inline-flex items-center px-3 py-1.5 rounded-lg border border-dashed border-gray-400 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center px-4 py-2 rounded-xl border border-dashed border-white/20 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
           >
             + Add another point
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 pt-4">
         <button
           type="submit"
           disabled={submitting}
-          className="flex-1 py-3 bg-black text-white font-semibold rounded-lg hover:bg-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors disabled:opacity-60"
+          className="flex-1 py-3.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-500 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-rose-500/50 transition-all disabled:opacity-60 shadow-lg shadow-rose-900/20"
         >
           {submitting ? (isEditing ? 'Updating…' : 'Saving…') : isEditing ? 'Update Product' : 'Save Product'}
         </button>
         <button
           type="button"
           onClick={() => navigate('/seller/products')}
-          className="py-3 px-6 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+          className="py-3.5 px-6 border border-white/10 rounded-xl text-slate-300 hover:bg-white/5 hover:text-white transition-colors font-medium"
         >
           Cancel
         </button>

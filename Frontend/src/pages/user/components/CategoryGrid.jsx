@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types'
+import { getImageUrl } from '../../../utils/image'
 
 function CategoryGrid({ title, actionLabel, categories }) {
   return (
@@ -10,7 +11,7 @@ function CategoryGrid({ title, actionLabel, categories }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {categories.map((category) => (
           <div key={category.label} className="relative rounded-2xl overflow-hidden group shadow hover:shadow-lg transition">
-            {category.image && <img src={category.image} alt={category.label} className="w-full h-36 object-cover" />}
+            {category.image && <img src={getImageUrl(category.image)} alt={category.label} className="w-full h-36 object-cover" />}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"></div>
             <p className="absolute bottom-3 left-4 text-white font-semibold">{category.label}</p>
           </div>

@@ -253,6 +253,7 @@ function ProductDetail() {
               name={item.name}
               price={item.price}
               image={item.image}
+              product={item}
               wished={wishlist.includes(item.id)}
               onToggleWishlist={() => dispatch(toggleWishlist(item.id))}
             />
