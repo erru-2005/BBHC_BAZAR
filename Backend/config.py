@@ -14,9 +14,9 @@ load_dotenv(dotenv_path=env_path)
 
 # Debug: Print if .env file exists (only in development)
 if os.path.exists(env_path):
-    print(f"✓ Loading .env file from: {env_path}")
+    print(f"[OK] Loading .env file from: {env_path}")
 else:
-    print(f"⚠ Warning: .env file not found at: {env_path}")
+    print(f"[WARN] Warning: .env file not found at: {env_path}")
     print(f"  Current working directory: {os.getcwd()}")
     print(f"  Looking for .env in: {BASE_DIR}")
 
@@ -71,14 +71,14 @@ class Config:
     
     # Debug: Print Twilio configuration status
     if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER:
-        print(f"✓ Twilio credentials loaded successfully")
+        print(f"[OK] Twilio credentials loaded successfully")
         print(f"  Account SID: {TWILIO_ACCOUNT_SID[:10]}...")
         print(f"  Phone Number: {TWILIO_PHONE_NUMBER}")
     else:
-        print("⚠ Twilio credentials not fully configured:")
-        print(f"  TWILIO_ACCOUNT_SID: {'✓ Set' if TWILIO_ACCOUNT_SID else '✗ Missing'}")
-        print(f"  TWILIO_AUTH_TOKEN: {'✓ Set' if TWILIO_AUTH_TOKEN else '✗ Missing'}")
-        print(f"  TWILIO_PHONE_NUMBER: {'✓ Set' if TWILIO_PHONE_NUMBER else '✗ Missing'}")
+        print("[WARN] Twilio credentials not fully configured:")
+        print(f"  TWILIO_ACCOUNT_SID: {'[OK]' if TWILIO_ACCOUNT_SID else '[MISSING]'}")
+        print(f"  TWILIO_AUTH_TOKEN: {'[OK]' if TWILIO_AUTH_TOKEN else '[MISSING]'}")
+        print(f"  TWILIO_PHONE_NUMBER: {'[OK]' if TWILIO_PHONE_NUMBER else '[MISSING]'}")
 
 
 class DevelopmentConfig(Config):

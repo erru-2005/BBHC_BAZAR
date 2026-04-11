@@ -173,7 +173,6 @@ function SellerOrders() {
                   </div>
                 </div>
 
-<<<<<<< HEAD
                 {/* Body Content */}
                 <div className="space-y-4 mb-8">
                   <div className="flex flex-col gap-1">
@@ -207,49 +206,6 @@ function SellerOrders() {
                       {getStatusDisplay(order.status).label}
                     </span>
                   </div>
-=======
-                <div className="grid grid-cols-1 gap-3">
-                  {group.list.map((order) => (
-                    <motion.div
-                      key={order.id}
-                      layout
-                      variants={itemVariants}
-                      whileHover={{ scale: 1.01, x: 4 }}
-                      className="spatial-card p-5 group cursor-pointer"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex gap-4">
-                          <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-white/5 flex items-center justify-center overflow-hidden">
-                            {order.product?.image ? (
-                              <img src={getImageUrl(order.product.image)} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-                            ) : (
-                              <div className="text-slate-700 font-bold">#</div>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-[#fb7185] group-hover:active-glow transition-all">
-                              #{order.orderNumber}
-                            </p>
-                            <h4 className="text-base font-bold text-white mt-0.5 group-hover:text-rose-400 transition-colors">
-                              {order.product?.name || 'Product'}
-                            </h4>
-                            <p className="text-xs font-bold text-slate-300 mt-1">
-                              {order.quantity} × {Number(order.unitPrice || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border bg-${group.color}-500/10 text-${group.color}-400 border-${group.color}-500/20 shadow-[0_0_10px_rgba(0,0,0,0.3)]`}>
-                            {order.status.replace('_', ' ')}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-400 italic">
-                            {new Date(order.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
->>>>>>> 99043c5a86eb1a28f8db7107183f09dd515ca906
                 </div>
               </motion.div>
             ))

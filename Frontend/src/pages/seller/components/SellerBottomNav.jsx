@@ -16,7 +16,8 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
     const getActiveTab = () => {
         if (isProfileActive) return 'profile'
         if (showOrders) return 'orders'
-        if (location.pathname === '/seller/products') return 'products'
+        if (location.pathname.startsWith('/seller/products')) return 'products'
+        if (location.pathname.startsWith('/seller/services')) return 'products'
         if (location.pathname === '/seller/dashboard' && !showOrders) return 'home'
         return ''
     }

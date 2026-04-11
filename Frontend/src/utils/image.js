@@ -1,4 +1,5 @@
-<<<<<<< HEAD
+import { API_BASE_URL } from '../config/api'
+
 /**
  * Image utility functions
  */
@@ -49,8 +50,7 @@ export const fixImageUrl = (url) => {
     }
     
     return url
-=======
-import { API_BASE_URL } from '../config/api'
+}
 
 /**
  * Utility to get the correct URL for an image.
@@ -73,5 +73,4 @@ export const getImageUrl = (path) => {
   }
   
   return path
->>>>>>> 99043c5a86eb1a28f8db7107183f09dd515ca906
 }
