@@ -28,7 +28,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     HOST = os.environ.get('FLASK_HOST', '0.0.0.0')
-    PORT = int(os.environ.get('FLASK_PORT', 5000))
+    PORT = int(os.environ.get('FLASK_PORT', 5001))
     
     # MongoDB Configuration
     MONGODB_URI = os.environ.get('MONGODB_URI') or \

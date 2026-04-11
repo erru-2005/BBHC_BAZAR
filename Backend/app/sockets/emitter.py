@@ -70,6 +70,35 @@ def emit_product_event(event_name, product_dict):
     _emit_to_collection('master', {'socket_id': {'$ne': None}}, event_name, product_dict)
 
 
+def emit_service_event(event_name, service_dict):
+    """
+    Broadcast service event to all listeners plus targeted masters/sellers.
+    """
+    if not service_dict:
+        return
+
+    # Broadcast to everyone (masters, sellers, public users)
+    socketio.emit(event_name, service_dict)
+
+    seller_trade_id = service_dict.get('seller_trade_id')
+    seller_id = service_dict.get('created_by_user_id')
+
+    # Notify the owning seller explicitly if we have their trade ID or object id
+    seller_filter = {}
+    if seller_id:
+        try:
+            seller_filter['_id'] = ObjectId(seller_id)
+        except Exception:
+            seller_filter['_id'] = seller_id
+    elif seller_trade_id:
+        seller_filter['trade_id'] = seller_trade_id
+    if seller_filter:
+        _emit_to_collection('sellers', seller_filter, event_name, service_dict)
+
+    # Notify all masters who are currently active
+    _emit_to_collection('master', {'socket_id': {'$ne': None}}, event_name, service_dict)
+
+
 def emit_order_event(event_name, order_dict, target_user_id=None, target_seller_id=None):
     """
     Broadcast order events (new, updated) to relevant parties.

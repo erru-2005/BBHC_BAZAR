@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { FaExpand, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
 import { fixImageUrl } from '../utils/image'
 
+<<<<<<< HEAD
 const getImageSrc = (image) => {
   if (!image) return null
   let src = null
@@ -14,6 +15,11 @@ const getImageSrc = (image) => {
   }
   return fixImageUrl(src)
 }
+=======
+import { getImageUrl } from '../utils/image'
+
+const getImageSrc = (image) => getImageUrl(image)
+>>>>>>> 99043c5a86eb1a28f8db7107183f09dd515ca906
 
 function ProductMediaViewer({ thumbnail, gallery = [], productName }) {
   const [mediaList, setMediaList] = useState([])

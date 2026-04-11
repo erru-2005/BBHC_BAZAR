@@ -17,6 +17,7 @@ import useProductSocket from '../../hooks/useProductSocket'
 import { getSocket, initSocket } from '../../utils/socket'
 import HeartBurst from '../../components/HeartBurst'
 import Toast from '../../components/Toast'
+import { getImageUrl } from '../../utils/image'
 
 // Sub-component for animated wishlist button (Other Products)
 const WishlistActionButton = ({ productId, isWishlisted, onToggle, isAuthenticated, userType, navigate }) => {
@@ -521,7 +522,7 @@ function PublicProductDetail() {
                           <div className="relative aspect-square bg-gray-50 overflow-hidden">
                             {otherThumbnail ? (
                               <img
-                                src={otherThumbnail?.preview || otherThumbnail?.data_url || otherThumbnail?.url || otherThumbnail}
+                                src={getImageUrl(otherThumbnail?.preview || otherThumbnail?.data_url || otherThumbnail?.url || otherThumbnail)}
                                 alt={otherProduct.product_name}
                                 className="w-full h-full object-contain p-2"
                               />

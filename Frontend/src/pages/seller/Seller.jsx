@@ -215,7 +215,12 @@ function Seller() {
     { label: 'Orders', icon: FiBox, action: () => setShowOrders(true) },
     { label: 'Products', icon: FiBox, action: () => navigate('/seller/products') },
     { label: 'Add Product', icon: FiPlusSquare, action: () => navigate('/seller/products/new') },
+<<<<<<< HEAD
     { label: 'Services', icon: FiBriefcase, action: () => null }
+=======
+    { label: 'My Services', icon: FiBriefcase, action: () => navigate('/seller/services') },
+    { label: 'Add Service', icon: FiPlusSquare, action: () => navigate('/seller/services/new') }
+>>>>>>> 99043c5a86eb1a28f8db7107183f09dd515ca906
   ]
 
   // Tabs for notifications: incoming requests + admin notifications

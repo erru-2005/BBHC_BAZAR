@@ -6,14 +6,11 @@ import { deleteProduct, getProducts, getPendingProducts, approveProduct, rejectP
 import { FaSyncAlt, FaTag, FaCheck, FaTimes, FaSearch } from 'react-icons/fa'
 import { FiEdit, FiTrash2 } from 'react-icons/fi'
 import useProductSocket from '../../../hooks/useProductSocket'
+import { getImageUrl } from '../../../utils/image'
 
 const SKELETON_PLACEHOLDERS = Array.from({ length: 4 })
 
-const getImageSrc = (image) => {
-  if (!image) return null
-  if (typeof image === 'string') return image
-  return image?.preview || image?.data_url || image?.url || null
-}
+const getImageSrc = (image) => getImageUrl(image)
 
 function ListProducts({ onEditProduct, refreshSignal = 0 }) {
   const [products, setProducts] = useState([])

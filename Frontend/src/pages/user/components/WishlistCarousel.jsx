@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import PropTypes from 'prop-types'
+import { getImageUrl } from '../../../utils/image'
 
 function WishlistCarousel({ products }) {
   const navigate = useNavigate()
@@ -18,7 +19,7 @@ function WishlistCarousel({ products }) {
             <div className="w-16 h-16 rounded-full bg-white shadow flex items-center justify-center overflow-hidden">
               {product.image ? (
                 <img
-                  src={product.image}
+                  src={getImageUrl(product.image)}
                   alt={product.name}
                   className="w-full h-full object-cover"
                 />

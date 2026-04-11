@@ -5,7 +5,11 @@ import { FiMenu, FiRefreshCw, FiPackage, FiSearch } from 'react-icons/fi'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getSellerMyProducts } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
+<<<<<<< HEAD
 import { fixImageUrl } from '../../utils/image'
+=======
+import { getImageUrl } from '../../utils/image'
+>>>>>>> 99043c5a86eb1a28f8db7107183f09dd515ca906
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null || value === '') return '₹0'
@@ -189,7 +193,11 @@ function SellerMyProducts() {
                     <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-900 border border-white/5">
                       {product.thumbnail ? (
                         <img
+<<<<<<< HEAD
                           src={fixImageUrl(typeof product.thumbnail === 'string' ? product.thumbnail : product.thumbnail.preview)}
+=======
+                          src={typeof product.thumbnail === 'string' ? getImageUrl(product.thumbnail) : product.thumbnail?.preview}
+>>>>>>> 99043c5a86eb1a28f8db7107183f09dd515ca906
                           alt={product.product_name}
                           className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />

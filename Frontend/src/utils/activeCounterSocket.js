@@ -5,7 +5,7 @@
 import { io } from 'socket.io-client'
 
 // Socket.IO connection URL
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL !== undefined ? import.meta.env.VITE_SOCKET_URL : 'http://localhost:5001'
 
 // Create socket instances by role
 const sockets = {

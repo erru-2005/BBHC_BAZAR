@@ -20,13 +20,16 @@ import {
   CategoryProducts,
   AllProducts,
   Services,
+  ServiceDetail,
   Wishlist,
   SearchResults,
   NotFound,
   SellerMyProducts,
   SellerProductDetail,
   SellerAddProduct,
-  SellerEditProduct
+  SellerEditProduct,
+  SellerMyServices,
+  SellerAddService
 } from './pages'
 import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -118,12 +121,15 @@ function SplashWrapper() {
             <Route path="/product/:productId" element={<PublicProductDetail />} />
             <Route path="/product/public/:productId" element={<PublicProductDetail />} />
             <Route path="/product/:productId/buy" element={<BuyNow />} />
+            <Route path="/service/:serviceId" element={<ServiceDetail />} />
             <Route element={<ProtectedRoute requiredUserType="seller"><SellerLayout /></ProtectedRoute>}>
               <Route path="/seller/dashboard" element={<Seller />} />
               <Route path="/seller/products" element={<SellerMyProducts />} />
               <Route path="/seller/products/new" element={<SellerAddProduct />} />
               <Route path="/seller/products/:productId" element={<SellerProductDetail />} />
               <Route path="/seller/products/:productId/edit" element={<SellerEditProduct />} />
+              <Route path="/seller/services" element={<SellerMyServices />} />
+              <Route path="/seller/services/new" element={<SellerAddService />} />
             </Route>
             <Route
               path="/master/dashboard"

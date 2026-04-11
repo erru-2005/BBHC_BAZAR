@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
+import { getImageUrl } from '../../../utils/image'
 
 function CircleCategoryScroller() {
   const navigate = useNavigate()
@@ -39,7 +40,7 @@ function CircleCategoryScroller() {
               <div className="w-16 h-16 rounded-full bg-white shadow flex items-center justify-center overflow-hidden">
                 {product.thumbnail ? (
                   <img
-                    src={product.thumbnail?.preview || product.thumbnail?.data_url || product.thumbnail?.url || product.thumbnail}
+                    src={getImageUrl(product.thumbnail?.preview || product.thumbnail?.data_url || product.thumbnail?.url || product.thumbnail)}
                     alt={product.product_name}
                     className="w-full h-full object-cover"
                   />

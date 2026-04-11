@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
+import { getImageUrl } from '../../../utils/image'
 
 function SpotlightSlider({ slides }) {
   const [index, setIndex] = useState(0)
@@ -18,7 +19,7 @@ function SpotlightSlider({ slides }) {
   return (
     <section className="py-4">
       <div className="bg-white rounded-[28px] shadow overflow-hidden relative h-80 lg:h-96">
-        <img src={activeSlide.image} alt={activeSlide.title} className="w-full h-full object-cover transition-opacity duration-700" />
+        <img src={getImageUrl(activeSlide.image)} alt={activeSlide.title} className="w-full h-full object-cover transition-opacity duration-700" />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-6 text-white">
           <p className="uppercase text-sm tracking-[0.2em]">{activeSlide.title}</p>
           <p className="text-3xl lg:text-4xl font-black">{activeSlide.subtitle}</p>

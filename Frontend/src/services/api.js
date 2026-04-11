@@ -649,19 +649,31 @@ export const updateUserProfile = async (profileData) => {
  */
 export const getSellers = async (params = {}) => {
   try {
-    // Support pagination: page, limit
+    // Backend expects skip and limit. Map page to skip.
+    const limit = params.limit || 100
+    const page = params.page || 1
+    const skip = params.skip !== undefined ? params.skip : (page - 1) * limit
+
     const queryParams = {
-      page: params.page || 1,
-      limit: params.limit || 10,
+      skip,
+      limit,
       ...params
     }
+    // Remove page from queryParams as backend uses skip
+    delete queryParams.page
+
     const response = await apiClient.get(API_ENDPOINTS.API.GET_SELLERS, { params: queryParams })
+    
+    // response is from backend: { sellers: [...], count: ... }
+    const sellers = response.sellers || []
+    const count = response.count || sellers.length
+
     return {
-      sellers: response.sellers || [],
-      total: response.total || response.sellers?.length || 0,
-      page: response.page || queryParams.page,
-      limit: response.limit || queryParams.limit,
-      totalPages: response.totalPages || Math.ceil((response.total || response.sellers?.length || 0) / queryParams.limit)
+      sellers,
+      total: count,
+      page: page,
+      limit: limit,
+      totalPages: Math.ceil(count / limit)
     }
   } catch (error) {
     throw new Error(error.message || 'Failed to get sellers')
@@ -1289,6 +1301,124 @@ export const updateOrderStatus = async (orderId, status) => {
     return response.order
   } catch (error) {
     throw new Error(error.message || 'Failed to update order status')
+  }
+}
+
+/**
+ * --- SERVICE API FUNCTIONS ---
+ */
+
+/**
+ * Create a service (masters only)
+ */
+export const createService = async (serviceData) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.SERVICES, serviceData)
+    return {
+      message: response.message,
+      service: response.service
+    }
+  } catch (error) {
+    throw new Error(error.message || 'Failed to create service')
+  }
+}
+
+/**
+ * Get all approved services (public)
+ */
+export const getServices = async (params = {}) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.SERVICES, { params })
+    return response.services || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load services')
+  }
+}
+
+/**
+ * Get service details by ID (public)
+ */
+export const getServiceById = async (serviceId) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.SERVICES + `/${serviceId}`)
+    return response.service
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load service details')
+  }
+}
+
+/**
+ * Get services pending approval (masters only)
+ */
+export const getPendingServices = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.PENDING_SERVICES)
+    return response.services || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load pending services')
+  }
+}
+
+/**
+ * Approve a service (masters only)
+ */
+export const acceptService = async (serviceId) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.APPROVE_SERVICE(serviceId))
+    return response.message || 'Service approved'
+  } catch (error) {
+    throw new Error(error.message || 'Failed to approve service')
+  }
+}
+
+/**
+ * Reject a service (masters only)
+ */
+export const rejectService = async (serviceId, reason = '') => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.REJECT_SERVICE(serviceId), { reason })
+    return response.message || 'Service rejected'
+  } catch (error) {
+    throw new Error(error.message || 'Failed to reject service')
+  }
+}
+
+/**
+ * Update a service (masters only)
+ */
+export const updateService = async (serviceId, serviceData) => {
+  try {
+    const response = await apiClient.put(API_ENDPOINTS.API.SERVICES + `/${serviceId}`, serviceData)
+    return response.service
+  } catch (error) {
+    throw new Error(error.message || 'Failed to update service')
+  }
+}
+
+/**
+ * Delete a service (masters only)
+ */
+export const deleteService = async (serviceId) => {
+  try {
+    const response = await apiClient.delete(API_ENDPOINTS.API.SERVICES + `/${serviceId}`)
+    return response.message || 'Service deleted successfully'
+  } catch (error) {
+    throw new Error(error.message || 'Failed to delete service')
+  }
+}
+
+/**
+ * Seller creates a service for approval
+ */
+export const createSellerService = async (serviceData) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.SELLER_SERVICES, serviceData)
+    return {
+      message: response.message,
+      service: response.service
+    }
+  } catch (error) {
+    throw new Error(error.message || 'Failed to submit service for approval')
   }
 }
 

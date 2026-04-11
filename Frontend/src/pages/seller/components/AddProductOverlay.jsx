@@ -1,9 +1,11 @@
 import { motion } from 'framer-motion'
 import { FiX } from 'react-icons/fi'
 import SellerProductForm from './ProductForm'
-import { useEffect } from 'react'
+import ServiceForm from './ServiceForm'
+import { useEffect, useState } from 'react'
 
 export default function AddProductOverlay({ isOpen, onClose }) {
+    const [mode, setMode] = useState('product') // 'product' or 'service'
     // Lock body scroll when overlay is open
     useEffect(() => {
         if (isOpen) {
@@ -39,21 +41,37 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-[#0f172a]/50 backdrop-blur-md sticky top-0 z-20">
                     <div>
-                        <motion.h2
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="text-xl font-bold text-white"
-                        >
-                            Add Product
-                        </motion.h2>
+                        <div className="flex items-center gap-4">
+                            <motion.h2
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="text-xl font-bold text-white"
+                            >
+                                {mode === 'product' ? 'Add Product' : 'Add Service'}
+                            </motion.h2>
+                            <div className="flex gap-1 p-1 bg-white/5 rounded-xl border border-white/10">
+                                <button 
+                                    onClick={() => setMode('product')}
+                                    className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'product' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    Product
+                                </button>
+                                <button 
+                                    onClick={() => setMode('service')}
+                                    className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'service' ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    Service
+                                </button>
+                            </div>
+                        </div>
                         <motion.p
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.25 }}
-                            className="text-xs font-bold text-slate-300"
+                            className="text-xs font-bold text-slate-300 mt-1"
                         >
-                            Create a new listing for your store
+                            {mode === 'product' ? 'Create a new listing for your store' : 'List your services for manual booking/repair'}
                         </motion.p>
                     </div>
                     <motion.button
@@ -73,7 +91,11 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                     transition={{ delay: 0.3 }}
                     className="flex-1 overflow-y-auto no-scrollbar p-6"
                 >
-                    <SellerProductForm onClose={onClose} />
+                    {mode === 'product' ? (
+                        <SellerProductForm onClose={onClose} />
+                    ) : (
+                        <ServiceForm />
+                    )}
                 </motion.div>
 
                 {/* Bottom Handle (Mobile) */}

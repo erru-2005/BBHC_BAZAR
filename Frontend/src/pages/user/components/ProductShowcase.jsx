@@ -9,8 +9,13 @@ import { addToBag, getBag, updateBagItem, removeFromBag, addToWishlist, removeFr
 import RatingBadge from '../../../components/RatingBadge'
 import { getSocket, initSocket } from '../../../utils/socket'
 import HeartBurst from '../../../components/HeartBurst'
+import { getImageUrl } from '../../../utils/image'
 
-const getImageSrc = (image) => image?.preview || image?.data_url || image?.url || image || null
+const getImageSrc = (image) => {
+  if (!image) return null
+  const path = image?.preview || image?.data_url || image?.url || image
+  return getImageUrl(path)
+}
 
 function ProductShowcase({ products = [], loading, error }) {
   const [addingToBag, setAddingToBag] = useState(new Set())
@@ -232,13 +237,13 @@ function ProductShowcase({ products = [], loading, error }) {
 
   if (loading) {
     return (
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[...Array(6)].map((_, index) => (
-          <div key={`product-skeleton-${index}`} className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3 animate-pulse">
-            <div className="h-40 rounded-2xl bg-gray-200" />
-            <div className="h-4 w-3/4 bg-gray-200 rounded-full" />
-            <div className="h-3 w-1/2 bg-gray-200 rounded-full" />
-            <div className="h-3 w-1/3 bg-gray-200 rounded-full" />
+      <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {[...Array(8)].map((_, index) => (
+          <div key={`product-skeleton-${index}`} className="rounded-2xl border border-gray-100 bg-white p-2.5 space-y-3 animate-pulse">
+            <div className="aspect-[4/3] rounded-xl bg-gray-100" />
+            <div className="h-3 w-3/4 bg-gray-100 rounded-full" />
+            <div className="h-4 w-1/2 bg-gray-100 rounded-full" />
+            <div className="h-2 w-1/3 bg-gray-100 rounded-full" />
           </div>
         ))}
       </div>
@@ -256,7 +261,7 @@ function ProductShowcase({ products = [], loading, error }) {
         <h2 className="text-3xl font-black text-gray-900">Trending products</h2>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {products.map((product, index) => {
           const thumbnail = product.thumbnail || product.media?.thumbnail
           // Use total_selling_price (with commission) if available, otherwise fall back to selling_price
@@ -303,7 +308,7 @@ function ProductShowcase({ products = [], loading, error }) {
           return (
             <motion.article
               key={productId}
-              className="group relative rounded-[28px] border border-gray-200 bg-white p-3 flex flex-col gap-3 hover:shadow-lg transition-shadow cursor-pointer focus-within:ring-2 focus-within:ring-black"
+              className="group relative rounded-2xl border border-gray-100 bg-white p-2.5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
               initial={motionVariants.fadeIn.initial}
               whileInView={motionVariants.fadeIn.animate}
               viewport={{ once: true }}
@@ -318,12 +323,12 @@ function ProductShowcase({ products = [], loading, error }) {
                 }
               }}
             >
-              <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden aspect-[4/3] flex items-center justify-center">
+              <div className="relative rounded-xl overflow-hidden aspect-[4/3] mb-2 bg-gray-50 flex items-center justify-center">
                 {getImageSrc(thumbnail) ? (
                   <img
                     src={getImageSrc(thumbnail)}
                     alt={product.product_name}
-                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                 ) : (
                   <div className="text-xs text-gray-400">No image</div>
@@ -352,29 +357,35 @@ function ProductShowcase({ products = [], loading, error }) {
                 </div>
               </div>
 
-              <div className="flex-1 space-y-1">
-              
-                <h3 className="text-base font-semibold text-gray-900 line-clamp-2 min-h-[48px]">{product.product_name}</h3>
-                <div className="flex items-center gap-2">
-                  <p className="text-lg font-black text-gray-900">₹{displayPrice.toLocaleString('en-IN')}</p>
-                  {maxPrice > displayPrice && (
-                    <span className="text-xs text-gray-500 line-through">₹{maxPrice.toLocaleString('en-IN')}</span>
-                  )}
+              <div className="flex-1">
+                <h3 className="text-[13px] font-medium text-gray-800 line-clamp-1 mb-1">{product.product_name}</h3>
+                
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="text-sm font-bold text-gray-900">₹{displayPrice.toLocaleString('en-IN')}</p>
                   {discountPercentage && (
-                    <span className="text-xs font-semibold text-green-600">↓{discountPercentage}%</span>
-                  )}
-                  {rating !== null && rating > 0 && (
-                    <span className="ml-auto">
-                      <RatingBadge
-                        value={rating}
-                        displayValue={rating.toFixed(1)}
-                        size="sm"
-                      />
+                    <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded leading-none uppercase">
+                      {discountPercentage}% OFF
                     </span>
                   )}
                 </div>
-                {/* Action: Add to Bag / Quantity controls */}
-                <div className="pt-1">
+                
+                {maxPrice > displayPrice && (
+                  <p className="text-[11px] text-gray-400 line-through mt-0.5">₹{maxPrice.toLocaleString('en-IN')}</p>
+                )}
+
+                {/* Optional rating - hidden on mobile for cleaner look if needed, but keeping small */}
+                <div className="hidden sm:flex items-center gap-2 mt-2">
+                  {rating !== null && rating > 0 && (
+                    <RatingBadge
+                      value={rating}
+                      displayValue={rating.toFixed(1)}
+                      size="sm"
+                    />
+                  )}
+                </div>
+              </div>
+                {/* Action: Add to Bag / Quantity controls - Hidden on very small screens for pure look, shown as icons elsewhere */}
+                <div className="pt-2 hidden sm:block">
                   {bagInfo ? (
                     <div className="inline-flex items-center rounded-full border border-gray-300 bg-white">
                       <button
@@ -503,33 +514,23 @@ function ProductShowcase({ products = [], loading, error }) {
                   </button>
                   )}
                 </div>
-                {rating !== null && rating > 0 ? (
-                  <div className="flex items-center gap-1 text-xs text-green-600">
+                {rating !== null && rating > 0 && (
+                  <div className="hidden sm:flex items-center gap-1 text-xs text-green-600 mt-2">
                     {Array.from({ length: 5 }, (_, i) => {
                       const index = i + 1
                       const fullStars = Math.floor(rating)
                       const fraction = rating - fullStars
-                      const hasHalf = fraction > 0 // treat any fraction as half for display
+                      const hasHalf = fraction > 0
 
-                      if (index <= fullStars) {
-                        // Fully filled star
-                        return <FaStar key={index} className="w-3.5 h-3.5" />
-                      }
-                      if (index === fullStars + 1 && hasHalf) {
-                        // Partially filled star (half icon)
-                        return <FaStarHalfAlt key={index} className="w-3.5 h-3.5" />
-                      }
-                      // Empty star
-                      return <FaStar key={index} className="w-3.5 h-3.5 text-gray-300" />
+                      if (index <= fullStars) return <FaStar key={index} className="w-3 h-3" />
+                      if (index === fullStars + 1 && hasHalf) return <FaStarHalfAlt key={index} className="w-3 h-3" />
+                      return <FaStar key={index} className="w-3 h-3 text-gray-200" />
                     })}
-                    <span className="text-[11px] text-gray-600 ml-1">
-                      {rating.toFixed(1)} ({reviews} reviews)
+                    <span className="text-[10px] text-gray-400 ml-1">
+                      ({reviews})
                     </span>
                   </div>
-                ) : (
-                  <div className="text-[11px] text-gray-500">No reviews yet</div>
                 )}
-              </div>
             </motion.article>
           )
         })}

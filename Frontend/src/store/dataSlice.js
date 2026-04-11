@@ -6,14 +6,8 @@ const loadCachedProducts = () => {
     const cached = localStorage.getItem('bbhc_home_products_cache')
     if (cached) {
       const parsed = JSON.parse(cached)
-      // Check if cache is still valid (not older than 10 minutes)
-      const maxAge = 10 * 60 * 1000 // 10 minutes for localStorage cache
-      if (parsed.timestamp && (Date.now() - parsed.timestamp) < maxAge) {
-        return {
-          products: parsed.products || [],
-          timestamp: parsed.timestamp
-        }
-      }
+      // CACHE DISABLED FOR DEVELOPMENT: Always return null so it fetches fresh products
+      return null
     }
   } catch (e) {
     // Ignore localStorage errors
@@ -29,7 +23,7 @@ const initialState = {
   home: {
     // Cache metadata
     productsCacheTimestamp: cachedData?.timestamp || null,
-    productsCacheMaxAge: 5 * 60 * 1000, // 5 minutes in milliseconds
+    productsCacheMaxAge: 0, // Disabled for development
     isRefreshing: false,
     // Layout content (static/sample data)
     heroSlides: [
@@ -169,7 +163,7 @@ const dataSlice = createSlice({
       const timestamp = Date.now()
       state.home.productsCacheTimestamp = timestamp
       state.home.isRefreshing = false
-      
+
       // Persist to localStorage for cross-session caching
       try {
         localStorage.setItem('bbhc_home_products_cache', JSON.stringify({
@@ -190,12 +184,12 @@ const dataSlice = createSlice({
       // Update a single product in cache (for real-time updates)
       const updatedProduct = action.payload
       if (!updatedProduct || !state.home.products) return
-      
+
       const productId = String(updatedProduct.id || updatedProduct._id)
       const index = state.home.products.findIndex(
         (p) => String(p.id || p._id) === productId
       )
-      
+
       if (index >= 0) {
         state.home.products[index] = { ...state.home.products[index], ...updatedProduct }
       }

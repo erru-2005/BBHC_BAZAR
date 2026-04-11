@@ -22,19 +22,23 @@ import ListOutletMan from './components/ListOutletMan'
 import AddProduct from './components/AddProduct'
 import BlacklistedSellers from './components/BlacklistedSellers'
 import ListProducts from './components/ListProducts'
+import ListServices from './components/ListServices'
+import AddService from './components/AddService'
 import OrdersList from './components/OrdersList'
 import CommissionManagement from './components/CommissionManagement'
 import Analysis from './components/analysis/Analysis'
 import ActiveCounters from './components/ActiveCounters'
 
-const TAB_ORDER_VERSION = '2'
+const TAB_ORDER_VERSION = '3'
 
 function Master() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { user, token } = useSelector((state) => state.auth)
   const [editingProduct, setEditingProduct] = useState(null)
+  const [editingService, setEditingService] = useState(null)
   const [productsRefreshKey, setProductsRefreshKey] = useState(0)
+  const [servicesRefreshKey, setServicesRefreshKey] = useState(0)
   const [activeTab, setActiveTab] = useState('home')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
@@ -44,7 +48,9 @@ function Master() {
     { id: 'home', label: 'Home', icon: HiHome },
     { id: 'orders', label: 'Orders', icon: FaShoppingBag },
     { id: 'add-product', label: 'Add Product', icon: FaBox },
+    { id: 'add-service', label: 'Add Service', icon: FaBox },
     { id: 'list-products', label: 'List Products', icon: FaThList },
+    { id: 'list-services', label: 'List Services', icon: FaThList },
     { id: 'commission', label: 'Commission', icon: FaPercent },
     { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
     { id: 'list-sellers', label: 'List Sellers', icon: MdList },
@@ -582,6 +588,28 @@ function Master() {
             onEditProduct={(product) => {
               setActiveTab('add-product')
               setEditingProduct(product)
+            }}
+          />
+        )}
+
+        {activeTab === 'add-service' && (
+          <AddService
+            editingService={editingService}
+            onServiceSaved={() => {
+              setEditingService(null)
+              setServicesRefreshKey((prev) => prev + 1)
+              setActiveTab('list-services')
+            }}
+            onCancelEdit={() => setEditingService(null)}
+          />
+        )}
+        
+        {activeTab === 'list-services' && (
+          <ListServices
+            refreshSignal={servicesRefreshKey}
+            onEditService={(service) => {
+              setEditingService(service)
+              setActiveTab('add-service')
             }}
           />
         )}
