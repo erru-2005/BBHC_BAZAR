@@ -150,24 +150,24 @@ function PasswordResetDialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b px-4 py-3">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#000000]/60 backdrop-blur-sm px-4">
+      <div className="w-full max-w-lg rounded-3xl bg-[#0f1218] border border-white/10 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Reset password</p>
-            <h3 className="text-lg font-semibold text-gray-900">{label} account</h3>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Reset password</p>
+            <h3 className="text-xl font-bold text-white tracking-tight">{label} Account</h3>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+            className="rounded-full p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
             aria-label="Close reset password dialog"
           >
             <FiX className="h-5 w-5" />
           </button>
         </div>
 
-        <form className="space-y-4 px-4 py-5" onSubmit={handleSubmit}>
-          <div className="flex gap-2 text-xs font-medium text-gray-600">
+        <form className="space-y-5 px-6 py-6" onSubmit={handleSubmit}>
+          <div className="flex gap-2 text-xs font-bold text-slate-300">
             {(['current', 'otp']).map((key) => (
               <button
                 key={key}
@@ -177,10 +177,10 @@ function PasswordResetDialog({
                   setError('')
                   setSuccess('')
                 }}
-                className={`flex-1 rounded-lg border px-3 py-2 transition ${
+                className={`flex-1 rounded-xl border px-3 py-2.5 transition-all outline-none ${
                   mode === key
-                    ? 'border-black bg-black text-white'
-                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                    ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/50'
+                    : 'border-white/10 bg-[#1a1f2e] text-slate-400 hover:border-white/30 hover:text-slate-200'
                 }`}
               >
                 {modeCopy[key]}
@@ -189,12 +189,12 @@ function PasswordResetDialog({
           </div>
 
           {mode === 'current' && (
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-gray-800">Current password</label>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-300">Current Password</label>
               <div className="relative">
                 <input
                   type={showCurrentPassword ? 'text' : 'password'}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm pr-10 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+                  className="w-full rounded-xl border border-white/10 bg-[#1a1f2e] px-4 py-3 text-sm text-white pr-10 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors placeholder:text-slate-500"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Enter current password"
@@ -202,7 +202,7 @@ function PasswordResetDialog({
                 <button
                   type="button"
                   aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
-                  className="absolute inset-y-0 right-2 inline-flex items-center text-gray-500 hover:text-gray-700"
+                  className="absolute inset-y-0 right-3 inline-flex items-center text-slate-400 hover:text-slate-200 transition-colors"
                   onClick={() => setShowCurrentPassword((prev) => !prev)}
                 >
                   {showCurrentPassword ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
@@ -211,7 +211,7 @@ function PasswordResetDialog({
               <button
                 type="button"
                 onClick={sendOtp}
-                className="text-left text-xs font-semibold text-blue-600 hover:text-blue-700"
+                className="text-left text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors mt-1 inline-block"
                 disabled={otpSending}
               >
                 {otpSending ? 'Sending OTP…' : 'Forgot password? Send OTP to verified number'}
@@ -220,32 +220,32 @@ function PasswordResetDialog({
           )}
 
           {mode === 'otp' && (
-            <div className="space-y-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
-              <div className="flex items-center justify-between gap-2">
+            <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">OTP verification</p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-sm font-bold text-white mb-0.5">OTP Verification</p>
+                  <p className="text-xs text-slate-400">
                     {maskedPhone ? `Sent to ${maskedPhone}` : 'Send OTP to your verified number'}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={sendOtp}
-                  className="inline-flex items-center gap-1 rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-800 transition hover:border-black hover:text-black"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-bold text-indigo-400 transition hover:bg-indigo-500 hover:text-white"
                   disabled={otpSending}
                 >
                   <FiSend className="h-3.5 w-3.5" />
-                  {otpSending ? 'Sending…' : maskedPhone ? 'Resend OTP' : 'Send OTP'}
+                  {otpSending ? 'Sending…' : maskedPhone ? 'Resend' : 'Send'}
                 </button>
               </div>
               {otpSessionId && (
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-800">Enter OTP</label>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-300">Enter OTP</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     maxLength={6}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+                    className="w-full rounded-xl border border-white/10 bg-[#1a1f2e] px-4 py-3 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors placeholder:text-slate-500"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
                     placeholder="6-digit code"
@@ -255,12 +255,12 @@ function PasswordResetDialog({
             </div>
           )}
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-800">New password</label>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-300">New Password</label>
             <div className="relative">
               <input
                 type={showNewPassword ? 'text' : 'password'}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm pr-10 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+                className="w-full rounded-xl border border-white/10 bg-[#1a1f2e] px-4 py-3 text-sm text-white pr-10 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors placeholder:text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Enter new password"
@@ -269,7 +269,7 @@ function PasswordResetDialog({
               <button
                 type="button"
                 aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
-                className="absolute inset-y-0 right-2 inline-flex items-center text-gray-500 hover:text-gray-700"
+                className="absolute inset-y-0 right-3 inline-flex items-center text-slate-400 hover:text-slate-200 transition-colors"
                 onClick={() => setShowNewPassword((prev) => !prev)}
               >
                 {showNewPassword ? <FiEyeOff className="h-4 w-4" /> : <FiEye className="h-4 w-4" />}
@@ -277,11 +277,11 @@ function PasswordResetDialog({
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-800">Confirm new password</label>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-300">Confirm New Password</label>
             <input
               type="password"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+              className="w-full rounded-xl border border-white/10 bg-[#1a1f2e] px-4 py-3 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors placeholder:text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Re-enter new password"
@@ -289,24 +289,24 @@ function PasswordResetDialog({
             />
           </div>
 
-          {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
-          {success && <p className="text-sm font-semibold text-emerald-600">{success}</p>}
+          {error && <p className="text-sm font-semibold text-rose-500 bg-rose-500/10 p-3 rounded-lg border border-rose-500/20">{error}</p>}
+          {success && <p className="text-sm font-semibold text-emerald-400 bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20">{success}</p>}
 
-          <div className="flex items-center justify-end gap-3 pt-2">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10 mt-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 transition hover:border-gray-300 hover:bg-gray-50"
+              className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-300 transition-all hover:bg-white/5 hover:text-white"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:bg-gray-600"
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:bg-indigo-500/50 disabled:text-white/50 shadow-lg shadow-indigo-500/25"
             >
               {loading && <FiRefreshCw className="h-4 w-4 animate-spin" />}
-              Save password
+              Save Password
             </button>
           </div>
         </form>

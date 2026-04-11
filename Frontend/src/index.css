@@ -1,5 +1,6 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import 'reactjs-popup/dist/index.css';
+@import "tailwindcss";
 
 html {
   width: 100%;
@@ -24,6 +25,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #020617;
   color: #f8fafc;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* Spatial UI Utility Classes */
@@ -50,20 +52,27 @@ body {
 }
 
 .active-glow {
-  text-shadow: 0 0 15px rgba(244, 63, 94, 0.5);
-  filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.3));
+  /* Removed text shadow to eliminate heavy shine */
+}
+
+.text-professional {
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -0.015em;
+  line-height: 1.5;
+}
+
+.text-outfit {
+  font-family: 'Outfit', sans-serif;
 }
 
 /* Visibility Utilities */
 .text-heading {
-  color: #f1f5f9;
-  /* slate-100 */
+  color: #f1f5f9; /* slate-100 */
   letter-spacing: -0.01em;
 }
 
 .text-meta {
-  color: #94a3b8;
-  /* slate-400 */
+  color: #94a3b8; /* slate-400 */
 }
 
 .icon-vibrant {
@@ -105,10 +114,16 @@ body {
   overflow-x: hidden;
 }
 
-/* Prevent horizontal scroll on mobile */
+/* Global Responsive Rules */
 * {
   max-width: 100%;
   box-sizing: border-box;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
 }
 
 /* Hide scrollbar for webkit browsers */

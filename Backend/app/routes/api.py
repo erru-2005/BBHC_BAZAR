@@ -13,6 +13,10 @@ from app.services.wishlist_service import WishlistService
 from app.sockets.emitter import emit_product_event
 from app.utils.validators import validate_email
 from datetime import datetime
+import os
+import uuid
+from werkzeug.utils import secure_filename
+from flask import send_from_directory, current_app
 
 api_bp = Blueprint('api', __name__)
 
@@ -192,16 +196,19 @@ def get_sellers():
 @api_bp.route('/sellers/<seller_id>', methods=['PUT'])
 @jwt_required()
 def update_seller(seller_id):
-    """Update a seller (only masters can update)"""
+    """Update a seller (masters can update any, sellers can update self)"""
     try:
         # Get current user info from JWT token
         current_user_id = get_jwt_identity()
         claims = get_jwt()
         current_user_type = claims.get('user_type')
         
-        # Only masters can update sellers
-        if current_user_type != 'master':
-            return jsonify({'error': 'Only masters can update sellers'}), 403
+        # Security: Only masters can update any seller, sellers can only update themselves
+        is_master = current_user_type == 'master'
+        is_self = str(current_user_id) == seller_id
+        
+        if not is_master and not is_self:
+            return jsonify({'error': 'Unauthorized profile access'}), 403
         
         data = request.get_json()
         if not data:
@@ -212,8 +219,13 @@ def update_seller(seller_id):
         if not seller:
             return jsonify({'error': 'Seller not found'}), 404
         
-        # Prepare update data (only allow certain fields to be updated)
-        allowed_fields = ['email', 'phone_number', 'first_name', 'last_name', 'is_active']
+        # Prepare update data - restrict fields based on user type
+        if is_master:
+            allowed_fields = ['email', 'phone_number', 'first_name', 'last_name', 'image_url', 'is_active']
+        else:
+            # Sellers cannot change their own 'is_active' status
+            allowed_fields = ['email', 'phone_number', 'first_name', 'last_name', 'image_url']
+        
         update_data = {k: v for k, v in data.items() if k in allowed_fields}
         
         # Validate email if provided
@@ -728,6 +740,37 @@ def get_products():
         return jsonify({'error': f'Failed to get products: {str(e)}'}), 500
 
 
+@api_bp.route('/seller/my-products', methods=['GET'])
+@jwt_required()
+def get_seller_my_products():
+    """Get products belonging to the current seller"""
+    try:
+        claims = get_jwt()
+        if claims.get('user_type') != 'seller':
+            return jsonify({'error': 'Only sellers can access this endpoint'}), 403
+
+        user_id = get_jwt_identity()
+        trade_id = claims.get('trade_id')
+        
+        skip = request.args.get('skip', 0, type=int)
+        limit = request.args.get('limit', 100, type=int)
+        
+        products = ProductService.get_products_by_seller(
+            user_id=user_id, 
+            trade_id=trade_id, 
+            skip=skip, 
+            limit=limit,
+            include_pending=True # Sellers should see their own pending products
+        )
+
+        return jsonify({
+            'products': [product.to_dict() for product in products],
+            'count': len(products)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get seller products: {str(e)}'}), 500
+
+
 @api_bp.route('/products/<product_id>', methods=['PUT'])
 @jwt_required()
 def update_product(product_id):
@@ -1096,8 +1139,9 @@ def get_category_commission_rates():
     """Get all category commission rates (masters only)"""
     try:
         claims = get_jwt()
-        if claims.get('user_type') != 'master':
-            return jsonify({'error': 'Only masters can view commission rates'}), 403
+        user_type = claims.get('user_type')
+        if user_type not in ['master', 'seller']:
+            return jsonify({'error': 'Only masters and sellers can view commission rates'}), 403
 
         rates = ProductService.get_all_category_commissions()
         return jsonify({
@@ -1203,3 +1247,51 @@ def remove_from_wishlist(product_id):
         return jsonify({'message': 'Removed from wishlist'}), 200
     except Exception as e:
         return jsonify({'error': f'Failed to remove from wishlist: {str(e)}'}), 500
+
+
+@api_bp.route('/upload', methods=['POST'])
+@jwt_required()
+def upload_file():
+    """Upload a file and return its URL"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        if file:
+            # Ensure upload folder exists
+            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+            if not os.path.exists(upload_folder):
+                os.makedirs(upload_folder)
+            
+            # Generate unique filename
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            file_path = os.path.join(upload_folder, unique_filename)
+            
+            # Save file
+            file.save(file_path)
+            
+            # Generate URL
+            # Note: In production, this should be a full URL (e.g., S3 or absolute app URL)
+            # For local dev, we return a relative path or use a static serving route
+            file_url = f"/api/uploads/{unique_filename}"
+            
+            return jsonify({
+                'message': 'File uploaded successfully',
+                'filename': unique_filename,
+                'url': file_url
+            }), 201
+            
+    except Exception as e:
+        return jsonify({'error': f'Upload failed: {str(e)}'}), 500
+
+
+@api_bp.route('/uploads/<filename>', methods=['GET'])
+def uploaded_file(filename):
+    """Serve uploaded files"""
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
+    return send_from_directory(upload_folder, filename)

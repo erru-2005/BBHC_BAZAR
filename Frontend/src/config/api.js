@@ -37,6 +37,7 @@ export const API_ENDPOINTS = {
     UNBLACKLIST_OUTLET_MAN: (outletManId) => `${API_BASE_URL}/api/outlet_men/${outletManId}/blacklist`,
     PRODUCTS: `${API_BASE_URL}/api/products`,
     SELLER_PRODUCTS: `${API_BASE_URL}/api/seller/products`,
+    SELLER_MY_PRODUCTS: `${API_BASE_URL}/api/seller/my-products`,
     SELLER_PRODUCT: (productId) => `${API_BASE_URL}/api/seller/products/${productId}`,
     CATEGORIES: `${API_BASE_URL}/api/categories`,
     PRODUCT_RATINGS: (productId) => `${API_BASE_URL}/api/products/${productId}/ratings`,

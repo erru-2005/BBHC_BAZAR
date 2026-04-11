@@ -83,6 +83,7 @@ class SellerService:
                 phone_number=seller_data.get('phone_number'),
                 first_name=seller_data.get('first_name'),
                 last_name=seller_data.get('last_name'),
+                image_url=seller_data.get('image_url'),
                 is_active=seller_data.get('is_active', False),
                 created_by=seller_data.get('created_by', 'system'),
                 created_at=seller_data.get('created_at')

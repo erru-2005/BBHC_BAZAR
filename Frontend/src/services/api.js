@@ -11,10 +11,19 @@ import { setToken, logout } from '../store/authSlice'
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 45000, // 45 seconds global timeout
   headers: {
     'Content-Type': 'application/json',
   },
 })
+
+// Simple in-memory cache for speed
+const apiCache = {
+  products: { data: null, timestamp: 0 },
+  orders: { data: null, timestamp: 0 },
+  sellerProducts: { data: null, timestamp: 0 }
+}
+const CACHE_DURATION = 30000 // 30 seconds cache
 
 // Add request interceptor to include token
 apiClient.interceptors.request.use(
@@ -756,8 +765,27 @@ export const getProducts = async () => {
 }
 
 /**
+ * Get products belonging to the current seller
+ * @returns {Promise<Array>} List of seller's products
+ */
+export const getSellerMyProducts = async () => {
+  const now = Date.now()
+  if (apiCache.sellerProducts.data && (now - apiCache.sellerProducts.timestamp < CACHE_DURATION)) {
+    return apiCache.sellerProducts.data
+  }
+
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.SELLER_MY_PRODUCTS)
+    const products = response.products || []
+    apiCache.sellerProducts = { data: products, timestamp: now }
+    return products
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load your products')
+  }
+}
+
+/**
  * Get a single product by ID
- * Note: Fetches from backend and resolves the matching product.
  * @param {string} productId
  * @returns {Promise<object>} Product object
  */
@@ -767,17 +795,20 @@ export const getProductById = async (productId) => {
   }
 
   try {
-    const products = await getProducts()
-    const match = products.find(
-      (prod) => String(prod.id || prod._id) === String(productId)
-    )
-
-    if (!match) {
-      throw new Error('Product not found')
-    }
-
-    return match
+    // Optimized: Fetch specific product instead of all products
+    const response = await apiClient.get(`${API_ENDPOINTS.API.PRODUCTS}/${productId}`)
+    return response.product || response
   } catch (error) {
+    // Fallback if specific GET fails, try list fetch (legacy behavior but limited)
+    try {
+      const products = await getProducts()
+      const match = products.find(
+        (prod) => String(prod.id || prod._id) === String(productId)
+      )
+      if (match) return match
+    } catch (e) {
+      // ignore fallback error
+    }
     throw new Error(error.message || 'Failed to load product')
   }
 }
@@ -946,7 +977,47 @@ export const updateSeller = async (sellerId, sellerData) => {
     const response = await apiClient.put(API_ENDPOINTS.API.UPDATE_SELLER(sellerId), sellerData)
     return response.seller
   } catch (error) {
+
     throw new Error(error.message || 'Failed to update seller')
+  }
+}
+
+/**
+ * Handle file upload
+ * @param {File} file - File object to upload
+ * @returns {Promise} Upload response with URL
+ */
+export const uploadFile = async (file) => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    // Explicitly set content-type to multipart/form-data
+    const response = await apiClient.post(`${API_BASE_URL}/api/upload`, formData, {
+      timeout: 120000, // 2 minutes for uploads
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'File upload failed')
+  }
+}
+
+/**
+ * Update current seller's profile
+ * @param {string} sellerId - Seller ID
+ * @param {object} profileData - Profile data to update
+ * @returns {Promise} Updated seller
+ */
+export const updateSellerProfile = async (sellerId, profileData) => {
+  try {
+    const response = await apiClient.put(`${API_BASE_URL}/api/sellers/${sellerId}`, profileData)
+    return response.seller
+  } catch (error) {
+    throw new Error(error.message || 'Failed to update profile')
   }
 }
 
@@ -1193,13 +1264,20 @@ export const getOrders = async (params = {}) => {
       ...params
     }
     const response = await apiClient.get(API_ENDPOINTS.API.ORDERS, { params: queryParams })
-    return {
+    const result = {
       orders: response.orders || [],
       total: response.total || response.orders?.length || 0,
       page: response.page || queryParams.page,
       limit: response.limit || queryParams.limit,
       totalPages: response.totalPages || Math.ceil((response.total || response.orders?.length || 0) / queryParams.limit)
     }
+    
+    // Cache only the first page with default limit
+    if (queryParams.page === 1 && queryParams.limit === 10) {
+      apiCache.orders = { data: result, timestamp: Date.now() }
+    }
+    
+    return result
   } catch (error) {
     throw new Error(error.message || 'Failed to fetch orders')
   }

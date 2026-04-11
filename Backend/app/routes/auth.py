@@ -324,19 +324,27 @@ def seller_login():
         if not trade_id or not password:
             return jsonify({'error': 'Trade ID and password are required'}), 400
         
-        # Check if seller is blacklisted (check before authentication)
+        # Check if seller exists
         seller_temp = SellerService.get_seller_by_trade_id(trade_id, include_blacklisted=True)
+        print(f"[LOGIN DEBUG] Seller lookup for Trade ID '{trade_id}': {'Found' if seller_temp else 'Not Found'}")
+        
         if not seller_temp:
             return jsonify({'error': 'Invalid Trade ID or password'}), 401
         
         # Check if blacklisted
         if BlacklistService.is_blacklisted(str(seller_temp._id)):
+            print(f"[LOGIN DEBUG] Seller {trade_id} is blacklisted!")
             return jsonify({'error': 'This account has been blacklisted. Please contact support.'}), 403
         
         # Authenticate seller
         seller = seller_temp
-        if not seller.check_password(password):
+        password_correct = seller.check_password(password)
+        print(f"[LOGIN DEBUG] Password check for {trade_id}: {'Success' if password_correct else 'Failed'}")
+        
+        if not password_correct:
             return jsonify({'error': 'Invalid Trade ID or password'}), 401
+        
+        print(f"[LOGIN DEBUG] Login validated for {trade_id}. Checking device tokens...")
         
         # Note: Status will be automatically updated to active when socket connects
         # We don't block login based on status - status is managed by socket connection
@@ -424,6 +432,7 @@ def seller_login():
         
         # Device token invalid or not provided, proceed with OTP flow
         # Generate OTP
+        print(f"[LOGIN DEBUG] Triggering OTP generation for seller {trade_id}...")
         otp = OTPManager.generate_otp()
         session_id = OTPManager.store_otp(user_id, 'seller', otp)
         
@@ -480,6 +489,7 @@ def seller_forgot_password():
     try:
         data = request.get_json() or {}
         trade_id = data.get('trade_id')
+        is_resend = bool(data.get('resend') or data.get('otp_session_id'))
         
         if not trade_id:
             return jsonify({'error': 'Trade ID is required'}), 400
@@ -496,9 +506,18 @@ def seller_forgot_password():
         
         user_id = str(seller._id)
         user_data = seller.to_dict(include_password=False)
+
+        print(
+            f"[OTP DEBUG] seller/forgot-password hit trade_id={trade_id} user_id={user_id} resend={is_resend}",
+            flush=True
+        )
         
         otp = OTPManager.generate_otp()
         session_id = OTPManager.store_otp(user_id, 'seller', otp)
+        print(
+            f"[OTP DEBUG] generated seller forgot-password OTP trade_id={trade_id} session_id={session_id} otp={otp}",
+            flush=True
+        )
         
         masked_phone = mask_phone_number(seller.phone_number)
         
@@ -508,10 +527,22 @@ def seller_forgot_password():
             success, message = SMSService.send_otp(seller.phone_number, otp)
             if success:
                 sms_sent = True
+                print(
+                    f"[OTP DEBUG] OTP SMS sent trade_id={trade_id} phone={masked_phone} session_id={session_id}",
+                    flush=True
+                )
             else:
                 sms_error = message
+                print(
+                    f"[OTP DEBUG] OTP SMS send failed trade_id={trade_id} phone={masked_phone} session_id={session_id} error={sms_error}",
+                    flush=True
+                )
         except Exception as e:
             sms_error = str(e)
+            print(
+                f"[OTP DEBUG] OTP SMS exception trade_id={trade_id} phone={masked_phone} session_id={session_id} error={sms_error}",
+                flush=True
+            )
         
         response_data = {
             'message': 'OTP sent successfully',

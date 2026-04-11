@@ -16,50 +16,86 @@ orders_bp = Blueprint('orders', __name__)
 
 
 def _serialize_orders(order_list):
-    """Serialize orders and populate current product/user/seller data from IDs"""
+    """Serialize orders and populate current product/user/seller data using bulk fetching for performance"""
     from app.services.product_service import ProductService
     from app.services.user_service import UserService
     from app.services.seller_service import SellerService
-    
+    from bson import ObjectId
+
+    if not order_list:
+        return []
+
+    # Collect all IDs to fetch in bulk
+    product_ids = set()
+    user_ids = set()
+    seller_ids = set()
+
+    for order in order_list:
+        if not order: continue
+        if order.product_id: product_ids.add(str(order.product_id))
+        if order.user_id: user_ids.add(str(order.user_id))
+        if order.seller_id: seller_ids.add(str(order.seller_id))
+
+    # Bulk fetch current data
+    products_map = {}
+    if product_ids:
+        # Assuming ProductService.get_products_by_ids exists or we use internal mongo ref
+        from app import mongo
+        cursor = mongo.db.products.find({'_id': {'$in': [ObjectId(pid) for pid in product_ids]}})
+        for doc in cursor:
+            pid = str(doc['_id'])
+            # Basic dict representation matching orders.py requirements
+            products_map[pid] = {
+                'id': pid,
+                'product_name': doc.get('product_name'),
+                'thumbnail': doc.get('thumbnail'),
+                'selling_price': doc.get('selling_price'),
+                'max_price': doc.get('max_price'),
+                'quantity': doc.get('quantity'),
+            }
+
+    users_map = {}
+    if user_ids:
+        from app import mongo
+        cursor = mongo.db.users.find({'_id': {'$in': [ObjectId(uid) for uid in user_ids]}})
+        for doc in cursor:
+            uid = str(doc['_id'])
+            users_map[uid] = {
+                'id': uid,
+                'name': f"{(doc.get('first_name') or '').strip()} {(doc.get('last_name') or '').strip()}".strip() or doc.get('username'),
+                'email': doc.get('email'),
+                'phone': doc.get('phone_number'),
+                'address': doc.get('address'),
+            }
+
+    sellers_map = {}
+    if seller_ids:
+        from app import mongo
+        cursor = mongo.db.sellers.find({'_id': {'$in': [ObjectId(sid) for sid in seller_ids]}})
+        for doc in cursor:
+            sid = str(doc['_id'])
+            # Basic to_dict replacement
+            d = doc.copy()
+            d['id'] = str(d.pop('_id'))
+            d.pop('password', None)
+            sellers_map[sid] = d
+
     serialized = []
     for order in order_list:
-        if not order:
-            continue
+        if not order: continue
         order_dict = order.to_dict()
         
-        # Populate current product data (snapshot is kept for historical reference)
-        if order.product_id:
-            product = ProductService.get_product_by_id(str(order.product_id))
-            if product:
-                product_dict = product.to_dict()
-                order_dict['product_current'] = {
-                    'id': product_dict.get('id'),
-                    'product_name': product_dict.get('product_name'),
-                    'thumbnail': product_dict.get('thumbnail'),
-                    'selling_price': product_dict.get('selling_price'),
-                    'max_price': product_dict.get('max_price'),
-                    'quantity': product_dict.get('quantity'),
-                }
-        
-        # Populate current user data
-        if order.user_id:
-            user = UserService.get_user_by_id(str(order.user_id))
-            if user:
-                user_dict = user.to_dict(include_password=False)
-                order_dict['user_current'] = {
-                    'id': user_dict.get('id'),
-                    'name': f"{(user_dict.get('first_name') or '').strip()} {(user_dict.get('last_name') or '').strip()}".strip() or user_dict.get('username'),
-                    'email': user_dict.get('email'),
-                    'phone': user_dict.get('phone_number'),
-                    'address': user_dict.get('address'),
-                }
-        
-        # Populate current seller data
-        if order.seller_id:
-            seller = SellerService.get_seller_by_id(str(order.seller_id))
-            if seller:
-                seller_dict = seller.to_dict(include_password=False)
-                order_dict['seller_current'] = seller_dict
+        pid = str(order.product_id) if order.product_id else None
+        if pid in products_map:
+            order_dict['product_current'] = products_map[pid]
+            
+        uid = str(order.user_id) if order.user_id else None
+        if uid in users_map:
+            order_dict['user_current'] = users_map[uid]
+            
+        sid = str(order.seller_id) if order.seller_id else None
+        if sid in sellers_map:
+            order_dict['seller_current'] = sellers_map[sid]
         
         serialized.append(order_dict)
     

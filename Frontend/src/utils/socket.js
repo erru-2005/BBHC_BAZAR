@@ -20,11 +20,11 @@ export const initSocket = (token = null) => {
   }
 
   const options = {
-    transports: ['polling'], // force polling to avoid invalid frame header on ws
+    transports: ['polling'], // Restricted to polling to resolve frame header errors in threading mode
     reconnection: true,
     reconnectionDelay: 1000,
-    reconnectionAttempts: 5,
-    timeout: 20000,
+    reconnectionAttempts: 10,
+    timeout: 30000, // Increased timeout to 30s
   }
 
   // Add authentication if token provided

@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { FiMenu, FiRefreshCw, FiPackage, FiSearch } from 'react-icons/fi'
 import { motion, AnimatePresence } from 'framer-motion'
-import { getProducts } from '../../services/api'
+import { getSellerMyProducts } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
+import { fixImageUrl } from '../../utils/image'
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null || value === '') return '₹0'
@@ -42,13 +43,8 @@ function SellerMyProducts() {
       setLoading(true)
       setError(null)
       try {
-        const productList = await getProducts()
-        const normalized = Array.isArray(productList?.products)
-          ? productList.products
-          : Array.isArray(productList)
-            ? productList
-            : []
-        setProducts(normalized)
+        const productList = await getSellerMyProducts()
+        setProducts(productList)
       } catch (err) {
         setError(err.message || 'Failed to load products')
       } finally {
@@ -80,31 +76,13 @@ function SellerMyProducts() {
   })
 
   const ownedProducts = useMemo(() => {
-    if (!user) return []
-    const sellerTradeId = user.trade_id
-    const sellerId = String(user.id || user._id || '')
-
-    const filtered = products.filter((product) => {
-      const matchTradeId =
-        sellerTradeId &&
-        (product.seller_trade_id === sellerTradeId ||
-          product.created_by === sellerTradeId ||
-          product.created_by_user_id === sellerTradeId)
-      const matchId =
-        sellerId &&
-        (String(product.created_by_user_id || '') === sellerId ||
-          String(product.seller_id || '') === sellerId)
-
-      return matchTradeId || matchId
-    })
-
-    if (!searchQuery) return filtered
+    if (!searchQuery) return products
     const lowerQuery = searchQuery.toLowerCase()
-    return filtered.filter(p => p.product_name?.toLowerCase().includes(lowerQuery))
-  }, [products, user, searchQuery])
+    return products.filter(p => p.product_name?.toLowerCase().includes(lowerQuery))
+  }, [products, searchQuery])
 
   return (
-    <div className="min-h-screen spatial-bg text-white pb-[96px] md:pb-0">
+    <div className="min-h-screen spatial-bg text-white pb-[88px] md:pb-0 flex flex-col">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-40 glass-panel border-b border-white/5">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-4 sm:py-4">
@@ -118,38 +96,38 @@ function SellerMyProducts() {
             </motion.button>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3.5 py-1.5 shadow-inner ring-1 ring-white/10 backdrop-blur-sm sm:gap-1.5 sm:px-4 sm:py-2">
-                <span className="text-sm font-extrabold tracking-[0.08em] text-white sm:text-base">BBHC</span>
+                <span className="text-sm font-bold tracking-tight text-white sm:text-base">BBHC</span>
                 <span className="text-sm font-bold text-rose-300 sm:text-base active-glow">Bazaar</span>
               </div>
             </div>
           </div>
-          <span className="hidden text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 sm:inline">
+          <span className="hidden text-[10px] font-black uppercase tracking-[0.3em] text-slate-200 sm:inline">
             Inventory Management
           </span>
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-5xl px-4 pt-24 pb-12 sm:px-6 lg:px-0">
+      <main className="relative flex-1 mx-auto w-full max-w-md md:max-w-5xl px-4 pt-20 pb-6 sm:px-6 lg:px-0">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between"
+          className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"
         >
           <div>
-            <h1 className="text-2xl font-black text-white tracking-tighter">My Products</h1>
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-1">
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tighter">My Products</h1>
+            <p className="text-[11px] sm:text-xs font-black text-slate-200 uppercase tracking-widest mt-1">
               Active Listings: {ownedProducts.length}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             <div className="relative group flex-1 sm:flex-none">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-500 transition-colors" strokeWidth={2.5} />
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-rose-500 transition-colors" strokeWidth={2.5} />
               <input
                 type="text"
                 placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 pr-4 py-3 bg-white/5 border border-white/5 rounded-2xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-rose-500/30 focus:bg-white/10 transition-all w-full sm:w-72 shadow-inner"
+                className="pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm text-white placeholder-slate-300 focus:outline-none focus:border-rose-500/30 focus:bg-white/10 transition-all w-full sm:w-72 shadow-inner"
               />
             </div>
             <motion.button
@@ -170,7 +148,7 @@ function SellerMyProducts() {
         )}
 
         <AnimatePresence mode="popLayout">
-          {loading ? (
+          {loading && ownedProducts.length === 0 ? (
             <motion.div key="loading" className="grid grid-cols-1 gap-4">
               {[1, 2, 3].map(i => (
                 <div key={i} className="h-32 w-full animate-pulse rounded-[32px] bg-white/[0.03] border border-white/5" />
@@ -211,12 +189,12 @@ function SellerMyProducts() {
                     <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-900 border border-white/5">
                       {product.thumbnail ? (
                         <img
-                          src={typeof product.thumbnail === 'string' ? product.thumbnail : product.thumbnail.preview}
+                          src={fixImageUrl(typeof product.thumbnail === 'string' ? product.thumbnail : product.thumbnail.preview)}
                           alt={product.product_name}
                           className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[10px] font-black uppercase text-slate-500">No Image</div>
+                        <div className="flex h-full w-full items-center justify-center text-[10px] font-black uppercase text-slate-400">No Image</div>
                       )}
                     </div>
 
@@ -230,12 +208,12 @@ function SellerMyProducts() {
                         {product.product_name}
                       </h2>
                       <div className="flex items-center gap-4 mt-2">
-                        <p className="text-sm font-black text-white">
+                        <p className="text-sm font-bold text-white">
                           {formatCurrency(product.selling_price)}
                         </p>
                         <div className="h-3 w-px bg-white/10" />
-                        <p className="text-xs font-bold text-slate-400">
-                          Stock: <span className={quantity > 5 ? 'text-slate-200' : 'text-amber-500'}>{quantity}</span>
+                        <p className="text-xs font-bold text-slate-300">
+                          Stock: <span className={quantity > 5 ? 'text-slate-100' : 'text-amber-500'}>{quantity}</span>
                         </p>
                       </div>
                     </div>
@@ -251,7 +229,7 @@ function SellerMyProducts() {
                       >
                         <FiRefreshCw className="w-4 h-4" />
                       </motion.button>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">
+                      <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest hidden sm:block">
                         {product.updated_at ? new Date(product.updated_at).toLocaleDateString() : 'N/A'}
                       </div>
                     </div>

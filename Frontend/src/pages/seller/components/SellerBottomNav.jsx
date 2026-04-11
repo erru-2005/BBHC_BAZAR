@@ -9,11 +9,12 @@ import {
 import { motion } from 'framer-motion'
 import PropTypes from 'prop-types'
 
-export default function SellerBottomNav({ showOrders, setShowOrders, onOpenProfile, onOpenAddProduct }) {
+export default function SellerBottomNav({ showOrders, setShowOrders, isProfileActive, onOpenProfile, onOpenAddProduct }) {
     const navigate = useNavigate()
     const location = useLocation()
 
     const getActiveTab = () => {
+        if (isProfileActive) return 'profile'
         if (showOrders) return 'orders'
         if (location.pathname === '/seller/products') return 'products'
         if (location.pathname === '/seller/dashboard' && !showOrders) return 'home'
@@ -70,11 +71,11 @@ export default function SellerBottomNav({ showOrders, setShowOrders, onOpenProfi
     ]
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-50 w-full md:hidden pointer-events-none">
-            {/* Spacer */}
-            <div className="h-24" />
+    <div className="fixed bottom-0 left-0 right-0 z-50 w-full md:hidden pointer-events-none flex justify-center">
+    {/* Spacer */}
+    <div className="h-24" />
 
-            <div className="absolute bottom-0 left-0 right-0 h-[88px] pointer-events-auto">
+    <div className="relative w-full max-w-md h-[88px] pointer-events-auto">
                 {/* SVG Curve Background - Dark Glassmorphism */}
                 <div className="absolute inset-0 z-0">
                     <svg
@@ -101,9 +102,9 @@ export default function SellerBottomNav({ showOrders, setShowOrders, onOpenProfi
                     <div className="absolute top-[12px] h-[1px] left-0 right-0 bg-white/5 shadow-[0_1px_5px_rgba(255,255,255,0.1)]" style={{ clipPath: 'polygon(0 0, 134px 0, 162px 22px, 213px 22px, 241px 0, 100% 0, 100% 100%, 0 100%)' }} />
                 </div>
 
-                <div className="relative flex h-full w-full items-end pb-3 z-10">
+                <div className="relative flex h-full w-full items-center pb-1 z-10">
                     {/* Left Group */}
-                    <div className="flex flex-1 justify-around px-1">
+                    <div className="flex flex-1 justify-around items-center px-1">
                         {navItems.slice(0, 2).map((item) => {
                             const isActive = activeTab === item.id
                             const Icon = isActive ? (item.activeIcon || item.icon) : item.icon
@@ -111,28 +112,28 @@ export default function SellerBottomNav({ showOrders, setShowOrders, onOpenProfi
                                 <button
                                     key={item.id}
                                     onClick={item.action}
-                                    className="group relative flex flex-col items-center justify-center gap-1 min-w-[60px] p-2"
+                                    className="group relative flex flex-col items-center justify-center p-1 flex-1 min-w-0"
                                 >
                                     <motion.div
                                         whileTap={{ scale: 0.9 }}
-                                        whileHover={{ y: -2 }}
+                                        whileHover={{ y: -3 }}
+                                        className="mb-1"
                                     >
                                         <Icon
-                                            className={`h-[26px] w-[26px] transition-all duration-300 ${isActive
-                                                ? 'text-[#fb7185] active-glow'
-                                                : 'text-slate-300 group-hover:text-slate-100'
+                                            className={`h-[28px] w-[28px] transition-all duration-300 ${isActive
+                                                ? 'text-[#FF2E63]'
+                                                : 'text-slate-400'
                                                 }`}
                                             strokeWidth={isActive ? 0 : 2}
                                         />
                                     </motion.div>
-                                    <span className={`text-[10px] font-black tracking-tight transition-colors ${isActive ? 'text-white' : 'text-slate-400'
-                                        }`}>
+                                    <span className={`text-[11px] font-bold tracking-tight transition-all duration-300 ${isActive ? 'text-white' : 'text-slate-400'}`}>
                                         {item.label}
                                     </span>
                                     {isActive && (
                                         <motion.div
                                             layoutId="nav-pill"
-                                            className="absolute bottom-1 h-0.5 w-6 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)]"
+                                            className="absolute -bottom-1 h-1 w-1 rounded-full bg-[#FF2E63] shadow-[0_0_10px_rgba(255,46,99,0.8)]"
                                             transition={{ type: "spring", stiffness: 350, damping: 30 }}
                                         />
                                     )}
@@ -141,21 +142,22 @@ export default function SellerBottomNav({ showOrders, setShowOrders, onOpenProfi
                         })}
                     </div>
 
-                    {/* Center Floating Button - The Bloom Source */}
-                    <div className="relative -top-7 flex w-20 justify-center">
+                    {/* Center Floating Button */}
+                    <div className="absolute left-1/2 -translate-x-1/2 -top-8 flex w-16 sm:w-20 justify-center shrink-0 z-20">
+                        <div className="absolute inset-0 bg-[#FF2E63]/20 blur-2xl rounded-full scale-150 animate-pulse" />
                         <motion.button
                             layoutId="add-product-fab"
-                            whileTap={{ scale: 0.9 }}
+                            whileTap={{ scale: 0.85 }}
                             whileHover={{ scale: 1.05 }}
                             onClick={onOpenAddProduct}
-                            className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-700 text-white shadow-[0_8px_32px_rgba(244,63,94,0.4)] ring-[5px] ring-[#0f172a]"
+                            className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FF2E63] to-rose-700 text-white shadow-lg ring-[5px] sm:ring-[6px] ring-[#0f1218] relative"
                         >
-                            <HiPlus className="h-8 w-8 text-white" strokeWidth={2.5} />
+                            <HiPlus className="h-8 w-8 sm:h-9 sm:w-9 text-white" strokeWidth={3} />
                         </motion.button>
                     </div>
 
                     {/* Right Group */}
-                    <div className="flex flex-1 justify-around px-1">
+                    <div className="flex flex-1 justify-around items-center px-1">
                         {navItems.slice(3).map((item) => {
                             const isActive = activeTab === item.id
                             const Icon = isActive ? (item.activeIcon || item.icon) : item.icon
@@ -163,30 +165,28 @@ export default function SellerBottomNav({ showOrders, setShowOrders, onOpenProfi
                                 <button
                                     key={item.id}
                                     onClick={item.action}
-                                    className="group relative flex flex-col items-center justify-center gap-1 min-w-[60px] p-2"
+                                    className="group relative flex flex-col items-center justify-center p-1 flex-1 min-w-0"
                                 >
                                     <motion.div
-                                        layoutId={item.id === 'profile' ? "profile-morph-source" : undefined}
                                         whileTap={{ scale: 0.9 }}
-                                        whileHover={{ y: -2 }}
-                                        className="flex flex-col items-center"
+                                        whileHover={{ y: -3 }}
+                                        className="mb-1"
                                     >
                                         <Icon
-                                            className={`h-[26px] w-[26px] transition-all duration-300 ${isActive
-                                                ? 'text-[#fb7185] active-glow'
-                                                : 'text-slate-300 group-hover:text-slate-100'
+                                            className={`h-[28px] w-[28px] transition-all duration-300 ${isActive
+                                                ? 'text-[#FF2E63]'
+                                                : 'text-slate-400 group-hover:text-slate-100'
                                                 }`}
                                             strokeWidth={isActive ? 0 : 2}
                                         />
                                     </motion.div>
-                                    <span className={`text-[10px] font-black tracking-tight transition-colors ${isActive ? 'text-white' : 'text-slate-400'
-                                        }`}>
+                                    <span className={`text-[11px] font-bold tracking-tight transition-all duration-300 ${isActive ? 'text-white' : 'text-slate-400'}`}>
                                         {item.label}
                                     </span>
                                     {isActive && (
                                         <motion.div
                                             layoutId="nav-pill"
-                                            className="absolute bottom-1 h-0.5 w-6 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)]"
+                                            className="absolute -bottom-1 h-1 w-1 rounded-full bg-[#FF2E63] shadow-[0_0_10px_rgba(255,46,99,0.8)]"
                                             transition={{ type: "spring", stiffness: 350, damping: 30 }}
                                         />
                                     )}
@@ -203,6 +203,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, onOpenProfi
 SellerBottomNav.propTypes = {
     showOrders: PropTypes.bool,
     setShowOrders: PropTypes.func,
+    isProfileActive: PropTypes.bool,
     onOpenProfile: PropTypes.func,
     onOpenAddProduct: PropTypes.func
 }

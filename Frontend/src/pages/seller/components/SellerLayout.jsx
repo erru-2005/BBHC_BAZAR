@@ -8,6 +8,7 @@ import { logout } from '../../../store/authSlice'
 import { clearDeviceToken } from '../../../utils/device'
 import { getSocket, disconnectSocket } from '../../../utils/socket'
 import PasswordResetDialog from '../../../components/PasswordResetDialog'
+import SellerEditProfile from '../../../components/SellerEditProfile'
 
 // Lazy load the overlay to keep bundle small
 const AddProductOverlay = lazy(() => import('./AddProductOverlay'))
@@ -16,6 +17,7 @@ export default function SellerLayout() {
     const [showProfile, setShowProfile] = useState(false)
     const [isAddingProduct, setIsAddingProduct] = useState(false)
     const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
+    const [editProfileOpen, setEditProfileOpen] = useState(false)
     const location = useLocation()
     const navigate = useNavigate()
     const dispatch = useDispatch()
@@ -81,6 +83,7 @@ export default function SellerLayout() {
             <SellerBottomNav
                 showOrders={isOrdersView}
                 setShowOrders={handleSetShowOrders}
+                isProfileActive={showProfile || resetPasswordOpen || editProfileOpen}
                 onOpenProfile={setShowProfile}
                 onOpenAddProduct={() => setIsAddingProduct(true)}
             />
@@ -105,9 +108,13 @@ export default function SellerLayout() {
                         onClose={() => setShowProfile(false)}
                         user={user}
                         onLogout={handleLogout}
-                        onResetPassword={() => setResetPasswordOpen(true)}
+                        onResetPassword={() => {
+                            setShowProfile(false)
+                            setResetPasswordOpen(true)
+                        }}
                         onEditProfile={() => {
                             setShowProfile(false)
+                            setEditProfileOpen(true)
                         }}
                     />
                 )}
@@ -115,10 +122,22 @@ export default function SellerLayout() {
 
             <PasswordResetDialog
                 open={resetPasswordOpen}
-                onClose={() => setResetPasswordOpen(false)}
+                onClose={() => {
+                    setResetPasswordOpen(false)
+                    setShowProfile(true)
+                }}
                 userType="seller"
                 identifier={user?.trade_id}
                 displayLabel="Seller"
+            />
+
+            <SellerEditProfile
+                open={editProfileOpen}
+                onClose={() => {
+                    setEditProfileOpen(false)
+                    setShowProfile(true)
+                }}
+                user={user}
             />
         </div>
     )

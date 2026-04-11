@@ -134,6 +134,66 @@ class ProductService:
             return None
 
     @staticmethod
+    def get_products_by_seller(user_id=None, trade_id=None, skip=0, limit=100, include_pending=True):
+        """Fetch products for a specific seller by user_id or trade_id with DB-level filtering."""
+        try:
+            or_filters = []
+            if trade_id:
+                or_filters.extend([
+                    {'seller_trade_id': trade_id},
+                    {'created_by': trade_id},
+                    {'created_by_user_id': trade_id} # Sometimes used for trade_id in legacy docs
+                ])
+            if user_id:
+                or_filters.extend([
+                    {'created_by_user_id': str(user_id)},
+                    {'seller_id': str(user_id)}
+                ])
+            
+            if not or_filters:
+                return []
+                
+            query = {'$or': or_filters}
+            if not include_pending:
+                query = {'$and': [query, {
+                    '$or': [
+                        {'approval_status': 'approved'},
+                        {'approval_status': {'$exists': False}}
+                    ]
+                }]}
+
+            products_cursor = (
+                mongo.db.products.find(query)
+                .sort('created_at', -1)
+                .skip(skip)
+                .limit(limit)
+            )
+            
+            products = []
+            category_commissions = ProductService.get_all_category_commissions()
+            for product_doc in products_cursor:
+                product = Product.from_bson(product_doc)
+                # Ensure total_selling_price is calculated if missing
+                if product.selling_price and (not product.total_selling_price or product.total_selling_price == 0):
+                    commission_rate = product.commission_rate
+                    if (commission_rate is None or commission_rate == 0) and product.categories:
+                        for category in product.categories:
+                            if category in category_commissions:
+                                commission_rate = category_commissions[category]
+                                break
+                    if commission_rate and commission_rate > 0:
+                        product.total_selling_price = ProductService.calculate_total_selling_price(
+                            product.selling_price, commission_rate
+                        )
+                    else:
+                        product.total_selling_price = product.selling_price
+                products.append(product)
+            return products
+        except Exception as e:
+            print(f"Error in get_products_by_seller: {e}")
+            return []
+
+    @staticmethod
     def get_all_products(skip=0, limit=100, include_pending=False):
         try:
             query = {}

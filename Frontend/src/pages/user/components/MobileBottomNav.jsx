@@ -104,7 +104,7 @@ function MobileBottomNav({ items = defaultItems }) {
 
     return (
         <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-sm border-t border-slate-100/50 rounded-t-2xl shadow-[0_-4px_20px_rgb(0,0,0,0.08)] z-40 p-2">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-around items-center w-full max-w-screen-sm mx-auto">
                 {items.map((item) => {
                     const IconComponent = iconMap[item.icon] || FaRegCircle
                     const isActive = activeIcon === item.icon
@@ -114,7 +114,7 @@ function MobileBottomNav({ items = defaultItems }) {
                             key={item.label}
                             type="button"
                             onClick={() => handleItemClick(item)}
-                            className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-xl transition-all duration-300 ${isActive ? '-translate-y-1' : 'hover:bg-slate-50'
+                            className={`relative flex flex-col items-center justify-center gap-1 py-1 px-2 rounded-xl transition-all duration-300 ${isActive ? '-translate-y-1' : 'hover:bg-slate-50'
                                 }`}
                         >
                             {/* Active Indicator & Icon Background */}

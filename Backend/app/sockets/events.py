@@ -24,61 +24,8 @@ def register_events(socketio):
     def handle_connect(auth):
         """Handle client connection (for authenticated users with tokens)"""
         try:
-            # Check if this is an active counter connection (handled by active_counters.py)
-            # Active counter connections use query parameter 'role' and don't have auth tokens
-            role = request.args.get('role', '').lower()
-            socket_id = request.sid
-            
-            if role in ['user', 'seller', 'master', 'outlet']:
-                # This is an active counter connection - handle it here
-                print(f"[Socket Events] Active counter connection detected - Role: {role}, Socket ID: {socket_id}")
-                
-                # Check if already registered
-                existing_role = get_role_for_socket(socket_id)
-                if existing_role:
-                    print(f"[Socket Events] Socket {socket_id} already registered as {existing_role}, skipping")
-                    counts = get_all_counts()
-                    emit('active_counts', counts)
-                    return
-                
-                # Register and increment
-                print(f"[Socket Events] Registering socket {socket_id} as {role}")
-                register_socket(socket_id, role)
-                print(f"[Socket Events] Socket registered, calling increment_counter")
-                
-                try:
-                    counts = increment_counter(role)
-                    print(f"[Socket Events] increment_counter returned: {counts}")
-                except Exception as e:
-                    print(f"[Socket Events] ERROR calling increment_counter: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    counts = get_all_counts()
-                
-                print(f"[Socket Events] {role.capitalize()} connected. Socket ID: {socket_id}. Counts: {counts}")
-                print(f"[Socket Events] About to broadcast active_counts: {counts}")
-                
-                # Broadcast to all clients - use room=None to broadcast to all
-                try:
-                    print(f"[Socket Events] Calling socketio.emit with counts: {counts}")
-                    socketio.emit('active_counts', counts, namespace='/', room=None)
-                    print(f"[Socket Events] Successfully broadcasted active_counts to all clients")
-                except Exception as e:
-                    print(f"[Socket Events] Error broadcasting active_counts: {e}")
-                    import traceback
-                    traceback.print_exc()
-                
-                # Send confirmation
-                emit('connected', {
-                    'message': f'Connected as {role}',
-                    'role': role,
-                    'socket_id': socket_id,
-                    'counts': counts
-                })
-                return
-            
-            # Only process connections with auth tokens (for other features)
-            print(f"[Socket Events] Processing authenticated connection (no role in query). Socket ID: {request.sid}")
+            # Process authenticated connection (for features like notifications)
+            print(f"[Socket Events] Processing connection. Socket ID: {request.sid}")
             
             # Get user info from auth token
             user_id = None

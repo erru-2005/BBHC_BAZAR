@@ -78,10 +78,23 @@ const authSlice = createSlice({
       if (state.user) {
         state.isAuthenticated = true
       }
+    },
+    updateUserInfo(state, action) {
+      state.user = { ...state.user, ...action.payload }
     }
   }
 })
 
-export const { loginStart, loginSuccess, loginFailure, logout, checkAuth, setUser, restoreUser, setToken } = authSlice.actions
+export const { 
+  loginStart, 
+  loginSuccess, 
+  loginFailure, 
+  logout, 
+  checkAuth, 
+  setUser, 
+  restoreUser, 
+  setToken,
+  updateUserInfo
+} = authSlice.actions
 export default authSlice.reducer
 

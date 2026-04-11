@@ -10,7 +10,7 @@ class Master:
     """Master model for master user management"""
     
     def __init__(self, name, username, email, password_hash, phone_number, 
-                 address=None, status="active", created_by="bazar@bbhc",
+                 address=None, image_url=None, status="active", created_by="bazar@bbhc",
                  created_at=None, _id=None):
         self._id = _id or ObjectId()
         self.name = name
@@ -19,6 +19,7 @@ class Master:
         self.password_hash = password_hash
         self.phone_number = phone_number
         self.address = address
+        self.image_url = image_url
         self.status = status
         self.created_by = created_by
         self.created_at = created_at or datetime.utcnow()
@@ -47,6 +48,7 @@ class Master:
             'email': self.email,
             'phone_number': self.phone_number,
             'address': self.address,
+            'image_url': self.image_url,
             'status': self.status,
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at
@@ -65,6 +67,7 @@ class Master:
             'password_hash': self.password_hash,
             'phone_number': self.phone_number,
             'address': self.address,
+            'image_url': self.image_url,
             'status': self.status,
             'created_by': self.created_by,
             'created_at': self.created_at
@@ -90,6 +93,7 @@ class Master:
             password_hash=bson_doc.get('password_hash'),
             phone_number=bson_doc.get('phone_number'),
             address=bson_doc.get('address'),
+            image_url=bson_doc.get('image_url'),
             status=bson_doc.get('status', 'active'),
             created_by=bson_doc.get('created_by', 'bazar@bbhc'),
             created_at=bson_doc.get('created_at')

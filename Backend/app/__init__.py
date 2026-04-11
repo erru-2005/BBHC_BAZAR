@@ -96,8 +96,8 @@ def create_app(config_class=Config):
     # Initialize Socket.IO
     socketio.init_app(
         app,
-        cors_allowed_origins=app.config.get('SOCKETIO_CORS_ALLOWED_ORIGINS', '*'),
-        async_mode=app.config.get('SOCKETIO_ASYNC_MODE', 'eventlet')
+        cors_allowed_origins="*", # Force wildcard to handle multiple local IPs (VirtualBox, etc.)
+        async_mode=app.config.get('SOCKETIO_ASYNC_MODE', 'threading')
     )
     
     # Create indexes on startup
@@ -180,7 +180,11 @@ def create_indexes():
         
         # Create indexes for products collection
         mongo.db.products.create_index([('product_name', ASCENDING)])
-        mongo.db.products.create_index([('created_at', ASCENDING)])
+        mongo.db.products.create_index([('created_at', -1)])
+        mongo.db.products.create_index([('seller_trade_id', ASCENDING), ('created_at', -1)])
+        mongo.db.products.create_index([('created_by_user_id', ASCENDING), ('created_at', -1)])
+        mongo.db.products.create_index([('seller_id', ASCENDING)])
+        mongo.db.products.create_index([('approval_status', ASCENDING), ('created_at', -1)])
         
         # Create indexes for categories collection
         mongo.db.categories.create_index([('name', ASCENDING)], unique=True)
@@ -191,13 +195,14 @@ def create_indexes():
         mongo.db.ratings.create_index([('user_id', ASCENDING)])
         mongo.db.ratings.create_index([('rating', ASCENDING)])
         mongo.db.ratings.create_index([('created_at', ASCENDING)])
-
+ 
         # Create indexes for orders collection
         mongo.db.orders.create_index([('order_number', ASCENDING)], unique=True)
-        mongo.db.orders.create_index([('user_id', ASCENDING)])
-        mongo.db.orders.create_index([('seller_id', ASCENDING)])
+        mongo.db.orders.create_index([('user_id', ASCENDING), ('created_at', -1)])
+        mongo.db.orders.create_index([('seller_id', ASCENDING), ('created_at', -1)])
+        mongo.db.orders.create_index([('seller_id', ASCENDING), ('status', ASCENDING), ('created_at', -1)]) # Optimized for dashboard
         mongo.db.orders.create_index([('status', ASCENDING)])
-        mongo.db.orders.create_index([('created_at', ASCENDING)])
+        mongo.db.orders.create_index([('created_at', -1)])
         mongo.db.orders.create_index([('secure_token_user', ASCENDING)])
         mongo.db.orders.create_index([('secure_token_seller', ASCENDING)])
         

@@ -16,7 +16,9 @@ class OTPManager:
     @staticmethod
     def generate_otp():
         """Generate a random 6-digit OTP"""
-        return ''.join(random.choices(string.digits, k=OTPManager.OTP_LENGTH))
+        otp = ''.join(random.choices(string.digits, k=OTPManager.OTP_LENGTH))
+        print(f"\n[DEBUG] GENERATED OTP: {otp}\n", flush=True)
+        return otp
     
     @staticmethod
     def store_otp(user_id, user_type, otp, phone_number=None):

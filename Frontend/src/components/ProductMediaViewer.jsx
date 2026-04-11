@@ -2,11 +2,17 @@ import { useState, useRef, useEffect } from 'react'
 import PropTypes from 'prop-types'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FaExpand, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
+import { fixImageUrl } from '../utils/image'
 
 const getImageSrc = (image) => {
   if (!image) return null
-  if (typeof image === 'string') return image
-  return image.preview || image.data_url || image.url || null
+  let src = null
+  if (typeof image === 'string') {
+    src = image
+  } else {
+    src = image.preview || image.data_url || image.url || null
+  }
+  return fixImageUrl(src)
 }
 
 function ProductMediaViewer({ thumbnail, gallery = [], productName }) {
