@@ -812,14 +812,22 @@ def refresh():
         
         # Get user type from claims
         user_type = claims.get('user_type', 'user')
-        username = claims.get('username', '')
         
-        # Create new access token with same claims
+        # Create new access token with same essential claims.
+        # IMPORTANT: sellers/outlet-men store their identifier in different claim keys
+        # (trade_id / outlet_access_code). If we drop them here, downstream role-based
+        # endpoints can fail (e.g. seller/my-products expects trade_id).
         additional_claims = {
             'user_type': user_type,
             'user_id': current_user_id,
-            'username': username
         }
+
+        if user_type == 'master':
+            additional_claims['username'] = claims.get('username', '')
+        elif user_type == 'outlet_man':
+            additional_claims['outlet_access_code'] = claims.get('outlet_access_code', '')
+        elif user_type == 'seller':
+            additional_claims['trade_id'] = claims.get('trade_id', '')
         
         new_access_token = create_access_token(
             identity=current_user_id,

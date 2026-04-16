@@ -44,12 +44,12 @@ const childVariants = {
 const OrderStatusIcon = ({ icon: Icon, label, color, bgColor }) => (
     <motion.div
         variants={childVariants}
-        className="flex flex-col items-center gap-2 group cursor-pointer"
+        className="flex flex-col items-center gap-3 group cursor-pointer"
     >
-        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-[22px] ${bgColor} flex items-center justify-center text-xl sm:text-2xl shadow-lg border border-white/5 active:scale-90 transition-transform duration-200`}>
+        <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-[1.75rem] ${bgColor} flex items-center justify-center text-2xl sm:text-3xl shadow-sm border border-white group-hover:scale-110 transition-all duration-500`}>
             <Icon className={color} />
         </div>
-        <span className="text-[9px] sm:text-[10px] font-black text-slate-300 text-center uppercase tracking-widest leading-tight group-hover:text-white transition-colors">
+        <span className="text-[10px] font-black text-slate-400 text-center uppercase tracking-[0.2em] leading-tight group-hover:text-blue-600 transition-colors">
             {label}
         </span>
     </motion.div>
@@ -60,15 +60,17 @@ const ActionItem = ({ icon: Icon, label, onClick }) => (
         variants={childVariants}
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
-        className="w-full flex items-center justify-between p-3.5 sm:p-4 px-4 sm:px-5 group rounded-[22px] bg-white/[0.02] border border-white/5 hover:bg-white/5 transition-all duration-300"
+        className="w-full flex items-center justify-between p-5 px-6 group rounded-[1.5rem] bg-white border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-500 shadow-sm hover:shadow-md"
     >
-        <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-[#0f1218] border border-white/5 flex items-center justify-center text-slate-400 group-hover:text-white group-hover:border-rose-500/30 transition-all">
+        <div className="flex items-center gap-5">
+            <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-white transition-all shadow-inner">
                 <Icon className="w-5 h-5" />
             </div>
-            <span className="text-sm font-black text-slate-100 group-hover:text-white transition-colors tracking-tight">{label}</span>
+            <span className="text-sm font-black text-slate-800 group-hover:text-slate-900 transition-colors tracking-tight uppercase">{label}</span>
         </div>
-        <FiChevronRight className="w-5 h-5 text-slate-500 group-hover:text-rose-500 group-hover:translate-x-1 transition-all" />
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-50 group-hover:bg-blue-600 group-hover:text-white transition-all">
+            <FiChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+        </div>
     </motion.button>
 )
 
@@ -127,7 +129,7 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
             {isOpen && (
                 <>
                     <motion.div
-                        className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-xl"
+                        className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm"
                         variants={backdropVariants}
                         initial="hidden"
                         animate="visible"
@@ -139,7 +141,7 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                         className="fixed inset-0 z-[70] flex flex-col justify-end pointer-events-none overflow-hidden"
                     >
                         <motion.div
-                            className="w-full max-w-lg mx-auto bg-[#0f1218] rounded-t-[45px] shadow-[0_-25px_80px_-15px_rgba(0,0,0,0.8)] pointer-events-auto relative flex flex-col"
+                            className="w-full max-w-lg mx-auto bg-[#F8FAFC] rounded-t-[3.5rem] shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.15)] pointer-events-auto relative flex flex-col"
                             variants={sheetVariants}
                             initial="hidden"
                             animate="visible"
@@ -153,53 +155,55 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                             onClick={(e) => e.stopPropagation()}
                             style={{ 
                                 height: 'auto',
-                                maxHeight: '94vh',
-                                minHeight: '70vh'
+                                maxHeight: '96vh',
+                                minHeight: '80vh'
                             }}
                         >
-                            <div className="absolute top-4 left-1/2 -translate-x-1/2 w-12 h-1.5 rounded-full bg-white/10 z-50 pointer-events-none" />
+                            {/* Handle Bar */}
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 w-14 h-1.5 rounded-full bg-slate-200 z-50 pointer-events-none shadow-inner" />
 
-                            <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar pb-[env(safe-area-inset-bottom,32px)] pt-[env(safe-area-inset-top,0px)] px-4">
-                                <div className="relative pt-6 pb-2 flex flex-col items-center">
-                                    <div className="absolute top-4 inset-x-0 flex items-center justify-between px-6 sm:px-8 z-30">
+                            <div className="flex-1 overflow-y-auto no-scrollbar pb-[env(safe-area-inset-bottom,40px)] px-6">
+                                <div className="relative pt-10 pb-4 flex flex-col items-center">
+                                    {/* Header Controls */}
+                                    <div className="absolute top-6 inset-x-0 flex items-center justify-between px-2 z-30">
                                         <motion.button 
                                             whileTap={{ scale: 0.9 }}
                                             onClick={onClose} 
-                                            className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white shadow-xl"
+                                            className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-800 shadow-sm hover:shadow-md transition-all active:scale-90"
                                         >
-                                            <FiChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+                                            <FiChevronLeft className="w-6 h-6" strokeWidth={2.5} />
                                         </motion.button>
-                                        <h2 className="text-white/40 font-black text-[9px] sm:text-[10px] uppercase tracking-[0.3em] sm:tracking-[0.4em]">Merchant Profile</h2>
-                                        <div className="w-10 sm:w-11" />
+                                        <h2 className="text-slate-400 font-black text-[10px] uppercase tracking-[0.4em]">Merchant Profile</h2>
+                                        <div className="w-12" />
                                     </div>
 
-                                    <div className="absolute top-0 left-0 right-0 h-64 z-0 pointer-events-none">
-                                        <div className="absolute top-0 left-0 w-full h-[300px] bg-gradient-to-b from-rose-500/10 via-transparent to-transparent" />
-                                        <svg viewBox="0 0 500 200" className="w-full h-full opacity-40 scale-110" preserveAspectRatio="none">
-                                            <path 
-                                                fill="#FF2E63" 
-                                                fillOpacity="0.1"
-                                                d="M0,80 C150,150 350,20 500,80 L500,0 L0,0 Z" 
-                                            />
-                                        </svg>
+                                    {/* Abstract header background */}
+                                    <div className="absolute top-0 left-0 right-0 h-72 z-0 pointer-events-none overflow-hidden rounded-t-[3.5rem]">
+                                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-blue-500/5 via-transparent to-transparent" />
+                                        <motion.div 
+                                           animate={{ rotate: 360 }}
+                                           transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                                           className="absolute -top-32 -right-32 w-80 h-80 bg-blue-600/5 blur-[80px] rounded-full"
+                                        />
                                     </div>
 
+                                    {/* Profile Image Section */}
                                     <motion.div 
                                         variants={childVariants}
-                                        className="relative z-10 mt-16 flex flex-col items-center"
+                                        className="relative z-10 mt-20 flex flex-col items-center"
                                     >
-                                        <div className="w-24 h-24 sm:w-36 sm:h-36 rounded-full p-1 sm:p-1.5 bg-gradient-to-tr from-[#FF2E63] via-rose-400 to-[#FF2E63] shadow-[0_0_40px_rgba(255,46,99,0.3)] animate-gradient-slow overflow-visible relative">
-                                            <div className="w-full h-full rounded-full border-[6px] border-[#0f1218] bg-[#1a1f2e] flex items-center justify-center overflow-hidden relative group">
+                                        <div className="w-32 h-32 sm:w-44 sm:h-44 rounded-full p-1.5 bg-gradient-to-tr from-blue-600 via-indigo-500 to-blue-600 shadow-2xl relative">
+                                            <div className="w-full h-full rounded-full border-[8px] border-[#F8FAFC] bg-white flex items-center justify-center overflow-hidden relative group shadow-inner">
                                                 <AnimatePresence>
                                                     {isUploading && (
                                                         <motion.div 
                                                             initial={{ opacity: 0 }}
                                                             animate={{ opacity: 1 }}
                                                             exit={{ opacity: 0 }}
-                                                            className="absolute inset-0 z-20 bg-black/60 flex flex-col items-center justify-center gap-2"
+                                                            className="absolute inset-0 z-20 bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center gap-2"
                                                         >
-                                                            <div className="w-6 h-6 sm:w-8 sm:h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin" />
-                                                            <span className="text-[7px] sm:text-[8px] font-black text-white uppercase tracking-widest">Saving...</span>
+                                                            <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                                                            <span className="text-[9px] font-black text-white uppercase tracking-widest">Encrypting...</span>
                                                         </motion.div>
                                                     )}
                                                 </AnimatePresence>
@@ -208,14 +212,10 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                                     <img 
                                                         src={fixImageUrl(previewUrl || user.image_url || user.image)} 
                                                         alt="Avatar" 
-                                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                                                        onError={(e) => {
-                                                            e.target.onerror = null;
-                                                            e.target.src = "https://ui-avatars.com/api/?name=" + (user?.trade_id || "S") + "&background=FF2E63&color=fff";
-                                                        }}
+                                                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
                                                     />
                                                 ) : (
-                                                    <span className="text-4xl sm:text-6xl font-black text-white glow-text">
+                                                    <span className="text-5xl sm:text-7xl font-black text-blue-100 uppercase font-outfit">
                                                         {user?.trade_id?.charAt(0).toUpperCase() || 'S'}
                                                     </span>
                                                 )}
@@ -224,10 +224,11 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                         
                                         <motion.label 
                                             htmlFor="profile-upload"
+                                            whileHover={{ scale: 1.1, rotate: 12 }}
                                             whileTap={{ scale: 0.9 }}
-                                            className="absolute bottom-0 right-0 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-white text-[#0f1218] flex items-center justify-center shadow-2xl border-4 border-[#0f1218] cursor-pointer z-30 hover:bg-[#FF2E63] hover:text-white transition-colors duration-300"
+                                            className="absolute bottom-1 right-2 w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-xl border-4 border-[#F8FAFC] cursor-pointer z-30 transition-transform duration-300"
                                         >
-                                            <FiCamera className="w-4 h-4 sm:w-5 sm:h-5" />
+                                            <FiCamera className="w-5 h-5 sm:w-6 sm:h-6" />
                                             <input 
                                                 type="file" 
                                                 id="profile-upload" 
@@ -239,50 +240,54 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                         </motion.label>
                                     </motion.div>
 
-                                    <motion.div variants={childVariants} className="text-center px-6 mt-6 z-10 w-full">
-                                        <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-2">
-                                            {user?.trade_id || 'Seller Account'}
+                                    <motion.div variants={childVariants} className="text-center px-6 mt-8 z-10 w-full">
+                                        <h3 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2 uppercase font-outfit">
+                                            {user?.trade_id || user?.name || 'Seller Account'}
                                         </h3>
-                                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Merchant Account</span>
+                                        <div className="inline-flex items-center gap-2 px-6 py-2 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                                            <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shadow-[0_0_10px_rgba(37,99,235,0.5)]" />
+                                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-600">Premium Partner</span>
                                         </div>
                                     </motion.div>
                                 </div>
 
-                                <div className="px-3 sm:px-8 mt-10 sm:mt-12 mb-10">
-                                    <motion.div variants={childVariants} className="flex items-center gap-3 mb-8">
-                                        <div className="w-1.5 h-6 bg-[#FF2E63] rounded-full" />
-                                        <h4 className="text-[13px] font-bold uppercase tracking-wider text-slate-400">Activity Overview</h4>
+                                {/* Activity Icons */}
+                                <div className="mt-12 mb-10">
+                                    <motion.div variants={childVariants} className="flex items-center gap-4 mb-10 px-2">
+                                        <div className="w-1.5 h-7 bg-blue-600 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.4)]" />
+                                        <h4 className="text-[13px] font-black uppercase tracking-[0.4em] text-slate-500">Activity Console</h4>
                                     </motion.div>
-                                    <div className="grid grid-cols-3 gap-y-8 sm:gap-y-10 gap-x-3 sm:gap-x-4">
-                                        <OrderStatusIcon icon={FiCreditCard} label="Pending" color="text-cyan-400" bgColor="bg-cyan-500/5" />
-                                        <OrderStatusIcon icon={FiTruck} label="Delivered" color="text-yellow-400" bgColor="bg-yellow-500/5" />
-                                        <OrderStatusIcon icon={FiRefreshCw} label="Active" color="text-pink-400" bgColor="bg-pink-500/5" />
-                                        <OrderStatusIcon icon={FiXCircle} label="Cancelled" color="text-emerald-400" bgColor="bg-emerald-500/5" />
-                                        <OrderStatusIcon icon={FiHeart} label="Loyalty" color="text-rose-400" bgColor="bg-rose-500/5" />
-                                        <OrderStatusIcon icon={FiHeadphones} label="Support" color="text-indigo-400" bgColor="bg-indigo-500/5" />
+                                    <div className="grid grid-cols-3 gap-y-12 gap-x-4">
+                                        <OrderStatusIcon icon={FiCreditCard} label="Liquidity" color="text-blue-600" bgColor="bg-blue-50/50 border-blue-100/50" />
+                                        <OrderStatusIcon icon={FiTruck} label="Logistics" color="text-indigo-600" bgColor="bg-indigo-50/50 border-indigo-100/50" />
+                                        <OrderStatusIcon icon={FiRefreshCw} label="Dynamics" color="text-amber-600" bgColor="bg-amber-50/50 border-amber-100/50" />
+                                        <OrderStatusIcon icon={FiXCircle} label="Revoked" color="text-rose-600" bgColor="bg-rose-50/50 border-rose-100/50" />
+                                        <OrderStatusIcon icon={FiHeart} label="Loyalty" color="text-emerald-600" bgColor="bg-emerald-50/50 border-emerald-100/50" />
+                                        <OrderStatusIcon icon={FiHeadphones} label="Support" color="text-slate-600" bgColor="bg-slate-50/50 border-slate-100/50" />
                                     </div>
                                 </div>
 
-                                <div className="px-3 sm:px-5 space-y-3 mb-10">
-                                    <ActionItem icon={FiUser} label="Personal Credentials" onClick={onEditProfile} />
-                                    <ActionItem icon={FiKey} label="Vault & Security" onClick={onResetPassword} />
+                                <div className="space-y-4 mb-12">
+                                    <ActionItem icon={FiUser} label="Identity Profile" onClick={onEditProfile} />
+                                    <ActionItem icon={FiKey} label="Security Architecture" onClick={onResetPassword} />
                                 </div>
 
-                                <div className="px-8 pb-10 flex flex-col items-center gap-8">
-                                        <motion.button
-                                            variants={childVariants}
-                                            whileTap={{ scale: 0.96 }}
-                                            onClick={onLogout}
-                                            className="w-full max-w-[280px] flex items-center justify-center gap-3 py-4 text-rose-500 font-bold uppercase tracking-widest text-[11px] bg-rose-500/5 hover:bg-rose-500/10 rounded-2xl border border-rose-500/20 transition-all group"
-                                        >
-                                            <FiLogOut className="w-4 h-4" />
-                                            Logout Profile
-                                        </motion.button>
-                                    <motion.div variants={childVariants} className="text-center opacity-40">
-                                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">BBHC BAZAAR SELLER PLATFORM</p>
-                                        <p className="text-[7px] font-semibold text-slate-600 mt-1">v2.4.0 • CLOUD SECURE • ENCRYPTED</p>
+                                <div className="pb-12 flex flex-col items-center gap-12 mt-4">
+                                    <motion.button
+                                        variants={childVariants}
+                                        whileHover={{ scale: 1.02, backgroundColor: "#FFF1F2" }}
+                                        whileTap={{ scale: 0.96 }}
+                                        onClick={onLogout}
+                                        className="w-full max-w-[340px] flex items-center justify-center gap-4 py-6 text-rose-600 font-black uppercase tracking-[0.4em] text-[11px] bg-white rounded-[2.5rem] border-2 border-rose-50 hover:border-rose-100 transition-all shadow-sm active:scale-95"
+                                    >
+                                        <FiLogOut className="w-5 h-5" />
+                                        Secure Logout
+                                    </motion.button>
+                                    
+                                    <motion.div variants={childVariants} className="text-center opacity-30 px-10">
+                                        <div className="h-px w-20 bg-slate-300 mx-auto mb-6" />
+                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">BBHC BAZAAR v3.0.0</p>
+                                        <p className="text-[8px] font-bold text-slate-400 mt-2 uppercase tracking-widest">QUANTUM ENCRYPTED • CLOUD SYNC</p>
                                     </motion.div>
                                 </div>
                             </div>
