@@ -11,6 +11,7 @@ import { Button } from '../../components'
 import { getOrCreateDeviceId, getDeviceToken, setDeviceToken } from '../../utils/device'
 import { initSocket, disconnectSocket } from '../../utils/socket'
 import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
+import './master.css'
 
 function MasterLogin() {
   const navigate = useNavigate()
@@ -269,7 +270,7 @@ function MasterLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+    <div className="min-h-screen bg-white flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 master-dashboard">
       <div className="max-w-md sm:max-w-lg md:max-w-xl lg:w-[600px] xl:w-[700px]">
         {/* Neumorphic Card */}
         <div className="bg-white rounded-3xl p-8 shadow-[20px_20px_60px_#bebebe,-20px_-20px_60px_#ffffff]">

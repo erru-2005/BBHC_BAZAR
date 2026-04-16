@@ -28,6 +28,7 @@ import OrdersList from './components/OrdersList'
 import CommissionManagement from './components/CommissionManagement'
 import Analysis from './components/analysis/Analysis'
 import ActiveCounters from './components/ActiveCounters'
+import './master.css'
 
 const TAB_ORDER_VERSION = '3'
 
@@ -430,7 +431,7 @@ function Master() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 text-gray-900 master-dashboard">
       {/* Header with Integrated Tabs */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -626,7 +627,7 @@ function Master() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setIsMenuOpen(false)}
           />
-          <div className="absolute inset-y-0 right-0 w-80 max-w-full bg-white shadow-2xl p-6 flex flex-col gap-4 transform transition-transform duration-300 translate-x-0">
+          <div className="absolute inset-y-0 right-0 w-80 max-w-full bg-white shadow-2xl p-6 flex flex-col gap-4 transform transition-transform duration-300 translate-x-0 text-gray-900">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Quick Navigation</h3>
               <button

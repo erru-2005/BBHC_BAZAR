@@ -2,36 +2,28 @@ import { useEffect, useState, forwardRef } from 'react'
 import PropTypes from 'prop-types'
 import { useSelector } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getCategories, getBag } from '../../../services/api'
+import { getBag } from '../../../services/api'
 import { FaUser, FaMagnifyingGlass, FaLocationDot, FaBagShopping, FaMobileScreenButton } from 'react-icons/fa6'
 import SearchOverlay from './SearchOverlay'
 
 const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logoRef) {
-  const [categories, setCategories] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [bagCount, setBagCount] = useState(0)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchPrefill, setSearchPrefill] = useState('')
+  const { categories, loading: globalLoading } = useSelector((state) => state.data.home)
+  const [loading, setLoading] = useState(true)
+  const [bagCount, setBagCount] = useState(0)
   const { isAuthenticated, user, userType } = useSelector((state) => state.auth)
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Sync local loading with global redux loading
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setLoading(true)
-        const fetchedCategories = await getCategories()
-        setCategories(fetchedCategories || [])
-      } catch (error) {
-        console.error('Failed to fetch categories:', error)
-        setCategories([])
-      } finally {
-        setLoading(false)
-      }
+    if (categories?.length > 0) {
+      setLoading(false)
+    } else {
+      setLoading(globalLoading)
     }
-
-    fetchCategories()
-  }, [])
+  }, [categories?.length, globalLoading])
 
   // Fetch bag count for mobile header badge
   useEffect(() => {

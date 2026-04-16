@@ -18,46 +18,22 @@ function AllProducts({ headerLogoRef: externalHeaderLogoRef }) {
   const internalHeaderLogoRef = useRef(null)
   const headerLogoRef = externalHeaderLogoRef || internalHeaderLogoRef
 
-  const { home } = useSelector((state) => state.data)
+  const { data } = useSelector((state) => state)
+  const home = data.home
+  const globalLoading = data.loading
   const { isAuthenticated, userType } = useSelector((state) => state.auth)
 
   const products = useMemo(() => home?.products || [], [home])
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        // Load products if not already in cache
-        if (!home?.products?.length) {
-          const backendProducts = await getProducts()
-          dispatch(setHomeProducts(backendProducts))
-        }
-
-        // Refresh wishlist ids for authenticated users
-        if (isAuthenticated && userType === 'user') {
-          try {
-            const wishlistItems = await getWishlist(200, 0)
-            const ids = wishlistItems
-              .map((item) => item.product_id || item.product_snapshot?.id)
-              .filter(Boolean)
-            dispatch(setHomeWishlist(ids))
-          } catch (err) {
-            // ignore wishlist errors on this page
-            console.error('Failed to refresh wishlist:', err)
-          }
-        } else {
-          dispatch(setHomeWishlist([]))
-        }
-      } catch (err) {
-        setError(err.message || 'Failed to load products')
-      } finally {
-        setLoading(false)
-      }
+    // If we have products, we're not loading. 
+    // If we don't, we wait for the global loading from App.jsx
+    if (products.length > 0) {
+      setLoading(false)
+    } else {
+      setLoading(globalLoading)
     }
-
-    load()
-  }, [dispatch, home?.products?.length, isAuthenticated, userType])
+  }, [products.length, globalLoading])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900">

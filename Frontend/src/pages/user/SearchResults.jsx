@@ -39,26 +39,16 @@ function SearchResults({ headerLogoRef: externalHeaderLogoRef }) {
     })
   }
 
-  // Load products if not cached
+  const globalLoading = useSelector((state) => state.data.loading)
+
+  // Wait for products from global store
   useEffect(() => {
-    const load = async () => {
-      if (products.length > 0) {
-        setLoading(false)
-        return
-      }
-      setLoading(true)
-      setError(null)
-      try {
-        const backendProducts = await getProducts()
-        dispatch(setHomeProducts(backendProducts))
-      } catch (err) {
-        setError(err.message || 'Failed to load products')
-      } finally {
-        setLoading(false)
-      }
+    if (products.length > 0) {
+      setLoading(false)
+    } else {
+      setLoading(globalLoading)
     }
-    load()
-  }, [products.length, dispatch])
+  }, [products.length, globalLoading])
 
   const filteredProducts = useMemo(() => {
     if (!query) return []

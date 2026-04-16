@@ -1,0 +1,51 @@
+/* Master Dashboard Theme Overrides */
+.master-dashboard {
+  color: #111827 !important; /* text-gray-900 */
+}
+
+/* Enforce black text on white bg for all common elements inside master */
+.master-dashboard h1, 
+.master-dashboard h2, 
+.master-dashboard h3, 
+.master-dashboard h4, 
+.master-dashboard h5, 
+.master-dashboard h6,
+.master-dashboard p,
+.master-dashboard span,
+.master-dashboard label,
+.master-dashboard th,
+.master-dashboard td,
+.master-dashboard div:not([class*="bg-black"]):not([class*="bg-gray-900"]) {
+  color: inherit;
+}
+
+/* Dropdowns and Inputs in Master */
+.master-dashboard select,
+.master-dashboard input,
+.master-dashboard textarea {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #d1d5db !important;
+}
+
+.master-dashboard select option {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Active tab state should stay white text */
+.master-dashboard .bg-black,
+.master-dashboard .bg-gray-900,
+.master-dashboard .bg-black *,
+.master-dashboard .bg-gray-900 * {
+  color: #ffffff !important;
+}
+
+/* Hover states */
+.master-dashboard .hover\:bg-gray-100:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.master-dashboard .bg-gray-100 {
+  background-color: #f3f4f6 !important;
+}
