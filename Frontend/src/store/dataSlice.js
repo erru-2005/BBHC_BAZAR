@@ -23,7 +23,7 @@ const initialState = {
   home: {
     // Cache metadata
     productsCacheTimestamp: cachedData?.timestamp || null,
-    productsCacheMaxAge: 0, // Disabled for development
+    productsCacheMaxAge: 5 * 60 * 1000, // 5 minutes cache
     isRefreshing: false,
     // Layout content (static/sample data)
     heroSlides: [
@@ -140,6 +140,7 @@ const initialState = {
     ],
     // Products from backend and wishlist
     products: cachedData?.products || [],
+    categories: [],
     wishlist: []
   }
 }
@@ -177,6 +178,9 @@ const dataSlice = createSlice({
     setHomeWishlist(state, action) {
       state.home.wishlist = Array.isArray(action.payload) ? action.payload : []
     },
+    setCategories(state, action) {
+      state.home.categories = Array.isArray(action.payload) ? action.payload : []
+    },
     setRefreshing(state, action) {
       state.home.isRefreshing = action.payload
     },
@@ -210,5 +214,5 @@ const dataSlice = createSlice({
   }
 })
 
-export const { setData, setLoading, setError, setHomeProducts, setHomeWishlist, setRefreshing, updateProductInCache, toggleWishlist } = dataSlice.actions
+export const { setData, setLoading, setError, setHomeProducts, setHomeWishlist, setCategories, setRefreshing, updateProductInCache, toggleWishlist } = dataSlice.actions
 export default dataSlice.reducer

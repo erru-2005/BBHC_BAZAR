@@ -35,10 +35,16 @@ import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import SplashScreen from './components/SplashScreen'
 import { useEffect, useState, useRef } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { setHomeProducts, setHomeWishlist, setCategories, setLoading } from './store/dataSlice'
+import { getProducts, getWishlist, getCategories } from './services/api'
 
-// Inner component to use router hooks
 function SplashWrapper() {
   const location = useLocation()
+  const dispatch = useDispatch()
+  const { isAuthenticated, userType } = useSelector((state) => state.auth)
+  const { home } = useSelector((state) => state.data)
+
   const [showSplash, setShowSplash] = useState(() => {
     // Only show splash on initial load to home page
     const hasSeenSplash = sessionStorage.getItem('hasSeenSplash')
@@ -46,6 +52,48 @@ function SplashWrapper() {
   })
   const [showContent, setShowContent] = useState(!showSplash)
   const headerLogoRef = useRef(null)
+
+  // Initial data loading - starts as soon as app mounts (during splash)
+  useEffect(() => {
+    const initData = async () => {
+      // Fetch both products and categories if missing
+      const hasProducts = home?.products?.length > 0
+      const hasCategories = home?.categories?.length > 0
+      
+      if (!hasProducts || !hasCategories) {
+        try {
+          dispatch(setLoading(true))
+          const [products, categories] = await Promise.all([
+            hasProducts ? Promise.resolve(home.products) : getProducts(),
+            hasCategories ? Promise.resolve(home.categories) : getCategories().catch(() => [])
+          ])
+          
+          if (!hasProducts) dispatch(setHomeProducts(products))
+          if (!hasCategories) dispatch(setCategories(categories))
+        } catch (err) {
+          console.error('Failed to pre-fetch products or categories:', err)
+        } finally {
+          dispatch(setLoading(false))
+        }
+      }
+
+      // Fetch wishlist if authenticated
+      if (isAuthenticated && userType === 'user') {
+        try {
+          const wishlistItems = await getWishlist(200, 0)
+          const ids = wishlistItems
+            .map((item) => item.product_id || item.product_snapshot?.id)
+            .filter(Boolean)
+          dispatch(setHomeWishlist(ids))
+        } catch (err) {
+          console.error('Failed to pre-fetch wishlist:', err)
+        }
+      }
+    }
+
+    initData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, userType])
 
   useEffect(() => {
     if (location.pathname === '/') {

@@ -22,41 +22,39 @@ export default defineConfig({
       }
     })
   ],
-    server: {
-      host: '0.0.0.0',
-      port: 5173,
-      allowedHosts: true,
-      hmr: {
-        clientPort: 443
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    allowedHosts: true,
+    hmr: true,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:5001',
+        changeOrigin: true
       },
-      proxy: {
-        '/api': {
-          target: 'http://127.0.0.1:5001',
-          changeOrigin: true
-        },
-        '/socket.io': {
-          target: 'http://127.0.0.1:5001',
-          ws: true
-        },
-        '/static': {
-          target: 'http://127.0.0.1:5001',
-          changeOrigin: true
-        }
+      '/socket.io': {
+        target: 'http://127.0.0.1:5001',
+        ws: true
+      },
+      '/static': {
+        target: 'http://127.0.0.1:5001',
+        changeOrigin: true
       }
+    }
+  },
+  resolve: {
+    alias: {
+      // Polyfill for stream module used by xlsx-js-style
+      stream: path.resolve(__dirname, 'src/utils/stream-polyfill.js'),
     },
-    resolve: {
-      alias: {
-        // Polyfill for stream module used by xlsx-js-style
-        stream: path.resolve(__dirname, 'src/utils/stream-polyfill.js'),
-      },
+  },
+  optimizeDeps: {
+    include: ['xlsx-js-style'],
+  },
+  build: {
+    commonjsOptions: {
+      include: [/xlsx-js-style/, /node_modules/],
+      transformMixedEsModules: true,
     },
-    optimizeDeps: {
-      include: ['xlsx-js-style'],
-    },
-    build: {
-      commonjsOptions: {
-        include: [/xlsx-js-style/, /node_modules/],
-        transformMixedEsModules: true,
-      },
-    },
+  },
 })

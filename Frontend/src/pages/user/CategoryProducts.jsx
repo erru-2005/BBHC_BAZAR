@@ -13,19 +13,18 @@ import { getCategories, getProducts } from '../../services/api'
 function CategoryProducts({ headerLogoRef: externalHeaderLogoRef }) {
   const { categoryId } = useParams()
   const location = useLocation()
-  const [categories, setCategories] = useState([])
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
   const internalHeaderLogoRef = useRef(null)
   const headerLogoRef = externalHeaderLogoRef || internalHeaderLogoRef
 
   const { home } = useSelector((state) => state.data)
+  const { products, categories } = home
 
-  // Resolve category display data
+  // Resolve category display data from global categories
   const selectedCategory = useMemo(() => {
-    if (!categoryId) return null
+    if (!categoryId || !categories?.length) return null
     const match = categories.find(
       (cat) =>
         String(cat.id || cat._id) === String(categoryId) ||
@@ -41,27 +40,18 @@ function CategoryProducts({ headerLogoRef: externalHeaderLogoRef }) {
     return null
   }, [categories, categoryId, location.state])
 
-  // Load categories and products (reuse cached home products when available)
+  // No more local useEffect fetcher needed, as products and categories 
+  // are loaded in App.jsx and available in Redux state via 'home' selector.
+  // We just set internal loading to true if the redux state is not yet ready.
   useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const [fetchedCategories, fetchedProducts] = await Promise.all([
-          getCategories().catch(() => []),
-          home?.products?.length ? Promise.resolve(home.products) : getProducts()
-        ])
-        setCategories(fetchedCategories || [])
-        setProducts(fetchedProducts || [])
-      } catch (err) {
-        setError(err.message || 'Failed to load category')
-      } finally {
-        setLoading(false)
-      }
+    if (!products?.length || !categories?.length) {
+      // If by any chance App.jsx hasn't finished, we can show local loading
+      // but usually the splash screen handles this wait.
+      setLoading(home.loading)
+    } else {
+      setLoading(false)
     }
-
-    load()
-  }, [home?.products, categoryId])
+  }, [products?.length, categories?.length, home.loading])
 
   // Filter products by selected category
   const filteredProducts = useMemo(() => {
