@@ -12,12 +12,16 @@ import { saveAs } from 'file-saver'
 import * as XLSXModule from 'xlsx-js-style'
 // Extract XLSX from the module (handles different export formats)
 const XLSX = XLSXModule.default || XLSXModule.XLSX || XLSXModule
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+
 import { getImageUrl } from '../../../utils/image'
+import { useDispatch, useSelector } from 'react-redux'
+import { setMastersData, setMastersLoading } from '../../../store/masterSlice'
 
 function OrdersList() {
-  const [orders, setOrders] = useState([])
+  const dispatch = useDispatch()
+  const { orders, loading: masterLoading, lastFetched } = useSelector(state => state.master)
+
+  const loadingOrders = masterLoading.orders
   const [filteredOrders, setFilteredOrders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -27,47 +31,37 @@ function OrdersList() {
   const [cancelConfirmationCode, setCancelConfirmationCode] = useState('')
   const [generatedCode, setGeneratedCode] = useState('')
   const [notifications, setNotifications] = useState([])
-  const [loadingOrders, setLoadingOrders] = useState(true)
   const [fetchError, setFetchError] = useState(null)
   const socket = getSocket()
 
-  // Initialize orders
+  // Initialize orders if missing
   useEffect(() => {
-    let isMounted = true
-
-    const fetchOrders = async () => {
-      try {
-        setLoadingOrders(true)
-        const apiOrders = await getOrders()
-        if (isMounted) {
-          setOrders(apiOrders)
-        }
-      } catch (err) {
-        if (isMounted) {
-          setFetchError(err.message)
-        }
-      } finally {
-        if (isMounted) {
-          setLoadingOrders(false)
-        }
-      }
+    if (!lastFetched.orders || orders.length === 0) {
+      fetchOrders()
     }
+  }, [orders.length, lastFetched.orders])
 
-    fetchOrders()
-
-    return () => {
-      isMounted = false
+  const fetchOrders = async () => {
+    try {
+      dispatch(setMastersLoading({ field: 'orders', loading: true }))
+      const apiOrders = await getOrders()
+      dispatch(setMastersData({ field: 'orders', data: apiOrders }))
+    } catch (err) {
+      setFetchError(err.message)
+    } finally {
+      dispatch(setMastersLoading({ field: 'orders', loading: false }))
     }
-  }, [])
+  }
 
   // Real-time order updates via Socket.IO
   useEffect(() => {
     if (!socket) return
 
     const handleNewOrder = (orderData) => {
-      // Add new order to the top of the list
-      setOrders(prev => [orderData, ...prev])
-      
+      // Add new order to the top of the list in Redux
+      const newOrders = [orderData, ...orders]
+      dispatch(setMastersData({ field: 'orders', data: newOrders }))
+
       // Show animated notification
       showNotification({
         id: Date.now(),
@@ -78,11 +72,10 @@ function OrdersList() {
     }
 
     const handleOrderUpdate = (orderData) => {
-      setOrders(prev => 
-        prev.map(order => 
-          order.id === orderData.id ? orderData : order
-        )
+      const updatedOrders = orders.map(order =>
+        order.id === orderData.id ? orderData : order
       )
+      dispatch(setMastersData({ field: 'orders', data: updatedOrders }))
     }
 
     socket.on('new_order', handleNewOrder)
@@ -136,7 +129,7 @@ function OrdersList() {
   // Show notification
   const showNotification = (notification) => {
     setNotifications(prev => [...prev, notification])
-    
+
     // Auto remove after 5 seconds
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== notification.id))
@@ -153,11 +146,10 @@ function OrdersList() {
   const handleAcceptOrder = async (orderId) => {
     try {
       const updatedOrder = await updateOrderStatus(orderId, 'accepted')
-      setOrders(prev =>
-        prev.map(order =>
-          order.id === orderId ? updatedOrder : order
-        )
+      const updatedOrders = orders.map(order =>
+        order.id === orderId ? updatedOrder : order
       )
+      dispatch(setMastersData({ field: 'orders', data: updatedOrders }))
       setShowDetailModal(false)
       showNotification({
         id: Date.now(),
@@ -253,11 +245,10 @@ function OrdersList() {
   const handleRejectOrder = async (orderId) => {
     try {
       const updatedOrder = await updateOrderStatus(orderId, 'rejected')
-      setOrders(prev =>
-        prev.map(order =>
-          order.id === orderId ? updatedOrder : order
-        )
+      const updatedOrders = orders.map(order =>
+        order.id === orderId ? updatedOrder : order
       )
+      dispatch(setMastersData({ field: 'orders', data: updatedOrders }))
       setShowDetailModal(false)
       showNotification({
         id: Date.now(),
@@ -287,11 +278,10 @@ function OrdersList() {
 
     try {
       const updatedOrder = await masterCancelOrder(orderId, cancelConfirmationCode)
-      setOrders(prev =>
-        prev.map(order =>
-          order.id === orderId ? updatedOrder : order
-        )
+      const updatedOrders = orders.map(order =>
+        order.id === orderId ? updatedOrder : order
       )
+      dispatch(setMastersData({ field: 'orders', data: updatedOrders }))
       setShowCancelModal(false)
       setShowDetailModal(false)
       setCancelConfirmationCode('')
@@ -897,12 +887,11 @@ function NotificationContainer({ notifications }) {
             initial={{ x: 400, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 400, opacity: 0 }}
-            className={`min-w-[300px] max-w-md rounded-lg shadow-lg p-4 ${
-              notification.type === 'new_order' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white' :
+            className={`min-w-[300px] max-w-md rounded-lg shadow-lg p-4 ${notification.type === 'new_order' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white' :
               notification.type === 'success' ? 'bg-green-500 text-white' :
-              notification.type === 'error' ? 'bg-red-500 text-white' :
-              'bg-blue-500 text-white'
-            }`}
+                notification.type === 'error' ? 'bg-red-500 text-white' :
+                  'bg-blue-500 text-white'
+              }`}
           >
             <div className="flex items-start gap-3">
               <div className="flex-1">

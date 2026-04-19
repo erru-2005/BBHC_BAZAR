@@ -17,29 +17,31 @@ import {
   FiTrash2
 } from 'react-icons/fi'
 import { FaQrcode } from 'react-icons/fa6'
-import { initSocket, getSocket } from '../../utils/socket'
-import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
+import { getSocket } from '../../utils/socket'
 import { getOrders, getSellerMyProducts, sellerAcceptOrder, sellerRejectOrder } from '../../services/api'
 import SellerOrders from './components/SellerOrders'
 import QRCode from 'react-qr-code'
 import { motion, AnimatePresence } from 'framer-motion'
 import { fixImageUrl } from '../../utils/image'
 import { StatCard, SalesPerformanceChart } from './components/DashboardUI'
+import { setSellerProducts, setSellerOrders, updateSellerOrder, setSellerLoading } from '../../store/sellerSlice'
 
 function Seller() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const location = useLocation()
   const { user, token } = useSelector((state) => state.auth)
+  const { 
+    orders, 
+    products: sellerProducts, 
+    ordersLoading, 
+    productsLoading 
+  } = useSelector((state) => state.seller)
 
   const [showOrders, setShowOrders] = useState(false)
-  const [orders, setOrders] = useState([])
-  const [ordersLoading, setOrdersLoading] = useState(false)
   const [ordersError, setOrdersError] = useState(null)
   const [notificationProcessingId, setNotificationProcessingId] = useState(null)
   const [qrOrder, setQrOrder] = useState(null)
-  const [sellerProducts, setSellerProducts] = useState([])
-  const [productsLoading, setProductsLoading] = useState(false)
 
   // Handle switching views from navigation state
   useEffect(() => {
@@ -50,54 +52,56 @@ function Seller() {
     }
   }, [location.state])
 
-  // Initialize socket connection
+  // Global socket listener initialization
   useEffect(() => {
-    if (!user?.id || !token) return
+    const socket = getSocket()
+    if (!socket || !user?.id) return
 
-    // Initialize active counter socket with role='seller'
-    initActiveCounterSocket('seller', token)
-
-    const socket = initSocket(token)
-
-    if (socket) {
-      const authData = { user_id: user.id, user_type: 'seller' }
-      socket.on('connect', () => socket.emit('user_authenticated', authData))
-      if (socket.connected) socket.emit('user_authenticated', authData)
-
-      socket.on('new_order', (orderData) => {
-        if (String(orderData?.seller_id) === String(user.id)) {
-          setOrders(prev => [orderData, ...prev])
-        }
-      })
-
-      socket.on('order_updated', (orderData) => {
-        if (String(orderData?.seller_id) === String(user.id)) {
-          setOrders(prev => prev.map(o => o.id === orderData.id ? orderData : o))
-        }
-      })
+    const handleNewOrder = (orderData) => {
+      if (String(orderData?.seller_id) === String(user.id)) {
+        dispatch(updateSellerOrder(orderData))
+      }
     }
-  }, [user, token])
 
-  // Load orders and products
+    const handleOrderUpdated = (orderData) => {
+      if (String(orderData?.seller_id) === String(user.id)) {
+        dispatch(updateSellerOrder(orderData))
+      }
+    }
+
+    socket.on('new_order', handleNewOrder)
+    socket.on('order_updated', handleOrderUpdated)
+
+    return () => {
+      socket.off('new_order', handleNewOrder)
+      socket.off('order_updated', handleOrderUpdated)
+    }
+  }, [user?.id, dispatch])
+
+  // Load orders and products if missing
   useEffect(() => {
     const loadData = async () => {
       if (!user?.id) return
-      try {
-        setOrdersLoading(true)
-        const [ordersData, productsData] = await Promise.all([
-          getOrders(),
-          getSellerMyProducts()
-        ])
-        setOrders(Array.isArray(ordersData?.orders) ? ordersData.orders : Array.isArray(ordersData) ? ordersData : [])
-        setSellerProducts(productsData || [])
-      } catch (error) {
-        setOrdersError(error.message)
-      } finally {
-        setOrdersLoading(false)
+      // Only fetch if data is missing
+      if (orders.length === 0 || sellerProducts.length === 0) {
+        try {
+          dispatch(setSellerLoading({ field: 'orders', loading: true }))
+          const [ordersData, productsData] = await Promise.all([
+            getOrders(),
+            getSellerMyProducts()
+          ])
+          const fetchedOrders = Array.isArray(ordersData?.orders) ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : [])
+          dispatch(setSellerOrders(fetchedOrders))
+          dispatch(setSellerProducts(productsData || []))
+        } catch (error) {
+          setOrdersError(error.message)
+        } finally {
+          dispatch(setSellerLoading({ field: 'orders', loading: false }))
+        }
       }
     }
     loadData()
-  }, [user])
+  }, [user, orders.length, sellerProducts.length, dispatch])
 
   // Stats calculation
   const stats = useMemo(() => {

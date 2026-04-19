@@ -19,6 +19,9 @@ const ActiveCounters = () => {
   const [isConnected, setIsConnected] = useState(false)
 
   useEffect(() => {
+    // Only initialize if token exists
+    if (!token) return
+
     // Initialize socket connection as 'master' role
     const socket = initActiveCounterSocket('master', token)
 
@@ -92,7 +95,7 @@ const ActiveCounters = () => {
       socket.off('disconnect', handleDisconnect)
       socket.off('connect_error', handleConnectError)
     }
-  }, [])
+  }, [token])
 
   const counterCards = [
     {

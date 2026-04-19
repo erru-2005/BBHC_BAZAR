@@ -7,43 +7,11 @@ import { initSocket } from '../../../utils/socket'
 import { fixImageUrl } from '../../../utils/image'
 
 function SellerOrders() {
-  const { user, token } = useSelector((state) => state.auth)
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { user } = useSelector((state) => state.auth)
+  const { orders, ordersLoading: loading } = useSelector((state) => state.seller)
   const [error, setError] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true)
-        const data = await getOrders()
-        const orderList = Array.isArray(data?.orders) ? data.orders : Array.isArray(data) ? data : []
-        setOrders(orderList)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    if (user?.id) fetchOrders()
-  }, [user?.id])
-
-  useEffect(() => {
-    if (!token || !user?.id) return
-    const socket = initSocket(token)
-    socket.on('new_order', (orderData) => {
-      if (orderData.seller_id && String(orderData.seller_id) === String(user.id)) {
-        setOrders((prev) => [orderData, ...prev])
-      }
-    })
-    socket.on('order_updated', (orderData) => {
-      if (orderData.seller_id && String(orderData.seller_id) === String(user.id)) {
-        setOrders((prev) => prev.map((order) => (order.id === orderData.id ? orderData : order)))
-      }
-    })
-    return () => socket.disconnect()
-  }, [token, user])
 
   const filteredOrders = orders.filter(o => {
     if (statusFilter === 'all') return true

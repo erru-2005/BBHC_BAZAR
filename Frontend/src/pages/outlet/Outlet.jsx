@@ -11,6 +11,7 @@ import { HiHome } from 'react-icons/hi'
 import { FaShoppingBag, FaBars, FaSignOutAlt, FaSearch, FaQrcode, FaTimes, FaCheck, FaUser, FaBox, FaStore } from 'react-icons/fa'
 import OrdersList from '../master/components/OrdersList'
 import { scanOrderToken, getOrders } from '../../services/api'
+import { setOutletOrders, setOutletLoading, updateOutletOrder } from '../../store/outletSlice'
 
 function Outlet() {
   const dispatch = useDispatch()
@@ -34,8 +35,18 @@ function Outlet() {
   const [showOrderDetails, setShowOrderDetails] = useState(false)
   const [pendingOrder, setPendingOrder] = useState(null)
   const [confirming, setConfirming] = useState(false)
-  const [completedOrders, setCompletedOrders] = useState([])
-  const [loadingOrders, setLoadingOrders] = useState(false)
+  
+  const { orders, loading: loadingOrders, lastFetched } = useSelector(state => state.outlet)
+  
+  // Derived state for completed orders
+  const completedOrders = orders
+    .filter(order => order?.status === 'completed')
+    .sort((a, b) => {
+      const dateA = new Date(a?.updatedAt || a?.createdAt || 0)
+      const dateB = new Date(b?.updatedAt || b?.createdAt || 0)
+      return dateB - dateA
+    })
+    .slice(0, 10)
 
   // Auto-logout if different user type tries to access
   useEffect(() => {
@@ -44,38 +55,23 @@ function Outlet() {
     }
   }, [userType])
 
-  // Load completed orders on mount and when tab changes
+  // Load completed orders if missing or on tab change
   useEffect(() => {
-    if (activeTab === 'home') {
+    if (activeTab === 'home' && (!lastFetched || orders.length === 0)) {
       loadCompletedOrders()
     }
-  }, [activeTab])
+  }, [activeTab, orders.length, lastFetched])
 
   const loadCompletedOrders = async () => {
-    setLoadingOrders(true)
     try {
-      const orders = await getOrders()
-      const orderList = Array.isArray(orders?.orders)
-        ? orders.orders
-        : Array.isArray(orders?.data)
-        ? orders.data
-        : Array.isArray(orders)
-        ? orders
-        : []
-      // Filter completed orders and sort by most recent
-      const completed = orderList
-        .filter(order => order?.status === 'completed')
-        .sort((a, b) => {
-          const dateA = new Date(a?.updatedAt || a?.createdAt || 0)
-          const dateB = new Date(b?.updatedAt || b?.createdAt || 0)
-          return dateB - dateA
-        })
-        .slice(0, 10) // Show last 10 completed orders
-      setCompletedOrders(completed)
+      dispatch(setOutletLoading(true))
+      const fetchedData = await getOrders()
+      const orderList = Array.isArray(fetchedData?.orders) ? fetchedData.orders : (Array.isArray(fetchedData) ? fetchedData : [])
+      dispatch(setOutletOrders(orderList))
     } catch (err) {
       console.error('Failed to load completed orders:', err)
     } finally {
-      setLoadingOrders(false)
+      dispatch(setOutletLoading(false))
     }
   }
 

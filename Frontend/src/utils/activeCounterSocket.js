@@ -1,134 +1,46 @@
 /**
- * Active Counter Socket Utility
- * Connects to socket with role-based tracking
+ * Active Counter Socket Utility - Wrapper for Singleton Socket
+ * Prevents multiple connections while maintaining compatibility
  */
-import { io } from 'socket.io-client'
-
-// Socket.IO connection URL
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL !== undefined ? import.meta.env.VITE_SOCKET_URL : 'http://localhost:5001'
-
-// Create socket instances by role
-const sockets = {
-  user: null,
-  seller: null,
-  master: null,
-  outlet: null
-}
+import { initSocket, getSocket, disconnectSocket } from './socket'
 
 /**
  * Initialize Socket.IO connection with role
  * @param {string} role - 'user', 'seller', 'master', or 'outlet'
  * @param {string} token - Authentication token (now required for security)
- * @param {object} options - Additional socket options
- * @returns {object} Socket instance
  */
-export const initActiveCounterSocket = (role = 'user', token = null, options = {}) => {
-  // Validate role
-  const validRoles = ['user', 'seller', 'master', 'outlet']
-  if (!validRoles.includes(role)) {
-    console.warn(`Invalid role: ${role}. Defaulting to 'user'`)
-    role = 'user'
-  }
-
-  // If socket already exists and is connected, return it
-  if (sockets[role] && sockets[role].connected) {
-    return sockets[role]
-  }
-
-  // Disconnect existing socket for this role if any
-  if (sockets[role]) {
-    sockets[role].disconnect()
-  }
-
-  // Create new socket with role in query parameters and token in auth
-  const socketOptions = {
-    transports: ['websocket'],
-    upgrade: false,
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionAttempts: 10,
-    timeout: 30000,
-    forceNew: true, // Force new connection
-    query: {
-      role: role
-    },
-    auth: {
-      token: token
-    },
-    ...options
-  }
-
-  console.log(`[Active Counter Socket] Initializing secure websocket for role: ${role}`)
-  sockets[role] = io(SOCKET_URL, socketOptions)
-
-  // Connection event handlers
-  sockets[role].on('connect', () => {
-    console.log(`[Active Counter Socket] Connected as ${role}. Socket ID: ${sockets[role].id}`)
-  })
-
-  sockets[role].on('disconnect', (reason) => {
-    console.log(`[Active Counter Socket] Disconnected as ${role}. Reason: ${reason}`)
-  })
-
-  sockets[role].on('connected', (data) => {
-    console.log(`[Active Counter Socket] Connection confirmed for ${role}:`, data)
-  })
-
-  sockets[role].on('connect_error', (error) => {
-    console.error(`[Active Counter Socket] Connection error for ${role}:`, error)
-  })
-
-  sockets[role].on('error', (error) => {
-    console.error(`[Active Counter Socket] Socket error for ${role}:`, error)
-  })
-
-  // Listen for active_counts broadcasts (for master dashboard)
-  sockets[role].on('active_counts', (data) => {
-    // Data received, no logging to reduce console noise
-  })
-
-  return sockets[role]
+export const initActiveCounterSocket = (role = 'user', token = null) => {
+  // Use the shared singleton initialization
+  return initSocket(token, role)
 }
 
 /**
- * Get socket instance for a specific role
- * @param {string} role - 'user', 'seller', 'master', or 'outlet'
- * @returns {object|null} Socket instance or null
+ * Get socket instance for a specific role (returns same singleton)
  */
-export const getActiveCounterSocket = (role = 'user') => {
-  return sockets[role] || null
+export const getActiveCounterSocket = () => {
+  return getSocket()
 }
 
 /**
- * Disconnect socket for a specific role
- * @param {string} role - 'user', 'seller', 'master', or 'outlet'
+ * Disconnect socket (disconnects shared singleton)
  */
-export const disconnectActiveCounterSocket = (role) => {
-  if (sockets[role]) {
-    sockets[role].disconnect()
-    sockets[role] = null
-  }
+export const disconnectActiveCounterSocket = () => {
+  disconnectSocket()
 }
 
 /**
- * Disconnect all active counter sockets
+ * Disconnect all (same as above)
  */
 export const disconnectAllActiveCounterSockets = () => {
-  Object.keys(sockets).forEach(role => {
-    if (sockets[role]) {
-      sockets[role].disconnect()
-      sockets[role] = null
-    }
-  })
+  disconnectSocket()
 }
 
 /**
- * Check if socket is connected for a specific role
- * @param {string} role - 'user', 'seller', 'master', or 'outlet'
- * @returns {boolean} Connection status
+ * Check connectivity
  */
-export const isActiveCounterSocketConnected = (role = 'user') => {
-  return sockets[role] && sockets[role].connected
+export const isActiveCounterSocketConnected = () => {
+  const socket = getSocket()
+  return socket && socket.connected
 }
 
 export default {

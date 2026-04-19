@@ -9,7 +9,7 @@ import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
 import MobileBottomNav from './components/MobileBottomNav'
 import { getOrders, cancelOrder } from '../../services/api'
-import { initSocket } from '../../utils/socket'
+import { getSocket } from '../../utils/socket'
 
 const STATUS_STYLES = {
   pending_seller: { label: 'Pending', className: 'bg-red-100 text-red-800 border border-red-500' },
@@ -57,28 +57,18 @@ function UserOrders() {
 
   // Real-time Socket.IO updates
   useEffect(() => {
-    if (!token) return
+    const socket = getSocket()
+    if (!socket || !token) return
 
-    const socket = initSocket(token)
-    
-    socket.on('connect', () => {
-      if (user?.id) {
-        socket.emit('user_authenticated', {
-          user_id: user.id,
-          user_type: 'user'
-        })
-      }
-    })
-
-    socket.on('new_order', (orderData) => {
+    const handleNewOrder = (orderData) => {
       setOrders((prev) => {
         const exists = prev.find((o) => o.id === orderData.id)
         if (exists) return prev
         return [orderData, ...prev]
       })
-    })
+    }
 
-    socket.on('order_updated', (orderData) => {
+    const handleOrderUpdated = (orderData) => {
       setOrders((prev) =>
         prev.map((order) => (order.id === orderData.id ? orderData : order))
       )
@@ -86,12 +76,16 @@ function UserOrders() {
       if (activeOrder && activeOrder.id === orderData.id) {
         setActiveOrder(orderData)
       }
-    })
+    }
+
+    socket.on('new_order', handleNewOrder)
+    socket.on('order_updated', handleOrderUpdated)
 
     return () => {
-      socket.disconnect()
+      socket.off('new_order', handleNewOrder)
+      socket.off('order_updated', handleOrderUpdated)
     }
-  }, [token, user, activeOrder])
+  }, [token, activeOrder])
 
   const handleCancelOrder = async (orderId) => {
     setCancelingId(orderId)

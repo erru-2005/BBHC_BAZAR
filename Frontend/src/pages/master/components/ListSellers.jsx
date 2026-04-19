@@ -6,10 +6,14 @@ import Skeleton from 'react-loading-skeleton'
 import 'react-loading-skeleton/dist/skeleton.css'
 import { getSellers, updateSeller, blacklistSeller } from '../../../services/api'
 import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi'
+import { useDispatch, useSelector } from 'react-redux'
+import { setMastersData, setMastersLoading, updateMasterSeller } from '../../../store/masterSlice'
 
 function ListSellers() {
-  const [sellers, setSellers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const dispatch = useDispatch()
+  const { sellers, loading: masterLoading, lastFetched } = useSelector(state => state.master)
+  
+  const loading = masterLoading.sellers
   const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [editingSeller, setEditingSeller] = useState(null)
@@ -26,25 +30,23 @@ function ListSellers() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    fetchSellers()
-  }, [])
+    // Only fetch if not already loaded or if last fetched was long ago
+    if (!lastFetched.sellers || sellers.length === 0) {
+      fetchSellers()
+    }
+  }, [sellers.length, lastFetched.sellers])
 
   const fetchSellers = async () => {
     try {
-      setLoading(true)
+      dispatch(setMastersLoading({ field: 'sellers', loading: true }))
       setError(null)
-      const data = await getSellers()
-      const list =
-        Array.isArray(data?.sellers) ? data.sellers :
-        Array.isArray(data?.data) ? data.data :
-        Array.isArray(data?.items) ? data.items :
-        Array.isArray(data) ? data : []
-      setSellers(list)
+      const data = await getSellers({ limit: 100 })
+      const list = data.sellers || []
+      dispatch(setMastersData({ field: 'sellers', data: list }))
     } catch (err) {
       setError(err.message || 'Failed to fetch sellers')
-      setSellers([])
     } finally {
-      setLoading(false)
+      dispatch(setMastersLoading({ field: 'sellers', loading: false }))
     }
   }
 
@@ -72,9 +74,15 @@ function ListSellers() {
     try {
       setSubmitting(true)
       await updateSeller(editingSeller.id || editingSeller._id, formData)
+      
+      // Update local Redux store instead of re-fetching everything
+      dispatch(updateMasterSeller({ 
+        ...(editingSeller.id ? { id: editingSeller.id } : { _id: editingSeller._id }),
+        ...formData 
+      }))
+      
       setShowEditModal(false)
       setEditingSeller(null)
-      await fetchSellers() // Refresh list
     } catch (err) {
       setError(err.message || 'Failed to update seller')
     } finally {
@@ -88,9 +96,16 @@ function ListSellers() {
     try {
       setSubmitting(true)
       await blacklistSeller(deletingSeller.id || deletingSeller._id)
+      
+      // Update local Redux store
+      dispatch(updateMasterSeller({
+        ...(deletingSeller.id ? { id: deletingSeller.id } : { _id: deletingSeller._id }),
+        is_active: false // Blacklisting marks them as inactive or removes them? 
+        // Backend handles actual removal from active lists, but for UI we update status
+      }))
+      
       setShowDeleteModal(false)
       setDeletingSeller(null)
-      await fetchSellers() // Refresh list
     } catch (err) {
       setError(err.message || 'Failed to blacklist seller')
     } finally {

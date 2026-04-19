@@ -3,6 +3,9 @@ import { persistStore, persistReducer } from 'redux-persist'
 import storage from 'redux-persist/lib/storage'
 import dataReducer from './dataSlice'
 import authReducer from './authSlice'
+import sellerReducer from './sellerSlice'
+import masterReducer from './masterSlice'
+import outletReducer from './outletSlice'
 
 // Configure persist for auth reducer
 const authPersistConfig = {
@@ -16,7 +19,10 @@ const persistedAuthReducer = persistReducer(authPersistConfig, authReducer)
 export const store = configureStore({
   reducer: {
     data: dataReducer,
-    auth: persistedAuthReducer
+    auth: persistedAuthReducer,
+    seller: sellerReducer,
+    master: masterReducer,
+    outlet: outletReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

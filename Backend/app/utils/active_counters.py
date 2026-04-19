@@ -78,15 +78,12 @@ def decrement_counter(role):
 def get_all_counts():
     """Get all active counts"""
     with _counter_lock:
-        counts = {
+        return {
             'users': _active_users,
             'sellers': _active_sellers,
             'masters': _active_masters,
             'outlets': _active_outlets
         }
-        print(f"[Active Counter] get_all_counts() called. Returning: {counts}")
-        print(f"[Active Counter] Registered sockets: {len(_socket_roles)} sockets")
-        return counts
 
 
 def register_socket(socket_id, role):

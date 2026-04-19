@@ -23,147 +23,86 @@ def register_events(socketio):
     
     @socketio.on('connect', namespace='/')
     def handle_connect(auth=None):
-        """Handle client connection (permissive - allows guest access)"""
+        """Handle client connection (permissive - returns True immediately for stability)"""
         try:
-            print(f"[Socket Events] Processing connection request. SID: {request.sid}")
+            # We strictly return True immediately to allow the handshake/upgrade to finish
+            # without triggering Werkzeug's 'write before start_response' error.
+            # All role-specific logic is moved to the 'init_session' event.
+            print(f"[Socket Events] Handshake started. SID: {request.sid}")
             
-            # 1. Check for token strictly only if provided
-            if not auth or 'token' not in auth:
-                print(f"[Socket Events] Guest connected. SID: {request.sid}")
-                
-                # Check for role registration even for guests
-                role = request.args.get('role', '').lower()
-                if role:
-                    valid_roles = ['user', 'seller', 'master', 'outlet']
-                    if role in valid_roles:
-                        register_socket(request.sid, role)
-                        counts = increment_counter(role)
-                        # Use contextual emit for broadcast to avoid handshake conflicts
-                        emit('active_counts', counts, broadcast=True, namespace='/')
-                
-                # Allow guest connection
-                emit('connected', {
-                    'message': 'Connected as guest',
-                    'authenticated': False
-                })
-                return True # Explicitly return True to accept connection
+            if auth and 'token' in auth:
+                try:
+                    decode_token(auth['token'])
+                except Exception as e:
+                    print(f"[Socket Events] Token provided but invalid: {e}")
+                    # We still return True to allow guest access
+            
+            return True
+        except Exception as e:
+            print(f"[Socket Events] Connection error: {str(e)}")
+            return True # Always allow connection to avoid Invalid Frame Header in browser
 
-            # 2. Token Verification (if token is provided)
+    @socketio.on('init_session')
+    def handle_init_session(data=None):
+        """Client requests session initialization after connection is stable"""
+        sid = request.sid
+        auth = data or {}
+        token = auth.get('token')
+        role = auth.get('role', '').lower()
+        
+        print(f"[Socket Events] Initializing session for SID: {sid}, Role: {role}")
+        
+        authenticated = False
+        user_id = None
+        user_type = None
+        
+        # 1. Verify Token if provided
+        if token:
             try:
-                decoded = decode_token(auth['token'])
+                decoded = decode_token(token)
                 user_id = decoded.get('sub') or decoded.get('user_id')
                 user_type = decoded.get('user_type')
                 
-                if not user_id or not user_type:
-                    raise ValueError("Missing identity in token")
+                if user_id and user_type:
+                    authenticated = True
+                    # Update Online Status in DB
+                    user_obj_id = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
+                    
+                    if user_type == 'master':
+                        mongo.db.master.update_one({'_id': user_obj_id}, {'$set': {'status': 'active', 'socket_id': sid, 'last_connected_at': datetime.now(timezone.utc)}})
+                    elif user_type == 'seller':
+                        mongo.db.sellers.update_one({'_id': user_obj_id}, {'$set': {'is_active': True, 'socket_id': sid, 'last_connected_at': datetime.now(timezone.utc)}})
+                    elif user_type == 'user':
+                        mongo.db.users.update_one({'_id': user_obj_id}, {'$set': {'socket_id': sid, 'last_connected_at': datetime.now(timezone.utc)}})
+                    elif user_type == 'outlet_man':
+                        mongo.db.outlet_men.update_one({'_id': user_obj_id}, {'$set': {'socket_id': sid, 'last_connected_at': datetime.now(timezone.utc)}})
+                    
+                    print(f"[Socket Events] Authenticated {user_type}: {user_id}")
             except Exception as e:
-                print(f"[Socket Events] Connection refused: Invalid token provided. Error: {str(e)}")
-                # If they tried to provide a token but it's invalid, we should probably refuse 
-                # OR just treat them as guest. User said "if has acces token then have to connect else also connect"
-                # which might mean "if token is there it must be valid".
-                # To be safe and follow "direct connect without access code", we'll just treat as guest if token is invalid
-                # but log the error.
-                emit('connected', {
-                    'message': 'Connected as guest (invalid token)',
-                    'authenticated': False,
-                    'error': 'Invalid token'
-                })
-                return True
-                
-            # 3. Real-time Security Check (Blacklist & Existence)
-            if user_type in ['seller', 'outlet_man'] and BlacklistService.is_blacklisted(user_id, user_type):
-                print(f"[Socket Events] Connection refused: User {user_id} ({user_type}) is blacklisted.")
-                # For blacklisted users, we DO refuse connection
-                raise ConnectionRefusedError('Account is blacklisted')
-            
-            # 4. Update Online Status in DB
-            user_obj_id = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
-            socket_id = request.sid
-            
-            if user_type == 'master':
-                mongo.db.master.update_one(
-                    {'_id': user_obj_id},
-                    {'$set': {
-                        'status': 'active',
-                        'socket_id': socket_id,
-                        'last_connected_at': datetime.now(timezone.utc)
-                    }}
-                )
-            elif user_type == 'seller':
-                mongo.db.sellers.update_one(
-                    {'_id': user_obj_id},
-                    {'$set': {
-                        'is_active': True,
-                        'socket_id': socket_id,
-                        'last_connected_at': datetime.now(timezone.utc)
-                    }}
-                )
-                emit('seller:connected', {
-                    'seller_id': str(user_id),
-                    'timestamp': datetime.now(timezone.utc).isoformat()
-                }, broadcast=True, namespace='/')
-            elif user_type == 'user':
-                mongo.db.users.update_one(
-                    {'_id': user_obj_id},
-                    {'$set': {
-                        'socket_id': socket_id,
-                        'last_connected_at': datetime.now(timezone.utc)
-                    }}
-                )
-                emit('user:connected', {
-                    'user_id': str(user_id),
-                    'timestamp': datetime.now(timezone.utc).isoformat()
-                }, broadcast=True, namespace='/')
-            elif user_type == 'outlet_man':
-                mongo.db.outlet_men.update_one(
-                    {'_id': user_obj_id},
-                    {'$set': {
-                        'socket_id': socket_id,
-                        'last_connected_at': datetime.now(timezone.utc)
-                    }}
-                )
-                
-            # 5. Handle Active Counter (Role-based counting)
-            # This handles connections that pass ?role=user/seller/etc in the query string
-            role = request.args.get('role', '').lower()
-            if role:
-                valid_roles = ['user', 'seller', 'master', 'outlet']
-                if role in valid_roles:
-                    # Check if already registered
-                    existing_role = get_role_for_socket(socket_id)
-                    if not existing_role:
-                        register_socket(socket_id, role)
-                        counts = increment_counter(role)
-                        print(f"[Socket Events] Registered SID {socket_id} as {role}. New counts: {counts}")
-                        # Use contextual emit for broadcast to avoid handshake conflicts
-                        emit('active_counts', counts, broadcast=True, namespace='/')
-                        emit('active_counter_status', {
-                            'message': f'Counting as {role}',
-                            'role': role,
-                            'counts': counts
-                        })
+                print(f"[Socket Events] Session init auth failed: {e}")
 
-            # Finalize Authenticated Connection
-            print(f"[Socket Events] User {user_id} ({user_type}) authenticated. SID: {request.sid}")
-            emit('connected', {
-                'message': 'Connected successfully',
-                'authenticated': True,
-                'user_id': str(user_id),
-                'user_type': user_type
-            })
-            return True
-            
-        except ConnectionRefusedError:
-            raise
-        except Exception as e:
-            print(f"[Socket Events] Internal connection error: {str(e)}")
-            # Fallback to guest connection instead of failing
-            emit('connected', {
-                'message': 'Connected as guest (server error during auth)',
-                'authenticated': False
-            })
-            return True
-    
+        # 2. Register Role & Counters
+        existing_role = get_role_for_socket(sid)
+        if role and role != existing_role:
+            valid_roles = ['user', 'seller', 'master', 'outlet']
+            if role in valid_roles:
+                # If they already had a role, unregister it first (unlikely but safe)
+                if existing_role:
+                    decrement_counter(existing_role)
+                
+                register_socket(sid, role)
+                counts = increment_counter(role)
+                emit('active_counts', counts, broadcast=True)
+                emit('active_counter_status', {'message': f'Counting as {role}', 'role': role, 'counts': counts})
+        
+        # 3. Send final status
+        emit('connected', {
+            'message': 'Session initialized' if authenticated else 'Connected as guest',
+            'authenticated': authenticated,
+            'user_id': str(user_id) if user_id else None,
+            'user_type': user_type
+        })
+
     @socketio.on('disconnect', namespace='/')
     def handle_disconnect():
         """Handle client disconnection"""
@@ -191,7 +130,9 @@ def register_events(socketio):
                         'last_disconnected_at': datetime.now(timezone.utc)
                     }}
                 )
-            
+                print(f"[Socket Events] Master disconnected. ID: {master['_id']}")
+                return
+
             # Check sellers collection
             seller = mongo.db.sellers.find_one({'socket_id': socket_id})
             if seller:
@@ -203,12 +144,9 @@ def register_events(socketio):
                         'last_disconnected_at': datetime.now(timezone.utc)
                     }}
                 )
-                # Emit seller disconnected event for analytics
-                socketio.emit('seller:disconnected', {
-                    'seller_id': str(seller['_id']),
-                    'timestamp': datetime.now(timezone.utc).isoformat()
-                }, namespace='/')
-            
+                print(f"[Socket Events] Seller disconnected. ID: {seller['_id']}")
+                return
+
             # Check users collection
             user = mongo.db.users.find_one({'socket_id': socket_id})
             if user:
@@ -219,11 +157,8 @@ def register_events(socketio):
                         'last_disconnected_at': datetime.now(timezone.utc)
                     }}
                 )
-                # Emit user disconnected event for analytics (broadcast to all clients)
-                socketio.emit('user:disconnected', {
-                    'user_id': str(user['_id']),
-                    'timestamp': datetime.now(timezone.utc).isoformat()
-                }, namespace='/', broadcast=True)
+                print(f"[Socket Events] User disconnected. ID: {user['_id']}")
+                return
             
             # Check outlet_men collection
             outlet_man = mongo.db.outlet_men.find_one({'socket_id': socket_id})
@@ -235,237 +170,8 @@ def register_events(socketio):
                         'last_disconnected_at': datetime.now(timezone.utc)
                     }}
                 )
-        except Exception as e:
-            print(f"Error updating user status on disconnect: {e}")
-            pass
-    
-    @socketio.on('user_authenticated')
-    def handle_user_authenticated(data):
-        """Handle user authentication via socket"""
-        try:
-            user_id = data.get('user_id')
-            user_type = data.get('user_type')  # 'master', 'seller', 'user', 'outlet_man'
-            
-            if user_id and user_type:
-                try:
-                    user_obj_id = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
-                    socket_id = request.sid  # Get socket session ID
-                    
-                    if user_type == 'master':
-                        mongo.db.master.update_one(
-                            {'_id': user_obj_id},
-                            {'$set': {
-                                'status': 'active',
-                                'socket_id': socket_id,
-                                'last_connected_at': datetime.now(timezone.utc)
-                            }}
-                        )
-                    elif user_type == 'seller':
-                        mongo.db.sellers.update_one(
-                            {'_id': user_obj_id},
-                            {'$set': {
-                                'is_active': True,
-                                'socket_id': socket_id,
-                                'last_connected_at': datetime.now(timezone.utc)
-                            }}
-                        )
-                        # Emit seller connected event for analytics (broadcast to all clients)
-                        socketio.emit('seller:connected', {
-                            'seller_id': str(user_id),
-                            'timestamp': datetime.now(timezone.utc).isoformat()
-                        }, namespace='/')
-                    elif user_type == 'user':
-                        mongo.db.users.update_one(
-                            {'_id': user_obj_id},
-                            {'$set': {
-                                'socket_id': socket_id,
-                                'last_connected_at': datetime.now(timezone.utc)
-                            }}
-                        )
-                        # Emit user connected event for analytics (broadcast to all clients)
-                        socketio.emit('user:connected', {
-                            'user_id': str(user_id),
-                            'timestamp': datetime.now(timezone.utc).isoformat()
-                        }, namespace='/')
-                    elif user_type == 'outlet_man':
-                        mongo.db.outlet_men.update_one(
-                            {'_id': user_obj_id},
-                            {'$set': {
-                                'socket_id': socket_id,
-                                'last_connected_at': datetime.now(timezone.utc)
-                            }}
-                        )
-                    
-                    emit('status_updated', {'status': 'active', 'socket_id': socket_id})
-                except Exception as e:
-                    print(f"Error updating user status on authentication: {e}")
-                    pass
-        except Exception as e:
-            emit('error', {'message': f'Status update error: {str(e)}'})
-    
-    @socketio.on('user_logout')
-    def handle_user_logout(data):
-        """Handle user logout via socket"""
-        try:
-            user_id = data.get('user_id')
-            user_type = data.get('user_type')  # 'master', 'seller', 'user', 'outlet_man'
-            
-            if user_id and user_type:
-                try:
-                    user_obj_id = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
-                    
-                    if user_type == 'master':
-                        mongo.db.master.update_one(
-                            {'_id': user_obj_id},
-                            {'$set': {
-                                'status': 'not_active',
-                                'socket_id': None,
-                                'last_disconnected_at': datetime.now(timezone.utc)
-                            }}
-                        )
-                    elif user_type == 'seller':
-                        mongo.db.sellers.update_one(
-                            {'_id': user_obj_id},
-                            {'$set': {
-                                'is_active': False,
-                                'socket_id': None,
-                                'last_disconnected_at': datetime.now(timezone.utc)
-                            }}
-                        )
-                    elif user_type == 'user':
-                        mongo.db.users.update_one(
-                            {'_id': user_obj_id},
-                            {'$set': {
-                                'socket_id': None,
-                                'last_disconnected_at': datetime.now(timezone.utc)
-                            }}
-                        )
-                    elif user_type == 'outlet_man':
-                        mongo.db.outlet_men.update_one(
-                            {'_id': user_obj_id},
-                            {'$set': {
-                                'socket_id': None,
-                                'last_disconnected_at': datetime.now(timezone.utc)
-                            }}
-                        )
-                    
-                    emit('status_updated', {'status': 'not_active'})
-                except Exception as e:
-                    print(f"Error updating user status on logout: {e}")
-                    pass
-        except Exception as e:
-            emit('error', {'message': f'Status update error: {str(e)}'})
-    
-    @socketio.on('ping')
-    def handle_ping():
-        """Handle ping for connection testing"""
-        emit('pong', {'message': 'pong'})
-    
-    @socketio.on('analytics:request-data')
-    def handle_analytics_request(data):
-        """Handle analytics data request via socket (Strictly Secured)"""
-        try:
-            # 1. Validation for "important data"
-            auth = data.get('auth') if data else None
-            token = auth.get('token') if auth else None
-            
-            if not token:
-                print(f"[Socket Events] Analytics request denied: Token missing. SID: {request.sid}")
-                # Raising ConnectionRefusedError here might disconnect the user 
-                # which is a strong way to "handle the error correctly" for unauthorized access
-                raise ConnectionRefusedError('Token missing')
+                print(f"[Socket Events] Outlet man disconnected. ID: {outlet_man['_id']}")
+                return
                 
-            # 2. Token Verification
-            try:
-                decoded = decode_token(token)
-                user_type = decoded.get('user_type')
-                if user_type != 'master':
-                    raise ValueError("Access restricted to master accounts")
-            except Exception as e:
-                print(f"[Socket Events] Analytics request denied: Invalid token. SID: {request.sid}")
-                raise ConnectionRefusedError(f'Invalid token: {str(e)}')
-
-            from app.services.analytics_service import AnalyticsService
-            period = data.get('period', 'monthly')
-
-            
-            # Get all analytics data
-            stats = AnalyticsService.get_stats()
-            sales_by_category = AnalyticsService.get_sales_by_category(period)
-            sales_trend = AnalyticsService.get_sales_trend(period)
-            orders_by_status = AnalyticsService.get_orders_by_status(period)
-            revenue_vs_commissions = AnalyticsService.get_revenue_vs_commissions(period)
-            customer_growth = AnalyticsService.get_customer_growth(period)
-            returning_vs_new = AnalyticsService.get_returning_vs_new(period)
-            stock_levels = AnalyticsService.get_stock_levels(period)
-            top_products = AnalyticsService.get_top_products(period)
-            sales_by_seller = AnalyticsService.get_sales_by_seller(period)
-            
-            # Emit analytics data back to client
-            emit('analytics:data', {
-                'success': True,
-                'data': {
-                    'stats': stats,
-                    'salesByCategory': sales_by_category,
-                    'salesTrend': sales_trend,
-                    'ordersByStatus': orders_by_status,
-                    'revenueVsCommissions': revenue_vs_commissions,
-                    'customerGrowth': customer_growth,
-                    'returningVsNew': returning_vs_new,
-                    'stockLevels': stock_levels,
-                    'topProducts': top_products,
-                    'salesBySeller': sales_by_seller
-                }
-            })
         except Exception as e:
-            print(f"Error handling analytics request: {e}")
-            emit('analytics:data', {
-                'success': False,
-                'error': str(e)
-            })
-    
-    @socketio.on('user:visit-home')
-    def handle_user_visit_home(data):
-        """Handle when a user visits the home route"""
-        try:
-            socket_id = request.sid
-            # Find user by socket_id and mark as on home route
-            user = mongo.db.users.find_one({'socket_id': socket_id})
-            if user:
-                mongo.db.users.update_one(
-                    {'_id': user['_id']},
-                    {'$set': {
-                        'on_home_route': True,
-                        'last_home_visit': datetime.now(timezone.utc)
-                    }}
-                )
-                # Emit to all clients (for analytics dashboard)
-                socketio.emit('user:home-visit', {
-                    'user_id': str(user['_id']),
-                    'timestamp': datetime.now(timezone.utc).isoformat()
-                }, namespace='/')
-        except Exception as e:
-            print(f"Error handling user visit home: {e}")
-    
-    @socketio.on('user:leave-home')
-    def handle_user_leave_home(data):
-        """Handle when a user leaves the home route"""
-        try:
-            socket_id = request.sid
-            # Find user by socket_id and mark as not on home route
-            user = mongo.db.users.find_one({'socket_id': socket_id})
-            if user:
-                mongo.db.users.update_one(
-                    {'_id': user['_id']},
-                    {'$set': {
-                        'on_home_route': False,
-                        'last_home_leave': datetime.now(timezone.utc)
-                    }}
-                )
-                # Emit to all clients (for analytics dashboard)
-                socketio.emit('user:home-leave', {
-                    'user_id': str(user['_id']),
-                    'timestamp': datetime.now(timezone.utc).isoformat()
-                }, namespace='/', broadcast=True)
-        except Exception as e:
-            print(f"Error handling user leave home: {e}")
+            print(f"[Socket Events] Error in handle_disconnect: {e}")

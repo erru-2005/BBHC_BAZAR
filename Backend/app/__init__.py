@@ -140,7 +140,7 @@ def create_app(config_class=Config):
         app,
         cors_allowed_origins="*", # Force wildcard to handle multiple local IPs (VirtualBox, etc.)
         async_mode=app.config.get('SOCKETIO_ASYNC_MODE', 'threading'),
-        transports=['websocket']
+        transports=['polling', 'websocket']
     )
     
     # Create indexes on startup

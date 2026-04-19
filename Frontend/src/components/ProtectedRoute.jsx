@@ -14,11 +14,15 @@ function ProtectedRoute({ children, requiredUserType }) {
   // If not authenticated in Redux and no token in localStorage, redirect to login
   if ((!isAuthenticated || !token) && !localToken) {
     // Redirect to appropriate login page
-    let loginPath = '/seller/login'
+    let loginPath = '/' 
     if (requiredUserType === 'master') {
       loginPath = '/master/login'
+    } else if (requiredUserType === 'seller') {
+      loginPath = '/seller/login'
     } else if (requiredUserType === 'outlet_man') {
       loginPath = '/outlet/login'
+    } else if (requiredUserType === 'user') {
+      loginPath = '/'
     }
     return <Navigate to={loginPath} replace />
   }
@@ -33,4 +37,3 @@ function ProtectedRoute({ children, requiredUserType }) {
 }
 
 export default ProtectedRoute
-

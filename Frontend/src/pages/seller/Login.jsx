@@ -10,8 +10,6 @@ import { disconnectSocket } from '../../utils/socket'
 import { sellerLogin, verifyOTP, requestSellerForgotPasswordOtp } from '../../services/api'
 import { Button } from '../../components'
 import { getOrCreateDeviceId, getDeviceToken, setDeviceToken } from '../../utils/device'
-import { initSocket } from '../../utils/socket'
-import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
 
 function SellerLogin() {
   const navigate = useNavigate()
@@ -135,26 +133,6 @@ function SellerLogin() {
           refresh_token: response.refresh_token
         }))
         
-        // Initialize socket connection and notify server (this will save socket_id to DB)
-        const socket = initSocket(response.access_token)
-        if (socket) {
-          socket.on('connect', () => {
-            // Socket connection with auth token will automatically update seller status
-            // The backend connect handler will emit seller:connected event
-            socket.emit('user_authenticated', {
-              user_id: response.user.id,
-              user_type: 'seller'
-            })
-          })
-          
-          // If already connected, emit immediately
-          if (socket.connected) {
-            socket.emit('user_authenticated', {
-              user_id: response.user.id,
-              user_type: 'seller'
-            })
-          }
-        }
         
         navigate('/seller/dashboard')
         return
@@ -194,17 +172,6 @@ function SellerLogin() {
         refresh_token: response.refreshToken
       }))
       
-      // Initialize active counter socket with role='seller'
-      initActiveCounterSocket('seller', response.token)
-      
-      // Initialize regular socket connection and notify server (this will save socket_id to DB)
-      const socket = initSocket(response.token)
-      socket.on('connect', () => {
-        socket.emit('user_authenticated', {
-          user_id: response.user.id,
-          user_type: 'seller'
-        })
-      })
       
       navigate('/seller/dashboard')
     } catch (error) {
@@ -247,13 +214,6 @@ function SellerLogin() {
           userType: response.userType || 'seller',
           refresh_token: response.refresh_token
         }))
-        const socket = initSocket(response.access_token)
-        socket.on('connect', () => {
-          socket.emit('user_authenticated', {
-            user_id: response.user.id,
-            user_type: 'seller'
-          })
-        })
         navigate('/seller/dashboard')
         return
       }
@@ -327,7 +287,7 @@ function SellerLogin() {
                     value={formData.trade_id}
                     onChange={handleChange}
                     placeholder="Trade ID"
-                    pattern="[A-Za-z0-9_-]+"
+                    pattern="[A-Za-z0-9_\-]+"
                     className="w-full px-4 py-3 rounded-xl bg-gray-100 shadow-[inset_4px_4px_8px_#bebebe,inset_-4px_-4px_8px_#ffffff] border-none outline-none text-gray-800 placeholder-gray-400 focus:shadow-[inset_6px_6px_12px_#bebebe,inset_-6px_-6px_12px_#ffffff] transition-all"
                     required
                     disabled={loading}
