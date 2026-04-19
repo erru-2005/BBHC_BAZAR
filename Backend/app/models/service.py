@@ -1,7 +1,7 @@
 """
 Service model for MongoDB storage
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 
@@ -59,8 +59,8 @@ class Service:
         self.original_service_id = original_service_id  # For edit requests
         self.registration_ip = registration_ip
         self.registration_user_agent = registration_user_agent
-        self.created_at = created_at or datetime.utcnow()
-        self.updated_at = updated_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.updated_at = updated_at or datetime.now(timezone.utc)
 
     def to_dict(self):
         return {

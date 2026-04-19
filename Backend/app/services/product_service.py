@@ -2,7 +2,7 @@
 Product service - handles product persistence and queries
 """
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app import mongo
 from app.models.product import Product
@@ -96,8 +96,8 @@ class ProductService:
                 approval_status=approval_status,
                 pending_changes=product_data.get('pending_changes'),
                 original_product_id=product_data.get('original_product_id'),
-                created_at=product_data.get('created_at') or datetime.utcnow(),
-                updated_at=product_data.get('updated_at') or datetime.utcnow(),
+                created_at=product_data.get('created_at') or datetime.now(timezone.utc),
+                updated_at=product_data.get('updated_at') or datetime.now(timezone.utc),
                 registration_ip=product_data.get('registration_ip'),
                 registration_user_agent=product_data.get('registration_user_agent')
             )
@@ -324,7 +324,7 @@ class ProductService:
             if not update_fields:
                 raise ValueError("No data provided to update")
 
-            update_fields['updated_at'] = datetime.utcnow()
+            update_fields['updated_at'] = datetime.now(timezone.utc)
 
             result = mongo.db.products.update_one(
                 {'_id': ObjectId(product_id)},
@@ -382,7 +382,7 @@ class ProductService:
                     '$set': {
                         'commission_rate': float(commission_rate),
                         'total_selling_price': total_selling_price,
-                        'updated_at': datetime.utcnow()
+                        'updated_at': datetime.now(timezone.utc)
                     }
                 }
             )
@@ -466,7 +466,7 @@ class ProductService:
                     {
                         '$set': {
                             'approval_status': 'approved',
-                            'updated_at': datetime.utcnow()
+                            'updated_at': datetime.now(timezone.utc)
                         }
                     }
                 )
@@ -491,7 +491,7 @@ class ProductService:
                 # Move to bin collection with rejection details
                 product_bson = product.to_bson()
                 product_bson['approval_status'] = 'rejected'
-                product_bson['rejected_at'] = datetime.utcnow()
+                product_bson['rejected_at'] = datetime.now(timezone.utc)
                 product_bson['rejection_reason'] = reason
                 product_bson['rejection_recommendation'] = recommendation
                 mongo.db.bin.insert_one(product_bson)
@@ -512,7 +512,7 @@ class ProductService:
                     '$set': {
                         'category': category,
                         'commission_rate': float(commission_rate),
-                        'updated_at': datetime.utcnow()
+                        'updated_at': datetime.now(timezone.utc)
                     }
                 },
                 upsert=True
@@ -566,7 +566,7 @@ class ProductService:
                             '$set': {
                                 'commission_rate': float(commission_rate),
                                 'total_selling_price': total_selling_price,
-                                'updated_at': datetime.utcnow()
+                                'updated_at': datetime.now(timezone.utc)
                             }
                         }
                     )
@@ -614,7 +614,7 @@ class ProductService:
                                 '$set': {
                                     'commission_rate': float(commission_rate),
                                     'total_selling_price': total_selling_price,
-                                    'updated_at': datetime.utcnow()
+                                    'updated_at': datetime.now(timezone.utc)
                                 }
                             }
                         )

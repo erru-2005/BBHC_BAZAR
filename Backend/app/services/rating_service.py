@@ -2,7 +2,7 @@
 Rating service - handles rating persistence and queries
 """
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from app import mongo
 from app.models.rating import Rating
 
@@ -48,7 +48,7 @@ class RatingService:
                 # Update existing rating
                 update_data = {
                     'rating': rating_value,
-                    'updated_at': datetime.utcnow()
+                    'updated_at': datetime.now(timezone.utc)
                 }
                 if 'review_text' in rating_data:
                     update_data['review_text'] = rating_data['review_text']

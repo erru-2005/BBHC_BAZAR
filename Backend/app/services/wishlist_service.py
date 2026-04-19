@@ -1,5 +1,5 @@
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from app import mongo
 from app.models.wishlist_item import WishlistItem
 from app.services.product_service import ProductService
@@ -36,7 +36,7 @@ class WishlistService:
       doc = {
           "user_id": user_oid,
           "product_id": prod_oid,
-          "created_at": datetime.utcnow(),
+          "created_at": datetime.now(timezone.utc),
           "metadata": metadata or {},
       }
 

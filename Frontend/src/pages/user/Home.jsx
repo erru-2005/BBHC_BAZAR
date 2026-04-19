@@ -228,7 +228,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
   // Initialize socket connection for real-time updates and track home visits
   useEffect(() => {
     // Initialize active counter socket with role='user' (for counting active users)
-    const activeCounterSocket = initActiveCounterSocket('user')
+    const activeCounterSocket = initActiveCounterSocket('user', token)
     
     // Also initialize regular socket for other features (if needed)
     const socket = initSocket(token)

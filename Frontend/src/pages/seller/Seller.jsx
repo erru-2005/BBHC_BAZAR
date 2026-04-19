@@ -105,7 +105,7 @@ function Seller() {
     }
 
     // Initialize active counter socket with role='seller'
-    initActiveCounterSocket('seller')
+    initActiveCounterSocket('seller', token)
 
     const socket = initSocket(token)
     if (socket) {

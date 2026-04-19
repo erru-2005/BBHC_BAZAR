@@ -189,7 +189,7 @@ function MasterLogin() {
       }))
       
       // Initialize active counter socket with role='master'
-      initActiveCounterSocket('master')
+      initActiveCounterSocket('master', response.token)
       
       // Initialize regular socket connection and notify server (this will save socket_id to DB)
       const socket = initSocket(response.token)

@@ -1,8 +1,8 @@
 """
 Authentication routes with OTP support
 """
-from flask import Blueprint, jsonify, request, current_app
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
+from flask import Blueprint, jsonify, request, current_app, make_response
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt, set_access_cookies
 from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
 from app.services.outlet_man_service import OutletManService
@@ -11,8 +11,46 @@ from app.services.blacklist_service import BlacklistService
 from app.utils.otp import OTPManager
 from app.utils.sms import SMSService
 from app.utils.device import DeviceTokenManager
+from app.utils.token_manager import create_opaque_refresh_token, verify_opaque_refresh_token, revoke_opaque_refresh_token
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
+
+def _build_auth_response(user_data, user_type, additional_claims, extra_resp_data=None, device_id=None):
+    """Helper to generate JWT and build the cookie response."""
+    user_id = additional_claims['user_id']
+    
+    # 1) Generate the access token
+    access_token = create_access_token(
+        identity=user_id,
+        additional_claims=additional_claims
+    )
+    
+    # 2) Generate opaque refresh token
+    refresh_token = create_opaque_refresh_token(
+        user_id=user_id,
+        user_type=user_type,
+        device_id=device_id
+    )
+    
+    # 3) Build base dict
+    response_data = {
+        'message': 'Login successful',
+        'access_token': access_token,  # Keep here for legacy frontend, although cookie is set
+        'refresh_token': refresh_token,
+        'user': user_data,
+        'userType': user_type
+    }
+    
+    if extra_resp_data:
+        response_data.update(extra_resp_data)
+        
+    resp = make_response(jsonify(response_data))
+    
+    # 4) Set access and refresh cookies
+    set_access_cookies(resp, access_token)
+    resp.set_cookie('refresh_token', refresh_token, httponly=True, secure=False, samesite='Lax')
+    
+    return resp, 200
 
 
 def mask_phone_number(phone_number):
@@ -88,23 +126,13 @@ def master_login():
                     'username': master.username
                 }
                 
-                access_token = create_access_token(
-                    identity=user_id,
-                    additional_claims=additional_claims
+                return _build_auth_response(
+                    user_data=user_data,
+                    user_type='master',
+                    additional_claims=additional_claims,
+                    extra_resp_data={'skip_otp': True},
+                    device_id=device_id
                 )
-                refresh_token = create_refresh_token(
-                    identity=user_id,
-                    additional_claims=additional_claims
-                )
-                
-                return jsonify({
-                    'message': 'Login successful',
-                    'access_token': access_token,
-                    'refresh_token': refresh_token,
-                    'user': user_data,
-                    'userType': 'master',
-                    'skip_otp': True
-                }), 200
         
         # If device_id is provided but no device_token, check if device exists (device was logged out but device_id preserved)
         if device_id and not device_token:
@@ -123,24 +151,13 @@ def master_login():
                     'username': master.username
                 }
                 
-                access_token = create_access_token(
-                    identity=user_id,
-                    additional_claims=additional_claims
+                return _build_auth_response(
+                    user_data=user_data,
+                    user_type='master',
+                    additional_claims=additional_claims,
+                    extra_resp_data={'skip_otp': True, 'device_token': device_token},
+                    device_id=device_id
                 )
-                refresh_token = create_refresh_token(
-                    identity=user_id,
-                    additional_claims=additional_claims
-                )
-                
-                return jsonify({
-                    'message': 'Login successful',
-                    'access_token': access_token,
-                    'refresh_token': refresh_token,
-                    'user': user_data,
-                    'userType': 'master',
-                    'skip_otp': True,
-                    'device_token': device_token  # Return device token to frontend
-                }), 200
         
         # Device token invalid or not provided, proceed with OTP flow
         # Generate OTP
@@ -376,23 +393,13 @@ def seller_login():
                     'trade_id': seller.trade_id
                 }
                 
-                access_token = create_access_token(
-                    identity=user_id,
-                    additional_claims=additional_claims
+                return _build_auth_response(
+                    user_data=user_data,
+                    user_type='seller',
+                    additional_claims=additional_claims,
+                    extra_resp_data={'skip_otp': True},
+                    device_id=device_id
                 )
-                refresh_token = create_refresh_token(
-                    identity=user_id,
-                    additional_claims=additional_claims
-                )
-                
-                return jsonify({
-                    'message': 'Login successful',
-                    'access_token': access_token,
-                    'refresh_token': refresh_token,
-                    'user': user_data,
-                    'userType': 'seller',
-                    'skip_otp': True
-                }), 200
         
         # If device_id is provided but no device_token, check if device exists (device was logged out but device_id preserved)
         if device_id and not device_token:
@@ -411,24 +418,13 @@ def seller_login():
                     'trade_id': seller.trade_id
                 }
                 
-                access_token = create_access_token(
-                    identity=user_id,
-                    additional_claims=additional_claims
+                return _build_auth_response(
+                    user_data=user_data,
+                    user_type='seller',
+                    additional_claims=additional_claims,
+                    extra_resp_data={'skip_otp': True, 'device_token': device_token},
+                    device_id=device_id
                 )
-                refresh_token = create_refresh_token(
-                    identity=user_id,
-                    additional_claims=additional_claims
-                )
-                
-                return jsonify({
-                    'message': 'Login successful',
-                    'access_token': access_token,
-                    'refresh_token': refresh_token,
-                    'user': user_data,
-                    'userType': 'seller',
-                    'skip_otp': True,
-                    'device_token': device_token  # Return device token to frontend
-                }), 200
         
         # Device token invalid or not provided, proceed with OTP flow
         # Generate OTP
@@ -674,28 +670,13 @@ def outlet_man_login():
             'outlet_access_code': outlet_man.outlet_access_code
         }
         
-        access_token = create_access_token(
-            identity=user_id,
-            additional_claims=additional_claims
+        return _build_auth_response(
+            user_data=user_data,
+            user_type='outlet_man',
+            additional_claims=additional_claims,
+            extra_resp_data={'skip_otp': True, 'device_token': device_token} if device_token else {'skip_otp': True},
+            device_id=device_id
         )
-        refresh_token = create_refresh_token(
-            identity=user_id,
-            additional_claims=additional_claims
-        )
-        
-        response_data = {
-            'message': 'Login successful',
-            'access_token': access_token,
-            'refresh_token': refresh_token,
-            'user': user_data,
-            'userType': 'outlet_man',
-            'skip_otp': True
-        }
-        
-        if device_token:
-            response_data['device_token'] = device_token
-        
-        return jsonify(response_data), 200
         
     except Exception as e:
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
@@ -763,75 +744,113 @@ def verify_otp():
         else:  # seller
             additional_claims['trade_id'] = username
         
-        access_token = create_access_token(
-            identity=user_info['user_id'],
-            additional_claims=additional_claims
-        )
-        refresh_token = create_refresh_token(
-            identity=user_info['user_id'],
-            additional_claims=additional_claims
-        )
-        
         # Create device token if device_id is provided
         device_token = None
         if device_id:
             device_token = DeviceTokenManager.create_device_token(
-                user_info['user_id'],
-                user_info['user_type'],
-                device_id
+                user_info['user_id'], user_info['user_type'], device_id
             )
-        
-        response_data = {
-            'message': 'OTP verified successfully',
-            'access_token': access_token,
-            'refresh_token': refresh_token,
-            'user': user_dict,
-            'userType': user_info['user_type']
+
+        extra_data = {
+            'message': 'OTP verified successfully'
         }
-        
         if device_token:
-            response_data['device_token'] = device_token
-            response_data['device_id'] = device_id
-        
-        return jsonify(response_data), 200
+            extra_data['device_token'] = device_token
+            extra_data['device_id'] = device_id
+            
+        return _build_auth_response(
+            user_data=user_dict,
+            user_type=user_info['user_type'],
+            additional_claims=additional_claims,
+            extra_resp_data=extra_data,
+            device_id=device_id
+        )
         
     except Exception as e:
         return jsonify({'error': f'OTP verification failed: {str(e)}'}), 500
 
 
 @auth_bp.route('/refresh', methods=['POST'])
-@jwt_required(refresh=True)
 def refresh():
     """
-    Refresh access token using refresh token
-    Returns: { "access_token": "..." }
+    Refresh access token using an Opaque Refresh Token stored in HttpOnly cookies.
     """
     try:
-        current_user_id = get_jwt_identity()
-        claims = get_jwt()
+        # Get token from cookie
+        refresh_token = request.cookies.get('refresh_token')
+        device_id = request.json.get('device_id') if request.is_json else None
         
-        # Get user type from claims
-        user_type = claims.get('user_type', 'user')
-        username = claims.get('username', '')
+        # Verify the opaque token in DB
+        token_doc, error = verify_opaque_refresh_token(refresh_token, device_id)
+        if error:
+            return jsonify({'error': error}), 401
+            
+        user_id = token_doc['user_id']
+        user_type = token_doc['user_type']
         
-        # Create new access token with same claims
-        additional_claims = {
-            'user_type': user_type,
-            'user_id': current_user_id,
-            'username': username
-        }
+        # Verify user state in real-time before issuing new access token
+        if user_type in ['seller', 'outlet_man'] and BlacklistService.is_blacklisted(user_id, user_type):
+            return jsonify({'error': 'This account is blacklisted. Session terminated.'}), 403
+            
+        # Get username/identifiers for additional claims
+        claims = {'user_id': user_id, 'user_type': user_type}
         
+        # Pull specific fields based on user type and verify existence/activity
+        if user_type == 'master':
+            u = MasterService.get_master_by_id(user_id)
+            if not u: return jsonify({'error': 'User no longer exists'}), 401
+            claims['username'] = u.username
+        elif user_type == 'seller':
+            u = SellerService.get_seller_by_id(user_id)
+            if not u or not getattr(u, 'is_active', True): return jsonify({'error': 'Seller account inactive'}), 401
+            claims['trade_id'] = u.trade_id
+        elif user_type == 'outlet_man':
+            u = OutletManService.get_outlet_man_by_id(user_id)
+            if not u: return jsonify({'error': 'Outlet man no longer exists'}), 401
+            claims['outlet_access_code'] = u.outlet_access_code
+        else:
+            u = UserService.get_user_by_id(user_id)
+            if not u or not getattr(u, 'is_active', True): return jsonify({'error': 'User account inactive'}), 401
+            claims['username'] = u.username
+
+        # Generate new JWT access token signed with RS256
         new_access_token = create_access_token(
-            identity=current_user_id,
-            additional_claims=additional_claims
+            identity=user_id,
+            additional_claims=claims
         )
         
-        return jsonify({
-            'access_token': new_access_token
-        }), 200
+        resp = make_response(jsonify({
+            'access_token': new_access_token,
+            'message': 'Token refreshed successfully'
+        }))
+        
+        # Update cookie
+        set_access_cookies(resp, new_access_token)
+        return resp, 200
         
     except Exception as e:
         return jsonify({'error': f'Token refresh failed: {str(e)}'}), 500
+
+
+@auth_bp.route('/logout', methods=['POST'])
+def logout():
+    """
+    Logout user by revoking refresh token and clearing cookies.
+    """
+    try:
+        refresh_token = request.cookies.get('refresh_token')
+        if refresh_token:
+            revoke_opaque_refresh_token(refresh_token)
+            
+        resp = make_response(jsonify({'message': 'Logged out successfully'}))
+        
+        # Clear cookies
+        resp.set_cookie('access_token', '', expires=0)
+        resp.set_cookie('refresh_token', '', expires=0)
+        
+        return resp, 200
+    except Exception as e:
+        return jsonify({'error': f'Logout failed: {str(e)}'}), 500
 
 
 @auth_bp.route('/me', methods=['GET'])
@@ -995,23 +1014,12 @@ def user_verify_otp():
                 'username': user.username
             }
             
-            access_token = create_access_token(
-                identity=user_id,
-                additional_claims=additional_claims
+            return _build_auth_response(
+                user_data=user_data,
+                user_type='user',
+                additional_claims=additional_claims,
+                extra_resp_data={'message': 'Login successful', 'user_exists': True}
             )
-            refresh_token = create_refresh_token(
-                identity=user_id,
-                additional_claims=additional_claims
-            )
-            
-            return jsonify({
-                'message': 'Login successful',
-                'access_token': access_token,
-                'refresh_token': refresh_token,
-                'user': user_data,
-                'userType': 'user',
-                'user_exists': True
-            }), 200
         else:
             # User doesn't exist - return phone number for registration
             masked_phone = mask_phone_number(phone_number)
@@ -1087,22 +1095,12 @@ def user_register():
             'username': user.username
         }
         
-        access_token = create_access_token(
-            identity=user_id,
-            additional_claims=additional_claims
+        return _build_auth_response(
+            user_data=user_dict,
+            user_type='user',
+            additional_claims=additional_claims,
+            extra_resp_data={'message': 'Registration successful'}
         )
-        refresh_token = create_refresh_token(
-            identity=user_id,
-            additional_claims=additional_claims
-        )
-        
-        return jsonify({
-            'message': 'Registration successful',
-            'access_token': access_token,
-            'refresh_token': refresh_token,
-            'user': user_dict,
-            'userType': 'user'
-        }), 201
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 400

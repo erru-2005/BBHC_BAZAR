@@ -3,11 +3,13 @@
  * Displays real-time active user/seller/master/outlet counts
  */
 import { useState, useEffect } from 'react'
+import { useSelector } from 'react-redux'
 import { motion } from 'framer-motion'
 import { FaUsers, FaStore, FaUserShield, FaStoreAlt } from 'react-icons/fa'
 import { initActiveCounterSocket, getActiveCounterSocket } from '../../../utils/activeCounterSocket'
 
 const ActiveCounters = () => {
+  const { token } = useSelector((state) => state.auth)
   const [counts, setCounts] = useState({
     users: 0,
     sellers: 0,
@@ -18,7 +20,7 @@ const ActiveCounters = () => {
 
   useEffect(() => {
     // Initialize socket connection as 'master' role
-    const socket = initActiveCounterSocket('master')
+    const socket = initActiveCounterSocket('master', token)
 
     // Listen for active_counts updates
     const handleActiveCounts = (data) => {

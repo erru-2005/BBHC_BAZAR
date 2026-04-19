@@ -76,7 +76,7 @@ function OutletLogin() {
       }))
       
       // Initialize active counter socket with role='outlet'
-      initActiveCounterSocket('outlet')
+      initActiveCounterSocket('outlet', response.access_token)
       
       // Initialize regular socket connection and notify server (this will save socket_id to DB)
       const socket = initSocket(response.access_token)

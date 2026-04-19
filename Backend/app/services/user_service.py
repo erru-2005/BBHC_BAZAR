@@ -2,7 +2,7 @@
 User service - Business logic for user operations with MongoDB
 """
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from app import mongo
 from app.models.user import User
 
@@ -146,7 +146,7 @@ class UserService:
             update_data = {k: v for k, v in user_data.items() if v is not None}
             
             # Add updated_at timestamp
-            update_data['updated_at'] = datetime.utcnow()
+            update_data['updated_at'] = datetime.now(timezone.utc)
             
             # Update in MongoDB
             result = mongo.db.users.update_one(

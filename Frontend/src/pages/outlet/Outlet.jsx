@@ -15,8 +15,17 @@ import { scanOrderToken, getOrders } from '../../services/api'
 function Outlet() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const { user, userType } = useSelector((state) => state.auth)
+  const { user, userType, token } = useSelector((state) => state.auth)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  // Initialize socket on mount
+  useEffect(() => {
+    if (token && userType === 'outlet_man') {
+      import('../../utils/activeCounterSocket').then(({ initActiveCounterSocket }) => {
+        initActiveCounterSocket('outlet', token)
+      })
+    }
+  }, [token, userType])
   const [activeTab, setActiveTab] = useState('home')
   const [tokenInput, setTokenInput] = useState('')
   const [scanning, setScanning] = useState(false)

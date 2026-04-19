@@ -3,7 +3,7 @@ Statistics Service - Track revenue and commissions
 """
 from app import mongo
 from app.models.statistics import Statistics
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 
@@ -22,7 +22,7 @@ class StatisticsService:
         """
         try:
             if date_key is None:
-                date_key = datetime.utcnow().strftime('%Y-%m')
+                date_key = datetime.now(timezone.utc).strftime('%Y-%m')
             
             commission = order_total * commission_rate
             revenue = order_total
@@ -36,10 +36,10 @@ class StatisticsService:
                         'commissions': commission
                     },
                     '$set': {
-                        'updated_at': datetime.utcnow()
+                        'updated_at': datetime.now(timezone.utc)
                     },
                     '$setOnInsert': {
-                        'created_at': datetime.utcnow()
+                        'created_at': datetime.now(timezone.utc)
                     }
                 },
                 upsert=True
@@ -60,10 +60,10 @@ class StatisticsService:
                             'commissions': commission
                         },
                         '$set': {
-                            'updated_at': datetime.utcnow()
+                            'updated_at': datetime.now(timezone.utc)
                         },
                         '$setOnInsert': {
-                            'created_at': datetime.utcnow(),
+                            'created_at': datetime.now(timezone.utc),
                             'date': date_key,
                             'seller_id': seller_obj_id
                         }

@@ -2,7 +2,7 @@
 Service service - handles service persistence and queries
 """
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app import mongo
 from app.models.service import Service
@@ -90,8 +90,8 @@ class ServiceService:
                 approval_status=approval_status,
                 pending_changes=service_data.get('pending_changes'),
                 original_service_id=service_data.get('original_service_id'),
-                created_at=service_data.get('created_at') or datetime.utcnow(),
-                updated_at=service_data.get('updated_at') or datetime.utcnow(),
+                created_at=service_data.get('created_at') or datetime.now(timezone.utc),
+                updated_at=service_data.get('updated_at') or datetime.now(timezone.utc),
                 registration_ip=service_data.get('registration_ip'),
                 registration_user_agent=service_data.get('registration_user_agent')
             )
@@ -201,7 +201,7 @@ class ServiceService:
             if not update_fields:
                 raise ValueError("No data provided to update")
 
-            update_fields['updated_at'] = datetime.utcnow()
+            update_fields['updated_at'] = datetime.now(timezone.utc)
 
             result = mongo.db.services.update_one(
                 {'_id': ObjectId(service_id)},
@@ -262,7 +262,7 @@ class ServiceService:
                 {
                     '$set': {
                         'approval_status': 'approved',
-                        'updated_at': datetime.utcnow()
+                        'updated_at': datetime.now(timezone.utc)
                     }
                 }
             )
@@ -285,7 +285,7 @@ class ServiceService:
             if move_to_bin:
                 service_bson = service.to_bson()
                 service_bson['approval_status'] = 'rejected'
-                service_bson['rejected_at'] = datetime.utcnow()
+                service_bson['rejected_at'] = datetime.now(timezone.utc)
                 service_bson['rejection_reason'] = reason
                 mongo.db.service_bin.insert_one(service_bson)
             

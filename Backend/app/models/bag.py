@@ -1,7 +1,7 @@
 """
 Bag model for MongoDB storage
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 
@@ -25,8 +25,8 @@ class Bag:
         self.quantity = quantity
         self.selected_size = selected_size
         self.selected_color = selected_color
-        self.created_at = created_at or datetime.utcnow()
-        self.updated_at = updated_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.updated_at = updated_at or datetime.now(timezone.utc)
 
     def to_dict(self):
         """Convert bag item to dictionary"""

@@ -18,10 +18,11 @@ const sockets = {
 /**
  * Initialize Socket.IO connection with role
  * @param {string} role - 'user', 'seller', 'master', or 'outlet'
+ * @param {string} token - Authentication token (now required for security)
  * @param {object} options - Additional socket options
  * @returns {object} Socket instance
  */
-export const initActiveCounterSocket = (role = 'user', options = {}) => {
+export const initActiveCounterSocket = (role = 'user', token = null, options = {}) => {
   // Validate role
   const validRoles = ['user', 'seller', 'master', 'outlet']
   if (!validRoles.includes(role)) {
@@ -39,21 +40,25 @@ export const initActiveCounterSocket = (role = 'user', options = {}) => {
     sockets[role].disconnect()
   }
 
-  // Create new socket with role in query parameters
+  // Create new socket with role in query parameters and token in auth
   const socketOptions = {
-    transports: ['polling'], // Force polling to avoid websocket invalid frame header
+    transports: ['websocket'],
+    upgrade: false,
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionAttempts: 10,
-    timeout: 20000,
+    timeout: 30000,
     forceNew: true, // Force new connection
     query: {
       role: role
     },
+    auth: {
+      token: token
+    },
     ...options
   }
 
-  console.log(`[Active Counter Socket] Initializing socket for role: ${role}, URL: ${SOCKET_URL}`)
+  console.log(`[Active Counter Socket] Initializing secure websocket for role: ${role}`)
   sockets[role] = io(SOCKET_URL, socketOptions)
 
   // Connection event handlers

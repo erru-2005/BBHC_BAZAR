@@ -1,7 +1,7 @@
 """
 Rating model for MongoDB storage
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 
@@ -25,8 +25,8 @@ class Rating:
         self.seller_id = ObjectId(seller_id) if seller_id and isinstance(seller_id, str) else seller_id
         self.rating = rating  # 1-5 stars
         self.review_text = review_text
-        self.created_at = created_at or datetime.utcnow()
-        self.updated_at = updated_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.updated_at = updated_at or datetime.now(timezone.utc)
 
     def to_dict(self):
         """Convert rating to dictionary for API responses"""

@@ -2,7 +2,7 @@
 Bag service - handles bag persistence and queries
 """
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.bag import Bag
 from app import mongo
@@ -34,7 +34,7 @@ class BagService:
                     {
                         '$set': {
                             'quantity': new_quantity,
-                            'updated_at': datetime.utcnow()
+                            'updated_at': datetime.now(timezone.utc)
                         }
                     }
                 )
@@ -82,7 +82,7 @@ class BagService:
             if not existing:
                 return None
 
-            update_data = {'updated_at': datetime.utcnow()}
+            update_data = {'updated_at': datetime.now(timezone.utc)}
             if quantity is not None:
                 if quantity <= 0:
                     # Remove item if quantity is 0 or less
