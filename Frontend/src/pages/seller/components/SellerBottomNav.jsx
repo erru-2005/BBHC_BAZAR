@@ -57,14 +57,14 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
         },
         {
             id: 'products',
-            label: 'Products',
+            label: 'Vault',
             icon: HiOutlineCube,
             activeIcon: HiCube,
             action: () => navigate('/seller/products')
         },
         {
             id: 'profile',
-            label: 'Profile',
+            label: 'Account',
             icon: HiOutlineUser,
             activeIcon: HiUser,
             action: () => onOpenProfile && onOpenProfile(true)
@@ -73,39 +73,34 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
 
     return (
     <div className="fixed bottom-0 left-0 right-0 z-50 w-full md:hidden pointer-events-none flex justify-center">
-    {/* Spacer */}
-    <div className="h-24" />
-
-    <div className="relative w-full max-w-md h-[88px] pointer-events-auto">
-                {/* SVG Curve Background - Dark Glassmorphism */}
-                <div className="absolute inset-0 z-0">
+    <div className="relative w-full max-w-md h-[92px] pointer-events-auto">
+                {/* SVG Curve Background - Premium Light Theme */}
+                <div className="absolute inset-0 z-0 px-2">
                     <svg
                         viewBox="0 0 375 88"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
                         preserveAspectRatio="none"
-                        className="absolute inset-0 h-full w-full text-[#0f172a]/95 backdrop-blur-2xl"
+                        className="absolute inset-0 h-full w-full text-white/95 backdrop-blur-xl drop-shadow-[0_-5px_20px_rgba(0,0,0,0.06)]"
                     >
                         <path
                             fill="currentColor"
-                            d="M0,12 
-                               H134 
-                               C144,12 152,24 162,34 
-                               C172,44 203,44 213,34 
-                               C223,24 231,12 241,12 
+                            d="M0,15 
+                               H130 
+                               C140,15 148,27 158,37 
+                               C168,47 199,47 209,37 
+                               C219,27 227,15 237,15 
                                H375 
                                V88 
                                H0 
                                Z"
                         />
                     </svg>
-                    {/* Inner Glow Stripe */}
-                    <div className="absolute top-[12px] h-[1px] left-0 right-0 bg-white/5 shadow-[0_1px_5px_rgba(255,255,255,0.1)]" style={{ clipPath: 'polygon(0 0, 134px 0, 162px 22px, 213px 22px, 241px 0, 100% 0, 100% 100%, 0 100%)' }} />
                 </div>
 
-                <div className="relative flex h-full w-full items-center pb-1 z-10">
+                <div className="relative flex h-full w-full items-center pb-2 z-10 px-4">
                     {/* Left Group */}
-                    <div className="flex flex-1 justify-around items-center px-1">
+                    <div className="flex flex-1 justify-around items-center">
                         {navItems.slice(0, 2).map((item) => {
                             const isActive = activeTab === item.id
                             const Icon = isActive ? (item.activeIcon || item.icon) : item.icon
@@ -117,48 +112,62 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                                 >
                                     <motion.div
                                         whileTap={{ scale: 0.9 }}
-                                        whileHover={{ y: -3 }}
                                         className="mb-1"
                                     >
                                         <Icon
-                                            className={`h-[28px] w-[28px] transition-all duration-300 ${isActive
-                                                ? 'text-[#FF2E63]'
-                                                : 'text-slate-400'
+                                            className={`h-[22px] w-[22px] transition-all duration-500 ${isActive
+                                                ? 'text-blue-600 scale-110'
+                                                : 'text-slate-400 group-hover:text-slate-600'
                                                 }`}
                                             strokeWidth={isActive ? 0 : 2}
                                         />
                                     </motion.div>
-                                    <span className={`text-[11px] font-bold tracking-tight transition-all duration-300 ${isActive ? 'text-white' : 'text-slate-400'}`}>
+                                    <span className={`text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
                                         {item.label}
                                     </span>
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="nav-pill"
-                                            className="absolute -bottom-1 h-1 w-1 rounded-full bg-[#FF2E63] shadow-[0_0_10px_rgba(255,46,99,0.8)]"
-                                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                                        />
-                                    )}
                                 </button>
                             )
                         })}
                     </div>
 
                     {/* Center Floating Button */}
-                    <div className="absolute left-1/2 -translate-x-1/2 -top-8 flex w-16 sm:w-20 justify-center shrink-0 z-20">
-                        <div className="absolute inset-0 bg-[#FF2E63]/20 blur-2xl rounded-full scale-150 animate-pulse" />
+                    <div className="absolute left-1/2 -translate-x-1/2 -top-10 flex w-20 justify-center shrink-0 z-20">
                         <motion.button
                             layoutId="add-product-fab"
-                            whileTap={{ scale: 0.85 }}
-                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.9, rotate: -90 }}
+                            whileHover={{ 
+                                scale: 1.15, 
+                                rotate: 90,
+                                boxShadow: "0 25px 40px -10px rgba(15, 23, 42, 0.4)" 
+                            }}
                             onClick={onOpenAddProduct}
-                            className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#FF2E63] to-rose-700 text-white shadow-lg ring-[5px] sm:ring-[6px] ring-[#0f1218] relative"
+                            className="flex h-16 w-16 items-center justify-center rounded-[1.75rem] bg-slate-900 text-white shadow-[0_20px_40px_-5px_rgba(15,23,42,0.3)] ring-[6px] ring-white relative group overflow-hidden"
+                            transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         >
-                            <HiPlus className="h-8 w-8 sm:h-9 sm:w-9 text-white" strokeWidth={3} />
+                            {/* Animated Ripple Background */}
+                            <motion.div 
+                                className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                initial={false}
+                            />
+                            
+                            <HiPlus className="h-9 w-9 text-white relative z-10" strokeWidth={3} />
+                            
+                            {/* Glow Effect */}
+                            <motion.div 
+                                className="absolute inset-0 bg-gradient-to-tr from-blue-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+                            />
                         </motion.button>
+                        
+                        {/* Pulse Aura */}
+                        <motion.div 
+                            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
+                            transition={{ duration: 3, repeat: Infinity }}
+                            className="absolute inset-0 -z-10 bg-blue-500 rounded-full blur-2xl"
+                        />
                     </div>
 
                     {/* Right Group */}
-                    <div className="flex flex-1 justify-around items-center px-1">
+                    <div className="flex flex-1 justify-around items-center">
                         {navItems.slice(3).map((item) => {
                             const isActive = activeTab === item.id
                             const Icon = isActive ? (item.activeIcon || item.icon) : item.icon
@@ -170,27 +179,19 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                                 >
                                     <motion.div
                                         whileTap={{ scale: 0.9 }}
-                                        whileHover={{ y: -3 }}
                                         className="mb-1"
                                     >
                                         <Icon
-                                            className={`h-[28px] w-[28px] transition-all duration-300 ${isActive
-                                                ? 'text-[#FF2E63]'
-                                                : 'text-slate-400 group-hover:text-slate-100'
+                                            className={`h-[22px] w-[22px] transition-all duration-500 ${isActive
+                                                ? 'text-blue-600 scale-110'
+                                                : 'text-slate-400 group-hover:text-slate-600'
                                                 }`}
                                             strokeWidth={isActive ? 0 : 2}
                                         />
                                     </motion.div>
-                                    <span className={`text-[11px] font-bold tracking-tight transition-all duration-300 ${isActive ? 'text-white' : 'text-slate-400'}`}>
+                                    <span className={`text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
                                         {item.label}
                                     </span>
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="nav-pill"
-                                            className="absolute -bottom-1 h-1 w-1 rounded-full bg-[#FF2E63] shadow-[0_0_10px_rgba(255,46,99,0.8)]"
-                                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                                        />
-                                    )}
                                 </button>
                             )
                         })}

@@ -1,32 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { FiMenu, FiRefreshCw, FiPackage, FiSearch } from 'react-icons/fi'
+import { FiRefreshCw, FiPackage, FiSearch, FiPlus, FiArrowUpRight, FiMoreVertical } from 'react-icons/fi'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getSellerMyProducts } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
-import { fixImageUrl, getImageUrl } from '../../utils/image'
+import { fixImageUrl } from '../../utils/image'
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null || value === '') return '₹0'
   return `₹${Number(value).toLocaleString('en-IN')}`
-}
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.05 }
-  }
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { type: "spring", stiffness: 300, damping: 25 }
-  }
 }
 
 function SellerMyProducts() {
@@ -82,164 +65,117 @@ function SellerMyProducts() {
   }, [products, searchQuery])
 
   return (
-    <div className="min-h-screen spatial-bg text-white pb-[88px] md:pb-0 flex flex-col">
+    <div className="p-4 md:p-10 flex flex-col gap-10 max-w-7xl mx-auto w-full">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 glass-panel border-b border-white/5">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-4 sm:py-4">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => navigate('/seller/dashboard', { state: { openMenu: true } })}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/90 border border-white/10 md:hidden"
-            >
-              <FiMenu className="h-5 w-5" />
-            </motion.button>
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="inline-flex items-center gap-1 rounded-full bg-white/5 px-3.5 py-1.5 shadow-inner ring-1 ring-white/10 backdrop-blur-sm sm:gap-1.5 sm:px-4 sm:py-2">
-                <span className="text-sm font-bold tracking-tight text-white sm:text-base">BBHC</span>
-                <span className="text-sm font-bold text-rose-300 sm:text-base active-glow">Bazaar</span>
-              </div>
-            </div>
-          </div>
-          <span className="hidden text-[10px] font-black uppercase tracking-[0.3em] text-slate-200 sm:inline">
-            Inventory Management
-          </span>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">Asset Inventory</h1>
+          <p className="text-slate-500 font-bold text-lg mt-1 italic opacity-80">Catalog and manage your marketplace listings.</p>
         </div>
-      </header>
-
-      <main className="relative flex-1 mx-auto w-full max-w-md md:max-w-5xl px-4 pt-20 pb-6 sm:px-6 lg:px-0">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"
-        >
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tighter">My Products</h1>
-            <p className="text-[11px] sm:text-xs font-black text-slate-200 uppercase tracking-widest mt-1">
-              Active Listings: {ownedProducts.length}
-            </p>
-          </div>
-          <div className="flex gap-3 items-center">
-            <div className="relative group flex-1 sm:flex-none">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-rose-500 transition-colors" strokeWidth={2.5} />
-              <input
-                type="text"
-                placeholder="Search products..."
+        
+        <div className="flex items-center gap-4">
+           <div className="relative group flex-1 md:flex-none">
+              <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors w-5 h-5" />
+              <input 
+                type="text" 
+                placeholder="Locate an asset..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm text-white placeholder-slate-300 focus:outline-none focus:border-rose-500/30 focus:bg-white/10 transition-all w-full sm:w-72 shadow-inner"
+                className="bg-white border border-slate-200 rounded-2xl py-3.5 pl-14 pr-6 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/10 outline-none w-full md:w-64 transition-all shadow-sm"
               />
-            </div>
-            <motion.button
-              whileTap={{ scale: 0.9, rotate: 180 }}
-              disabled={loading}
-              onClick={() => setRefreshToken((prev) => prev + 1)}
-              className="p-3 rounded-2xl bg-white/5 border border-white/5 text-slate-400 hover:text-white transition-colors"
-            >
-              <FiRefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-            </motion.button>
-          </div>
-        </motion.div>
+           </div>
+           <button 
+             onClick={() => navigate('/seller/products/new')}
+             className="bg-slate-900 text-white p-4 rounded-2xl shadow-xl shadow-slate-900/10 hover:bg-black transition-all flex items-center justify-center gap-3 px-8 group active:scale-95"
+           >
+              <FiPlus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+              <span className="font-black text-xs tracking-[0.2em] hidden sm:inline">ADD ASSET</span>
+           </button>
+        </div>
+      </div>
 
-        {error && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-6 spatial-card border-rose-500/20 bg-rose-500/5 p-4 text-sm text-rose-400">
-            {error}
-          </motion.div>
-        )}
-
-        <AnimatePresence mode="popLayout">
-          {loading && ownedProducts.length === 0 ? (
-            <motion.div key="loading" className="grid grid-cols-1 gap-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-32 w-full animate-pulse rounded-[32px] bg-white/[0.03] border border-white/5" />
-              ))}
-            </motion.div>
-          ) : ownedProducts.length === 0 ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="spatial-card px-6 py-20 text-center flex flex-col items-center gap-4 opacity-50 grayscale"
-            >
-              <FiPackage className="h-12 w-12 text-rose-500/30" />
-              <p className="text-sm font-black uppercase tracking-widest">No products found</p>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="list"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className="grid grid-cols-1 gap-4"
-            >
-              {ownedProducts.map((product) => {
-                const quantity = product.quantity || product.stock || 0
-                return (
-                  <motion.div
-                    key={product.id || product._id}
-                    layout
-                    variants={itemVariants}
-                    whileHover={{ x: 8, backgroundColor: 'rgba(255,255,255,0.03)' }}
-                    className="spatial-card p-4 flex gap-5 items-center group cursor-pointer relative overflow-hidden"
-                    onClick={() => navigate(`/seller/products/${product.id || product._id}`, { state: { product } })}
-                  >
-                    {/* Glowing Accent on Hover */}
-                    <div className="absolute top-0 left-0 w-1 h-full bg-rose-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                    <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-slate-900 border border-white/5">
-                      {product.thumbnail ? (
-                        <img
-src={fixImageUrl(typeof product.thumbnail === 'string' ? product.thumbnail : product.thumbnail.preview)}
-                          alt={product.product_name}
-                          className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[10px] font-black uppercase text-slate-400">No Image</div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-black uppercase tracking-tighter text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded">
-                          #{product.categories?.[0] || 'Uncategorized'}
-                        </span>
+      {loading && ownedProducts.length === 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {[1,2,3,4,5,6].map(i => (
+            <div key={i} className="h-80 bg-slate-100 animate-pulse rounded-[2.5rem] border border-slate-200" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <AnimatePresence mode="popLayout">
+            {ownedProducts.length === 0 ? (
+              <div className="col-span-full py-32 text-center seller-card-premium border-dashed border-slate-300 bg-slate-50/50">
+                <FiPackage className="w-20 h-20 text-slate-200 mx-auto mb-6" />
+                <h3 className="text-2xl font-black text-slate-400 tracking-tight">Vault is Empty</h3>
+                <p className="text-slate-400 font-bold mt-2">Initialize your first marketplace entry above.</p>
+              </div>
+            ) : (
+              ownedProducts.map((product) => (
+                <motion.div
+                  key={product.id || product._id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="seller-card-premium group relative flex flex-col cursor-pointer overflow-hidden p-3"
+                  onClick={() => navigate(`/seller/products/${product.id || product._id}`, { state: { product } })}
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden rounded-[1.75rem] bg-slate-100 border border-slate-200/50">
+                    {product.thumbnail || product.image ? (
+                      <img 
+                        src={fixImageUrl(product.thumbnail || product.image)} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-200">
+                        <FiPackage className="w-16 h-16" />
                       </div>
-                      <h2 className="text-base font-bold text-white group-hover:text-rose-400 transition-colors truncate">
-                        {product.product_name}
-                      </h2>
-                      <div className="flex items-center gap-4 mt-2">
-                        <p className="text-sm font-bold text-white">
-                          {formatCurrency(product.selling_price)}
-                        </p>
-                        <div className="h-3 w-px bg-white/10" />
-                        <p className="text-xs font-bold text-slate-300">
-                          Stock: <span className={quantity > 5 ? 'text-slate-100' : 'text-amber-500'}>{quantity}</span>
-                        </p>
-                      </div>
+                    )}
+                    <div className="absolute top-4 left-4">
+                       <span className="bg-slate-900/40 backdrop-blur-md px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] text-white border border-white/20">
+                          {product.categories?.[0] || 'CLASSIFIED'}
+                       </span>
                     </div>
-
-                    <div className="flex flex-col items-end gap-2">
-                      <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          navigate(`/seller/products/${product.id || product._id}/edit`, { state: { product } })
-                        }}
-                        className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100"
-                      >
-                        <FiRefreshCw className="w-4 h-4" />
-                      </motion.button>
-                      <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest hidden sm:block">
-                        {product.updated_at ? new Date(product.updated_at).toLocaleDateString() : 'N/A'}
-                      </div>
+                  </div>
+                  
+                  <div className="p-6 flex flex-col flex-1">
+                    <div className="flex justify-between items-start mb-4">
+                       <h3 className="text-xl font-black text-slate-900 leading-tight group-hover:text-blue-600 transition-colors truncate flex-1 uppercase tracking-tight">{product.product_name}</h3>
+                       <button className="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-colors"><FiMoreVertical /></button>
                     </div>
-                  </motion.div>
-                )
-              })}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
+                    
+                    <div className="flex items-center justify-between mt-auto bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                       <div className="flex flex-col">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valuation</span>
+                          <span className="text-xl font-black text-slate-900 tracking-tight">{formatCurrency(product.selling_price)}</span>
+                       </div>
+                       <div className="text-right flex flex-col">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Availability</span>
+                          <div className="flex items-center gap-1.5 justify-end mt-1">
+                             <div className={`w-2.5 h-2.5 rounded-full shadow-sm animate-pulse ${product.quantity > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                             <span className={`text-[10px] font-black uppercase tracking-widest ${(product.quantity || 0) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {product.quantity > 0 ? 'In Stock' : 'Depleted'}
+                             </span>
+                          </div>
+                       </div>
+                    </div>
+                    
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-400 uppercase">QNTY:</span>
+                          <span className="text-xs font-black text-slate-800">{product.quantity || 0}</span>
+                       </div>
+                       <button className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] hover:text-blue-700 transition-colors">
+                          FULL SPECS <FiArrowUpRight className="w-4 h-4" />
+                       </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   )
 }

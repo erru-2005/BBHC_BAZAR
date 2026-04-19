@@ -1,8 +1,10 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useState, useEffect, Suspense, lazy } from 'react'
+import { useState, Suspense, lazy } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import SellerBottomNav from './SellerBottomNav'
 import SellerProfile from './SellerProfile'
+import SellerSidebar from './SellerSidebar'
+import SellerHeader from './SellerHeader'
 import { AnimatePresence, motion } from 'framer-motion'
 import { logout } from '../../../store/authSlice'
 import { clearDeviceToken } from '../../../utils/device'
@@ -22,9 +24,6 @@ export default function SellerLayout() {
     const navigate = useNavigate()
     const dispatch = useDispatch()
     const { user } = useSelector((state) => state.auth)
-
-    console.log('[SellerLayout] Current path:', location.pathname)
-    console.log('[SellerLayout] Current state:', location.state)
 
     const isDashboard = location.pathname === '/seller/dashboard'
     const isOrdersView = isDashboard && location.state?.view === 'orders'
@@ -61,18 +60,25 @@ export default function SellerLayout() {
     }
 
     return (
-        <div className="relative min-h-screen spatial-bg selection:bg-rose-500/30">
-            {/* Global Mesh Gradient / Glow */}
-            <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-rose-500/10 blur-[120px] rounded-full" />
-                <div className="absolute bottom-[10%] right-[-10%] w-[30%] h-[30%] bg-blue-500/10 blur-[100px] rounded-full" />
+        <div className="seller-theme min-h-screen flex">
+            {/* Desktop Sidebar */}
+            <SellerSidebar onOpenAddProduct={() => setIsAddingProduct(true)} />
+
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col md:ml-64 transition-all">
+                {/* Desktop Header */}
+                <div className="hidden md:block">
+                  <SellerHeader />
+                </div>
+
+                <main className="flex-1 flex flex-col">
+                    <Outlet />
+                    {/* Extra padding for mobile bottom nav */}
+                    <div className="h-28 md:hidden" />
+                </main>
             </div>
 
-            <main className="relative z-10">
-                <Outlet />
-            </main>
-
-            {/* Persistent Bottom Nav */}
+            {/* Persistent Bottom Nav (Mobile Only) */}
             <SellerBottomNav
                 showOrders={isOrdersView}
                 setShowOrders={handleSetShowOrders}

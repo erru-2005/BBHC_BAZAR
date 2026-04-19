@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
+import { FiPlus, FiBox } from 'react-icons/fi'
+import { motion } from 'framer-motion'
 import {
   createSellerProduct,
   updateSellerProduct,
@@ -250,235 +252,266 @@ function SellerProductForm({ initialProduct = null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-[#1e293b] rounded-3xl border border-white/5 shadow-xl p-6 space-y-6">
+    <form onSubmit={handleSubmit} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.1)] p-8 md:p-10 space-y-10">
       {status.type && status.message && (
-        <div
+        <motion.div
           id="seller-product-status"
-          className={`rounded-xl border px-4 py-3 text-sm font-medium ${status.type === 'success'
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-            : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-[1.25rem] border px-6 py-4 text-xs font-black uppercase tracking-widest flex items-center gap-3 ${status.type === 'success'
+            ? 'bg-emerald-50 border-emerald-100 text-emerald-600'
+            : 'bg-rose-50 border-rose-100 text-rose-600'
             }`}
         >
+          <div className={`w-2 h-2 rounded-full ${status.type === 'success' ? 'bg-emerald-600 animate-pulse' : 'bg-rose-600'}`} />
           {status.message}
-        </div>
+        </motion.div>
       )}
 
-      <div>
-        <label className="block text-sm font-black text-slate-100 mb-2">
-          Thumbnail Image <span className="text-rose-500">*</span>
-        </label>
-        <div className="relative">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleThumbnailChange}
-            className="w-full text-sm text-slate-300 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-black file:bg-white/10 file:text-white hover:file:bg-white/20 border border-dashed border-white/10 rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-rose-500/50 bg-[#0f172a]/50 placeholder-slate-400"
-            required={!isEditing}
-          />
-        </div>
-        {thumbnail && (
-          <div className="mt-3 relative h-48 w-full rounded-2xl overflow-hidden border border-white/10 group">
-            <img src={thumbnail.preview} alt="Thumbnail preview" className="h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+        <div className="space-y-4">
+          <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+            Visual Identity <span className="text-rose-500">*</span>
+          </label>
+          <div className="relative group">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleThumbnailChange}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              required={!isEditing}
+            />
+            <div className={`relative h-56 w-full rounded-[2.5rem] border-[3px] border-dashed transition-all duration-500 flex flex-col items-center justify-center p-6 overflow-hidden ${thumbnail ? 'border-blue-500/30 bg-blue-50/5' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200 hover:bg-white hover:shadow-xl'}`}>
+               {thumbnail ? (
+                  <img src={thumbnail.preview} alt="Thumbnail preview" className="absolute inset-0 h-full w-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+               ) : (
+                  <div className="text-center space-y-3">
+                     <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-slate-300 shadow-sm border border-slate-50 mx-auto">
+                        <FiBox className="w-6 h-6" />
+                     </div>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Upload Main Display</p>
+                  </div>
+               )}
+               <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                  <p className="text-white text-[10px] font-black uppercase tracking-[0.3em]">Update Thumbnail</p>
+               </div>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
 
-      <div>
-        <label className="block text-sm font-black text-slate-100 mb-2">
-          Gallery Images <span className="text-xs text-slate-400">(optional)</span>
-        </label>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleGalleryChange}
-          className="w-full text-sm text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20 border border-dashed border-white/10 rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-rose-500/50 bg-[#0f172a]/50"
-        />
-        {gallery.length > 0 && (
-          <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-3">
+        <div className="space-y-4">
+          <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+            Asset Gallery <span className="text-slate-300 font-bold">(optional)</span>
+          </label>
+          <div className="grid grid-cols-3 gap-3 h-56">
+            <div className="relative group border-2 border-dashed border-slate-100 rounded-[2rem] bg-slate-50/30 hover:bg-white hover:border-blue-200 transition-all flex items-center justify-center cursor-pointer overflow-hidden">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleGalleryChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                />
+                <FiPlus className="w-6 h-6 text-slate-300 group-hover:text-blue-500 transition-colors" />
+            </div>
             {gallery.map((image, index) => (
-              <div key={`${image.preview}-${index}`} className="relative h-20 rounded-xl overflow-hidden border border-white/10 bg-[#0f172a]">
-                <img src={image.preview} className="h-full w-full object-cover" alt={`Gallery ${index}`} />
+              <div key={`${image.preview}-${index}`} className="relative rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm group">
+                <img src={image.preview} className="h-full w-full object-cover transition-transform group-hover:scale-110" alt={`Gallery ${index}`} />
+                <div className="absolute inset-0 bg-slate-900/20 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             ))}
           </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-5">
-        <div>
-          <label className="block text-sm font-black text-slate-100 mb-2">
-            Product Name <span className="text-rose-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="productName"
-            value={form.productName}
-            onChange={handleChange}
-            className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition"
-            placeholder="Enter product name"
-            required
-          />
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-black text-slate-100 mb-2">
-          Category <span className="text-xs text-slate-400">(optional)</span>
-        </label>
-        <select
-          value={form.category}
-          name="category"
-          onChange={handleChange}
-          className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition appearance-none"
-        >
-          <option value="" className="text-slate-500">Select category</option>
-          {categories.map((category) => {
-            const categoryName = category.name || category
-            const categoryId = category.id || category._id || categoryName
-            const commissionRate = categoryCommissionRates[categoryName]
-            return (
-              <option key={categoryId} value={categoryName}>
-                {categoryName}{commissionRate ? ` (${commissionRate}% commission)` : ''}
-              </option>
-            )
-          })}
-        </select>
-      </div>
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-3">
+            <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+              Asset Designation <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="productName"
+              value={form.productName}
+              onChange={handleChange}
+              className="w-full px-6 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-bold placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+              placeholder="Enter product name"
+              required
+            />
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div>
-          <label className="block text-sm font-black text-slate-100 mb-2">
-            Selling Price (₹) <span className="text-rose-500">*</span>
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            name="sellingPrice"
-            value={form.sellingPrice}
-            onChange={handleChange}
-            className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition"
-            placeholder="Enter selling price"
-            required
-          />
-          {form.sellingPrice && (
-            <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-sm">
-              <div className="text-slate-300">
-                <span className="font-medium text-slate-200">Total Price (with commission):</span>{' '}
-                <span className="text-blue-400 font-bold">₹{calculateTotalPrice()}</span>
+          <div className="space-y-3">
+            <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+              Market Segment <span className="text-slate-300 font-bold">(optional)</span>
+            </label>
+            <div className="relative">
+              <select
+                value={form.category}
+                name="category"
+                onChange={handleChange}
+                className="w-full px-6 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner appearance-none"
+              >
+                <option value="" className="text-slate-400">SELECT CLASSIFICATION</option>
+                {categories.map((category) => {
+                  const categoryName = category.name || category
+                  const categoryId = category.id || category._id || categoryName
+                  const commissionRate = categoryCommissionRates[categoryName]
+                  return (
+                    <option key={categoryId} value={categoryName}>
+                      {categoryName.toUpperCase()} {commissionRate ? `[${commissionRate}% FEES]` : ''}
+                    </option>
+                  )
+                })}
+              </select>
+              <div className="absolute inset-y-0 right-6 flex items-center pointer-events-none text-slate-400">
+                <FiBox className="w-4 h-4 opacity-30" />
               </div>
-              {categoryCommissionRates[form.category] && (
-                <div className="text-xs text-slate-400 mt-1">
-                  Commission: {categoryCommissionRates[form.category]}%
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="space-y-4">
+            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
+              Valuation (₹) <span className="text-blue-600">*</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              name="sellingPrice"
+              value={form.sellingPrice}
+              onChange={handleChange}
+              className="w-full px-6 py-5 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-black placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+              placeholder="0.00"
+              required
+            />
+            {form.sellingPrice && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }} 
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50/30 border border-blue-100 rounded-[1.75rem] shadow-sm"
+              >
+                <div className="flex items-center justify-between">
+                   <div className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Listing Protocol Price</div>
+                   <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
                 </div>
-              )}
-            </div>
-          )}
+                <div className="text-2xl font-black text-slate-900 mt-1">₹{calculateTotalPrice()}</div>
+                <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Inclusive of commission & platform fees</p>
+              </motion.div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
+              Reference MRP (₹) <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              name="maxPrice"
+              value={form.maxPrice}
+              onChange={handleChange}
+              className="w-full px-6 py-5 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-black placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+              placeholder="0.00"
+              required
+            />
+          </div>
+
+          <div className="space-y-4">
+            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
+              Inventory Depth <span className="text-blue-600">*</span>
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              name="quantity"
+              value={form.quantity}
+              onChange={handleChange}
+              className="w-full px-6 py-5 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-black placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+              placeholder="Units available"
+              required
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-black text-slate-100 mb-2">
-            MRP / Max Price (₹) <span className="text-rose-500">*</span>
+        <div className="space-y-4">
+          <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
+            Technical Specification <span className="text-blue-600">*</span>
           </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            name="maxPrice"
-            value={form.maxPrice}
+          <textarea
+            name="specification"
+            value={form.specification}
             onChange={handleChange}
-            className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition"
-            placeholder="Enter MRP"
+            rows={6}
+            className="w-full px-6 py-6 bg-slate-50/50 border border-slate-100 rounded-[2.5rem] text-slate-900 font-medium placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner resize-none"
+            placeholder="Detailed asset characterization and technical parameters..."
             required
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-black text-slate-100 mb-2">
-            Quantity <span className="text-rose-500">*</span>
+        <div className="space-y-6">
+          <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+            Asset Highlights <span className="text-rose-500">*</span>
           </label>
-          <input
-            type="number"
-            min="1"
-            step="1"
-            name="quantity"
-            value={form.quantity}
-            onChange={handleChange}
-            className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition"
-            placeholder="Enter available quantity"
-            required
-          />
+          <div className="space-y-4">
+            {points.map((point, index) => (
+              <motion.div 
+                key={index} 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="flex items-center gap-4 group"
+              >
+                <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-[10px] font-black text-slate-400 border border-slate-100 shrink-0">
+                  {index + 1}
+                </div>
+                <input
+                  type="text"
+                  value={point}
+                  onChange={(event) => handlePointChange(index, event.target.value)}
+                  className="flex-1 px-6 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-800 font-bold placeholder:text-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+                  placeholder="Enter unique feature..."
+                />
+                {points.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePointField(index)}
+                    className="w-10 h-10 flex items-center justify-center text-rose-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                  >
+                    ✕
+                  </button>
+                )}
+              </motion.div>
+            ))}
+            <button
+              type="button"
+              onClick={handleAddPointField}
+              className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hover:bg-slate-50 hover:text-blue-600 hover:border-blue-100 transition-all flex items-center justify-center gap-3"
+            >
+              <FiPlus strokeWidth={3} /> ADD DIMENSION
+            </button>
+          </div>
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-black text-slate-100 mb-2">
-          Specification <span className="text-rose-500">*</span>
-        </label>
-        <textarea
-          name="specification"
-          value={form.specification}
-          onChange={handleChange}
-          rows={4}
-          className="w-full px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition resize-none"
-          placeholder="Describe the specification"
-          required
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-black text-slate-100 mb-2">
-          Highlights <span className="text-rose-500">*</span>
-        </label>
-        <div className="space-y-3">
-          {points.map((point, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <span className="mt-2 text-xs text-slate-500 w-4 text-right">{index + 1}.</span>
-              <input
-                type="text"
-                value={point}
-                onChange={(event) => handlePointChange(index, event.target.value)}
-                className="flex-1 px-4 py-3 bg-[#0f172a] border border-white/10 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-rose-500/50 focus:border-rose-500/50 outline-none transition"
-                placeholder="Enter a bullet point"
-              />
-              {points.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => handleRemovePointField(index)}
-                  className="p-2 text-xs text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
-                  title="Remove this point"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={handleAddPointField}
-            className="inline-flex items-center px-4 py-2 rounded-xl border border-dashed border-white/20 text-xs font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
-          >
-            + Add another point
-          </button>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-3 pt-4">
+      <div className="flex flex-col sm:flex-row gap-5 pt-8">
         <button
           type="submit"
           disabled={submitting}
-          className="flex-1 py-3.5 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-500 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-rose-500/50 transition-all disabled:opacity-60 shadow-lg shadow-rose-900/20"
+          className="flex-1 py-6 bg-slate-900 text-white text-[11px] font-black uppercase tracking-[0.3em] rounded-[1.5rem] hover:bg-black active:scale-[0.98] transition-all disabled:opacity-50 shadow-2xl shadow-slate-900/20"
         >
-          {submitting ? (isEditing ? 'Updating…' : 'Saving…') : isEditing ? 'Update Product' : 'Save Product'}
+          {submitting ? (isEditing ? 'TRANSMITTING...' : 'INITIALIZING...') : isEditing ? 'COMMIT UPDATES' : 'DEPLOY ASSET'}
         </button>
         <button
           type="button"
           onClick={() => navigate('/seller/products')}
-          className="py-3.5 px-6 border border-white/10 rounded-xl text-slate-300 hover:bg-white/5 hover:text-white transition-colors font-medium"
+          className="px-10 py-6 border border-slate-100 bg-slate-50/50 text-slate-400 text-[11px] font-black uppercase tracking-[0.3em] rounded-[1.5rem] hover:bg-white hover:text-slate-900 transition-all"
         >
-          Cancel
+          ABORT
         </button>
       </div>
     </form>

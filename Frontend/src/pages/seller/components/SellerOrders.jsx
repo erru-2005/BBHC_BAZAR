@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { FiSearch, FiPackage, FiChevronRight, FiCalendar, FiHash, FiMoreHorizontal, FiBox, FiRefreshCw, FiXCircle } from 'react-icons/fi'
 import { motion, AnimatePresence } from 'framer-motion'
+import { FiSearch, FiPackage, FiBox, FiRefreshCw, FiXCircle, FiArrowUpRight } from 'react-icons/fi'
 import { getOrders } from '../../../services/api'
 import { initSocket } from '../../../utils/socket'
-import { getImageUrl } from '../../../utils/image'
+import { fixImageUrl } from '../../../utils/image'
 
 function SellerOrders() {
   const { user, token } = useSelector((state) => state.auth)
@@ -34,11 +34,7 @@ function SellerOrders() {
     const socket = initSocket(token)
     socket.on('new_order', (orderData) => {
       if (orderData.seller_id && String(orderData.seller_id) === String(user.id)) {
-        setOrders((prev) => {
-          const exists = prev.find((o) => o.id === orderData.id)
-          if (exists) return prev
-          return [orderData, ...prev]
-        })
+        setOrders((prev) => [orderData, ...prev])
       }
     })
     socket.on('order_updated', (orderData) => {
@@ -57,162 +53,144 @@ function SellerOrders() {
     return true
   })
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
-  }
+  const formatCurrency = (val) => `₹${Number(val || 0).toLocaleString('en-IN')}`
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { type: 'spring', damping: 25, stiffness: 400 } }
-  }
-
-  const formatCurrency = (val) => Number(val || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-
-  const getStatusDisplay = (status) => {
+  const getStatusStyle = (status) => {
     const s = status || 'pending'
-    const isDelivered = ['handed_over', 'completed', 'delivered'].includes(s)
-    const isCancelled = ['cancelled', 'rejected', 'seller_rejected'].includes(s)
-    const isPending = ['pending_seller', 'seller_accepted', 'pending', 'accepted'].includes(s)
-    
-    if (isDelivered) return { label: 'Delivered', styles: 'text-emerald-500 font-black' }
-    if (isCancelled) return { label: 'Cancelled', styles: 'text-rose-500 font-black' }
-    if (isPending) return { label: 'Processing', styles: 'text-amber-500 font-black' }
-    return { label: s.replace('_', ' '), styles: 'text-blue-500 font-black' }
+    if (['handed_over', 'completed', 'delivered'].includes(s)) return 'bg-emerald-50 text-emerald-600'
+    if (['cancelled', 'rejected', 'seller_rejected'].includes(s)) return 'bg-rose-50 text-rose-600'
+    return 'bg-blue-50 text-blue-600'
   }
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-      className="pb-32 pt-4 px-4 sm:px-0"
-    >
-      {/* Search & Title Header */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col gap-10">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-2">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">My Orders</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter leading-none uppercase font-outfit">
+             Order <span className="text-blue-600">Pipeline</span>
+          </h2>
+          <p className="text-sm font-bold text-slate-500 mt-2 uppercase tracking-[0.3em] opacity-80">
+             Monitoring <span className="text-slate-900 font-black">{filteredOrders.length}</span> active fulfillments
+          </p>
         </div>
-        <motion.button 
-          whileTap={{ scale: 0.9 }}
-          className="w-10 h-10 rounded-full bg-slate-900 border border-white/5 flex items-center justify-center text-slate-400"
-        >
-          <FiSearch className="w-5 h-5" />
-        </motion.button>
+        
+        <div className="relative group max-w-sm w-full">
+          <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-all w-5 h-5" />
+          <input 
+            type="text" 
+            placeholder="LOCATE TRANSMISSION..." 
+            className="bg-white border-2 border-slate-50 rounded-[2rem] py-5 pl-16 pr-8 text-[11px] font-black tracking-widest text-slate-900 focus:ring-8 focus:ring-blue-500/5 focus:border-blue-500 outline-none w-full shadow-xl shadow-slate-200/50 transition-all placeholder:text-slate-200"
+          />
+        </div>
       </div>
 
-      {/* Compact Filter Grid for Mobile visibility */}
-      <div className="grid grid-cols-2 gap-3 mb-8">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 p-2 bg-slate-50 rounded-[2.5rem] border border-slate-100/50 backdrop-blur-sm">
         {[
-          { id: 'all', label: 'All Orders', icon: FiBox, color: 'text-blue-400', count: orders.length },
-          { id: 'pending', label: 'Processing', icon: FiRefreshCw, color: 'text-amber-400', count: orders.filter(o => ['pending_seller', 'seller_accepted', 'pending', 'accepted'].includes(o.status)).length },
-          { id: 'delivered', label: 'Delivered', icon: FiPackage, color: 'text-emerald-400', count: orders.filter(o => ['handed_over', 'completed', 'delivered'].includes(o.status)).length },
-          { id: 'cancelled', label: 'Cancelled', icon: FiXCircle, color: 'text-rose-400', count: orders.filter(o => ['cancelled', 'seller_rejected', 'rejected'].includes(o.status)).length }
-        ].map((f) => {
-          const isActive = statusFilter === f.id;
-          const Icon = f.icon;
-          return (
-            <motion.button
-              key={f.id}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setStatusFilter(f.id)}
-              className={`flex items-center gap-3 p-3.5 rounded-2xl border transition-all duration-300 ${
-                isActive 
-                ? 'bg-[#FF2E63] border-[#FF2E63] shadow-lg shadow-rose-500/20 text-white' 
-                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10'
-              }`}
-            >
-              <div className={`p-2 rounded-xl shrink-0 ${isActive ? 'bg-white/20' : 'bg-slate-900 border border-white/5'}`}>
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : f.color}`} />
-              </div>
-              <div className="flex flex-col items-start min-w-0">
-                <span className="text-[12px] font-bold tracking-tight truncate">{f.label}</span>
-              </div>
-              <div className={`ml-auto px-2 py-0.5 rounded-md text-[10px] font-bold ${isActive ? 'bg-white text-rose-500' : 'bg-white/10 text-slate-300'}`}>
-                {f.count}
-              </div>
-            </motion.button>
-          );
-        })}
+          { id: 'all', label: 'Complete Archive', icon: FiBox, color: 'blue' },
+          { id: 'pending', label: 'Active Tasks', icon: FiRefreshCw, color: 'amber' },
+          { id: 'delivered', label: 'Finalized', icon: FiPackage, color: 'emerald' },
+          { id: 'cancelled', label: 'Annulled', icon: FiXCircle, color: 'rose' }
+        ].map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setStatusFilter(f.id)}
+            className={`flex items-center gap-3 px-8 py-4 rounded-[1.75rem] transition-all duration-500 border ${
+              statusFilter === f.id 
+                ? 'bg-white text-blue-600 shadow-xl shadow-blue-500/10 border-white' 
+                : 'text-slate-400 border-transparent hover:text-slate-900'
+            }`}
+          >
+            <f.icon className={`w-5 h-5 transition-transform ${statusFilter === f.id ? 'scale-110' : ''}`} />
+            <span className="font-black text-xs uppercase tracking-widest">{f.label}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Loading Indicator (Non-blocking) */}
-      {loading && orders.length > 0 && (
-        <div className="absolute top-4 right-6 z-50">
-          <div className="w-5 h-5 rounded-full border-2 border-slate-500 border-t-[#FF2E63] animate-spin" />
-        </div>
-      )}
-
-      {loading && orders.length === 0 ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-12 h-12 rounded-full border-4 border-slate-800 border-t-[#FF2E63] animate-spin shadow-[0_0_20px_rgba(255,46,99,0.2)]" />
-        </div>
-      ) : (
-        <div className="space-y-6">
+      {/* Orders List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <AnimatePresence mode="popLayout">
           {filteredOrders.length === 0 ? (
-            <div className="text-center py-24 opacity-30">
-              <FiPackage className="w-14 h-14 mx-auto mb-6 text-slate-700" />
-              <p className="text-xs font-black uppercase tracking-[0.3em]">No Assets Found</p>
+            <div className="col-span-full py-24 text-center seller-card-premium border-dashed border-slate-300 bg-slate-50 opacity-60">
+              <FiPackage className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-xs">Awaiting new transmissions</p>
             </div>
           ) : (
             filteredOrders.map((order) => (
               <motion.div
                 key={order.id}
-                variants={itemVariants}
-                className="bg-[#0f1218]/80 backdrop-blur-xl rounded-[2.5rem] p-6 sm:p-8 border border-white/5 shadow-2xl relative"
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="seller-card-premium p-8 group relative overflow-hidden"
               >
-                {/* Header Information */}
-                <div className="flex justify-between items-start mb-6">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Identifier</p>
-                    <h4 className="font-black text-white text-lg tracking-tight">Order No: {order.orderNumber?.split('-').pop()}</h4>
+                {/* Decorative glow */}
+                <div className={`absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-10 ${getStatusStyle(order.status).includes('emerald') ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+
+                <div className="flex justify-between items-start mb-8 relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm border border-blue-100">
+                       <FiBox className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-slate-900 leading-none uppercase tracking-tight text-lg">
+                        {order.orderNumber ? `ORDER REF: ${order.orderNumber.split('-').pop()}` : (order.id || order._id) ? `REF: ${(order.id || order._id).toString().slice(-6).toUpperCase()}` : 'ORDER-TKN-NEW'}
+                      </h4>
+                      <p className="text-[11px] font-black text-slate-500 mt-2 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                        Recorded {order.createdAt ? new Date(order.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) : 'PROCESSING'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Entry Date</p>
-                    <span className="text-sm font-bold text-slate-200">{new Date(order.createdAt).toLocaleDateString()}</span>
-                  </div>
+                  <span className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] shadow-sm border ${getStatusStyle(order.status)} animate-pulse-slow`}>
+                    {order.status ? order.status.replace(/_/g, ' ') : 'PENDING'}
+                  </span>
                 </div>
 
-                {/* Body Content */}
-                <div className="space-y-4 mb-8">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Tracking Number</span>
-                    <span className="text-xs font-bold text-[#FF2E63]/90 tracking-wider truncate border-b border-[#FF2E63]/20 pb-1">{order.id || 'GEN-000-XX'}</span>
-                  </div>
+                <div className="flex items-center gap-5 mb-8 p-5 bg-slate-50/50 backdrop-blur-sm rounded-[2rem] border border-white/80 shadow-inner group-hover:bg-slate-50 transition-colors">
+                   <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-slate-100 flex-shrink-0 shadow-sm transition-transform group-hover:scale-105">
+                      {order.product?.image || order.product?.thumbnail ? (
+                        <img src={fixImageUrl(order.product.image || order.product.thumbnail)} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-200"><FiPackage className="w-8 h-8" /></div>
+                      )}
+                   </div>
+                   <div className="flex-1 min-w-0">
+                      <h5 className="font-black text-sm text-slate-800 truncate uppercase tracking-tight">{order.product?.product_name || order.product?.name || 'ASSET ITEM'}</h5>
+                      <p className="text-xs text-slate-500 font-bold mt-1 opacity-80">{order.quantity} UNIT(S) × {formatCurrency(order.unitPrice || (order.total_amount / order.quantity))}</p>
+                   </div>
+                   <div className="text-right">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VALUATION</p>
+                      <p className="font-black text-slate-900 text-lg tracking-tight">{formatCurrency(order.total_amount)}</p>
+                   </div>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center justify-between pt-6 border-t border-slate-100/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 overflow-hidden border border-white shadow-sm">
+                      {order.user?.image ? (
+                         <img src={fixImageUrl(order.user.image)} className="w-full h-full object-cover" />
+                      ) : (
+                         order.user?.name?.charAt(0) || 'C'
+                      )}
+                    </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Quantity</span>
-                      <span className="text-sm font-bold text-white">{order.quantity} Units</span>
-                    </div>
-                    <div className="flex flex-col text-right">
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Total Valuation</span>
-                      <span className="text-sm font-black text-white">{formatCurrency(order.total_amount || (order.quantity * (order.unitPrice || 0)))}</span>
+                       <span className="text-xs font-black text-slate-700 uppercase tracking-tight">{order.user?.name || 'CLIENT'}</span>
+                       <span className="text-[9px] font-bold text-slate-400 uppercase border-b border-blue-200/50 w-fit">Verified User</span>
                     </div>
                   </div>
-                </div>
-
-                {/* Footer Controls */}
-                <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                  <motion.button 
-                    whileTap={{ scale: 0.95 }}
-                    className="px-8 py-3 rounded-2xl bg-slate-900 border border-white/5 text-[11px] font-black uppercase tracking-widest text-slate-200 hover:bg-slate-800 transition-colors"
-                  >
-                    Details
-                  </motion.button>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full animate-pulse ${getStatusDisplay(order.status).styles.includes('emerald') ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                    <span className={`text-[11px] uppercase underline underline-offset-4 tracking-[0.1em] ${getStatusDisplay(order.status).styles}`}>
-                      {getStatusDisplay(order.status).label}
-                    </span>
-                  </div>
+                  <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-slate-900/10 hover:bg-slate-800 active:scale-95 transition-all">
+                    MANAGE <FiArrowUpRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </motion.div>
             ))
           )}
-        </div>
-      )}
-    </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
   )
 }
 

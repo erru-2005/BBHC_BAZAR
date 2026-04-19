@@ -26,6 +26,36 @@ body {
   background-color: #020617;
   color: #f8fafc;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: background-color 0.3s ease;
+}
+
+:root {
+  --seller-bg: #F0F2F5;
+  --seller-sidebar: rgba(255, 255, 255, 0.85);
+  --seller-card: #FFFFFF;
+  --seller-text-main: #0F172A;
+  --seller-text-secondary: #475569;
+  --seller-text-muted: #94A3B8;
+  --seller-primary: #2563EB;
+  --seller-primary-soft: #EFF6FF;
+  --seller-accent: #3A81F1;
+  --seller-border: #E2E8F0;
+  --seller-radius-lg: 2rem;
+  --seller-radius-md: 1.25rem;
+  --seller-shadow-premium: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --seller-glass: rgba(255, 255, 255, 0.7);
+}
+
+.seller-theme {
+  background-color: var(--seller-bg);
+  color: var(--seller-text-main);
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+}
+
+.seller-theme h1, .seller-theme h2, .seller-theme h3, .seller-theme h4 {
+  font-family: 'Outfit', sans-serif;
+  color: var(--seller-text-main);
 }
 
 /* Spatial UI Utility Classes */
@@ -44,15 +74,66 @@ body {
     0 2px 4px -1px rgba(0, 0, 0, 0.1);
 }
 
-.glass-panel {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.seller-glass-panel {
+  background: var(--seller-glass);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-.active-glow {
-  /* Removed text shadow to eliminate heavy shine */
+.seller-card-premium {
+  background: white;
+  border-radius: var(--seller-radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: var(--seller-shadow-premium);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.seller-card-premium:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 40px 80px -20px rgba(15, 23, 42, 0.12);
+  border-color: rgba(37, 99, 235, 0.1);
+}
+
+.glass-premium {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+}
+
+.text-gradient-premium {
+  background: linear-gradient(135deg, #0F172A 0%, #2563EB 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glow-premium {
+  position: relative;
+}
+
+.glow-premium::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(45deg, #2563EB, #6366F1, #2563EB);
+  filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.5s;
+  z-index: -1;
+  border-radius: inherit;
+}
+
+.glow-premium:hover::after {
+  opacity: 0.15;
+}
+
+.font-outfit {
+  font-family: 'Outfit', sans-serif;
+}
+
+.font-inter {
+  font-family: 'Inter', sans-serif;
 }
 
 .text-professional {
@@ -61,8 +142,64 @@ body {
   line-height: 1.5;
 }
 
-.text-outfit {
-  font-family: 'Outfit', sans-serif;
+/* Premium Light Background Pattern */
+.premium-grid-bg {
+  background-color: #f8fafc;
+  background-image: 
+    linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Luxury Shimmer Effect */
+.shimmer-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-effect::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  transition: none;
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+/* Professional Card Hover */
+.seller-card-premium {
+  background: white;
+  border-radius: var(--seller-radius-lg);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  box-shadow: 
+    0 4px 6px -1px rgba(15, 23, 42, 0.03),
+    0 2px 4px -2px rgba(15, 23, 42, 0.03);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.seller-card-premium:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 
+    0 25px 50px -12px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(37, 99, 235, 0.05);
+  border-color: rgba(37, 99, 235, 0.1);
+}
+
+.active-glow-blue {
+  box-shadow: 0 0 20px -5px rgba(37, 99, 235, 0.4);
 }
 
 /* Visibility Utilities */
@@ -91,20 +228,20 @@ body {
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: #E2E8F0;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #CBD5E1;
 }
 
 #root {
