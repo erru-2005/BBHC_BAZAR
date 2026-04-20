@@ -13,7 +13,7 @@ export default function SellerHeader() {
           <input 
             type="text" 
             placeholder="Search analytics, inventory..." 
-            className="w-full bg-slate-100/50 hover:bg-slate-100 border-none rounded-2xl py-3 pl-14 pr-6 text-[13px] font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all outline-none shadow-inner"
+            className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-14 pr-6 text-sm md:text-base font-bold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-blue-500 transition-all outline-none shadow-sm"
           />
         </div>
       </div>
@@ -28,10 +28,10 @@ export default function SellerHeader() {
 
         <div className="flex items-center gap-4 cursor-pointer group">
           <div className="text-right flex flex-col hidden lg:flex">
-            <span className="text-[13px] font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">
+            <span className="text-sm md:text-base font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">
               {user?.trade_id || user?.name || 'Seller Account'}
             </span>
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mt-0.5 opacity-80">PRO PARTNER</span>
+            <span className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mt-1 opacity-90">PRO PARTNER</span>
           </div>
           <div className="w-11 h-11 rounded-2xl overflow-hidden bg-slate-100 border-2 border-white shadow-md transition-all group-hover:scale-105 group-hover:shadow-lg group-hover:border-blue-50">
             {user?.image_url || user?.image ? (

@@ -22,25 +22,6 @@ export default defineConfig({
       }
     })
   ],
-<<<<<<< HEAD
-    server: {
-      host: '0.0.0.0',
-      port: 5173,
-      allowedHosts: true,
-      proxy: {
-        '/api': {
-          target: 'http://127.0.0.1:5001',
-          changeOrigin: true
-        },
-        '/socket.io': {
-          target: 'http://127.0.0.1:5001',
-          ws: true
-        },
-        '/static': {
-          target: 'http://127.0.0.1:5001',
-          changeOrigin: true
-        }
-=======
   server: {
     host: '0.0.0.0',
     port: 5173,
@@ -58,7 +39,6 @@ export default defineConfig({
       '/static': {
         target: 'http://127.0.0.1:5001',
         changeOrigin: true
->>>>>>> cf4fb976a4477244d6372e80a710ea06e88271aa
       }
     }
   },

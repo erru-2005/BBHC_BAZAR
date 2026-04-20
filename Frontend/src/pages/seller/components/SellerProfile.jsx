@@ -192,18 +192,27 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                         variants={childVariants}
                                         className="relative z-10 mt-20 flex flex-col items-center"
                                     >
-                                        <div className="w-32 h-32 sm:w-44 sm:h-44 rounded-full p-1.5 bg-gradient-to-tr from-blue-600 via-indigo-500 to-blue-600 shadow-2xl relative">
-                                            <div className="w-full h-full rounded-full border-[8px] border-[#F8FAFC] bg-white flex items-center justify-center overflow-hidden relative group shadow-inner">
+                                        <div className="w-40 h-40 sm:w-56 sm:h-56 rounded-full p-2 bg-gradient-to-tr from-blue-600 via-indigo-400 to-blue-600 shadow-2xl relative group/profile">
+                                            {/* Outer Ring Decoration */}
+                                            <div className="absolute inset-0 rounded-full border-4 border-blue-500/20 group-hover/profile:border-blue-500/40 transition-colors" />
+                                            
+                                            <div className="w-full h-full rounded-full border-[6px] border-[#F8FAFC] bg-white flex items-center justify-center overflow-hidden relative shadow-inner">
                                                 <AnimatePresence>
                                                     {isUploading && (
                                                         <motion.div 
                                                             initial={{ opacity: 0 }}
                                                             animate={{ opacity: 1 }}
                                                             exit={{ opacity: 0 }}
-                                                            className="absolute inset-0 z-20 bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center gap-2"
+                                                            className="absolute inset-0 z-20 bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center gap-3"
                                                         >
-                                                            <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
-                                                            <span className="text-[9px] font-black text-white uppercase tracking-widest">Encrypting...</span>
+                                                            <div className="relative">
+                                                                <div className="w-12 h-12 border-4 border-blue-500/20 rounded-full" />
+                                                                <div className="absolute top-0 w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                                            </div>
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] animate-pulse">Uploading</span>
+                                                                <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest mt-1">Syncing Asset</span>
+                                                            </div>
                                                         </motion.div>
                                                     )}
                                                 </AnimatePresence>
@@ -212,13 +221,18 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                                     <img 
                                                         src={fixImageUrl(previewUrl || user.image_url || user.image)} 
                                                         alt="Avatar" 
-                                                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                                                        className="w-full h-full object-cover transition-all duration-700 group-hover/profile:scale-110 group-hover/profile:rotate-1" 
                                                     />
                                                 ) : (
-                                                    <span className="text-5xl sm:text-7xl font-black text-blue-100 uppercase font-outfit">
-                                                        {user?.trade_id?.charAt(0).toUpperCase() || 'S'}
-                                                    </span>
+                                                    <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                                                        <span className="text-6xl sm:text-8xl font-black text-blue-100 uppercase font-outfit select-none">
+                                                            {user?.trade_id?.charAt(0).toUpperCase() || 'S'}
+                                                        </span>
+                                                    </div>
                                                 )}
+
+                                                {/* Hover Overlay */}
+                                                <div className="absolute inset-0 bg-blue-600/0 group-hover/profile:bg-blue-600/10 transition-colors duration-500" />
                                             </div>
                                         </div>
                                         

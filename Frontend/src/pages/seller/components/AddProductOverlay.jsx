@@ -33,7 +33,7 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                 initial={{ 
                     scale: 0.1, 
                     opacity: 0, 
-                    borderRadius: "100px",
+                    borderRadius: "9999px",
                     y: 100 
                 }}
                 animate={{ 
@@ -45,10 +45,10 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                 exit={{ 
                     scale: 0.1, 
                     opacity: 0, 
-                    borderRadius: "100px",
+                    borderRadius: "9999px",
                     y: 100 
                 }}
-                className="relative w-full h-[100vh] sm:h-auto sm:max-w-4xl sm:max-h-[90vh] bg-white sm:rounded-[4rem] shadow-[0_60px_100px_-20px_rgba(15,23,42,0.4)] border-t sm:border border-slate-100 overflow-hidden pointer-events-auto flex flex-col"
+                className="relative w-full h-[100dvh] sm:h-auto sm:max-w-4xl sm:max-h-[85vh] bg-white sm:rounded-[4rem] shadow-[0_60px_100px_-20px_rgba(15,23,42,0.4)] border-t sm:border border-slate-100 overflow-hidden pointer-events-auto flex flex-col pt-safe-top"
                 transition={{
                     type: "spring",
                     stiffness: 280,
@@ -61,7 +61,7 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1, duration: 0.5 }}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between px-8 py-8 border-b border-slate-50 bg-white/60 backdrop-blur-2xl sticky top-0 z-20 gap-6"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between px-8 pt-16 pb-8 sm:py-8 border-b border-slate-50 bg-white/60 backdrop-blur-2xl sticky top-0 z-20 gap-6"
                 >
                     <div className="space-y-1">
                         <div className="flex items-center gap-4 flex-wrap">

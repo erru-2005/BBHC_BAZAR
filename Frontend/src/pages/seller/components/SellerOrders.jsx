@@ -12,26 +12,47 @@ function SellerOrders() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSynced, setIsSynced] = useState(false)
+  const [isFallback, setIsFallback] = useState(false)
+
+  const DUMMY_ORDERS = [
+    { id: '1', orderNumber: 'BB-9821', status: 'pending', createdAt: new Date().toISOString(), total_amount: 1250, quantity: 1, product: { name: 'Titanium Edge-01', thumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30' }, user: { name: 'Alex Rivera' } },
+    { id: '2', orderNumber: 'BB-7742', status: 'delivered', createdAt: new Date().toISOString(), total_amount: 3400, quantity: 2, product: { name: 'Nebula Core X', thumbnail: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e' }, user: { name: 'Sarah Chen' } },
+    { id: '3', orderNumber: 'BB-1109', status: 'pending', createdAt: new Date().toISOString(), total_amount: 890, quantity: 1, product: { name: 'Onyx Series Box', thumbnail: 'https://images.unsplash.com/photo-1526170315870-ef6815fd3326' }, user: { name: 'Marcus Thorne' } }
+  ]
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await getOrders()
+      const orderList = Array.isArray(data?.orders) ? data.orders : Array.isArray(data) ? data : []
+      setOrders(orderList)
+      setIsSynced(true)
+      setIsFallback(false)
+    } catch (err) {
+      setError(err.message || 'TRANSMISSION TIMEOUT')
+      setIsSynced(false)
+      // Auto-fallback for visual integrity
+      setOrders(DUMMY_ORDERS)
+      setIsFallback(true)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true)
-        const data = await getOrders()
-        const orderList = Array.isArray(data?.orders) ? data.orders : Array.isArray(data) ? data : []
-        setOrders(orderList)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
     if (user?.id) fetchOrders()
   }, [user?.id])
 
   useEffect(() => {
     if (!token || !user?.id) return
     const socket = initSocket(token)
+    
+    socket.on('connect', () => setIsSynced(true))
+    socket.on('disconnect', () => setIsSynced(false))
+
     socket.on('new_order', (orderData) => {
       if (orderData.seller_id && String(orderData.seller_id) === String(user.id)) {
         setOrders((prev) => [orderData, ...prev])
@@ -46,11 +67,19 @@ function SellerOrders() {
   }, [token, user])
 
   const filteredOrders = orders.filter(o => {
-    if (statusFilter === 'all') return true
-    if (statusFilter === 'pending') return ['pending_seller', 'seller_accepted', 'pending', 'accepted'].includes(o.status)
-    if (statusFilter === 'delivered') return ['handed_over', 'completed', 'delivered'].includes(o.status)
-    if (statusFilter === 'cancelled') return ['cancelled', 'seller_rejected', 'rejected'].includes(o.status)
-    return true
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'pending' && ['pending_seller', 'seller_accepted', 'pending', 'accepted'].includes(o.status)) ||
+      (statusFilter === 'delivered' && ['handed_over', 'completed', 'delivered'].includes(o.status)) ||
+      (statusFilter === 'cancelled' && ['cancelled', 'seller_rejected', 'rejected'].includes(o.status))
+    
+    const searchLow = searchQuery.toLowerCase()
+    const matchesSearch = !searchQuery || 
+      (o.orderNumber?.toLowerCase().includes(searchLow)) ||
+      (o.user?.name?.toLowerCase().includes(searchLow)) ||
+      (o.product?.product_name?.toLowerCase().includes(searchLow)) ||
+      (o.id?.toString().includes(searchLow))
+
+    return matchesStatus && matchesSearch
   })
 
   const formatCurrency = (val) => `₹${Number(val || 0).toLocaleString('en-IN')}`
@@ -63,24 +92,34 @@ function SellerOrders() {
   }
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-10 px-2 md:px-4">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-2">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-10 pt-4 pb-4 px-3 md:px-6">
         <div>
-          <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter leading-none uppercase font-outfit">
-             Order <span className="text-blue-600">Pipeline</span>
-          </h2>
-          <p className="text-sm font-bold text-slate-500 mt-2 uppercase tracking-[0.3em] opacity-80">
+          <div className="flex items-center gap-3 mb-3">
+            <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter leading-none uppercase font-outfit">
+               Order <span className="text-blue-600">Pipeline</span>
+            </h2>
+            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-all border ${
+              isSynced ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isFallback ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isSynced ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : isFallback ? 'bg-amber-500' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
+              {isSynced ? 'Live Sync' : isFallback ? 'Simulated Data' : 'Disconnected'}
+            </div>
+          </div>
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-[0.3em] opacity-80">
              Monitoring <span className="text-slate-900 font-black">{filteredOrders.length}</span> active fulfillments
           </p>
         </div>
         
         <div className="relative group max-w-sm w-full">
-          <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-all w-5 h-5" />
+          <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-all w-5 h-5" />
           <input 
             type="text" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="LOCATE TRANSMISSION..." 
-            className="bg-white border-2 border-slate-50 rounded-[2rem] py-5 pl-16 pr-8 text-[11px] font-black tracking-widest text-slate-900 focus:ring-8 focus:ring-blue-500/5 focus:border-blue-500 outline-none w-full shadow-xl shadow-slate-200/50 transition-all placeholder:text-slate-200"
+            className="bg-slate-50/50 border-2 border-slate-200 rounded-[2rem] py-5 pl-16 pr-8 text-xs md:text-sm font-black tracking-widest text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-blue-600 outline-none w-full shadow-lg shadow-slate-200/40 transition-all placeholder:text-slate-400"
           />
         </div>
       </div>
@@ -109,9 +148,44 @@ function SellerOrders() {
       </div>
 
       {/* Orders List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative min-h-[400px]">
         <AnimatePresence mode="popLayout">
-          {filteredOrders.length === 0 ? (
+          {loading ? (
+            // Shimmer Loading States
+            [1, 2, 3, 4].map((i) => (
+              <div key={`shimmer-${i}`} className="seller-card-premium p-8 animate-pulse">
+                <div className="flex justify-between mb-8">
+                  <div className="flex gap-4">
+                    <div className="w-12 h-12 bg-slate-100 rounded-2xl" />
+                    <div className="space-y-2">
+                       <div className="w-32 h-4 bg-slate-100 rounded-full" />
+                       <div className="w-20 h-3 bg-slate-50 rounded-full" />
+                    </div>
+                  </div>
+                  <div className="w-24 h-8 bg-slate-100 rounded-xl" />
+                </div>
+                <div className="w-full h-24 bg-slate-50 rounded-[2rem] mb-8" />
+                <div className="flex justify-between items-center pt-6 border-t border-slate-50">
+                  <div className="w-24 h-8 bg-slate-100 rounded-full" />
+                  <div className="w-20 h-10 bg-slate-100 rounded-xl" />
+                </div>
+              </div>
+            ))
+          ) : error ? (
+            <div className="col-span-full py-24 text-center seller-card-premium border-dashed border-rose-200 bg-rose-50/30 flex flex-col items-center">
+              <div className="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center text-rose-500 mb-6 shadow-sm">
+                <FiRefreshCw className="w-10 h-10 animate-spin-slow" />
+              </div>
+              <h3 className="text-xl font-black text-rose-900 uppercase tracking-tighter mb-2">Transmission Interrupted</h3>
+              <p className="text-rose-500/70 font-bold uppercase tracking-[0.2em] text-[10px] mb-8 max-w-xs">{error}</p>
+              <button 
+                onClick={fetchOrders}
+                className="px-8 py-3 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-lg shadow-rose-600/20 hover:bg-rose-700 transition-all active:scale-95 flex items-center gap-2"
+              >
+                RETRY CONNECTION <FiTrendingUp className="w-4 h-4 rotate-90" />
+              </button>
+            </div>
+          ) : filteredOrders.length === 0 ? (
             <div className="col-span-full py-24 text-center seller-card-premium border-dashed border-slate-300 bg-slate-50 opacity-60">
               <FiPackage className="w-16 h-16 text-slate-300 mx-auto mb-4" />
               <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-xs">Awaiting new transmissions</p>

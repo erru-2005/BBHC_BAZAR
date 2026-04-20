@@ -197,16 +197,16 @@ def get_sellers():
 @api_bp.route('/sellers/<seller_id>', methods=['PUT'])
 @jwt_required()
 def update_seller(seller_id):
-    """Update a seller (only masters can update)"""
+    """Update a seller (Masters can update any, Sellers can update themselves)"""
     try:
         # Get current user info from JWT token
         current_user_id = get_jwt_identity()
         claims = get_jwt()
         current_user_type = claims.get('user_type')
         
-        # Only masters can update sellers
-        if current_user_type != 'master':
-            return jsonify({'error': 'Only masters can update sellers'}), 403
+        # Security check: Only masters OR the seller themselves can update
+        if current_user_type != 'master' and str(current_user_id) != str(seller_id):
+            return jsonify({'error': 'Unauthorized. Only masters or the account owner can update this profile.'}), 403
         
         data = request.get_json()
         if not data:
@@ -218,8 +218,12 @@ def update_seller(seller_id):
             return jsonify({'error': 'Seller not found'}), 404
         
         # Prepare update data (only allow certain fields to be updated)
-        allowed_fields = ['email', 'phone_number', 'first_name', 'last_name', 'is_active']
+        allowed_fields = ['email', 'phone_number', 'first_name', 'last_name', 'is_active', 'image_url']
         update_data = {k: v for k, v in data.items() if k in allowed_fields}
+        
+        # Support 'image' key from frontend as 'image_url'
+        if 'image' in data and 'image_url' not in update_data:
+            update_data['image_url'] = data['image']
         
         # Validate email if provided
         if 'email' in update_data and not validate_email(update_data['email']):
@@ -457,16 +461,16 @@ def get_outlet_men():
 @api_bp.route('/outlet_men/<outlet_man_id>', methods=['PUT'])
 @jwt_required()
 def update_outlet_man(outlet_man_id):
-    """Update an outlet man (only masters can update)"""
+    """Update an outlet man (Masters can update any, OutletMen can update themselves)"""
     try:
         # Get current user info from JWT token
         current_user_id = get_jwt_identity()
         claims = get_jwt()
         current_user_type = claims.get('user_type')
         
-        # Only masters can update outlet men
-        if current_user_type != 'master':
-            return jsonify({'error': 'Only masters can update outlet men'}), 403
+        # Security check: Only masters OR the outlet man themselves can update
+        if current_user_type != 'master' and str(current_user_id) != str(outlet_man_id):
+            return jsonify({'error': 'Unauthorized. Only masters or the account owner can update this profile.'}), 403
         
         data = request.get_json()
         if not data:
@@ -478,8 +482,12 @@ def update_outlet_man(outlet_man_id):
             return jsonify({'error': 'Outlet man not found'}), 404
         
         # Prepare update data (only allow certain fields to be updated)
-        allowed_fields = ['email', 'phone_number', 'first_name', 'last_name', 'is_active']
+        allowed_fields = ['email', 'phone_number', 'first_name', 'last_name', 'is_active', 'image_url']
         update_data = {k: v for k, v in data.items() if k in allowed_fields}
+        
+        # Support 'image' key from frontend as 'image_url'
+        if 'image' in data and 'image_url' not in update_data:
+            update_data['image_url'] = data['image']
         
         # Validate email if provided
         if 'email' in update_data and not validate_email(update_data['email']):

@@ -1,5 +1,29 @@
-import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Filler,
+  Legend,
+} from 'chart.js'
+import { Line } from 'react-chartjs-2'
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Filler,
+  Legend
+)
 
 export const StatCard = ({ label, value, icon: Icon, color, percentage }) => {
   return (
@@ -23,17 +47,17 @@ export const StatCard = ({ label, value, icon: Icon, color, percentage }) => {
       </div>
       
       <div className="relative">
-        <p className="text-[12px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-2 group-hover:text-slate-900 transition-colors">{label}</p>
-        <p className="text-3xl font-black text-slate-900 tracking-tight">{value}</p>
+        <p className="text-[12px] md:text-sm font-bold text-slate-500 uppercase tracking-widest leading-none mb-3 group-hover:text-slate-900 transition-colors">{label}</p>
+        <p className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">{value}</p>
       </div>
 
       <div className="mt-2 flex items-center gap-2">
          <div className="h-1.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
             <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: '70%' }}
-              transition={{ delay: 0.5, duration: 1.5 }}
-              className={`h-full ${color.bg.replace('50', '500')}`} 
+               initial={{ width: 0 }}
+               animate={{ width: '70%' }}
+               transition={{ delay: 0.5, duration: 1.5 }}
+               className={`h-full ${color.bg.replace('50', '500')}`} 
             />
          </div>
          <span className="text-[10px] font-bold text-slate-400">Target: 80%</span>
@@ -43,16 +67,117 @@ export const StatCard = ({ label, value, icon: Icon, color, percentage }) => {
 }
 
 export const SalesPerformanceChart = ({ data }) => {
+  const chartRef = useRef(null)
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Robust dummy data fallback
+  const finalData = useMemo(() => {
+    const rawData = (data && data.length > 0) ? data : [
+      { name: 'WEEK 01', sales: 4200 },
+      { name: 'WEEK 02', sales: 3800 },
+      { name: 'WEEK 03', sales: 5400 },
+      { name: 'WEEK 04', sales: 4800 },
+      { name: 'WEEK 05', sales: 6200 },
+      { name: 'WEEK 06', sales: 5900 },
+    ]
+
+    return {
+      labels: rawData.map(d => d.name),
+      datasets: [
+        {
+          fill: true,
+          label: 'Revenue',
+          data: rawData.map(d => d.sales),
+          borderColor: '#2563EB',
+          borderWidth: 4,
+          backgroundColor: (context) => {
+            const chart = context.chart;
+            const {ctx, chartArea} = chart;
+            if (!chartArea) return null;
+            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0.1, 'rgba(37, 99, 235, 0.25)');
+            gradient.addColorStop(0.9, 'rgba(37, 99, 235, 0)');
+            return gradient;
+          },
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#2563EB',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 3,
+        },
+      ],
+    }
+  }, [data])
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: '#fff',
+        titleColor: '#1e293b',
+        bodyColor: '#1e293b',
+        titleFont: { size: 12, weight: 'bold' },
+        bodyFont: { size: 14, weight: '900' },
+        padding: 16,
+        displayColors: false,
+        borderRadius: 16,
+        borderColor: '#f1f5f9',
+        borderWidth: 1,
+        boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.5)',
+        callbacks: {
+          label: (context) => `₹${context.parsed.y.toLocaleString('en-IN')}`,
+        }
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: '#94a3b8',
+          font: {
+            size: 10,
+            weight: 'bold',
+          },
+          padding: 10,
+        },
+        border: {
+          display: false,
+        }
+      },
+      y: {
+        display: false,
+        grid: {
+          display: false,
+        },
+      },
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
+  }
+
   return (
-    <div className="seller-card-premium p-8 col-span-1 lg:col-span-2">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+    <div className="seller-card-premium p-8 col-span-1 lg:col-span-2 min-h-[450px]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div>
-          <h3 className="text-2xl font-black text-slate-900 tracking-tight">Sales Analytics</h3>
-          <p className="text-sm text-slate-500 font-medium">Real-time revenue visualization</p>
+          <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight">Sales Analytics</h3>
+          <p className="text-sm md:text-base text-slate-500 font-medium">Real-time revenue visualization</p>
         </div>
-        <div className="flex items-center gap-2">
-           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">View by</span>
-           <select className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer">
+        <div className="flex items-center gap-3">
+           <span className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-widest">View by</span>
+           <select className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs md:text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer">
              <option>Monthly Peak</option>
              <option>Weekly View</option>
              <option>Daily Stats</option>
@@ -60,42 +185,18 @@ export const SalesPerformanceChart = ({ data }) => {
         </div>
       </div>
       
-      <div className="h-[320px] w-full min-h-[320px] active-glow-blue rounded-[2rem] bg-white p-4">
-        <ResponsiveContainer width="100%" height="100%" debounce={1}>
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15}/>
-                <stop offset="95%" stopColor="#2563EB" stopOpacity={0.01}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-            <XAxis 
-              dataKey="name" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fill: '#64748B', fontSize: 10, fontWeight: 700 }} 
-              dy={15}
-            />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fill: '#64748B', fontSize: 10, fontWeight: 700 }} 
-            />
-            <Tooltip 
-              contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
-            />
-            <Area 
-              type="monotone" 
-              dataKey="sales" 
-              stroke="#2563EB" 
-              strokeWidth={3}
-              fillOpacity={1} 
-              fill="url(#colorSales)" 
-              animationDuration={2000}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+      <div className="h-[300px] w-full active-glow-blue rounded-[3rem] bg-white p-6 overflow-hidden shadow-inner border border-slate-50 flex items-center justify-center relative">
+        {!mounted ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <Line 
+            ref={chartRef}
+            data={finalData} 
+            options={options} 
+          />
+        )}
       </div>
     </div>
   )

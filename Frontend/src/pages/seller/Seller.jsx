@@ -137,28 +137,32 @@ function Seller() {
 
   const recentOrders = orders.slice(0, 5)
 
-  if (showOrders) return <div className="p-8"><SellerOrders /></div>
+  if (showOrders) return <div className="p-4 md:p-12 max-w-7xl mx-auto w-full"><SellerOrders /></div>
 
   return (
-    <div className="p-4 md:p-8 flex flex-col gap-10 max-w-7xl mx-auto w-full">
+    <div className="p-4 md:p-12 flex flex-col gap-10 max-w-7xl mx-auto w-full">
       {/* Welcome Header */}
-      <section className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-4">
+      <section className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-10">
         <motion.div 
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
+           initial={{ opacity: 0, x: -30 }}
+           animate={{ opacity: 1, x: 0 }}
            transition={{ duration: 0.8, ease: "easeOut" }}
-           className="space-y-4"
+           className="space-y-6"
         >
-          <div className="flex items-center gap-3">
-             <span className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase tracking-[0.2em] border border-blue-100 shadow-sm">Merchant Tier 01</span>
-             <div className="h-1 w-8 bg-slate-200 rounded-full" />
+          <div className="flex items-center gap-4">
+             <span className="px-5 py-2.5 bg-blue-50 text-blue-600 rounded-full text-xs md:text-sm font-black uppercase tracking-[0.3em] border border-blue-100 shadow-sm">Merchant Tier 01</span>
+             <div className="h-[2px] w-16 bg-gradient-to-r from-blue-600 to-transparent rounded-full" />
           </div>
-          <div>
-            <h1 className="text-4xl md:text-5xl font-black text-slate-900 leading-[1.1] tracking-tighter uppercase font-outfit">
-              Strategic <span className="text-blue-600">Commander</span>
+          <div className="relative group overflow-visible">
+            <h1 className="text-4xl md:text-7xl font-black text-slate-900 leading-[1.05] tracking-tighter uppercase font-outfit">
+              Welcome Back,<br /> 
+              <span className="inline-block mt-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-400 to-blue-600 animate-shimmer-text">
+                {user?.full_name || 'BAZAR001'}
+              </span>
             </h1>
-            <p className="text-sm font-bold text-slate-500 mt-2 uppercase tracking-[0.3em] opacity-80">
-               Orchestrating <span className="text-slate-900 font-black">{user?.full_name || 'Protocol Owner'}</span>'s commerce empire
+            <p className="text-xs md:text-sm font-black text-slate-400 mt-8 uppercase tracking-[0.4em] opacity-80 flex items-center gap-4">
+               <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.8)] animate-pulse" />
+               Current Protocol Status: <span className="text-slate-900 font-bold">EXCELLENCE OPERATIONAL</span>
             </p>
           </div>
         </motion.div>
@@ -269,31 +273,39 @@ function Seller() {
 
       {/* Recent Orders Table */}
       <section className="seller-card-premium p-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Recent Orders</h3>
-            <p className="text-sm text-slate-500 font-medium">Real-time order synchronization active</p>
+            <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight">Recent Orders</h3>
+            <p className="text-sm md:text-base text-slate-500 font-medium font-serif italic">Real-time order synchronization active</p>
           </div>
-          <div className="flex items-center gap-3">
-             <div className="flex -space-x-2">
-                {[1,2,3].map(i => (
-                  <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200" />
+          <div className="flex items-center gap-4">
+             <div className="flex -space-x-3 transition-all hover:space-x-1">
+                {recentOrders.slice(0, 3).map((order) => (
+                  <div key={order.id} className="w-12 h-12 rounded-full border-4 border-white bg-slate-50 overflow-hidden shadow-md">
+                    {order.user?.image ? (
+                       <img src={fixImageUrl(order.user.image)} className="w-full h-full object-cover" />
+                    ) : (
+                       <div className="w-full h-full flex items-center justify-center bg-blue-50 text-blue-600 text-xs font-black uppercase">
+                        {order.user?.name?.charAt(0) || 'U'}
+                       </div>
+                    )}
+                  </div>
                 ))}
              </div>
-             <p className="text-xs font-bold text-slate-400">+12 active now</p>
+             <p className="text-xs md:text-sm font-bold text-slate-400">+{orders.length} orders analyzed</p>
           </div>
         </div>
 
         <div className="overflow-x-auto -mx-2">
           <table className="w-full text-left border-separate border-spacing-y-4">
             <thead>
-              <tr className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                <th className="px-4">Reference</th>
-                <th className="px-4">Customer Details</th>
-                <th className="px-4">Order Date</th>
-                <th className="px-4">Pricing</th>
-                <th className="px-4">Fulfillment</th>
-                <th className="px-4 text-center">Trace</th>
+              <tr className="text-xs md:text-sm font-black text-slate-500 uppercase tracking-[0.2em]">
+                <th className="px-6 py-4">Reference</th>
+                <th className="px-6 py-4">Customer Details</th>
+                <th className="px-6 py-4">Order Date</th>
+                <th className="px-6 py-4">Pricing</th>
+                <th className="px-4 py-4">Fulfillment</th>
+                <th className="px-6 py-4 text-center">Trace</th>
               </tr>
             </thead>
             <tbody>
@@ -323,8 +335,8 @@ function Seller() {
                           )}
                         </div>
                         <div className="flex flex-col">
-                           <span className="text-sm font-black text-slate-800 leading-tight uppercase tracking-tight">{order.user?.name || 'Guest User'}</span>
-                           <span className="text-[10px] font-bold text-slate-400">Regular Buyer</span>
+                           <span className="text-sm md:text-base font-black text-slate-800 leading-tight uppercase tracking-tight">{order.user?.name || 'Guest User'}</span>
+                           <span className="text-[11px] md:text-xs font-bold text-slate-400">Regular Buyer</span>
                         </div>
                       </div>
                     </td>
@@ -333,13 +345,13 @@ function Seller() {
                         {new Date(order.createdAt).toLocaleDateString()}
                       </span>
                     </td>
-                    <td className="px-4 py-4 bg-white border-y border-slate-50 group-hover:border-blue-100">
-                      <span className="text-sm font-black text-slate-900 tracking-tight">
+                    <td className="px-6 py-6 bg-white border-y border-slate-50 group-hover:border-blue-100">
+                      <span className="text-sm md:text-base font-black text-slate-900 tracking-tight">
                         {formatCurrency(order.total_amount)}
                       </span>
                     </td>
-                    <td className="px-4 py-4 bg-white border-y border-slate-50 group-hover:border-blue-100">
-                      <span className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest ${statusStyle}`}>
+                    <td className="px-6 py-6 bg-white border-y border-slate-50 group-hover:border-blue-100">
+                      <span className={`px-4 py-2 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-widest ${statusStyle}`}>
                         {status.replace('_', ' ')}
                       </span>
                     </td>

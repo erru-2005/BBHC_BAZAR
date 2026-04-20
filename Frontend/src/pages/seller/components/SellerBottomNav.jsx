@@ -86,10 +86,10 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                         <path
                             fill="currentColor"
                             d="M0,15 
-                               H130 
-                               C140,15 148,27 158,37 
-                               C168,47 199,47 209,37 
-                               C219,27 227,15 237,15 
+                               H142.5 
+                               C152.5,15 157.5,25 162.5,35 
+                               C172.5,45 202.5,45 212.5,35 
+                               C217.5,25 222.5,15 232.5,15 
                                H375 
                                V88 
                                H0 
@@ -100,7 +100,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
 
                 <div className="relative flex h-full w-full items-center pb-2 z-10 px-4">
                     {/* Left Group */}
-                    <div className="flex flex-1 justify-around items-center">
+                    <div className="flex flex-1 justify-around items-center pr-10">
                         {navItems.slice(0, 2).map((item) => {
                             const isActive = activeTab === item.id
                             const Icon = isActive ? (item.activeIcon || item.icon) : item.icon
@@ -134,6 +134,8 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                     <div className="absolute left-1/2 -translate-x-1/2 -top-10 flex w-20 justify-center shrink-0 z-20">
                         <motion.button
                             layoutId="add-product-fab"
+                            initial={{ borderRadius: "9999px" }}
+                            animate={{ borderRadius: "9999px" }}
                             whileTap={{ scale: 0.9, rotate: -90 }}
                             whileHover={{ 
                                 scale: 1.15, 
@@ -141,7 +143,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                                 boxShadow: "0 25px 40px -10px rgba(15, 23, 42, 0.4)" 
                             }}
                             onClick={onOpenAddProduct}
-                            className="flex h-16 w-16 items-center justify-center rounded-[1.75rem] bg-slate-900 text-white shadow-[0_20px_40px_-5px_rgba(15,23,42,0.3)] ring-[6px] ring-white relative group overflow-hidden"
+                            className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-white shadow-[0_20px_40px_-5px_rgba(15,23,42,0.3)] ring-[6px] ring-white relative group overflow-hidden"
                             transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         >
                             {/* Animated Ripple Background */}
@@ -167,7 +169,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                     </div>
 
                     {/* Right Group */}
-                    <div className="flex flex-1 justify-around items-center">
+                    <div className="flex flex-1 justify-around items-center pl-10">
                         {navItems.slice(3).map((item) => {
                             const isActive = activeTab === item.id
                             const Icon = isActive ? (item.activeIcon || item.icon) : item.icon

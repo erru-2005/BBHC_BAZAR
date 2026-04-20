@@ -60,7 +60,7 @@ export default function SellerSidebar({ onOpenAddProduct }) {
                 <div className={`transition-all duration-300 ${active ? 'scale-110' : 'group-hover:scale-110'}`}>
                    <item.icon className="w-5 h-5" />
                 </div>
-                <span className={`font-bold text-[13px] tracking-tight uppercase ${active ? 'text-slate-900' : ''}`}>{item.label}</span>
+                <span className={`font-bold text-[14px] md:text-[15px] tracking-tight uppercase ${active ? 'text-slate-900' : ''}`}>{item.label}</span>
                 
                 {active && (
                   <motion.div 
@@ -83,11 +83,10 @@ export default function SellerSidebar({ onOpenAddProduct }) {
         </div>
 
         <motion.button
-          layoutId="add-product-fab"
           whileHover={{ scale: 1.05, boxShadow: "0 20px 40px -10px rgba(37, 99, 235, 0.4)" }}
           whileTap={{ scale: 0.95 }}
           onClick={onOpenAddProduct}
-          className="w-full relative group h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center gap-4 text-white shadow-xl shadow-blue-500/20 transition-all overflow-hidden"
+          className="w-full relative group h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center gap-4 text-white shadow-xl shadow-blue-500/20 transition-all overflow-hidden"
         >
            {/* Animated Shine Effect */}
            <motion.div 
@@ -102,7 +101,7 @@ export default function SellerSidebar({ onOpenAddProduct }) {
              <FiPlus className="w-4 h-4" strokeWidth={3} />
            </motion.div>
            
-           <span className="font-black text-[11px] tracking-[0.2em] uppercase">Add Listing</span>
+           <span className="font-black text-[13px] tracking-[0.2em] uppercase">Add Listing</span>
         </motion.button>
       </div>
     </aside>

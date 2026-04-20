@@ -226,6 +226,16 @@ body {
   scrollbar-width: none;
 }
 
+@keyframes textShimmer {
+  0% { background-position: 100% 0%; }
+  100% { background-position: -100% 0%; }
+}
+
+.animate-shimmer-text {
+  background-size: 200% auto;
+  animation: textShimmer 3s linear infinite;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
