@@ -4,7 +4,7 @@ Order service encapsulating MongoDB operations for customer orders.
 import random
 import secrets
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 from app import mongo
@@ -31,7 +31,7 @@ class OrderService:
     @staticmethod
     def generate_order_number():
         """Generate a human-friendly order number."""
-        timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
         random_suffix = random.randint(100, 999)
         return f"BBHC-{timestamp}-{random_suffix}"
 
@@ -63,7 +63,7 @@ class OrderService:
                 },
                 {
                     '$inc': {'quantity': -quantity},
-                    '$set': {'updated_at': datetime.utcnow()}
+                    '$set': {'updated_at': datetime.now(timezone.utc)}
                 }
             )
             if result.matched_count > 0:
@@ -89,7 +89,7 @@ class OrderService:
                 {'_id': product_obj_id},
                 {
                     '$inc': {'quantity': quantity},
-                    '$set': {'updated_at': datetime.utcnow()}
+                    '$set': {'updated_at': datetime.now(timezone.utc)}
                 }
             )
             if result.matched_count > 0:
@@ -115,15 +115,15 @@ class OrderService:
             order_data['seller_id'] = OrderService._ensure_object_id(order_data['seller_id'])
         if order_data.get('outlet_id'):
             order_data['outlet_id'] = OrderService._ensure_object_id(order_data['outlet_id'])
-        order_data['created_at'] = datetime.utcnow()
-        order_data['updated_at'] = datetime.utcnow()
+        order_data['created_at'] = datetime.now(timezone.utc)
+        order_data['updated_at'] = datetime.now(timezone.utc)
         order_data['status'] = order_data.get('status', 'pending_seller')
         
         # Initialize status history
         if 'status_history' not in order_data:
             order_data['status_history'] = [{
                 'status': order_data['status'],
-                'timestamp': datetime.utcnow(),
+                'timestamp': datetime.now(timezone.utc),
                 'note': 'Order created'
             }]
 
@@ -200,7 +200,7 @@ class OrderService:
         status_history = current_order.status_history or []
         status_history.append({
             'status': status,
-            'timestamp': datetime.utcnow(),
+            'timestamp': datetime.now(timezone.utc),
             'note': note or f'Status changed to {status}',
             'updated_by': updated_by
         })
@@ -210,7 +210,7 @@ class OrderService:
             {
                 '$set': {
                     'status': status,
-                    'updated_at': datetime.utcnow(),
+                    'updated_at': datetime.now(timezone.utc),
                     'status_history': status_history
                 }
             }
@@ -282,12 +282,12 @@ class OrderService:
                     'secure_token_user': user_token,
                     'secure_token_seller': seller_token,
                     'qr_code_data': qr_data_user,
-                    'updated_at': datetime.utcnow()
+                    'updated_at': datetime.now(timezone.utc)
                 },
                 '$push': {
                     'status_history': {
                         'status': 'seller_accepted',
-                        'timestamp': datetime.utcnow(),
+                        'timestamp': datetime.now(timezone.utc),
                         'note': 'Seller accepted the order',
                         'updated_by': f'seller:{seller_id}'
                     }
@@ -334,12 +334,12 @@ class OrderService:
                     'status': 'seller_rejected',
                     'rejection_reason': reason.strip(),
                     'rejected_by': f'seller:{seller_id}',
-                    'updated_at': datetime.utcnow()
+                    'updated_at': datetime.now(timezone.utc)
                 },
                 '$push': {
                     'status_history': {
                         'status': 'seller_rejected',
-                        'timestamp': datetime.utcnow(),
+                        'timestamp': datetime.now(timezone.utc),
                         'note': f'Seller rejected: {reason.strip()}',
                         'updated_by': f'seller:{seller_id}'
                     }
@@ -384,7 +384,7 @@ class OrderService:
                     updates['$push'] = {
                         'status_history': {
                             'status': 'handed_over',
-                            'timestamp': datetime.utcnow(),
+                            'timestamp': datetime.now(timezone.utc),
                             'note': 'Seller handed over product at outlet',
                             'updated_by': f'seller:{scanner_id}'
                         }
@@ -401,7 +401,7 @@ class OrderService:
                     updates['$push'] = {
                         'status_history': {
                             'status': 'completed',
-                            'timestamp': datetime.utcnow(),
+                            'timestamp': datetime.now(timezone.utc),
                             'note': 'User collected product and completed order',
                             'updated_by': f'user:{scanner_id}'
                         }
@@ -421,7 +421,7 @@ class OrderService:
                     updates['$push'] = {
                         'status_history': {
                             'status': 'handed_over',
-                            'timestamp': datetime.utcnow(),
+                            'timestamp': datetime.now(timezone.utc),
                             'note': 'Outlet confirmed seller handed over',
                             'updated_by': f'outlet:{scanner_id}'
                         }
@@ -433,7 +433,7 @@ class OrderService:
                     updates['$push'] = {
                         'status_history': {
                             'status': 'completed',
-                            'timestamp': datetime.utcnow(),
+                            'timestamp': datetime.now(timezone.utc),
                             'note': 'Outlet confirmed user collected',
                             'updated_by': f'outlet:{scanner_id}'
                         }
@@ -446,7 +446,7 @@ class OrderService:
 
             # Remove $push from updates for $set
             push_data = updates.pop('$push', None)
-            updates['updated_at'] = datetime.utcnow()
+            updates['updated_at'] = datetime.now(timezone.utc)
 
             update_doc = {'$set': updates}
             if push_data:
@@ -501,12 +501,12 @@ class OrderService:
                     'cancellation_code': cancellation_code,
                     'rejection_reason': reason.strip(),
                     'rejected_by': f'master:{master_id}',
-                    'updated_at': datetime.utcnow()
+                    'updated_at': datetime.now(timezone.utc)
                 },
                 '$push': {
                     'status_history': {
                         'status': 'cancelled_master',
-                        'timestamp': datetime.utcnow(),
+                        'timestamp': datetime.now(timezone.utc),
                         'note': f'Cancelled by master (confirmation: {confirmation_code}, reason: {reason.strip()})',
                         'updated_by': f'master:{master_id}'
                     }

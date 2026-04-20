@@ -1,8 +1,8 @@
 """
 Device token utility for remembering devices
 """
-from datetime import datetime, timedelta
-from bson import ObjectId
+from datetime import datetime, timezone, timedelta
+
 from app import mongo
 
 
@@ -35,7 +35,7 @@ class DeviceTokenManager:
         token = secrets.token_urlsafe(32)
         
         # Calculate expiry (2 weeks from now)
-        expires_at = datetime.utcnow() + timedelta(days=DeviceTokenManager.TOKEN_EXPIRY_DAYS)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=DeviceTokenManager.TOKEN_EXPIRY_DAYS)
         
         # Store device token
         device_token_data = {
@@ -44,8 +44,8 @@ class DeviceTokenManager:
             'device_id': device_id,
             'token': token,
             'expires_at': expires_at,
-            'created_at': datetime.utcnow(),
-            'last_used_at': datetime.utcnow()
+            'created_at': datetime.now(timezone.utc),
+            'last_used_at': datetime.now(timezone.utc)
         }
         
         # Check if device token already exists for this user and device
@@ -63,7 +63,7 @@ class DeviceTokenManager:
                     '$set': {
                         'token': token,
                         'expires_at': expires_at,
-                        'last_used_at': datetime.utcnow()
+                        'last_used_at': datetime.now(timezone.utc)
                     }
                 }
             )
@@ -100,7 +100,12 @@ class DeviceTokenManager:
                 return False, "Device token not found"
             
             # Check if expired
-            if datetime.utcnow() > device_token['expires_at']:
+            now = datetime.now(timezone.utc)
+            expires_at = device_token['expires_at']
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+                
+            if now > expires_at:
                 # Delete expired token
                 mongo.db.device_tokens.delete_one({'_id': device_token['_id']})
                 return False, "Device token has expired"
@@ -108,7 +113,7 @@ class DeviceTokenManager:
             # Update last used time
             mongo.db.device_tokens.update_one(
                 {'_id': device_token['_id']},
-                {'$set': {'last_used_at': datetime.utcnow()}}
+                {'$set': {'last_used_at': datetime.now(timezone.utc)}}
             )
             
             return True, None
@@ -140,7 +145,12 @@ class DeviceTokenManager:
                 return False
             
             # Check if expired
-            if datetime.utcnow() > device_token['expires_at']:
+            now = datetime.now(timezone.utc)
+            expires_at = device_token['expires_at']
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+                
+            if now > expires_at:
                 # Delete expired token
                 mongo.db.device_tokens.delete_one({'_id': device_token['_id']})
                 return False
@@ -180,7 +190,7 @@ class DeviceTokenManager:
         """Clean up expired device tokens"""
         try:
             result = mongo.db.device_tokens.delete_many({
-                'expires_at': {'$lt': datetime.utcnow()}
+                'expires_at': {'$lt': datetime.now(timezone.utc)}
             })
             return result.deleted_count
         except Exception:

@@ -5,26 +5,32 @@ import { useState, useEffect } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import 'react-loading-skeleton/dist/skeleton.css'
 import { getMasters } from '../../../services/api'
+import { useDispatch, useSelector } from 'react-redux'
+import { setMastersData, setMastersLoading } from '../../../store/masterSlice'
 
 function ListMasters() {
-  const [masters, setMasters] = useState([])
-  const [loading, setLoading] = useState(true)
+  const dispatch = useDispatch()
+  const { masters, loading: masterLoading, lastFetched } = useSelector(state => state.master)
+  
+  const loading = masterLoading.masters
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchMasters()
-  }, [])
+    if (!lastFetched.masters || masters.length === 0) {
+      fetchMasters()
+    }
+  }, [masters.length, lastFetched.masters])
 
   const fetchMasters = async () => {
     try {
-      setLoading(true)
+      dispatch(setMastersLoading({ field: 'masters', loading: true }))
       setError(null)
       const data = await getMasters()
-      setMasters(data)
+      dispatch(setMastersData({ field: 'masters', data: data || [] }))
     } catch (err) {
       setError(err.message || 'Failed to fetch masters')
     } finally {
-      setLoading(false)
+      dispatch(setMastersLoading({ field: 'masters', loading: false }))
     }
   }
 

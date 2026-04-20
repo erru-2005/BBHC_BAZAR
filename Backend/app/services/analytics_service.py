@@ -2,7 +2,7 @@
 Analytics Service - Computes analytics data from database
 """
 from app import mongo
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 from collections import defaultdict
 
@@ -692,7 +692,7 @@ class AnalyticsService:
     @staticmethod
     def _get_date_filter(period='monthly'):
         """Get date filter based on period"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         if period == 'daily':
             start_date = now - timedelta(days=30)

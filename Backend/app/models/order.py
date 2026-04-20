@@ -1,7 +1,7 @@
 """
 Order model for MongoDB persistence
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 
@@ -74,8 +74,8 @@ class Order:
         self.rejection_reason = rejection_reason
         self.rejected_by = rejected_by
         self.metadata = metadata or {}
-        self.created_at = created_at or datetime.utcnow()
-        self.updated_at = updated_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.updated_at = updated_at or datetime.now(timezone.utc)
 
     def to_dict(self):
         """Return a JSON-serializable representation."""

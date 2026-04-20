@@ -52,12 +52,30 @@ class Config:
     SOCKETIO_CORS_ALLOWED_ORIGINS = CORS_ORIGINS
     SOCKETIO_ASYNC_MODE = 'threading'  # Changed from 'eventlet' for Python 3.13 compatibility
     
-    # JWT Configuration
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or SECRET_KEY
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
-    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
+    # JWT Configuration - STRICT RS256 ENFORCED
+    JWT_ALGORITHM = 'RS256'
     
-    # File Upload Configuration
+    _private_key_path = os.path.join(BASE_DIR, 'private.pem')
+    _public_key_path = os.path.join(BASE_DIR, 'public.pem')
+    
+    if os.path.exists(_private_key_path) and os.path.exists(_public_key_path):
+        with open(_private_key_path, 'r') as f:
+            JWT_PRIVATE_KEY = f.read()
+        with open(_public_key_path, 'r') as f:
+            JWT_PUBLIC_KEY = f.read()
+    else:
+        # If keys are missing, we raise an error to prevent silent fallback to insecure methods
+        print("[CRITICAL] RSA keys (private.pem/public.pem) not found! Strict RS256 cannot be enforced.")
+        # We don't set JWT_SECRET_KEY here to ensure HS256 cannot be used by accident
+        pass
+        
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    
+    # Cookie Configuration
+    JWT_TOKEN_LOCATION = ['headers', 'cookies']
+    JWT_ACCESS_COOKIE_NAME = 'access_token'
+    JWT_COOKIE_SECURE = False  # Set to False because the app uses port forwarding over HTTP
+    JWT_COOKIE_CSRF_PROTECT = False  # Disable CSRF initially for API compatibility
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
     

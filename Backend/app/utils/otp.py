@@ -3,7 +3,7 @@ OTP utility for generating and verifying OTPs
 """
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app import mongo
 
 
@@ -23,14 +23,14 @@ class OTPManager:
     @staticmethod
     def store_otp(user_id, user_type, otp, phone_number=None):
         """Store OTP in database with expiry"""
-        expires_at = datetime.utcnow() + timedelta(minutes=OTPManager.OTP_EXPIRY_MINUTES)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTPManager.OTP_EXPIRY_MINUTES)
         
         otp_data = {
             'user_id': user_id,
             'user_type': user_type,  # 'master', 'seller', or 'user'
             'otp': otp,
             'expires_at': expires_at,
-            'created_at': datetime.utcnow(),
+            'created_at': datetime.now(timezone.utc),
             'verified': False
         }
         
@@ -56,10 +56,18 @@ class OTPManager:
                 return None, "Invalid or expired OTP session"
             
             # Check if expired
-            if datetime.utcnow() > session['expires_at']:
+            now = datetime.now(timezone.utc)
+            expires_at = session['expires_at']
+            
+            # Ensure expires_at is timezone-aware for comparison (as MongoDB returns naive)
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+                
+            if now > expires_at:
                 # Delete expired session
                 mongo.db.otp_sessions.delete_one({'_id': ObjectId(session_id)})
                 return None, "OTP has expired"
+
             
             # Verify OTP
             if session['otp'] != otp:
@@ -90,7 +98,7 @@ class OTPManager:
         """Clean up expired OTP sessions"""
         try:
             result = mongo.db.otp_sessions.delete_many({
-                'expires_at': {'$lt': datetime.utcnow()}
+                'expires_at': {'$lt': datetime.now(timezone.utc)}
             })
             return result.deleted_count
         except Exception:

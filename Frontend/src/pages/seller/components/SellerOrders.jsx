@@ -7,9 +7,8 @@ import { initSocket } from '../../../utils/socket'
 import { fixImageUrl } from '../../../utils/image'
 
 function SellerOrders() {
-  const { user, token } = useSelector((state) => state.auth)
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { user } = useSelector((state) => state.auth)
+  const { orders, ordersLoading: loading } = useSelector((state) => state.seller)
   const [error, setError] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -42,38 +41,15 @@ function SellerOrders() {
     }
   }
 
-  useEffect(() => {
-    if (user?.id) fetchOrders()
-  }, [user?.id])
-
-  useEffect(() => {
-    if (!token || !user?.id) return
-    const socket = initSocket(token)
-    
-    socket.on('connect', () => setIsSynced(true))
-    socket.on('disconnect', () => setIsSynced(false))
-
-    socket.on('new_order', (orderData) => {
-      if (orderData.seller_id && String(orderData.seller_id) === String(user.id)) {
-        setOrders((prev) => [orderData, ...prev])
-      }
-    })
-    socket.on('order_updated', (orderData) => {
-      if (orderData.seller_id && String(orderData.seller_id) === String(user.id)) {
-        setOrders((prev) => prev.map((order) => (order.id === orderData.id ? orderData : order)))
-      }
-    })
-    return () => socket.disconnect()
-  }, [token, user])
 
   const filteredOrders = orders.filter(o => {
-    const matchesStatus = statusFilter === 'all' || 
+    const matchesStatus = statusFilter === 'all' ||
       (statusFilter === 'pending' && ['pending_seller', 'seller_accepted', 'pending', 'accepted'].includes(o.status)) ||
       (statusFilter === 'delivered' && ['handed_over', 'completed', 'delivered'].includes(o.status)) ||
       (statusFilter === 'cancelled' && ['cancelled', 'seller_rejected', 'rejected'].includes(o.status))
-    
+
     const searchLow = searchQuery.toLowerCase()
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       (o.orderNumber?.toLowerCase().includes(searchLow)) ||
       (o.user?.name?.toLowerCase().includes(searchLow)) ||
       (o.product?.product_name?.toLowerCase().includes(searchLow)) ||
@@ -98,27 +74,26 @@ function SellerOrders() {
         <div>
           <div className="flex items-center gap-3 mb-3">
             <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter leading-none uppercase font-outfit">
-               Order <span className="text-blue-600">Pipeline</span>
+              Order <span className="text-blue-600">Pipeline</span>
             </h2>
-            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-all border ${
-              isSynced ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isFallback ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'
-            }`}>
+            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-all border ${isSynced ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isFallback ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'
+              }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${isSynced ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : isFallback ? 'bg-amber-500' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
               {isSynced ? 'Live Sync' : isFallback ? 'Simulated Data' : 'Disconnected'}
             </div>
           </div>
           <p className="text-sm font-bold text-slate-500 uppercase tracking-[0.3em] opacity-80">
-             Monitoring <span className="text-slate-900 font-black">{filteredOrders.length}</span> active fulfillments
+            Monitoring <span className="text-slate-900 font-black">{filteredOrders.length}</span> active fulfillments
           </p>
         </div>
-        
+
         <div className="relative group max-w-sm w-full">
           <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-all w-5 h-5" />
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="LOCATE TRANSMISSION..." 
+            placeholder="LOCATE TRANSMISSION..."
             className="bg-slate-50/50 border-2 border-slate-200 rounded-[2rem] py-5 pl-16 pr-8 text-xs md:text-sm font-black tracking-widest text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-blue-600 outline-none w-full shadow-lg shadow-slate-200/40 transition-all placeholder:text-slate-400"
           />
         </div>
@@ -135,11 +110,10 @@ function SellerOrders() {
           <button
             key={f.id}
             onClick={() => setStatusFilter(f.id)}
-            className={`flex items-center gap-3 px-8 py-4 rounded-[1.75rem] transition-all duration-500 border ${
-              statusFilter === f.id 
-                ? 'bg-white text-blue-600 shadow-xl shadow-blue-500/10 border-white' 
-                : 'text-slate-400 border-transparent hover:text-slate-900'
-            }`}
+            className={`flex items-center gap-3 px-8 py-4 rounded-[1.75rem] transition-all duration-500 border ${statusFilter === f.id
+              ? 'bg-white text-blue-600 shadow-xl shadow-blue-500/10 border-white'
+              : 'text-slate-400 border-transparent hover:text-slate-900'
+              }`}
           >
             <f.icon className={`w-5 h-5 transition-transform ${statusFilter === f.id ? 'scale-110' : ''}`} />
             <span className="font-black text-xs uppercase tracking-widest">{f.label}</span>
@@ -158,8 +132,8 @@ function SellerOrders() {
                   <div className="flex gap-4">
                     <div className="w-12 h-12 bg-slate-100 rounded-2xl" />
                     <div className="space-y-2">
-                       <div className="w-32 h-4 bg-slate-100 rounded-full" />
-                       <div className="w-20 h-3 bg-slate-50 rounded-full" />
+                      <div className="w-32 h-4 bg-slate-100 rounded-full" />
+                      <div className="w-20 h-3 bg-slate-50 rounded-full" />
                     </div>
                   </div>
                   <div className="w-24 h-8 bg-slate-100 rounded-xl" />
@@ -178,7 +152,7 @@ function SellerOrders() {
               </div>
               <h3 className="text-xl font-black text-rose-900 uppercase tracking-tighter mb-2">Transmission Interrupted</h3>
               <p className="text-rose-500/70 font-bold uppercase tracking-[0.2em] text-[10px] mb-8 max-w-xs">{error}</p>
-              <button 
+              <button
                 onClick={fetchOrders}
                 className="px-8 py-3 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-lg shadow-rose-600/20 hover:bg-rose-700 transition-all active:scale-95 flex items-center gap-2"
               >
@@ -206,7 +180,7 @@ function SellerOrders() {
                 <div className="flex justify-between items-start mb-8 relative z-10">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm border border-blue-100">
-                       <FiBox className="w-6 h-6" />
+                      <FiBox className="w-6 h-6" />
                     </div>
                     <div>
                       <h4 className="font-black text-slate-900 leading-none uppercase tracking-tight text-lg">
@@ -224,35 +198,35 @@ function SellerOrders() {
                 </div>
 
                 <div className="flex items-center gap-5 mb-8 p-5 bg-slate-50/50 backdrop-blur-sm rounded-[2rem] border border-white/80 shadow-inner group-hover:bg-slate-50 transition-colors">
-                   <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-slate-100 flex-shrink-0 shadow-sm transition-transform group-hover:scale-105">
-                      {order.product?.image || order.product?.thumbnail ? (
-                        <img src={fixImageUrl(order.product.image || order.product.thumbnail)} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-200"><FiPackage className="w-8 h-8" /></div>
-                      )}
-                   </div>
-                   <div className="flex-1 min-w-0">
-                      <h5 className="font-black text-sm text-slate-800 truncate uppercase tracking-tight">{order.product?.product_name || order.product?.name || 'ASSET ITEM'}</h5>
-                      <p className="text-xs text-slate-500 font-bold mt-1 opacity-80">{order.quantity} UNIT(S) × {formatCurrency(order.unitPrice || (order.total_amount / order.quantity))}</p>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VALUATION</p>
-                      <p className="font-black text-slate-900 text-lg tracking-tight">{formatCurrency(order.total_amount)}</p>
-                   </div>
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-slate-100 flex-shrink-0 shadow-sm transition-transform group-hover:scale-105">
+                    {order.product?.image || order.product?.thumbnail ? (
+                      <img src={fixImageUrl(order.product.image || order.product.thumbnail)} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-200"><FiPackage className="w-8 h-8" /></div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h5 className="font-black text-sm text-slate-800 truncate uppercase tracking-tight">{order.product?.product_name || order.product?.name || 'ASSET ITEM'}</h5>
+                    <p className="text-xs text-slate-500 font-bold mt-1 opacity-80">{order.quantity} UNIT(S) × {formatCurrency(order.unitPrice || (order.total_amount / order.quantity))}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VALUATION</p>
+                    <p className="font-black text-slate-900 text-lg tracking-tight">{formatCurrency(order.total_amount)}</p>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-6 border-t border-slate-100/50">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 overflow-hidden border border-white shadow-sm">
                       {order.user?.image ? (
-                         <img src={fixImageUrl(order.user.image)} className="w-full h-full object-cover" />
+                        <img src={fixImageUrl(order.user.image)} className="w-full h-full object-cover" />
                       ) : (
-                         order.user?.name?.charAt(0) || 'C'
+                        order.user?.name?.charAt(0) || 'C'
                       )}
                     </div>
                     <div className="flex flex-col">
-                       <span className="text-xs font-black text-slate-700 uppercase tracking-tight">{order.user?.name || 'CLIENT'}</span>
-                       <span className="text-[9px] font-bold text-slate-400 uppercase border-b border-blue-200/50 w-fit">Verified User</span>
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-tight">{order.user?.name || 'CLIENT'}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase border-b border-blue-200/50 w-fit">Verified User</span>
                     </div>
                   </div>
                   <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-slate-900/10 hover:bg-slate-800 active:scale-95 transition-all">

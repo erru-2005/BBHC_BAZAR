@@ -7,6 +7,9 @@ import uuid
 from werkzeug.utils import secure_filename
 from flask import send_from_directory, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from marshmallow import ValidationError
+from app.schemas.registration_schemas import MasterRegistrationSchema, SellerRegistrationSchema
+from app.schemas.product_service_schemas import ProductCreationSchema, ServiceCreationSchema
 from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
 from app.services.outlet_man_service import OutletManService
@@ -17,7 +20,7 @@ from app.services.service_service import ServiceService
 from app.services.wishlist_service import WishlistService
 from app.sockets.emitter import emit_product_event, emit_service_event
 from app.utils.validators import validate_email
-from datetime import datetime
+from datetime import datetime, timezone
 
 api_bp = Blueprint('api', __name__)
 
@@ -43,15 +46,16 @@ def register_master():
         current_user_type = claims.get('user_type')
         current_username = claims.get('username') or 'system'
         
-        # Validate required fields
-        required_fields = ['name', 'username', 'email', 'password', 'phone_number']
-        for field in required_fields:
-            if not data or not data.get(field):
-                return jsonify({'error': f'{field} is required'}), 400
-        
-        # Validate email format
-        if not validate_email(data['email']):
-            return jsonify({'error': 'Invalid email format'}), 400
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+            
+        try:
+            schema = MasterRegistrationSchema()
+            data = schema.load(data)
+        except ValidationError as err:
+            first_err_field = list(err.messages.keys())[0]
+            first_err_msg = err.messages[first_err_field][0]
+            return jsonify({'error': f"{first_err_field}: {first_err_msg}"}), 400
         
         # Prepare master data with metadata
         master_data = {
@@ -65,7 +69,7 @@ def register_master():
             'created_by': current_username,
             'created_by_user_id': str(current_user_id),
             'created_by_user_type': current_user_type,
-            'created_at': datetime.utcnow(),
+            'created_at': datetime.now(timezone.utc),
             'registration_ip': request.remote_addr,
             'registration_user_agent': request.headers.get('User-Agent')
         }
@@ -113,22 +117,14 @@ def register_seller():
         if current_user_type != 'master':
             return jsonify({'error': 'Only masters can register sellers'}), 403
         
-        # Validate required fields
-        required_fields = ['trade_id', 'email', 'password']
-        for field in required_fields:
-            if not data or not data.get(field):
-                return jsonify({'error': f'{field} is required'}), 400
-        
-        # Validate email format
-        if not validate_email(data['email']):
-            return jsonify({'error': 'Invalid email format'}), 400
-        
-        # Validate trade_id format (alphanumeric, allow hyphens and underscores)
-        trade_id = data.get('trade_id', '').strip()
-        if not trade_id:
-            return jsonify({'error': 'Trade ID is required'}), 400
-        if not all(c.isalnum() or c in ['-', '_'] for c in trade_id):
-            return jsonify({'error': 'Trade ID must contain only alphanumeric characters, hyphens, and underscores'}), 400
+        try:
+            schema = SellerRegistrationSchema()
+            data = schema.load(data)
+            trade_id = data['trade_id']
+        except ValidationError as err:
+            first_err_field = list(err.messages.keys())[0]
+            first_err_msg = err.messages[first_err_field][0]
+            return jsonify({'error': f"{first_err_field}: {first_err_msg}"}), 400
         
         # Prepare seller data with metadata
         seller_data = {
@@ -142,7 +138,7 @@ def register_seller():
             'created_by': current_username,
             'created_by_user_id': str(current_user_id),
             'created_by_user_type': current_user_type,
-            'created_at': datetime.utcnow(),
+            'created_at': datetime.now(timezone.utc),
             'registration_ip': request.remote_addr,
             'registration_user_agent': request.headers.get('User-Agent')
         }
@@ -406,7 +402,7 @@ def register_outlet_man():
             'last_name': data.get('last_name'),  # Optional
             'is_active': False,  # Default to False
             'created_by': current_username,
-            'created_at': datetime.utcnow()
+            'created_at': datetime.now(timezone.utc)
         }
         
         # Create outlet man
@@ -663,49 +659,39 @@ def create_product():
         if current_user_type != 'master':
             return jsonify({'error': 'Only masters can create products'}), 403
 
-        required_fields = ['product_name', 'specification', 'points', 'thumbnail', 'selling_price', 'max_price', 'quantity', 'seller_trade_id']
-        for field in required_fields:
-            if field not in data or data.get(field) in (None, '', []):
-                return jsonify({'error': f'{field} is required'}), 400
-
-        points = data.get('points', [])
-        if not isinstance(points, list) or not points:
-            return jsonify({'error': 'Points must be a non-empty list'}), 400
-
-        normalized_points = [str(point).strip() for point in points if str(point).strip()]
-        if not normalized_points:
-            return jsonify({'error': 'Provide at least one bullet point'}), 400
-
         try:
-            quantity = int(data.get('quantity', 0))
-            if quantity <= 0:
-                return jsonify({'error': 'quantity must be greater than zero'}), 400
-        except (TypeError, ValueError):
-            return jsonify({'error': 'quantity must be a positive integer'}), 400
+            schema = ProductCreationSchema()
+            data = schema.load(data)
+        except ValidationError as err:
+            first_err_field = list(err.messages.keys())[0]
+            first_err_msg = err.messages[first_err_field][0]
+            if isinstance(first_err_msg, dict):
+                first_err_msg = "Invalid format"
+            return jsonify({'error': f"{first_err_field}: {first_err_msg}"}), 400
 
-        categories = data.get('categories', [])
-        if categories and not isinstance(categories, list):
-            return jsonify({'error': 'categories must be a list'}), 400
-
+        if not data.get('seller_trade_id'):
+            return jsonify({'error': 'seller_trade_id is required'}), 400
+        
         product_data = {
             'product_name': data['product_name'],
             'specification': data['specification'],
-            'points': normalized_points,
+            'points': data['points'],
             'thumbnail': data['thumbnail'],
             'gallery': data.get('gallery', []),
-            'categories': categories,
-            'selling_price': data.get('selling_price'),
-            'max_price': data.get('max_price'),
-            'quantity': quantity,
+            'categories': data.get('categories', []),
+            'selling_price': data['selling_price'],
+            'max_price': data['max_price'],
+            'quantity': data['quantity'],
             'seller_trade_id': data.get('seller_trade_id'),
             'seller_name': data.get('seller_name'),
             'seller_email': data.get('seller_email'),
             'seller_phone': data.get('seller_phone'),
-            'created_by': data.get('created_by') or current_username,
-            'created_by_user_id': data.get('created_by_user_id') or str(current_user_id),
-            'created_by_user_type': data.get('created_by_user_type') or current_user_type,
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow(),
+            'created_by': current_username,
+            'created_by_user_id': str(current_user_id),
+            'created_by_user_type': current_user_type,
+            'approval_status': 'approved',
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc),
             'registration_ip': request.remote_addr,
             'registration_user_agent': request.headers.get('User-Agent')
         }
@@ -833,6 +819,16 @@ def seller_create_product():
         if not data:
             return jsonify({'error': 'Request body is required'}), 400
 
+        try:
+            schema = ProductCreationSchema()
+            data = schema.load(data)
+        except ValidationError as err:
+            first_err_field = list(err.messages.keys())[0]
+            first_err_msg = err.messages[first_err_field][0]
+            if isinstance(first_err_msg, dict):
+                first_err_msg = "Invalid format"
+            return jsonify({'error': f"{first_err_field}: {first_err_msg}"}), 400
+
         claims = get_jwt()
         if claims.get('user_type') != 'seller':
             return jsonify({'error': 'Only sellers can access this endpoint'}), 403
@@ -879,10 +875,18 @@ def create_service():
         if current_user_type != 'master':
             return jsonify({'error': 'Only masters can create services'}), 403
 
-        required_fields = ['service_name', 'description', 'points', 'thumbnail', 'service_charge', 'seller_trade_id']
-        for field in required_fields:
-            if field not in data or data.get(field) in (None, '', []):
-                return jsonify({'error': f'{field} is required'}), 400
+        try:
+            schema = ServiceCreationSchema()
+            data = schema.load(data)
+        except ValidationError as err:
+            first_err_field = list(err.messages.keys())[0]
+            first_err_msg = err.messages[first_err_field][0]
+            if isinstance(first_err_msg, dict):
+                first_err_msg = "Invalid format"
+            return jsonify({'error': f"{first_err_field}: {first_err_msg}"}), 400
+            
+        if not data.get('seller_trade_id'):
+            return jsonify({'error': 'seller_trade_id is required'}), 400
 
         service_data = {
             'service_name': data['service_name'],
@@ -895,6 +899,7 @@ def create_service():
             'created_by': current_username,
             'created_by_user_id': str(current_user_id),
             'created_by_user_type': current_user_type,
+            'approval_status': 'approved',
             'availability': data.get('availability', True),
             'seller_trade_id': data.get('seller_trade_id'),
             'seller_name': data.get('seller_name'),
@@ -1000,6 +1005,16 @@ def seller_create_service():
         data = request.get_json()
         if not data:
             return jsonify({'error': 'Request body is required'}), 400
+
+        try:
+            schema = ServiceCreationSchema()
+            data = schema.load(data)
+        except ValidationError as err:
+            first_err_field = list(err.messages.keys())[0]
+            first_err_msg = err.messages[first_err_field][0]
+            if isinstance(first_err_msg, dict):
+                first_err_msg = "Invalid format"
+            return jsonify({'error': f"{first_err_field}: {first_err_msg}"}), 400
 
         claims = get_jwt()
         if claims.get('user_type') != 'seller':

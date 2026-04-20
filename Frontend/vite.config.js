@@ -29,7 +29,7 @@ export default defineConfig({
     hmr: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:5001',
+        target: 'http://[IP_ADDRESS]',
         changeOrigin: true
       },
       '/socket.io': {
@@ -41,7 +41,8 @@ export default defineConfig({
         changeOrigin: true
       }
     }
-  },
+  }
+  ,
   resolve: {
     alias: {
       // Polyfill for stream module used by xlsx-js-style

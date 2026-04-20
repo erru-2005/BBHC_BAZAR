@@ -9,8 +9,7 @@ import { loginStart, loginSuccess, loginFailure, logout } from '../../store/auth
 import { masterLogin, verifyOTP, requestMasterForgotPasswordOtp } from '../../services/api'
 import { Button } from '../../components'
 import { getOrCreateDeviceId, getDeviceToken, setDeviceToken } from '../../utils/device'
-import { initSocket, disconnectSocket } from '../../utils/socket'
-import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
+import { disconnectSocket } from '../../utils/socket'
 import './master.css'
 
 function MasterLogin() {
@@ -135,14 +134,6 @@ function MasterLogin() {
           refresh_token: response.refresh_token
         }))
         
-        // Initialize socket connection and notify server (this will save socket_id to DB)
-        const socket = initSocket(response.access_token)
-        socket.on('connect', () => {
-          socket.emit('user_authenticated', {
-            user_id: response.user.id,
-            user_type: 'master'
-          })
-        })
         
         // Navigate to dashboard
         navigate('/master/dashboard')
@@ -188,17 +179,6 @@ function MasterLogin() {
         refresh_token: response.refreshToken
       }))
       
-      // Initialize active counter socket with role='master'
-      initActiveCounterSocket('master')
-      
-      // Initialize regular socket connection and notify server (this will save socket_id to DB)
-      const socket = initSocket(response.token)
-      socket.on('connect', () => {
-        socket.emit('user_authenticated', {
-          user_id: response.user.id,
-          user_type: 'master'
-        })
-      })
       
       navigate('/master/dashboard')
     } catch (error) {
@@ -241,13 +221,6 @@ function MasterLogin() {
           userType: response.userType || 'master',
           refresh_token: response.refresh_token
         }))
-        const socket = initSocket(response.access_token)
-        socket.on('connect', () => {
-          socket.emit('user_authenticated', {
-            user_id: response.user.id,
-            user_type: 'master'
-          })
-        })
         navigate('/master/dashboard')
         return
       }

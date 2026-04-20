@@ -2,7 +2,7 @@
 Outlet Man service - Business logic for outlet man operations with MongoDB
 """
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from app import mongo
 from app.models.outlet_man import OutletMan
 from app.services.blacklist_service import BlacklistService
@@ -99,7 +99,7 @@ class OutletManService:
                 last_name=outlet_man_data.get('last_name'),
                 is_active=outlet_man_data.get('is_active', False),
                 created_by=outlet_man_data.get('created_by', 'system'),
-                created_at=outlet_man_data.get('created_at') or datetime.utcnow()
+                created_at=outlet_man_data.get('created_at') or datetime.now(timezone.utc)
             )
             
             # Insert into MongoDB

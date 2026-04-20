@@ -17,7 +17,7 @@ from config import Config
 mongo = PyMongo()
 cors = CORS()
 jwt = JWTManager()
-socketio = SocketIO(cors_allowed_origins="*")
+socketio = SocketIO(cors_allowed_origins="*", transports=['websocket'])
 
 
 def create_app(config_class=Config):
@@ -102,11 +102,45 @@ def create_app(config_class=Config):
     def missing_token_callback(error):
         return jsonify({'error': 'Authorization token is missing. Please log in first.'}), 401
     
+    @jwt.user_lookup_loader
+    def user_lookup_callback(_jwt_header, jwt_data):
+        """
+        Look up the user on every protected request to ensure they are still valid/active.
+        This provides real-time security enforcement for RS256 tokens.
+        """
+        from app.services.blacklist_service import BlacklistService
+        user_id = jwt_data["sub"]
+        user_type = jwt_data.get("user_type", "user")
+        
+        # Check if user is blacklisted
+        if user_type in ['seller', 'outlet_man'] and BlacklistService.is_blacklisted(user_id, user_type):
+            # Returning None here will trigger the @jwt.user_lookup_error_loader if defined,
+            # but flask-jwt-extended will handle it as unauthorized if we don't return a record.
+            # However, typically we want to return a user object or None.
+            # For strictness, if blacklisted, we should reject.
+            return None
+            
+        # You could also check if regular 'user' is active here if you have an is_active flag in DB
+        if user_type == 'user':
+            from app.services.user_service import UserService
+            user = UserService.get_user_by_id(user_id)
+            if not user or not getattr(user, 'is_active', True):
+                return None
+        
+        return {"id": user_id, "type": user_type}
+
+    @jwt.user_lookup_error_loader
+    def user_lookup_error_callback(_jwt_header, jwt_data):
+        return jsonify({
+            'error': 'This account is either blacklisted or no longer active. Access denied.'
+        }), 401
+    
     # Initialize Socket.IO
     socketio.init_app(
         app,
         cors_allowed_origins="*", # Force wildcard to handle multiple local IPs (VirtualBox, etc.)
-        async_mode=app.config.get('SOCKETIO_ASYNC_MODE', 'threading')
+        async_mode=app.config.get('SOCKETIO_ASYNC_MODE', 'threading'),
+        transports=['polling', 'websocket']
     )
     
     # Create indexes on startup

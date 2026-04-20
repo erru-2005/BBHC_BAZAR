@@ -1,5 +1,5 @@
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class WishlistItem:
@@ -19,7 +19,7 @@ class WishlistItem:
         self._id = _id
         self.user_id = ObjectId(user_id) if user_id and not isinstance(user_id, ObjectId) else user_id
         self.product_id = ObjectId(product_id) if product_id and not isinstance(product_id, ObjectId) else product_id
-        self.created_at = created_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
         self.metadata = metadata or {}
 
     def to_bson(self):

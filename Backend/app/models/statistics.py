@@ -2,7 +2,7 @@
 Statistics model for MongoDB
 Tracks revenue and commissions
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 
@@ -28,8 +28,8 @@ class Statistics:
         self.seller_id = seller_id
         self.seller_revenue = seller_revenue
         self.seller_commission = seller_commission
-        self.created_at = created_at or datetime.utcnow()
-        self.updated_at = updated_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.updated_at = updated_at or datetime.now(timezone.utc)
 
     def to_dict(self):
         return {

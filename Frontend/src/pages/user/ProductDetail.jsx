@@ -44,6 +44,7 @@ function ProductDetail() {
 
   // Listen for real-time rating updates to keep Redux store in sync
   useEffect(() => {
+    if (!token) return
     let socket = getSocket()
 
     if (!socket || !socket.connected) {

@@ -1,86 +1,93 @@
 /**
  * Socket.IO client configuration and connection
+ * Centralized singleton socket management
  */
 import { io } from 'socket.io-client'
 
 // Socket.IO connection URL
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL 
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001'
 
-// Create socket instance
-let socket = null
+// Singleton socket instance and state
+let socketInstance = null
+let currentAuth = { token: null, role: null }
 
 /**
  * Initialize Socket.IO connection
- * @param {string} token - JWT access token (optional)
+ * @param {string} token - JWT access token
+ * @param {string} role - User role (user, seller, master, outlet)
  * @returns {object} Socket instance
  */
-export const initSocket = (token = null) => {
-  if (socket && socket.connected) {
-    return socket
+export const initSocket = (token = null, role = 'user') => {
+  // If socket already exists and auth matches, return it
+  if (socketInstance && socketInstance.connected) {
+    if (currentAuth.token === token && currentAuth.role === role) {
+      return socketInstance
+    }
+    // If auth changed, disconnect old socket
+    console.log('[Socket] Auth changed (role/token), reconnecting...')
+    socketInstance.disconnect()
   }
 
+  currentAuth = { token, role }
+
   const options = {
-    transports: ['polling'], // Restricted to polling to resolve frame header errors in threading mode
+    transports: ['polling', 'websocket'],
+    upgrade: true,
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionAttempts: 10,
-    timeout: 30000, // Increased timeout to 30s
-  }
-
-  // Add authentication if token provided
-  if (token) {
-    options.auth = {
-      token: token
+    timeout: 20000,
+    auth: {
+      token: token,
+      role: role
     }
   }
 
-  socket = io(SOCKET_URL, options)
+  console.log('[Socket] Creating new connection...')
+  socketInstance = io(SOCKET_URL, options)
 
-  // Connection event handlers
-  socket.on('connect', () => {
-    // Socket connected - backend will automatically handle user/seller connection tracking
-    // if auth token is provided, backend connect handler will emit user:connected or seller:connected
+  // Once connected, request session initialization
+  socketInstance.on('connect', () => {
+    console.log(`[Socket] Connected. SID: ${socketInstance.id} | Role: ${role}`)
+    console.log('[Socket] Handshake stable, initializing session...')
+    socketInstance.emit('init_session', { token, role })
   })
 
-  socket.on('disconnect', (reason) => {
-    // Socket disconnected
+  socketInstance.on('disconnect', (reason) => {
+    console.log(`[Socket] Disconnected. Reason: ${reason}`)
   })
 
-  socket.on('connect_error', (error) => {
-    console.error('Socket.IO connection error:', error)
+  socketInstance.on('connect_error', (error) => {
+    console.error('[Socket] Connection error:', error.message)
   })
 
-  socket.on('error', (error) => {
-    console.error('Socket.IO error:', error)
-  })
-
-  return socket
+  return socketInstance
 }
 
 /**
  * Get current socket instance
- * @returns {object|null} Socket instance or null
  */
 export const getSocket = () => {
-  return socket
+  return socketInstance
 }
 
 /**
- * Disconnect Socket.IO
+ * Disconnect socket
  */
 export const disconnectSocket = () => {
-  if (socket) {
-    socket.disconnect()
-    socket = null
+  if (socketInstance) {
+    console.log('[Socket] Manually disconnecting singleton...')
+    socketInstance.disconnect()
+    socketInstance = null
+    currentAuth = { token: null, role: null }
   }
 }
 
 /**
- * Check if socket is connected
- * @returns {boolean} Connection status
+ * Check connectivity
  */
 export const isSocketConnected = () => {
-  return socket && socket.connected
+  return socketInstance && socketInstance.connected
 }
 
 export default {
@@ -89,4 +96,3 @@ export default {
   disconnectSocket,
   isSocketConnected
 }
-

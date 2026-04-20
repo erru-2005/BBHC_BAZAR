@@ -1,7 +1,7 @@
 """
 User model for MongoDB
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 import bcrypt
 
@@ -24,8 +24,8 @@ class User:
         self.date_of_birth = date_of_birth
         self.is_active = is_active
         self.is_admin = is_admin
-        self.created_at = created_at or datetime.utcnow()
-        self.updated_at = updated_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.updated_at = updated_at or datetime.now(timezone.utc)
     
     @staticmethod
     def set_password(password):

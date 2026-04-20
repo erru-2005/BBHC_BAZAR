@@ -8,8 +8,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { loginStart, loginSuccess, loginFailure, logout } from '../../store/authSlice'
 import { outletManLogin } from '../../services/api'
 import { getOrCreateDeviceId, getDeviceToken, setDeviceToken } from '../../utils/device'
-import { initSocket, disconnectSocket } from '../../utils/socket'
-import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
+import { disconnectSocket } from '../../utils/socket'
 
 function OutletLogin() {
   const navigate = useNavigate()
@@ -75,17 +74,6 @@ function OutletLogin() {
         refresh_token: response.refresh_token
       }))
       
-      // Initialize active counter socket with role='outlet'
-      initActiveCounterSocket('outlet')
-      
-      // Initialize regular socket connection and notify server (this will save socket_id to DB)
-      const socket = initSocket(response.access_token)
-      socket.on('connect', () => {
-        socket.emit('user_authenticated', {
-          user_id: response.user.id,
-          user_type: 'outlet_man'
-        })
-      })
       
       // Navigate to dashboard
       navigate('/outlet/dashboard')

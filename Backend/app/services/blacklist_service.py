@@ -2,7 +2,7 @@
 Blacklist service - Business logic for blacklist operations with MongoDB
 """
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from app import mongo
 from app.models.blacklist import Blacklist
 
@@ -54,7 +54,7 @@ class BlacklistService:
                 user_type=user_type,
                 blacklisted_by=blacklisted_by,
                 reason=reason,
-                blacklisted_at=datetime.utcnow()
+                blacklisted_at=datetime.now(timezone.utc)
             )
             
             # Insert into MongoDB

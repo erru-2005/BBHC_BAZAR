@@ -1,7 +1,7 @@
 """
 Master model for MongoDB
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 import bcrypt
 
@@ -22,7 +22,7 @@ class Master:
         self.image_url = image_url
         self.status = status
         self.created_by = created_by
-        self.created_at = created_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
     
     @staticmethod
     def set_password(password):

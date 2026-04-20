@@ -209,7 +209,7 @@ function PublicProductDetail() {
 
   // Listen for real-time rating updates
   useEffect(() => {
-    if (!productId) return
+    if (!productId || !token) return
 
     let socket = getSocket()
 

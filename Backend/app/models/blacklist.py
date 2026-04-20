@@ -1,7 +1,7 @@
 """
 Blacklist model for MongoDB
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 
@@ -14,7 +14,7 @@ class Blacklist:
         self.user_type = user_type  # 'seller' or 'outlet_man'
         self.blacklisted_by = blacklisted_by  # User ID who blacklisted
         self.reason = reason
-        self.blacklisted_at = blacklisted_at or datetime.utcnow()
+        self.blacklisted_at = blacklisted_at or datetime.now(timezone.utc)
     
     def to_dict(self):
         """Convert blacklist to dictionary"""
