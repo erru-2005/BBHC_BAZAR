@@ -1624,16 +1624,6 @@ export const getReturningVsNew = async (params = {}) => {
   }
 }
 
-export const getStockLevels = async (params = {}) => {
-  try {
-    const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.STOCK_LEVELS, { params })
-    return response.data || response || []
-  } catch (error) {
-    // If endpoint doesn't exist (404) or CORS/network error, return null to trigger fallback
-    // Browser will log CORS errors - we silently handle them
-    return null
-  }
-}
 
 export const getTopProducts = async (params = {}) => {
   try {

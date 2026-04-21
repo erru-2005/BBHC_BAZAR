@@ -12,7 +12,6 @@ import {
   getOrdersByStatus,
   getRevenueVsCommissions,
   getReturningVsNew,
-  getStockLevels,
   getTopProducts,
   getSalesBySeller,
   getCategories,
@@ -25,7 +24,6 @@ import SalesByCategoryChart from './SalesByCategoryChart'
 import OrdersByStatusChart from './OrdersByStatusChart'
 import RevenueVsCommissionsChart from './RevenueVsCommissionsChart'
 import ReturningVsNewChart from './ReturningVsNewChart'
-import StockLevelsChart from './StockLevelsChart'
 import TopProductsChart from './TopProductsChart'
 import SalesBySellerChart from './SalesBySellerChart'
 import ChartFilters from './ChartFilters'
@@ -38,7 +36,6 @@ const Analysis = () => {
   const [ordersByStatus, setOrdersByStatus] = useState([])
   const [revenueVsCommissions, setRevenueVsCommissions] = useState([])
   const [returningVsNew, setReturningVsNew] = useState(null)
-  const [stockLevels, setStockLevels] = useState([])
   const [topProducts, setTopProducts] = useState([])
   const [salesBySeller, setSalesBySeller] = useState([])
   const [categories, setCategories] = useState([])
@@ -89,14 +86,6 @@ const Analysis = () => {
       count
     }))
 
-    // Stock levels
-    const stockData = products
-      .map(p => ({
-        name: p.name || p.title || 'Unknown',
-        stock: p.stock || p.quantity || 0
-      }))
-      .filter(p => p.stock !== undefined)
-
     // Top products
     const productSales = {}
     orders.forEach(order => {
@@ -124,7 +113,6 @@ const Analysis = () => {
       },
       salesByCategory: salesByCategoryData,
       ordersByStatus: ordersByStatusData,
-      stockLevels: stockData,
       topProducts: topProductsData
     }
   }
@@ -149,7 +137,6 @@ const Analysis = () => {
           ordersStatusData,
           revenueCommissionsData,
           returningNewData,
-          stockData,
           topProductsData,
           salesSellerData,
           categoriesData
@@ -159,14 +146,13 @@ const Analysis = () => {
           getOrdersByStatus(params).catch(() => null),
           getRevenueVsCommissions(params).catch(() => []),
           getReturningVsNew(params).catch(() => null),
-          getStockLevels(params).catch(() => null),
-            getTopProducts({ ...params, sort_by: 'rating', limit: 5 }).catch(() => null),
+          getTopProducts({ ...params, sort_by: 'rating', limit: 5 }).catch(() => null),
           getSalesBySeller(params).catch(() => []),
           getCategories().catch(() => [])
         ])
 
         // If analytics endpoints don't exist, compute from raw data
-        if (!statsData || !salesCategoryData || !ordersStatusData || !stockData || !topProductsData) {
+        if (!statsData || !salesCategoryData || !ordersStatusData || !topProductsData) {
           const [orders, sellers, products, categories] = await Promise.all([
             getOrders().catch(() => []),
             getSellers().catch(() => []),
@@ -194,7 +180,6 @@ const Analysis = () => {
           
           if (!salesCategoryData) setSalesByCategory(computed.salesByCategory)
           if (!ordersStatusData) setOrdersByStatus(computed.ordersByStatus)
-          if (!stockData) setStockLevels(computed.stockLevels)
           if (!topProductsData) setTopProducts(computed.topProducts)
           
         } else {
@@ -208,7 +193,6 @@ const Analysis = () => {
           }
           if (salesCategoryData) setSalesByCategory(Array.isArray(salesCategoryData) ? salesCategoryData : [])
           if (ordersStatusData) setOrdersByStatus(Array.isArray(ordersStatusData) ? ordersStatusData : [])
-          if (stockData) setStockLevels(Array.isArray(stockData) ? stockData : [])
           if (topProductsData) setTopProducts(Array.isArray(topProductsData) ? topProductsData : [])
           
         }
@@ -237,7 +221,6 @@ const Analysis = () => {
         }))
         setSalesByCategory(computed.salesByCategory)
         setOrdersByStatus(computed.ordersByStatus)
-        setStockLevels(computed.stockLevels)
         setTopProducts(computed.topProducts)
         setCategories(categories.map(cat => cat.name || cat).filter(Boolean))
       }
@@ -296,7 +279,6 @@ const Analysis = () => {
           if (data.ordersByStatus) setOrdersByStatus(Array.isArray(data.ordersByStatus) ? data.ordersByStatus : [])
           if (data.revenueVsCommissions) setRevenueVsCommissions(Array.isArray(data.revenueVsCommissions) ? data.revenueVsCommissions : [])
           if (data.returningVsNew) setReturningVsNew(data.returningVsNew)
-          if (data.stockLevels) setStockLevels(Array.isArray(data.stockLevels) ? data.stockLevels : [])
           if (data.topProducts) setTopProducts(Array.isArray(data.topProducts) ? data.topProducts : [])
           if (data.salesBySeller) setSalesBySeller(Array.isArray(data.salesBySeller) ? data.salesBySeller : [])
           setIsLoading(false)
@@ -318,7 +300,6 @@ const Analysis = () => {
           if (data.ordersByStatus) setOrdersByStatus(Array.isArray(data.ordersByStatus) ? data.ordersByStatus : [])
           if (data.revenueVsCommissions) setRevenueVsCommissions(Array.isArray(data.revenueVsCommissions) ? data.revenueVsCommissions : [])
           if (data.returningVsNew) setReturningVsNew(data.returningVsNew)
-          if (data.stockLevels) setStockLevels(Array.isArray(data.stockLevels) ? data.stockLevels : [])
           if (data.topProducts) setTopProducts(Array.isArray(data.topProducts) ? data.topProducts : [])
           if (data.salesBySeller) setSalesBySeller(Array.isArray(data.salesBySeller) ? data.salesBySeller : [])
           setIsLoading(false)
@@ -390,9 +371,7 @@ const Analysis = () => {
         }
         if (data.salesByCategory) setSalesByCategory(Array.isArray(data.salesByCategory) ? data.salesByCategory : [])
         if (data.ordersByStatus) setOrdersByStatus(Array.isArray(data.ordersByStatus) ? data.ordersByStatus : [])
-        if (data.stockLevels) setStockLevels(Array.isArray(data.stockLevels) ? data.stockLevels : [])
         if (data.topProducts) setTopProducts(Array.isArray(data.topProducts) ? data.topProducts : [])
-        if (data.salesTrend) setSalesTrend(Array.isArray(data.salesTrend) ? data.salesTrend : [])
         if (data.revenueVsCommissions) setRevenueVsCommissions(Array.isArray(data.revenueVsCommissions) ? data.revenueVsCommissions : [])
         if (data.returningVsNew) setReturningVsNew(data.returningVsNew)
         if (data.salesBySeller) setSalesBySeller(Array.isArray(data.salesBySeller) ? data.salesBySeller : [])
@@ -498,8 +477,6 @@ const Analysis = () => {
         <SalesBySellerChart data={salesBySeller} isLoading={isLoading} />
       </div>
 
-      {/* Stock Levels - Full Width */}
-      <StockLevelsChart data={stockLevels} isLoading={isLoading} />
 
       {/* Summary Section */}
       <SummarySection
@@ -508,7 +485,6 @@ const Analysis = () => {
         ordersByStatus={ordersByStatus}
         topProducts={topProducts}
         salesBySeller={salesBySeller}
-        stockLevels={stockLevels}
       />
     </div>
   )

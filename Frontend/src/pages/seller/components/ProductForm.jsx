@@ -29,7 +29,6 @@ function SellerProductForm({ initialProduct = null }) {
     specification: '',
     sellingPrice: '',
     maxPrice: '',
-    quantity: '',
     category: ''
   })
   const [points, setPoints] = useState(INITIAL_POINTS)
@@ -70,11 +69,6 @@ function SellerProductForm({ initialProduct = null }) {
         specification: initialProduct.specification || '',
         sellingPrice: initialProduct.selling_price || '',
         maxPrice: initialProduct.max_price || '',
-        quantity:
-          initialProduct.quantity ||
-          initialProduct.stock ||
-          initialProduct.available_quantity ||
-          '',
         category: Array.isArray(initialProduct.categories) ? initialProduct.categories[0] : initialProduct.categories || ''
       })
       setPoints(
@@ -202,17 +196,12 @@ function SellerProductForm({ initialProduct = null }) {
 
     const selling = Number(form.sellingPrice)
     const max = Number(form.maxPrice)
-    const quantity = Number(form.quantity)
     if (!selling || !max || selling <= 0 || max <= 0) {
       setStatus({ type: 'error', message: 'Please provide valid selling and MRP prices.' })
       return
     }
     if (max < selling) {
       setStatus({ type: 'error', message: 'MRP must be greater than or equal to selling price.' })
-      return
-    }
-    if (!quantity || quantity <= 0) {
-      setStatus({ type: 'error', message: 'Quantity must be greater than zero.' })
       return
     }
 
@@ -224,7 +213,6 @@ function SellerProductForm({ initialProduct = null }) {
       gallery: gallery.map((item) => item.preview),
       selling_price: selling,
       max_price: max,
-      quantity,
       categories: form.category ? [form.category] : []
     }
 
@@ -420,22 +408,6 @@ function SellerProductForm({ initialProduct = null }) {
             />
           </div>
 
-          <div className="space-y-4">
-            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
-              Inventory Depth <span className="text-blue-600">*</span>
-            </label>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              name="quantity"
-              value={form.quantity}
-              onChange={handleChange}
-              className="w-full px-6 py-5 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-black placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
-              placeholder="Units available"
-              required
-            />
-          </div>
         </div>
 
         <div className="space-y-4">

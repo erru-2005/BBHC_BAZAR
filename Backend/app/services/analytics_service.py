@@ -426,47 +426,6 @@ class AnalyticsService:
             print(f"Error computing returning vs new: {e}")
             return {'new': 0, 'returning': 0}
     
-    @staticmethod
-    def get_stock_levels(period='monthly'):
-        """Get stock/inventory levels with product ID"""
-        try:
-            # Get all products sorted by quantity (ascending) - check both 'quantity' and 'stock_quantity'
-            products = list(mongo.db.products.find({}).sort('quantity', 1).limit(20))
-            
-            result = []
-            for product in products:
-                product_id = product.get('_id')
-                
-                # Get stock quantity - check multiple possible field names
-                stock = product.get('quantity') or product.get('stock_quantity') or product.get('inventory') or 0
-                
-                # Get seller info using comprehensive helper
-                seller_info = AnalyticsService._get_seller_info(
-                    seller_trade_id=product.get('seller_trade_id'),
-                    created_by_user_id=product.get('created_by_user_id'),
-                    product_doc=product
-                )
-                seller_name = seller_info['display_name']
-                
-                result.append({
-                    'product_id': str(product_id),
-                    'product': product.get('product_name', 'Unknown'),
-                    'name': product.get('product_name', 'Unknown'),
-                    'stock': stock,
-                    'quantity': stock,  # Also include as 'quantity' for compatibility
-                    'stock_quantity': stock,  # Also include as 'stock_quantity' for compatibility
-                    'seller_name': seller_name,
-                    'specification': product.get('specification', ''),
-                    'selling_price': product.get('selling_price', 0),
-                    'thumbnail': product.get('thumbnail', '')
-                })
-            
-            return result
-        except Exception as e:
-            print(f"Error computing stock levels: {e}")
-            import traceback
-            traceback.print_exc()
-            return []
     
     @staticmethod
     def get_top_products(period='monthly', sort_by='rating', limit=5):

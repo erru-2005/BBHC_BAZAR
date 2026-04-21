@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiSearch, FiPackage, FiBox, FiRefreshCw, FiXCircle, FiArrowUpRight } from 'react-icons/fi'
+import { FiSearch, FiPackage, FiBox, FiRefreshCw, FiXCircle, FiArrowUpRight, FiEye } from 'react-icons/fi'
 import { getOrders } from '../../../services/api'
 import { initSocket } from '../../../utils/socket'
 import { fixImageUrl } from '../../../utils/image'
@@ -13,13 +13,10 @@ function SellerOrders() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [isSynced, setIsSynced] = useState(false)
-  const [isFallback, setIsFallback] = useState(false)
+  const [actionOrder, setActionOrder] = useState(null)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [processingId, setProcessingId] = useState(null)
 
-  const DUMMY_ORDERS = [
-    { id: '1', orderNumber: 'BB-9821', status: 'pending', createdAt: new Date().toISOString(), total_amount: 1250, quantity: 1, product: { name: 'Titanium Edge-01', thumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30' }, user: { name: 'Alex Rivera' } },
-    { id: '2', orderNumber: 'BB-7742', status: 'delivered', createdAt: new Date().toISOString(), total_amount: 3400, quantity: 2, product: { name: 'Nebula Core X', thumbnail: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e' }, user: { name: 'Sarah Chen' } },
-    { id: '3', orderNumber: 'BB-1109', status: 'pending', createdAt: new Date().toISOString(), total_amount: 890, quantity: 1, product: { name: 'Onyx Series Box', thumbnail: 'https://images.unsplash.com/photo-1526170315870-ef6815fd3326' }, user: { name: 'Marcus Thorne' } }
-  ]
 
   const fetchOrders = async () => {
     try {
@@ -33,11 +30,40 @@ function SellerOrders() {
     } catch (err) {
       setError(err.message || 'TRANSMISSION TIMEOUT')
       setIsSynced(false)
-      // Auto-fallback for visual integrity
-      setOrders(DUMMY_ORDERS)
-      setIsFallback(true)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAccept = async (orderId) => {
+    try {
+      setProcessingId(orderId)
+      await sellerAcceptOrder(orderId)
+      setActionOrder(null)
+      // fetchOrders() will be handled by socket in Seller.jsx, but let's refresh for safety
+      const data = await getOrders()
+      const orderList = Array.isArray(data?.orders) ? data.orders : Array.isArray(data) ? data : []
+      // setOrders is not here, it's in Redux, but SellerOrders uses it from Redux
+      // Wait, SellerOrders uses 'orders' from Redux on line 11!
+      // So I just need to call the API, and the socket might update Redux.
+    } catch (err) {
+      console.error('Accept fail:', err)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleReject = async (orderId) => {
+    if (!rejectionReason.trim()) return
+    try {
+      setProcessingId(orderId)
+      await sellerRejectOrder(orderId, rejectionReason)
+      setRejectionReason('')
+      setActionOrder(null)
+    } catch (err) {
+      console.error('Reject fail:', err)
+    } finally {
+      setProcessingId(null)
     }
   }
 
@@ -76,10 +102,10 @@ function SellerOrders() {
             <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter leading-none uppercase font-outfit">
               Order <span className="text-blue-600">Pipeline</span>
             </h2>
-            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-all border ${isSynced ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isFallback ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'
+            <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-all border ${isSynced ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'
               }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isSynced ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : isFallback ? 'bg-amber-500' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
-              {isSynced ? 'Live Sync' : isFallback ? 'Simulated Data' : 'Disconnected'}
+              <span className={`w-1.5 h-1.5 rounded-full ${isSynced ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`} />
+              {isSynced ? 'Live Sync' : 'Disconnected'}
             </div>
           </div>
           <p className="text-sm font-bold text-slate-500 uppercase tracking-[0.3em] opacity-80">
@@ -215,29 +241,96 @@ function SellerOrders() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-6 border-t border-slate-100/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 overflow-hidden border border-white shadow-sm">
-                      {order.user?.image ? (
-                        <img src={fixImageUrl(order.user.image)} className="w-full h-full object-cover" />
-                      ) : (
-                        order.user?.name?.charAt(0) || 'C'
-                      )}
+                  <div className="flex items-center justify-between pt-6 border-t border-slate-100/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 overflow-hidden border border-white shadow-sm">
+                        {order.user?.image ? (
+                          <img src={fixImageUrl(order.user.image)} className="w-full h-full object-cover" />
+                        ) : (
+                          order.user?.name?.charAt(0) || 'C'
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-slate-700 uppercase tracking-tight">{order.user?.name || 'CLIENT'}</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase border-b border-blue-200/50 w-fit">Verified User</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-black text-slate-700 uppercase tracking-tight">{order.user?.name || 'CLIENT'}</span>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase border-b border-blue-200/50 w-fit">Verified User</span>
+                    
+                    <div className="flex items-center gap-2">
+                       {order.status === 'pending_seller' && (
+                         <>
+                           <button 
+                             onClick={() => setActionOrder(order)}
+                             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-blue-600/10 hover:bg-blue-700 active:scale-95 transition-all"
+                           >
+                             DECIDE <FiArrowUpRight className="w-3.5 h-3.5" />
+                           </button>
+                         </>
+                       )}
+                       {order.status !== 'pending_seller' && (
+                         <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-slate-900/10 hover:bg-slate-800 active:scale-95 transition-all">
+                           DETAILS <FiEye className="w-3.5 h-3.5" />
+                         </button>
+                       )}
                     </div>
                   </div>
-                  <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-slate-900/10 hover:bg-slate-800 active:scale-95 transition-all">
-                    MANAGE <FiArrowUpRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
               </motion.div>
             ))
           )}
         </AnimatePresence>
       </div>
+
+      {/* Action Modal */}
+      <AnimatePresence>
+        {actionOrder && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+            onClick={() => setActionOrder(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-2xl font-black text-slate-900 mb-2 tracking-tight uppercase">Order Decision</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">Ref: {actionOrder.orderNumber || actionOrder.id}</p>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Rejection Note (If rejecting)</label>
+                  <textarea 
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Enter reason for rejection..."
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm focus:bg-white focus:border-blue-600 outline-none transition-all min-h-[100px]"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    disabled={processingId === actionOrder.id || !rejectionReason.trim()}
+                    onClick={() => handleReject(actionOrder.id)}
+                    className="flex-1 py-4 bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 rounded-2xl font-black text-xs tracking-[0.2em] transition-all flex items-center justify-center gap-2"
+                  >
+                    {processingId === actionOrder.id ? <FiRefreshCw className="animate-spin" /> : 'REJECT'}
+                  </button>
+                  <button
+                    disabled={processingId === actionOrder.id}
+                    onClick={() => handleAccept(actionOrder.id)}
+                    className="flex-[1.5] py-4 bg-blue-600 text-white rounded-2xl font-black text-xs tracking-[0.2em] shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                  >
+                    {processingId === actionOrder.id ? <FiRefreshCw className="animate-spin" /> : 'ACCEPT ORDER'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

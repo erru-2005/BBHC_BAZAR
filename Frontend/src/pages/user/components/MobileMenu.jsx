@@ -3,16 +3,17 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { getCategories } from '../../../services/api'
-import { FaStore, FaHandshake, FaBagShopping, FaUserLarge, FaHeart, FaHouse, FaRegCircle } from 'react-icons/fa6'
+import { FaStore, FaHandshake, FaBagShopping, FaUserLarge, FaHeart, FaHouse, FaRegCircle, FaClipboardList } from 'react-icons/fa6'
 
 // Reuse the same icons from MobileBottomNav
 const quickLinkIconMap = {
   profile: FaUserLarge, // Maps to "me" icon from bottom nav
   services: FaHandshake, // Maps to "service" icon from bottom nav
   products: FaStore, // Maps to "product" icon from bottom nav
-  wishlist: FaHeart, // No direct match, using heart icon
-  bag: FaBagShopping, // Maps to "bag" icon from bottom nav
-  home: FaHouse
+  wishlist: FaHeart,
+  bag: FaBagShopping,
+  home: FaHouse,
+  orders: FaClipboardList
 }
 
 function MobileMenu({ open, onClose }) {
@@ -23,12 +24,18 @@ function MobileMenu({ open, onClose }) {
   
   const { mobileQuickLinks = [], quickCategories = [] } = home || {}
 
-  // Ensure Home quick link is present
   const quickLinks = useMemo(() => {
-    const hasHome = mobileQuickLinks.some((link) => (link.label || '').toLowerCase() === 'home')
-    if (hasHome) return mobileQuickLinks
-    return [{ label: 'Home', icon: 'home' }, ...mobileQuickLinks]
-  }, [mobileQuickLinks])
+    const baseLinks = [
+      { label: 'Home', icon: 'home' },
+      { label: 'Profile', icon: 'profile' },
+      { label: 'Orders', icon: 'orders' },
+      { label: 'Wishlist', icon: 'wishlist' },
+      { label: 'Bag', icon: 'bag' },
+      { label: 'Products', icon: 'products' },
+      { label: 'Services', icon: 'services' }
+    ]
+    return baseLinks
+  }, [])
 
   useEffect(() => {
     if (open) {
@@ -93,6 +100,17 @@ function MobileMenu({ open, onClose }) {
         })
       } else {
         navigate('/wishlist')
+      }
+    } else if (label === 'orders') {
+      if (!isAuthenticated || userType !== 'user') {
+        navigate('/user/phone-entry', {
+          state: {
+            returnTo: '/user/orders',
+            message: 'Please login to view your orders.'
+          }
+        })
+      } else {
+        navigate('/user/orders')
       }
     } else {
       navigate('/')
@@ -167,33 +185,6 @@ function MobileMenu({ open, onClose }) {
                   </button>
                 )
               })}
-            </div>
-          </div>
-          <div className="px-4 py-3 border-b">
-            <p className="text-xs uppercase text-gray-500 mb-2">Browse BBHCBazaar</p>
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  onClose()
-                  navigate('/')
-                }}
-                className="w-full text-left font-medium text-gray-800 hover:text-amber-600 transition"
-              >
-                Home
-              </button>
-              {['Deals', 'Fresh Finds', 'Mobiles', 'Electronics', 'Fashion', 'BBHC Pay'].map((item) => (
-                <button
-                  key={item}
-                  onClick={() => {
-                    onClose()
-                    // Placeholder navigation - can be updated when these pages are created
-                    navigate('/')
-                  }}
-                  className="w-full text-left font-medium text-gray-800 hover:text-amber-600 transition"
-                >
-                  {item}
-                </button>
-              ))}
             </div>
           </div>
           <div className="px-4 py-3">

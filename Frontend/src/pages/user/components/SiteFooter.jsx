@@ -1,4 +1,14 @@
+import { useLocation } from 'react-router-dom'
+
 function SiteFooter() {
+  const location = useLocation()
+  const path = location.pathname
+
+  // Show footer only on home page ('/') and product detail pages ('/product/...')
+  const showFooter = path === '/' || path.startsWith('/product/')
+
+  if (!showFooter) return null
+
   return (
     <footer className="mt-12 bg-[#131921] text-gray-200 py-10 w-full">
       <div className="w-full px-4 lg:px-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-8 text-sm">

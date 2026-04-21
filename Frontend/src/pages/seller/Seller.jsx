@@ -4,26 +4,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
-import {
-  FiBox,
-  FiClock,
-  FiTrendingUp,
-  FiBriefcase,
-  FiUsers,
-  FiArrowUpRight,
-  FiMoreHorizontal,
-  FiEye,
-  FiPackage,
-  FiTrash2
-} from 'react-icons/fi'
+import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiMoreHorizontal, FiEye, FiPackage, FiSearch } from 'react-icons/fi'
 import { FaQrcode } from 'react-icons/fa6'
+
 import { getSocket } from '../../utils/socket'
 import { getOrders, getSellerMyProducts, sellerAcceptOrder, sellerRejectOrder } from '../../services/api'
 import SellerOrders from './components/SellerOrders'
 import QRCode from 'react-qr-code'
 import { motion, AnimatePresence } from 'framer-motion'
 import { fixImageUrl } from '../../utils/image'
-import { StatCard, SalesPerformanceChart } from './components/DashboardUI'
 import { setSellerProducts, setSellerOrders, updateSellerOrder, setSellerLoading } from '../../store/sellerSlice'
 
 function Seller() {
@@ -42,6 +31,11 @@ function Seller() {
   const [ordersError, setOrdersError] = useState(null)
   const [notificationProcessingId, setNotificationProcessingId] = useState(null)
   const [qrOrder, setQrOrder] = useState(null)
+  const [newOrderNotification, setNewOrderNotification] = useState(null)
+  const [dashboardSearch, setDashboardSearch] = useState('')
+  const [rejectingOrder, setRejectingOrder] = useState(null)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [actionProcessingId, setActionProcessingId] = useState(null)
 
   // Handle switching views from navigation state
   useEffect(() => {
@@ -60,6 +54,10 @@ function Seller() {
     const handleNewOrder = (orderData) => {
       if (String(orderData?.seller_id) === String(user.id)) {
         dispatch(updateSellerOrder(orderData))
+        // Trigger real-time notification popup
+        setNewOrderNotification(orderData)
+        // Clear after 10 seconds
+        setTimeout(() => setNewOrderNotification(null), 10000)
       }
     }
 
@@ -141,7 +139,52 @@ function Seller() {
     color: topProductsColors[idx % 4]
   }))
 
-  const recentOrders = orders.slice(0, 5)
+  const recentOrders = useMemo(() => {
+    // Only show pending or in-progress orders on the dashboard
+    // Filter out completed, cancelled and delivered
+    const activeStates = ['pending_seller', 'seller_accepted', 'ready_for_pickup', 'pending', 'accepted']
+    let filtered = orders.filter(o =>
+      activeStates.includes(o.status || 'pending_seller')
+    )
+
+    if (dashboardSearch) {
+      const s = dashboardSearch.toLowerCase()
+      filtered = filtered.filter(o =>
+        (o.orderNumber || '').toLowerCase().includes(s) ||
+        (o.user?.name || '').toLowerCase().includes(s) ||
+        (o.product?.name || o.product_snapshot?.name || '').toLowerCase().includes(s)
+      )
+    }
+
+    return filtered.slice(0, 10)
+  }, [orders, dashboardSearch])
+
+  const handleLocalAccept = async (orderId) => {
+    try {
+      setActionProcessingId(orderId)
+      await sellerAcceptOrder(orderId)
+      // Redux will be updated via socket, but we can also trigger a refresh if needed
+      // However the socket handleOrderUpdated should handle it
+    } catch (err) {
+      alert('Acceptance failed: ' + err.message)
+    } finally {
+      setActionProcessingId(null)
+    }
+  }
+
+  const handleLocalReject = async () => {
+    if (!rejectingOrder || !rejectionReason.trim()) return
+    try {
+      setActionProcessingId(rejectingOrder.id)
+      await sellerRejectOrder(rejectingOrder.id, rejectionReason)
+      setRejectingOrder(null)
+      setRejectionReason('')
+    } catch (err) {
+      alert('Rejection failed: ' + err.message)
+    } finally {
+      setActionProcessingId(null)
+    }
+  }
 
   if (showOrders) return <div className="p-4 md:p-12 max-w-7xl mx-auto w-full"><SellerOrders /></div>
 
@@ -173,109 +216,26 @@ function Seller() {
           </div>
         </motion.div>
 
-        <div className="flex items-center gap-3">
-          <button className="bg-white border border-slate-200 px-6 py-3 rounded-2xl text-sm font-black text-slate-800 shadow-sm hover:shadow-md transition-all active:scale-95">
-            EXPORT REPORT
-          </button>
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="relative group min-w-[280px]">
+            <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+            <input
+              type="text"
+              value={dashboardSearch}
+              onChange={(e) => setDashboardSearch(e.target.value)}
+              placeholder="SEARCH ACTIVE ORDERS..."
+              className="w-full bg-white border border-slate-200 pl-12 pr-4 py-3 rounded-2xl text-xs font-black tracking-widest text-slate-900 focus:border-blue-600 outline-none shadow-sm transition-all"
+            />
+          </div>
           <button
             onClick={() => navigate('/seller/products/new')}
-            className="bg-blue-600 px-6 py-3 rounded-2xl text-sm font-black text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95"
+            className="bg-blue-600 px-6 py-3 rounded-2xl text-sm font-black text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95 whitespace-nowrap"
           >
             NEW LISTING
           </button>
         </div>
       </section>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          label="Total Revenue"
-          value={formatCurrency(stats.totalSales)}
-          icon={FiTrendingUp}
-          color={{ bg: 'bg-emerald-50', text: 'text-emerald-600', hex: '#10B981' }}
-          percentage={14.8}
-        />
-        <StatCard
-          label="Active Orders"
-          value={stats.pendingOrders}
-          icon={FiBox}
-          color={{ bg: 'bg-blue-50', text: 'text-blue-600', hex: '#3B82F6' }}
-          percentage={5.2}
-        />
-        <StatCard
-          label="Live Inventory"
-          value={stats.totalProducts}
-          icon={FiBriefcase}
-          color={{ bg: 'bg-indigo-50', text: 'text-indigo-600', hex: '#6366F1' }}
-          percentage={2}
-        />
-        <StatCard
-          label="Conversion"
-          value="4.2%"
-          icon={FiUsers}
-          color={{ bg: 'bg-rose-50', text: 'text-rose-600', hex: '#F43F5E' }}
-          percentage={-0.8}
-        />
-      </div>
-
-      {/* Charts & Top Products Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <SalesPerformanceChart data={chartData} />
-
-        <div className="seller-card-premium p-8 flex flex-col">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Top Sellers</h3>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">By volume</p>
-            </div>
-            <button className="w-10 h-10 rounded-xl hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-colors">
-              <FiMoreHorizontal className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="flex-1 space-y-7">
-            {topProducts.length === 0 ? (
-              <div className="text-center py-10">
-                <FiBox className="w-10 h-10 text-slate-200 mx-auto mb-2" />
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No products yet</p>
-              </div>
-            ) : (
-              topProducts.map((product, idx) => (
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 * idx }}
-                  whileHover={{ x: 5 }}
-                  key={product.id}
-                  className="flex items-center gap-4 group cursor-pointer"
-                >
-                  <div className={`w-14 h-14 rounded-2xl ${product.color.split(' ')[0]} flex items-center justify-center overflow-hidden border border-white/50 shadow-sm transition-transform group-hover:scale-110 group-hover:rotate-3`}>
-                    {product.image ? (
-                      <img src={fixImageUrl(product.image)} className="w-full h-full object-cover" />
-                    ) : (
-                      <FiPackage className="w-6 h-6 opacity-30" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-black text-slate-800 truncate group-hover:text-blue-600 transition-colors uppercase tracking-tight">{product.name}</h4>
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1.5">{product.sales} units sold</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors">{formatCurrency(product.price)}</p>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </div>
-
-          <button
-            onClick={() => navigate('/seller/products')}
-            className="mt-10 py-4 w-full bg-slate-50 rounded-2xl text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
-          >
-            INVENTORY MANAGER <FiArrowUpRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
 
       {/* Recent Orders Table */}
       <section className="seller-card-premium p-8">
@@ -306,68 +266,76 @@ function Seller() {
           <table className="w-full text-left border-separate border-spacing-y-4">
             <thead>
               <tr className="text-xs md:text-sm font-black text-slate-500 uppercase tracking-[0.2em]">
-                <th className="px-6 py-4">Reference</th>
-                <th className="px-6 py-4">Customer Details</th>
-                <th className="px-6 py-4">Order Date</th>
-                <th className="px-6 py-4">Pricing</th>
-                <th className="px-4 py-4">Fulfillment</th>
-                <th className="px-6 py-4 text-center">Trace</th>
+                <th className="px-6 py-4">S.No</th>
+                <th className="px-6 py-4">Product Details</th>
+                <th className="px-6 py-4 text-center">Quantity</th>
+                <th className="px-6 py-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {recentOrders.map((order) => {
-                const status = order.status || 'pending'
-                const isDelivered = ['handed_over', 'completed', 'delivered'].includes(status)
-                const isCancelled = ['cancelled', 'rejected', 'seller_rejected'].includes(status)
-
-                let statusStyle = 'bg-blue-50 text-blue-600'
-                if (isDelivered) statusStyle = 'bg-emerald-50 text-emerald-600'
-                if (isCancelled) statusStyle = 'bg-rose-50 text-rose-600'
+              {recentOrders.map((order, index) => {
+                const status = order.status || 'pending_seller'
+                const isAccepted = status === 'seller_accepted'
+                const isPending = status === 'pending_seller'
+                const productName = order.product_snapshot?.name || order.product?.name || 'PRODUCT NOT FOUND'
+                const productImg = order.product_snapshot?.thumbnail || order.product?.thumbnail
 
                 return (
                   <tr key={order.id} className="group hover:bg-slate-50/50 transition-all">
-                    <td className="px-4 py-4 first:rounded-l-2xl last:rounded-r-2xl bg-white border-y border-l border-slate-50 group-hover:border-blue-100">
-                      <span className="text-xs font-black text-blue-600 tracking-widest whitespace-nowrap">
-                        ID:{order.orderNumber?.split('-').pop() || order.id.slice(-4).toUpperCase()}
+                    <td className="px-4 py-4 first:rounded-l-2xl bg-white border-y border-l border-slate-50 group-hover:border-blue-100">
+                      <span className="text-xs font-black text-slate-400 tracking-widest pl-2">
+                        #{String(index + 1).padStart(2, '0')}
                       </span>
                     </td>
                     <td className="px-4 py-4 bg-white border-y border-slate-50 group-hover:border-blue-100">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-[11px] font-black text-slate-500 overflow-hidden border border-white">
-                          {order.user?.image ? (
-                            <img src={fixImageUrl(order.user.image)} className="w-full h-full object-cover" />
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center overflow-hidden border border-white shadow-sm shrink-0">
+                          {productImg ? (
+                            <img src={fixImageUrl(productImg)} className="w-full h-full object-cover" />
                           ) : (
-                            order.user?.name?.charAt(0) || 'C'
+                            <FiPackage className="w-6 h-6 opacity-20" />
                           )}
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-sm md:text-base font-black text-slate-800 leading-tight uppercase tracking-tight">{order.user?.name || 'Guest User'}</span>
-                          <span className="text-[11px] md:text-xs font-bold text-slate-400">Regular Buyer</span>
+                          <span className="text-sm font-black text-slate-800 uppercase tracking-tight line-clamp-1">{productName}</span>
+                          <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">REF: {order.orderNumber?.split('-').pop()}</span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 bg-white border-y border-slate-50 group-hover:border-blue-100">
-                      <span className="text-xs font-bold text-slate-600">
-                        {new Date(order.createdAt).toLocaleDateString()}
-                      </span>
+                    <td className="px-4 py-4 bg-white border-y border-slate-50 group-hover:border-blue-100 text-center">
+                      <div className="flex flex-col items-center">
+                         <span className="text-sm font-black text-slate-900">{order.quantity || 1}</span>
+                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">UNITS</span>
+                      </div>
                     </td>
-                    <td className="px-6 py-6 bg-white border-y border-slate-50 group-hover:border-blue-100">
-                      <span className="text-sm md:text-base font-black text-slate-900 tracking-tight">
-                        {formatCurrency(order.total_amount)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-6 bg-white border-y border-slate-50 group-hover:border-blue-100">
-                      <span className={`px-4 py-2 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-widest ${statusStyle}`}>
-                        {status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 first:rounded-l-2xl last:rounded-r-2xl bg-white border-y border-r border-slate-50 group-hover:border-blue-100 text-center">
-                      <button
-                        onClick={() => setQrOrder(order)}
-                        className="w-10 h-10 rounded-xl border border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition-all flex items-center justify-center mx-auto"
-                      >
-                        <FiEye className="w-4 h-4" />
-                      </button>
+                    <td className="px-4 py-4 last:rounded-r-2xl bg-white border-y border-r border-slate-50 group-hover:border-blue-100 text-center">
+                       <div className="flex items-center justify-center gap-3">
+                         {isPending ? (
+                           <>
+                             <button
+                               onClick={() => setRejectingOrder(order)}
+                               disabled={actionProcessingId === order.id}
+                               className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50"
+                             >
+                               REJECT
+                             </button>
+                             <button
+                               onClick={() => handleLocalAccept(order.id)}
+                               disabled={actionProcessingId === order.id}
+                               className="px-5 py-2.5 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700 font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 flex items-center gap-2"
+                             >
+                               {actionProcessingId === order.id ? <FiClock className="animate-spin" /> : 'ACCEPT'}
+                             </button>
+                           </>
+                         ) : (
+                           <button
+                             onClick={() => setQrOrder(order)}
+                             className="px-6 py-2.5 rounded-xl bg-slate-900 text-white shadow-xl hover:bg-blue-600 font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
+                           >
+                             <FaQrcode className="w-3.5 h-3.5" /> Handover Code
+                           </button>
+                         )}
+                       </div>
                     </td>
                   </tr>
                 )
@@ -416,6 +384,88 @@ function Seller() {
                 DISMISS
               </button>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* New Order Alert Popup */}
+      <AnimatePresence>
+        {rejectingOrder && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+            onClick={() => setRejectingOrder(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-2xl font-black text-slate-900 mb-2 tracking-tight uppercase">Reject Request?</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">Ref: {rejectingOrder.orderNumber || rejectingOrder.id}</p>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 block">Reason for rejection</label>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Enter reason..."
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm focus:bg-white focus:border-blue-600 outline-none transition-all min-h-[100px]"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setRejectingOrder(null)}
+                    className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs tracking-[0.2em] hover:bg-slate-200 transition-all"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    disabled={actionProcessingId === rejectingOrder.id || !rejectionReason.trim()}
+                    onClick={handleLocalReject}
+                    className="flex-[1.5] py-4 bg-rose-600 text-white rounded-2xl font-black text-xs tracking-[0.2em] shadow-lg shadow-rose-600/20 hover:bg-rose-700 transition-all flex items-center justify-center gap-2"
+                  >
+                    {actionProcessingId === rejectingOrder.id ? <FiClock className="animate-spin" /> : 'CONFIRM REJECT'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {newOrderNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: 100, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, scale: 0.8, x: '-50%' }}
+            className="fixed bottom-24 left-1/2 z-[100] w-full max-w-sm px-4"
+          >
+            <div className="bg-slate-900 text-white p-6 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.4)] border border-white/10 flex items-center gap-5 cursor-pointer hover:bg-slate-800 transition-colors"
+              onClick={() => {
+                setNewOrderNotification(null)
+                setShowOrders(true)
+              }}
+            >
+              <div className="w-16 h-16 rounded-[1.5rem] bg-blue-600 flex items-center justify-center text-white shadow-lg animate-bounce-slow">
+                <FiPackage size={30} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <h4 className="text-xs font-black uppercase tracking-[0.2em] text-blue-400">Incoming Transmission</h4>
+                </div>
+                <p className="font-bold text-sm leading-tight text-slate-100">NEW ORDER FOR YOU!</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Ref: {newOrderNotification.orderNumber?.split('-').pop() || '000X'}</p>
+              </div>
+              <button className="text-white/40 hover:text-white" onClick={(e) => { e.stopPropagation(); setNewOrderNotification(null); }}>×</button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

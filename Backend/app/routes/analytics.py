@@ -135,22 +135,6 @@ def get_returning_vs_new():
         return jsonify({'error': f'Failed to get returning vs new: {str(e)}'}), 500
 
 
-@analytics_bp.route('/stock-levels', methods=['GET'])
-@jwt_required()
-def get_stock_levels():
-    """Get stock/inventory levels"""
-    try:
-        claims = get_jwt()
-        user_type = claims.get('user_type')
-        
-        if user_type != 'master':
-            return jsonify({'error': 'Unauthorized. Master access required.'}), 403
-        
-        period = request.args.get('period', 'monthly')
-        data = AnalyticsService.get_stock_levels(period)
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({'error': f'Failed to get stock levels: {str(e)}'}), 500
 
 
 @analytics_bp.route('/top-products', methods=['GET'])

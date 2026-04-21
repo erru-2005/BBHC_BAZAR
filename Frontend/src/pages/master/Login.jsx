@@ -57,6 +57,7 @@ function MasterLogin() {
     setOtpSessionId(null)
     setPhoneNumber(null)
     setResendMessage(null)
+    dispatch(loginFailure(null)) // Reset loading and error states
   }
 
   const startForgotPasswordMode = () => {
@@ -405,13 +406,13 @@ function MasterLogin() {
                 {loading ? 'Verifying OTP...' : 'Verify OTP'}
               </button>
 
-              {/* Back Button */}
               <button
                 type="button"
                 onClick={() => {
                   resetOtpFlow()
-                  dispatch(loginFailure(null))
                   setIsForgotPassword(false)
+                  // Clear password if user wants to change credentials
+                  setFormData(prev => ({ ...prev, password: '' }))
                 }}
                 className="w-full py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
               >

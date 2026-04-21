@@ -418,7 +418,7 @@ function PublicProductDetail() {
                 <span className="px-4 sm:px-6 font-semibold text-base sm:text-lg min-w-[3rem] text-center">{quantity}</span>
                 <button
                   onClick={() => {
-                    const maxQty = Number(product.quantity || product.stock || 10)
+                    const maxQty = Number(product.quantity || product.stock || 999)
                     setQuantity((prev) => Math.min(maxQty, prev + 1))
                   }}
                   className="p-2 sm:p-2.5 text-gray-600 hover:text-gray-900 transition"

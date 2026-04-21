@@ -79,7 +79,6 @@ export const API_ENDPOINTS = {
       REVENUE_VS_COMMISSIONS: `${API_BASE_URL}/api/analytics/revenue-vs-commissions`,
       CUSTOMER_GROWTH: `${API_BASE_URL}/api/analytics/customer-growth`,
       RETURNING_VS_NEW: `${API_BASE_URL}/api/analytics/returning-vs-new`,
-      STOCK_LEVELS: `${API_BASE_URL}/api/analytics/stock-levels`,
       TOP_PRODUCTS: `${API_BASE_URL}/api/analytics/top-products`,
       SALES_BY_SELLER: `${API_BASE_URL}/api/analytics/sales-by-seller`,
       ACTIVE_COUNTS: `${API_BASE_URL}/api/analytics/active-counts`

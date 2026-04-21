@@ -125,27 +125,9 @@ def create_order():
 
     product_dict = product.to_dict()
     available_quantity = product_dict.get('quantity')
-    if available_quantity is None:
-        available_quantity = (
-            product_dict.get('available_quantity')
-            or product_dict.get('inventory')
-            or product_dict.get('stock')
-        )
-    if available_quantity is not None:
-        try:
-            available_quantity = int(available_quantity)
-        except Exception:
-            available_quantity = None
-
-    if available_quantity is not None:
-        if available_quantity <= 0:
-            return jsonify({'error': 'Product is currently out of stock'}), 400
-        if quantity > available_quantity:
-            quantity = available_quantity
-
-    # Atomically reduce product quantity
-    if not OrderService.reduce_product_quantity(product_id, quantity):
-        return jsonify({'error': 'Insufficient stock. Product quantity could not be reduced.'}), 400
+    
+    # We no longer deduct quantity or block based on stock since products can be added without quantity
+    # and inventory tracking is disabled as per requirements.
 
     unit_price = product_dict.get('selling_price') or product_dict.get('max_price') or 0
     total_amount = float(unit_price or 0) * quantity
@@ -541,7 +523,10 @@ def cancel_order(order_id):
         return jsonify({'error': 'Only customers can cancel orders'}), 403
 
     user_id = get_jwt_identity()
-    updated_order, error = OrderService.cancel_order(order_id, user_id)
+    payload = request.get_json() or {}
+    reason = payload.get('reason', '').strip()
+
+    updated_order, error = OrderService.cancel_order(order_id, user_id, reason=reason)
     if error:
         return jsonify({'error': error}), 400
     if not updated_order:

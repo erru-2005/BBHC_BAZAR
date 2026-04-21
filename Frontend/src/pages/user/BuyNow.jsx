@@ -89,13 +89,14 @@ function BuyNow() {
         product.available_quantity ??
         product.inventory ??
         0)
+    // Since inventory tracking is disabled, return a high number if raw is zero or missing
     if (Number.isNaN(raw) || raw <= 0) {
-      return 5
+      return 999
     }
     return raw
   }, [product])
 
-  const isOutOfStock = product && (product.quantity === 0 || product.stock === 0)
+  const isOutOfStock = false
   const total = useMemo(() => {
     if (!product) return 0
     // Use total_selling_price (with commission) if available, otherwise fall back to selling_price
@@ -199,16 +200,13 @@ function BuyNow() {
                     <button
                       onClick={handleIncrease}
                       className="p-2 text-black hover:opacity-70 disabled:opacity-40"
-                      disabled={quantity >= availableQuantity || isOutOfStock}
+      disabled={quantity >= availableQuantity}
                       aria-label="Increase quantity"
                     >
                       <FaPlus className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
-                {isOutOfStock && (
-                  <p className="text-sm text-black mt-3">Currently out of stock.</p>
-                )}
               </div>
 
               <div className="border border-black p-4 bg-white">
@@ -251,7 +249,7 @@ function BuyNow() {
 
               <button
                 onClick={handleConfirm}
-                disabled={loading || isOutOfStock}
+                disabled={loading}
                 className="w-full bg-black text-white font-semibold py-3.5 text-sm uppercase tracking-widest hover:opacity-80 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 {loading ? 'Processing...' : 'Confirm purchase'}

@@ -51,58 +51,6 @@ class OrderService:
             return value
         return ObjectId(str(value))
 
-    @staticmethod
-    def reduce_product_quantity(product_id, quantity):
-        """Atomically reduce product quantity. Returns True if successful, False if insufficient stock."""
-        try:
-            product_obj_id = ObjectId(product_id)
-            result = mongo.db.products.update_one(
-                {
-                    '_id': product_obj_id,
-                    'quantity': {'$gte': quantity}
-                },
-                {
-                    '$inc': {'quantity': -quantity},
-                    '$set': {'updated_at': datetime.now(timezone.utc)}
-                }
-            )
-            if result.matched_count > 0:
-                # Emit real-time product update so quantity changes are reflected everywhere
-                try:
-                    product = ProductService.get_product_by_id(str(product_obj_id))
-                    if product:
-                        emit_product_event('product_updated', product.to_dict())
-                except Exception as exc:
-                    # Log but don't break order flow
-                    print(f"[OrderService] Failed to emit product update after reduce: {exc}")
-                return True
-            return False
-        except Exception:
-            return False
-
-    @staticmethod
-    def restore_product_quantity(product_id, quantity):
-        """Restore product quantity (e.g., on order cancellation)."""
-        try:
-            product_obj_id = ObjectId(product_id)
-            result = mongo.db.products.update_one(
-                {'_id': product_obj_id},
-                {
-                    '$inc': {'quantity': quantity},
-                    '$set': {'updated_at': datetime.now(timezone.utc)}
-                }
-            )
-            if result.matched_count > 0:
-                try:
-                    product = ProductService.get_product_by_id(str(product_obj_id))
-                    if product:
-                        emit_product_event('product_updated', product.to_dict())
-                except Exception as exc:
-                    print(f"[OrderService] Failed to emit product update after restore: {exc}")
-                return True
-            return False
-        except Exception:
-            return False
 
     @staticmethod
     def create_order(order_data):
@@ -323,8 +271,7 @@ class OrderService:
         if str(order.seller_id) != str(seller_id):
             return None, "Order does not belong to this seller"
 
-        # Restore product quantity
-        OrderService.restore_product_quantity(str(order.product_id), order.quantity)
+        # Product quantity deduction is no longer used
 
         # Update order with rejection reason
         result = mongo.db.orders.update_one(
@@ -485,9 +432,7 @@ class OrderService:
         # In practice, you'd generate and store this code temporarily
         # For now, we'll accept any non-empty code as confirmation
 
-        # Restore product quantity if order was accepted
-        if order.status in ['seller_accepted', 'ready_for_pickup', 'handed_over']:
-            OrderService.restore_product_quantity(str(order.product_id), order.quantity)
+        # Product quantity deduction is no longer used
 
         # Generate cancellation code for audit
         cancellation_code = secrets.token_urlsafe(8).upper()
@@ -521,7 +466,7 @@ class OrderService:
         return updated_order, None
 
     @staticmethod
-    def cancel_order(order_id, user_id):
+    def cancel_order(order_id, user_id, reason=None):
         """Allow a user to cancel their own pending order."""
         try:
             order_obj_id = ObjectId(order_id)
@@ -537,13 +482,29 @@ class OrderService:
         if status not in ['pending_seller']:
             return None, "Order cannot be cancelled at this stage"
 
-        # Restore product quantity
-        OrderService.restore_product_quantity(str(order_doc['product_id']), order_doc['quantity'])
-
-        updated_order = OrderService.update_order_status(
-            order_id,
-            'cancelled',
-            note='Cancelled by user',
-            updated_by=f'user:{user_id}'
+        # Update order with cancellation reason
+        result = mongo.db.orders.update_one(
+            {'_id': order_obj_id},
+            {
+                '$set': {
+                    'status': 'cancelled',
+                    'rejection_reason': reason.strip() if reason else 'Cancelled by user',
+                    'rejected_by': f'user:{user_id}',
+                    'updated_at': datetime.now(timezone.utc)
+                },
+                '$push': {
+                    'status_history': {
+                        'status': 'cancelled',
+                        'timestamp': datetime.now(timezone.utc),
+                        'note': f'User cancelled: {reason.strip() if reason else "No reason provided"}',
+                        'updated_by': f'user:{user_id}'
+                    }
+                }
+            }
         )
+        
+        if result.matched_count == 0:
+            return None, "Failed to update order"
+
+        updated_order = OrderService.get_order_by_id(order_id)
         return updated_order, None

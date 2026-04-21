@@ -28,16 +28,6 @@ const SummarySection = ({ stats, salesByCategory, ordersByStatus, topProducts, s
     ? salesBySeller[0]
     : null
   
-  // Calculate low stock items
-  const lowStockItems = stockLevels?.filter(item => {
-    const stock = item.stock || item.quantity || 0
-    return stock < 10 && stock > 0
-  }).length || 0
-  
-  const outOfStockItems = stockLevels?.filter(item => {
-    const stock = item.stock || item.quantity || 0
-    return stock === 0
-  }).length || 0
 
   const summaryItems = [
     {
@@ -86,13 +76,6 @@ const SummarySection = ({ stats, salesByCategory, ordersByStatus, topProducts, s
         { label: 'Cancelled', value: cancelledOrders, color: 'text-red-600' }
       ]
     },
-    {
-      title: 'Inventory Status',
-      items: [
-        { label: 'Low Stock Items', value: lowStockItems, color: 'text-orange-600' },
-        { label: 'Out of Stock', value: outOfStockItems, color: 'text-red-600' }
-      ]
-    }
   ]
 
   return (

@@ -2,7 +2,7 @@ import { FiSearch, FiBell } from 'react-icons/fi'
 import { useSelector } from 'react-redux'
 import { fixImageUrl } from '../../../utils/image'
 
-export default function SellerHeader() {
+export default function SellerHeader({ onOpenProfile }) {
   const { user } = useSelector((state) => state.auth)
 
   return (
@@ -26,7 +26,10 @@ export default function SellerHeader() {
 
         <div className="h-6 w-px bg-slate-200/60 shadow-sm"></div>
 
-        <div className="flex items-center gap-4 cursor-pointer group">
+        <div 
+          onClick={onOpenProfile}
+          className="flex items-center gap-4 cursor-pointer group hover:opacity-80 transition-opacity"
+        >
           <div className="text-right flex flex-col hidden lg:flex">
             <span className="text-sm md:text-base font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">
               {user?.trade_id || user?.name || 'Seller Account'}
@@ -38,7 +41,7 @@ export default function SellerHeader() {
                 <img 
                   src={fixImageUrl(user.image_url || user.image)} 
                   alt="Profile" 
-                  className="w-full h-full object-cover" 
+                  className="w-full h-full object-cover scale-110" 
                 />
             ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 font-black font-outfit text-lg">

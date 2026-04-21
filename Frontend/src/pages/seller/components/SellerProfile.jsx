@@ -196,7 +196,7 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                             {/* Outer Ring Decoration */}
                                             <div className="absolute inset-0 rounded-full border-4 border-blue-500/20 group-hover/profile:border-blue-500/40 transition-colors" />
                                             
-                                            <div className="w-full h-full rounded-full border-[6px] border-[#F8FAFC] bg-white flex items-center justify-center overflow-hidden relative shadow-inner">
+                                            <div className="w-full h-full rounded-full border-[6px] border-[#F8FAFC] bg-white overflow-hidden relative shadow-inner">
                                                 <AnimatePresence>
                                                     {isUploading && (
                                                         <motion.div 
@@ -221,7 +221,7 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                                     <img 
                                                         src={fixImageUrl(previewUrl || user.image_url || user.image)} 
                                                         alt="Avatar" 
-                                                        className="w-full h-full object-cover transition-all duration-700 group-hover/profile:scale-110 group-hover/profile:rotate-1" 
+                                                        className="w-full h-full object-cover scale-105 transition-all duration-700 group-hover/profile:scale-125 group-hover/profile:rotate-1" 
                                                     />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center bg-slate-50">

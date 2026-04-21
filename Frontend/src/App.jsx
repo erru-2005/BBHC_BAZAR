@@ -80,15 +80,29 @@ function SplashWrapper() {
         try {
           // Verify token and get user profile
           const data = await getCurrentUser()
+          
+          // ROLE ISOLATION: 
+          // If we are on a customer-facing path (User side), and the found token is NOT a 'user' token,
+          // we should NOT automatically restore it as the primary authenticated user for the consumer site.
+          // This prevents "Seller cache" from being used as "User data".
+          const isUserPath = location.pathname.startsWith('/user/') || 
+                            location.pathname === '/' || 
+                            location.pathname.startsWith('/product/') ||
+                            location.pathname.startsWith('/category/')
+          
+          if (isUserPath && data.userType !== 'user') {
+            console.warn('[Session] Ignoring merchant/admin token for consumer flow isolation.')
+            return
+          }
+
           dispatch(restoreUser(data))
         } catch (err) {
           console.error('[Session] Restoration failed:', err)
-          // Don't clear storage here, the API interceptor handles 401s
         }
       }
     }
     restoreSession()
-  }, [dispatch, isAuthenticated])
+  }, [dispatch, isAuthenticated, location.pathname])
 
   // 1. Initial data loading - handles all roles
   useEffect(() => {

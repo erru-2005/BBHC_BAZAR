@@ -68,7 +68,7 @@ export default function SellerLayout() {
             <div className="flex-1 flex flex-col md:ml-64 transition-all">
                 {/* Desktop Header */}
                 <div className="hidden md:block">
-                  <SellerHeader />
+                  <SellerHeader onOpenProfile={() => setShowProfile(true)} />
                 </div>
 
                 <main className="flex-1 flex flex-col">
