@@ -48,12 +48,12 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                     borderRadius: "9999px",
                     y: 100 
                 }}
-                className="relative w-full h-[100dvh] sm:h-auto sm:max-w-4xl sm:max-h-[85vh] bg-white sm:rounded-[4rem] shadow-[0_60px_100px_-20px_rgba(15,23,42,0.4)] border-t sm:border border-slate-100 overflow-hidden pointer-events-auto flex flex-col pt-safe-top"
+                className="relative w-full h-[100dvh] sm:h-auto sm:max-w-4xl sm:max-h-[90vh] bg-white sm:rounded-[3.5rem] shadow-[0_80px_120px_-30px_rgba(15,23,42,0.5)] border-t sm:border border-slate-100 overflow-hidden pointer-events-auto flex flex-col"
                 transition={{
                     type: "spring",
-                    stiffness: 280,
-                    damping: 28,
-                    mass: 1.1
+                    stiffness: 260,
+                    damping: 30,
+                    mass: 1.2
                 }}
             >
                 {/* Header */}
@@ -61,30 +61,30 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1, duration: 0.5 }}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between px-8 pt-16 pb-8 sm:py-8 border-b border-slate-50 bg-white/60 backdrop-blur-2xl sticky top-0 z-20 gap-6"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between px-8 py-10 sm:py-10 border-b border-slate-100 bg-white/40 backdrop-blur-3xl sticky top-0 z-20 gap-6"
                 >
                     <div className="space-y-1">
                         <div className="flex items-center gap-4 flex-wrap">
                             <h2 className="text-3xl font-black text-slate-900 tracking-tighter font-outfit uppercase">
-                                {mode === 'product' ? 'Asset Initializer' : 'Service Deployment'}
+                                {mode === 'product' ? 'New Product' : 'New Service'}
                             </h2>
-                            <div className="flex gap-1.5 p-1.5 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
+                            <div className="flex gap-2 p-2 bg-slate-100 rounded-[1.5rem] border border-slate-200 shadow-sm transition-all hover:border-slate-300">
                                 <button 
                                     onClick={() => setMode('product')}
-                                    className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${mode === 'product' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}
+                                    className={`px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${mode === 'product' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:text-slate-900'}`}
                                 >
-                                    Stock
+                                    Products
                                 </button>
                                 <button 
                                     onClick={() => setMode('service')}
-                                    className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${mode === 'service' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-blue-600'}`}
+                                    className={`px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300 ${mode === 'service' ? 'bg-blue-700 text-white shadow-lg' : 'text-slate-600 hover:text-blue-700'}`}
                                 >
-                                    Expertise
+                                    Services
                                 </button>
                             </div>
                         </div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] opacity-80">
-                            {mode === 'product' ? 'PROVISIONING NEW INVENTORY PROTOCOLS' : 'ESTABLISHING CLIENT SERVICE PIPELINES'}
+                        <p className="text-[11px] font-black text-slate-700 uppercase tracking-[0.2em] opacity-90">
+                            {mode === 'product' ? 'REGISTERING NEW INVENTORY TO MARKET' : 'INTRODUCING NEW SERVICE OFFERING'}
                         </p>
                     </div>
                     <motion.button

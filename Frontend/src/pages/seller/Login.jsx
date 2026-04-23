@@ -242,21 +242,20 @@ function SellerLogin() {
         {/* Neumorphic Card */}
         <div className="bg-white rounded-3xl p-8 shadow-[20px_20px_60px_#bebebe,-20px_-20px_60px_#ffffff]">
           {/* User Icon */}
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 rounded-full bg-white shadow-[8px_8px_16px_#d1d5db,-8px_-8px_16px_#ffffff] flex items-center justify-center">
-              <svg
-                className="w-10 h-10 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
+          <div className="flex justify-center mb-10">
+            <div className="relative group">
+              {/* High-end Glow Effect */}
+              <div className="absolute -inset-2 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-600 rounded-[2.5rem] blur-2xl opacity-20 group-hover:opacity-40 transition-all duration-1000 group-hover:duration-300 animate-pulse" />
+              
+              <div className="relative flex items-center justify-center bg-white rounded-[2.2rem] py-5 px-10 border border-slate-100 shadow-2xl overflow-hidden min-w-[280px]">
+                 {/* Shine Animation */}
+                 <div className="absolute top-0 bottom-0 w-32 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12 animate-shine pointer-events-none" />
+                 
+                 <div className="flex items-center gap-0.5">
+                    <span className="text-4xl font-black text-slate-900 tracking-tighter font-outfit">BBHC</span>
+                    <span className="text-4xl font-black text-[#FF3399] tracking-tighter font-outfit filter drop-shadow-[0_2px_10px_rgba(255,51,153,0.3)]">Bazaar</span>
+                 </div>
+              </div>
             </div>
           </div>
 

@@ -29,7 +29,8 @@ import {
   SellerAddProduct,
   SellerEditProduct,
   SellerMyServices,
-  SellerAddService
+  SellerAddService,
+  SellerSettings
 } from './pages'
 import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -59,6 +60,7 @@ function SplashWrapper() {
   const location = useLocation()
   const dispatch = useDispatch()
   const { isAuthenticated, userType, token } = useSelector((state) => state.auth)
+  const { isDarkMode } = useSelector((state) => state.theme)
   const { home } = useSelector((state) => state.data)
   const sellerState = useSelector((state) => state.seller)
   const masterState = useSelector((state) => state.master)
@@ -71,6 +73,14 @@ function SplashWrapper() {
   })
   const [showContent, setShowContent] = useState(!showSplash)
   const headerLogoRef = useRef(null)
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [isDarkMode])
 
   // 0. Session Restoration on Mount
   useEffect(() => {
@@ -295,6 +305,7 @@ function SplashWrapper() {
                 <Route path="/seller/products/:productId/edit" element={<SellerEditProduct />} />
                 <Route path="/seller/services" element={<SellerMyServices />} />
                 <Route path="/seller/services/new" element={<SellerAddService />} />
+                <Route path="/seller/settings" element={<SellerSettings />} />
               </Route>
               <Route
                 path="/master/dashboard"

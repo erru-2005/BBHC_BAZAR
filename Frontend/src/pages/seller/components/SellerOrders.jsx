@@ -99,7 +99,7 @@ function SellerOrders() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-10 pt-4 pb-4 px-3 md:px-6">
         <div>
           <div className="flex items-center gap-3 mb-3">
-            <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter leading-none uppercase font-outfit">
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-none uppercase font-outfit">
               Order <span className="text-blue-600">Pipeline</span>
             </h2>
             <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2 transition-all border ${isSynced ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'
@@ -113,14 +113,14 @@ function SellerOrders() {
           </p>
         </div>
 
-        <div className="relative group max-w-sm w-full">
+        <div className="relative group flex-1 max-w-2xl transition-all">
           <FiSearch className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-all w-5 h-5" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="LOCATE TRANSMISSION..."
-            className="bg-slate-50/50 border-2 border-slate-200 rounded-[2rem] py-5 pl-16 pr-8 text-xs md:text-sm font-black tracking-widest text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-blue-600 outline-none w-full shadow-lg shadow-slate-200/40 transition-all placeholder:text-slate-400"
+            className="bg-slate-50/50 border-2 border-slate-200 rounded-[2rem] py-4 pl-14 pr-8 text-xs md:text-sm font-black tracking-widest text-slate-900 focus:bg-white focus:ring-8 focus:ring-blue-500/5 focus:border-blue-600 outline-none w-full shadow-lg shadow-slate-200/40 transition-all placeholder:text-slate-400"
           />
         </div>
       </div>
@@ -136,7 +136,7 @@ function SellerOrders() {
           <button
             key={f.id}
             onClick={() => setStatusFilter(f.id)}
-            className={`flex items-center gap-3 px-8 py-4 rounded-[1.75rem] transition-all duration-500 border ${statusFilter === f.id
+            className={`flex items-center gap-3 px-6 py-3 rounded-[1.75rem] transition-all duration-500 border ${statusFilter === f.id
               ? 'bg-white text-blue-600 shadow-xl shadow-blue-500/10 border-white'
               : 'text-slate-400 border-transparent hover:text-slate-900'
               }`}
@@ -198,7 +198,7 @@ function SellerOrders() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="seller-card-premium p-8 group relative overflow-hidden"
+                className="seller-card-premium p-6 group relative overflow-hidden"
               >
                 {/* Decorative glow */}
                 <div className={`absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-10 ${getStatusStyle(order.status).includes('emerald') ? 'bg-emerald-500' : 'bg-blue-500'}`} />
@@ -209,7 +209,7 @@ function SellerOrders() {
                       <FiBox className="w-6 h-6" />
                     </div>
                     <div>
-                      <h4 className="font-black text-slate-900 leading-none uppercase tracking-tight text-lg">
+                      <h4 className="font-black text-slate-900 leading-none uppercase tracking-tight text-base">
                         {order.orderNumber ? `ORDER REF: ${order.orderNumber.split('-').pop()}` : (order.id || order._id) ? `REF: ${(order.id || order._id).toString().slice(-6).toUpperCase()}` : 'ORDER-TKN-NEW'}
                       </h4>
                       <p className="text-[11px] font-black text-slate-500 mt-2 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -237,7 +237,7 @@ function SellerOrders() {
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VALUATION</p>
-                    <p className="font-black text-slate-900 text-lg tracking-tight">{formatCurrency(order.total_amount)}</p>
+                    <p className="font-black text-slate-900 text-base tracking-tight">{formatCurrency(order.total_amount)}</p>
                   </div>
                 </div>
 

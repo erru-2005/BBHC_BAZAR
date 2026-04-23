@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { FiArrowLeft, FiTag, FiPackage, FiRefreshCw } from 'react-icons/fi'
+import { motion } from 'framer-motion'
 import { getProductById } from '../../services/api'
 import ProductMediaViewer from '../../components/ProductMediaViewer'
 import useProductSocket from '../../hooks/useProductSocket'

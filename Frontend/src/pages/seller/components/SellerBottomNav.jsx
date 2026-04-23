@@ -116,8 +116,8 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                                     >
                                         <Icon
                                             className={`h-[22px] w-[22px] transition-all duration-500 ${isActive
-                                                ? 'text-blue-600 scale-110'
-                                                : 'text-slate-400 group-hover:text-slate-600'
+                                                ? 'text-blue-700 scale-110'
+                                                : 'text-slate-600 group-hover:text-slate-900'
                                                 }`}
                                             strokeWidth={isActive ? 0 : 2}
                                         />
@@ -138,32 +138,27 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                             animate={{ borderRadius: "9999px" }}
                             whileTap={{ scale: 0.9, rotate: -90 }}
                             whileHover={{ 
-                                scale: 1.15, 
+                                scale: 1.1, 
                                 rotate: 90,
-                                boxShadow: "0 25px 40px -10px rgba(15, 23, 42, 0.4)" 
+                                boxShadow: "0 0 30px 10px rgba(37, 99, 235, 0.4)" 
                             }}
                             onClick={onOpenAddProduct}
-                            className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-white shadow-[0_20px_40px_-5px_rgba(15,23,42,0.3)] ring-[6px] ring-white relative group overflow-hidden"
+                            className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_20px_40px_-5px_rgba(37,99,235,0.4)] ring-[6px] ring-white relative group overflow-hidden"
                             transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         >
                             {/* Animated Ripple Background */}
                             <motion.div 
-                                className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                                className="absolute inset-0 bg-slate-900 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                                 initial={false}
                             />
                             
-                            <HiPlus className="h-9 w-9 text-white relative z-10" strokeWidth={3} />
-                            
-                            {/* Glow Effect */}
-                            <motion.div 
-                                className="absolute inset-0 bg-gradient-to-tr from-blue-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
-                            />
+                            <HiPlus className="h-9 w-9 text-white relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" strokeWidth={3} />
                         </motion.button>
                         
                         {/* Pulse Aura */}
                         <motion.div 
-                            animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
-                            transition={{ duration: 3, repeat: Infinity }}
+                            animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.4, 0.2] }}
+                            transition={{ duration: 2, repeat: Infinity }}
                             className="absolute inset-0 -z-10 bg-blue-500 rounded-full blur-2xl"
                         />
                     </div>
@@ -185,8 +180,8 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                                     >
                                         <Icon
                                             className={`h-[22px] w-[22px] transition-all duration-500 ${isActive
-                                                ? 'text-blue-600 scale-110'
-                                                : 'text-slate-400 group-hover:text-slate-600'
+                                                ? 'text-blue-700 scale-110'
+                                                : 'text-slate-600 group-hover:text-slate-900'
                                                 }`}
                                             strokeWidth={isActive ? 0 : 2}
                                         />

@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getProductById } from '../../services/api'
+import { useSelector } from 'react-redux'
+import { motion } from 'framer-motion'
+import { FiRefreshCw, FiXCircle } from 'react-icons/fi'
+import { getProductById, getCategoryCommissionRates } from '../../services/api'
 import SellerProductForm from './components/ProductForm'
 
 function SellerEditProduct() {
@@ -9,6 +12,8 @@ function SellerEditProduct() {
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [categoryCommissionRates, setCategoryCommissionRates] = useState({})
+  const { userType } = useSelector((state) => state.auth)
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -17,6 +22,16 @@ function SellerEditProduct() {
       try {
         const data = await getProductById(productId)
         setProduct(data)
+        
+        // Load category commission rates - Only for Masters to prevent 403 for sellers
+        if (userType === 'master') {
+          try {
+            const rates = await getCategoryCommissionRates()
+            setCategoryCommissionRates(rates || {})
+          } catch (err) {
+            setCategoryCommissionRates({})
+          }
+        }
       } catch (err) {
         setError(err.message || 'Failed to load product')
       } finally {
@@ -25,7 +40,7 @@ function SellerEditProduct() {
     }
 
     fetchProduct()
-  }, [productId])
+  }, [productId, userType])
 
   if (loading) {
     return (

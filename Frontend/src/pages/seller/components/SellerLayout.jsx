@@ -65,14 +65,14 @@ export default function SellerLayout() {
             <SellerSidebar onOpenAddProduct={() => setIsAddingProduct(true)} />
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col md:ml-64 transition-all">
+            <div className="flex-1 flex flex-col md:ml-64 min-h-screen">
                 {/* Desktop Header */}
                 <div className="hidden md:block">
                   <SellerHeader onOpenProfile={() => setShowProfile(true)} />
                 </div>
 
                 <main className="flex-1 flex flex-col">
-                    <Outlet />
+                    <Outlet context={{ setIsAddingProduct }} />
                     {/* Extra padding for mobile bottom nav */}
                     <div className="h-28 md:hidden" />
                 </main>

@@ -139,23 +139,23 @@ function ServiceForm() {
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`p-6 rounded-[1.5rem] border text-xs font-black uppercase tracking-widest flex items-center gap-3 ${status.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-rose-50 border-rose-100 text-rose-600'}`}
+            className={`p-6 rounded-[1.5rem] border text-xs font-black uppercase tracking-widest flex items-center gap-3 ${status.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-rose-50 border-rose-100 text-rose-700'}`}
           >
-            <div className={`w-2 h-2 rounded-full ${status.type === 'success' ? 'bg-emerald-600 animate-pulse' : 'bg-rose-600'}`} />
+            <div className={`w-2 h-2 rounded-full ${status.type === 'success' ? 'bg-emerald-700 animate-pulse' : 'bg-rose-700'}`} />
             {status.message}
           </motion.div>
         )}
 
         {/* Media Section */}
         <section className="bg-white border border-slate-100 rounded-[2.5rem] p-8 md:p-10 space-y-8 shadow-sm">
-          <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
-            <span className="w-1.5 h-6 bg-blue-600 rounded-full" />
-            Visual Representation
+          <h2 className="text-[11px] font-black text-slate-800 uppercase tracking-[0.3em] flex items-center gap-3">
+            <span className="w-1.5 h-6 bg-blue-700 rounded-full" />
+            Service Media
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hero Banner</label>
+              <label className="block text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1">Service Thumbnail</label>
               <div className="relative group">
                 <input 
                   type="file" 
@@ -168,8 +168,8 @@ function ServiceForm() {
                     <img src={thumbnail.preview} className="w-full h-full object-cover rounded-[1.5rem] transition-transform duration-1000 group-hover:scale-105" alt="Preview" />
                   ) : (
                     <div className="text-center space-y-4">
-                      <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm mx-auto text-slate-300 transition-colors group-hover:text-blue-500"><FiPlus className="w-6 h-6" /></div>
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Upload Display Banner</span>
+                      <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm mx-auto text-slate-400 transition-colors group-hover:text-blue-500"><FiPlus className="w-6 h-6" /></div>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Upload Display Banner</span>
                     </div>
                   )}
                   <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
@@ -180,7 +180,7 @@ function ServiceForm() {
             </div>
 
             <div className="space-y-4">
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Service Portfolio</label>
+              <label className="block text-[10px] font-black text-slate-600 uppercase tracking-widest ml-1">Service Gallery</label>
               <div className="grid grid-cols-3 gap-3">
                 <div className="relative group aspect-square rounded-[1.5rem] border-2 border-dashed border-slate-100 bg-slate-50/50 flex items-center justify-center cursor-pointer hover:border-blue-200 hover:bg-white transition-all overflow-hidden shrink-0">
                   <FiPlus className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors" strokeWidth={3} />
@@ -216,37 +216,37 @@ function ServiceForm() {
 
         {/* Basic Info Section */}
         <section className="bg-white border border-slate-100 rounded-[2.5rem] p-8 md:p-10 space-y-8 shadow-sm">
-          <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
-            <span className="w-1.5 h-6 bg-blue-600 rounded-full" />
-            Service Blueprint
+          <h2 className="text-[11px] font-black text-slate-800 uppercase tracking-[0.3em] flex items-center gap-3">
+            <span className="w-1.5 h-6 bg-blue-700 rounded-full" />
+            Service Information
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="md:col-span-2 space-y-3">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Service Designation</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-600 ml-1">Service Name</label>
               <input 
                 type="text" 
                 name="serviceName"
                 value={form.serviceName}
                 onChange={handleChange}
                 placeholder="e.g. HIGH-DEFINITION ARCHITECTURAL RENDERING"
-                className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white text-slate-900 font-bold placeholder:text-slate-200 transition-all shadow-inner"
+                className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white text-slate-900 font-bold placeholder:text-slate-400 transition-all shadow-inner"
               />
             </div>
 
             <div className="space-y-4">
-              <label className="block text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 ml-1">
-                Expertise Domain <span className="text-blue-600">*</span>
+              <label className="block text-[11px] font-black uppercase tracking-[0.2em] text-slate-600 ml-1">
+                Category <span className="text-blue-600">*</span>
               </label>
               <div className="relative group">
                 <select
                   name="category"
                   value={form.category}
                   onChange={handleChange}
-                  className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl px-6 py-5 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white text-slate-900 font-black appearance-none transition-all shadow-inner group-hover:border-blue-200"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-5 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white text-slate-900 font-black appearance-none transition-all shadow-sm group-hover:border-blue-200"
                   required
                 >
-                  <option value="" className="text-slate-400">SELECT CLASSIFICATION</option>
+                  <option value="" className="text-slate-500">SELECT CATEGORY</option>
                   {categories.map(c => {
                     const name = typeof c === 'object' ? (c.name || '') : (c || '')
                     const val = typeof c === 'object' ? (c.id || c._id || name) : (c || '')
@@ -264,20 +264,20 @@ function ServiceForm() {
             </div>
 
             <div className="space-y-3">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Standard Rate (₹)</label>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-600 ml-1">Service Charge (₹)</label>
               <input 
                 type="number" 
                 name="serviceCharge"
                 value={form.serviceCharge}
                 onChange={handleChange}
                 placeholder="0.00"
-                className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white text-slate-900 font-bold placeholder:text-slate-200 transition-all shadow-inner"
+                className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white text-slate-900 font-bold placeholder:text-slate-400 transition-all shadow-inner"
               />
             </div>
 
             <div className="md:col-span-2 space-y-3">
               <label className="block text-[10px] font-black uppercase tracking-widest text-blue-600 flex items-center gap-2 ml-1">
-                <FiInfo className="w-3.5 h-3.5" /> WORKFLOW SPECIFICATIONS
+                <FiInfo className="w-3.5 h-3.5" /> SERVICE DESCRIPTION
               </label>
               <textarea 
                 name="description"
@@ -285,7 +285,7 @@ function ServiceForm() {
                 onChange={handleChange}
                 placeholder="Elaborate on your unique approach, technical stack, or project requirements..."
                 rows={5}
-                className="w-full bg-slate-50/50 border border-slate-100 rounded-[2rem] px-6 py-5 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white text-slate-900 font-medium placeholder:text-slate-200 transition-all shadow-inner resize-none"
+                className="w-full bg-slate-50/50 border border-slate-100 rounded-[2rem] px-6 py-5 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white text-slate-900 font-medium placeholder:text-slate-400 transition-all shadow-inner resize-none"
               ></textarea>
             </div>
           </div>
@@ -293,9 +293,9 @@ function ServiceForm() {
         {/* Highlights Section */}
         <section className="bg-white border border-slate-100 rounded-[2.5rem] p-8 md:p-10 space-y-8 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16" />
-          <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-3">
-            <span className="w-1.5 h-6 bg-blue-600 rounded-full" />
-            Value Propositions
+          <h2 className="text-[11px] font-black text-slate-800 uppercase tracking-[0.3em] flex items-center gap-3">
+            <span className="w-1.5 h-6 bg-blue-700 rounded-full" />
+            Service Highlights
           </h2>
           
           <div className="space-y-4">
@@ -315,16 +315,16 @@ function ServiceForm() {
                   value={p}
                   onChange={(e) => handlePointChange(i, e.target.value)}
                   placeholder="Key feature or benefit..."
-                  className="flex-1 bg-slate-50/50 border border-slate-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white text-slate-900 font-bold placeholder:text-slate-300 transition-all shadow-inner"
+                  className="flex-1 bg-slate-50/50 border border-slate-100 rounded-2xl px-6 py-4 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white text-slate-900 font-bold placeholder:text-slate-400 transition-all shadow-inner"
                 />
               </motion.div>
             ))}
             <button 
               type="button" 
               onClick={handleAddPoint}
-              className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] hover:bg-slate-50 hover:text-blue-600 hover:border-blue-100 transition-all flex items-center justify-center gap-3"
+              className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] hover:bg-slate-50 hover:text-blue-600 hover:border-blue-100 transition-all flex items-center justify-center gap-3"
             >
-              <FiPlus strokeWidth={3} className="w-4 h-4" /> RECRUIT NEW HIGHLIGHT
+              <FiPlus strokeWidth={3} className="w-4 h-4" /> ADD HIGHLIGHT
             </button>
           </div>
         </section>
@@ -338,15 +338,15 @@ function ServiceForm() {
             className="flex-[2] h-20 bg-gradient-to-r from-blue-600 to-indigo-700 text-white text-[11px] font-black uppercase tracking-[0.5em] rounded-[2.5rem] shadow-xl shadow-blue-500/20 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-4 relative overflow-hidden group"
           >
             <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-            {submitting ? 'TRANSMITTING...' : <><FiCheck className="w-5 h-5" strokeWidth={3} /> DEPLOY SERVICE</>}
+            {submitting ? 'ADDING SERVICE...' : <><FiCheck className="w-5 h-5" strokeWidth={3} /> ADD SERVICE</>}
           </motion.button>
           
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="flex-1 h-20 bg-white border-2 border-slate-100 text-slate-400 text-[11px] font-black uppercase tracking-[0.4em] rounded-[2.5rem] hover:bg-slate-50 hover:text-slate-900 hover:border-slate-200 transition-all active:scale-[0.98]"
+            className="flex-1 h-20 bg-white border-2 border-slate-200 text-slate-500 text-[11px] font-black uppercase tracking-[0.4em] rounded-[2.5rem] hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all active:scale-[0.98]"
           >
-            ABORT
+            CANCEL
           </button>
         </div>
       </form>

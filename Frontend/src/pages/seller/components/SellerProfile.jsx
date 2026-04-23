@@ -173,7 +173,7 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                         >
                                             <FiChevronLeft className="w-6 h-6" strokeWidth={2.5} />
                                         </motion.button>
-                                        <h2 className="text-slate-400 font-black text-[10px] uppercase tracking-[0.4em]">Merchant Profile</h2>
+                                        <h2 className="text-slate-400 font-extrabold text-[9px] uppercase tracking-[0.4em]">Merchant Profile</h2>
                                         <div className="w-12" />
                                     </div>
 
@@ -226,7 +226,7 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center bg-slate-50">
                                                         <span className="text-6xl sm:text-8xl font-black text-blue-100 uppercase font-outfit select-none">
-                                                            {user?.trade_id?.charAt(0).toUpperCase() || 'S'}
+                                                         {user?.first_name?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || user?.trade_id?.charAt(0).toUpperCase() || 'S'}
                                                         </span>
                                                     </div>
                                                 )}
@@ -255,13 +255,9 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                     </motion.div>
 
                                     <motion.div variants={childVariants} className="text-center px-6 mt-8 z-10 w-full">
-                                        <h3 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2 uppercase font-outfit">
-                                            {user?.trade_id || user?.name || 'Seller Account'}
+                                        <h3 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight mb-2 capitalize font-outfit">
+                                            {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : (user?.name || user?.full_name || 'Seller Account')}
                                         </h3>
-                                        <div className="inline-flex items-center gap-2 px-6 py-2 rounded-2xl bg-white border border-slate-100 shadow-sm">
-                                            <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shadow-[0_0_10px_rgba(37,99,235,0.5)]" />
-                                            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-600">Premium Partner</span>
-                                        </div>
                                     </motion.div>
                                 </div>
 
@@ -300,8 +296,8 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                     
                                     <motion.div variants={childVariants} className="text-center opacity-30 px-10">
                                         <div className="h-px w-20 bg-slate-300 mx-auto mb-6" />
-                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">BBHC BAZAAR v3.0.0</p>
-                                        <p className="text-[8px] font-bold text-slate-400 mt-2 uppercase tracking-widest">QUANTUM ENCRYPTED • CLOUD SYNC</p>
+                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">BBHC BAZAAR v3.0.0</p>
+                                        <p className="text-[7px] font-bold text-slate-400 mt-2 uppercase tracking-widest">ENCRYPTED • CLOUD SYNC</p>
                                     </motion.div>
                                 </div>
                             </div>

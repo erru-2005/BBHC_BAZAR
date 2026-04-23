@@ -28,8 +28,8 @@ ChartJS.register(
 export const StatCard = ({ label, value, icon: Icon, color, percentage }) => {
   return (
     <motion.div 
-      whileHover={{ y: -8, scale: 1.02 }}
-      className="seller-card-premium p-6 flex flex-col gap-4 relative overflow-hidden group hover:active-glow-blue"
+      whileHover={{ y: -6, scale: 1.01 }}
+      className="seller-card-premium p-5 flex flex-col gap-3 relative overflow-hidden group hover:active-glow-blue"
     >
       {/* Background Decorative Element */}
       <div className={`absolute -right-4 -top-4 w-24 h-24 rounded-full ${color.bg} opacity-10 group-hover:opacity-20 group-hover:scale-150 transition-all duration-700`} />
@@ -47,8 +47,8 @@ export const StatCard = ({ label, value, icon: Icon, color, percentage }) => {
       </div>
       
       <div className="relative">
-        <p className="text-[12px] md:text-sm font-bold text-slate-500 uppercase tracking-widest leading-none mb-3 group-hover:text-slate-900 transition-colors">{label}</p>
-        <p className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">{value}</p>
+        <p className="text-[11px] md:text-xs font-bold text-slate-500 uppercase tracking-widest leading-none mb-2 group-hover:text-slate-900 transition-colors">{label}</p>
+        <p className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{value}</p>
       </div>
 
       <div className="mt-2 flex items-center gap-2">
@@ -169,11 +169,11 @@ export const SalesPerformanceChart = ({ data }) => {
   }
 
   return (
-    <div className="seller-card-premium p-8 col-span-1 lg:col-span-2 min-h-[450px]">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+    <div className="seller-card-premium p-6 col-span-1 lg:col-span-2 min-h-[400px]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tight">Sales Analytics</h3>
-          <p className="text-sm md:text-base text-slate-500 font-medium">Real-time revenue visualization</p>
+          <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Sales Analytics</h3>
+          <p className="text-xs md:text-sm text-slate-500 font-medium">Real-time revenue visualization</p>
         </div>
         <div className="flex items-center gap-3">
            <span className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-widest">View by</span>
