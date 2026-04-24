@@ -260,7 +260,7 @@ function SellerProductForm({ initialProduct = null }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         <div className="space-y-4">
-          <label className="block text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] ml-1">
+          <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
             Product Thumbnail <span className="text-rose-600">*</span>
           </label>
           <div className="relative group">
@@ -279,7 +279,7 @@ function SellerProductForm({ initialProduct = null }) {
                      <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-slate-300 shadow-sm border border-slate-50 mx-auto">
                         <FiBox className="w-6 h-6" />
                      </div>
-                     <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Upload Main Display</p>
+                     <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Upload Main Display</p>
                   </div>
                )}
                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
@@ -290,8 +290,8 @@ function SellerProductForm({ initialProduct = null }) {
         </div>
 
         <div className="space-y-4">
-          <label className="block text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] ml-1">
-            Product Gallery <span className="text-slate-500 font-bold">(optional)</span>
+          <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+            Product Gallery <span className="text-slate-500 font-semibold">(optional)</span>
           </label>
           <div className="grid grid-cols-3 gap-3 h-56">
             <div className="relative group border-2 border-dashed border-slate-100 rounded-[2rem] bg-slate-50/30 hover:bg-white hover:border-blue-200 transition-all flex items-center justify-center cursor-pointer overflow-hidden">
@@ -317,39 +317,39 @@ function SellerProductForm({ initialProduct = null }) {
       <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-3">
-            <label className="block text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] ml-1">
-              Product Name <span className="text-rose-600 font-bold">*</span>
+            <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+              Product Name <span className="text-rose-600 font-semibold">*</span>
             </label>
             <input
               type="text"
               name="productName"
               value={form.productName}
               onChange={handleChange}
-              className="w-full px-6 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-black placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+              className="w-full px-6 py-4 bg-white border border-slate-300 rounded-2xl text-slate-900 font-semibold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
               placeholder="Enter product name"
               required
             />
           </div>
 
           <div className="space-y-3">
-            <label className="block text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] ml-1">
-              Category <span className="text-slate-500 font-bold">(optional)</span>
+            <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+              Category <span className="text-slate-500 font-semibold">(optional)</span>
             </label>
             <div className="relative">
               <select
                 value={form.category}
                 name="category"
                 onChange={handleChange}
-                className="w-full px-6 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner appearance-none"
+                className="w-full px-6 py-4 bg-white border border-slate-300 rounded-2xl text-slate-900 font-semibold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm appearance-none"
               >
-                <option value="" className="text-slate-500 font-bold">SELECT CLASSIFICATION</option>
+                <option value="" className="text-slate-500 font-semibold">Select Category</option>
                 {categories.map((category) => {
                   const categoryName = category.name || category
                   const categoryId = category.id || category._id || categoryName
                   const commissionRate = categoryCommissionRates[categoryName]
                   return (
                     <option key={categoryId} value={categoryName}>
-                      {categoryName.toUpperCase()} {commissionRate ? `[${commissionRate}% FEES]` : ''}
+                      {categoryName} {commissionRate ? `[${commissionRate}% Fees]` : ''}
                     </option>
                   )
                 })}
@@ -363,7 +363,7 @@ function SellerProductForm({ initialProduct = null }) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-4">
-            <label className="block text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] ml-1">
+            <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
               Selling Price (₹) <span className="text-blue-700">*</span>
             </label>
             <input
@@ -373,7 +373,7 @@ function SellerProductForm({ initialProduct = null }) {
               name="sellingPrice"
               value={form.sellingPrice}
               onChange={handleChange}
-              className="w-full px-6 py-5 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-black placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+              className="w-full px-6 py-5 bg-white border border-slate-300 rounded-2xl text-slate-900 font-bold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
               placeholder="0.00"
               required
             />
@@ -394,7 +394,7 @@ function SellerProductForm({ initialProduct = null }) {
           </div>
 
           <div className="space-y-4">
-            <label className="block text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] ml-1">
+            <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
               MRP (₹) <span className="text-rose-600">*</span>
             </label>
             <input
@@ -404,7 +404,7 @@ function SellerProductForm({ initialProduct = null }) {
               name="maxPrice"
               value={form.maxPrice}
               onChange={handleChange}
-              className="w-full px-6 py-5 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-black placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+              className="w-full px-6 py-5 bg-white border border-slate-300 rounded-2xl text-slate-900 font-bold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
               placeholder="0.00"
               required
             />
@@ -413,7 +413,7 @@ function SellerProductForm({ initialProduct = null }) {
         </div>
 
         <div className="space-y-4">
-          <label className="block text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] ml-1">
+          <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
             Product Description <span className="text-blue-700">*</span>
           </label>
           <textarea
@@ -421,14 +421,14 @@ function SellerProductForm({ initialProduct = null }) {
             value={form.specification}
             onChange={handleChange}
             rows={6}
-            className="w-full px-6 py-6 bg-slate-50/50 border border-slate-100 rounded-[2.5rem] text-slate-900 font-medium placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner resize-none"
-            placeholder="Detailed asset characterization and technical parameters..."
+            className="w-full px-6 py-6 bg-white border border-slate-300 rounded-[2.5rem] text-slate-900 font-medium placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm resize-none"
+            placeholder="Detailed product description and technical details..."
             required
           />
         </div>
 
         <div className="space-y-6">
-          <label className="block text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] ml-1">
+          <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
             Product Features <span className="text-rose-600">*</span>
           </label>
           <div className="space-y-4">
@@ -440,15 +440,15 @@ function SellerProductForm({ initialProduct = null }) {
                 transition={{ delay: index * 0.1 }}
                 className="flex items-center gap-4 group"
               >
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-600 border border-slate-200 shrink-0">
+                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600 border border-slate-200 shrink-0">
                   {index + 1}
                 </div>
                 <input
                   type="text"
                   value={point}
                   onChange={(event) => handlePointChange(index, event.target.value)}
-                  className="flex-1 px-6 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-800 font-bold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
-                  placeholder="Enter unique feature..."
+                  className="flex-1 px-6 py-4 bg-white border border-slate-300 rounded-2xl text-slate-800 font-semibold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
+                  placeholder="Enter key feature..."
                 />
                 {points.length > 1 && (
                   <button
@@ -464,9 +464,9 @@ function SellerProductForm({ initialProduct = null }) {
             <button
               type="button"
               onClick={handleAddPointField}
-              className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] hover:bg-slate-50 hover:text-blue-600 hover:border-blue-100 transition-all flex items-center justify-center gap-3"
+              className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:bg-slate-50 hover:text-blue-600 hover:border-blue-100 transition-all flex items-center justify-center gap-3"
             >
-              <FiPlus strokeWidth={3} /> ADD FEATURE
+              <FiPlus strokeWidth={3} /> Add Feature
             </button>
           </div>
         </div>

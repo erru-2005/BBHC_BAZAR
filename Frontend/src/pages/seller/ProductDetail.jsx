@@ -66,7 +66,7 @@ function SellerProductDetail() {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-slate-400 gap-4">
         <FiRefreshCw className="h-10 w-10 animate-spin text-blue-600" />
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] font-outfit">Accessing Asset...</p>
+        <p className="text-xs font-semibold uppercase tracking-widest">Loading Asset...</p>
       </div>
     )
   }
@@ -78,14 +78,14 @@ function SellerProductDetail() {
            <FiPackage className="w-12 h-12" />
         </div>
         <div className="max-w-md">
-           <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter font-outfit">Asset Lost</h2>
-           <p className="text-sm font-bold text-slate-400 mt-2 uppercase tracking-widest leading-relaxed">{error || 'The requested asset data stream has been interrupted.'}</p>
+           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Asset Not Found</h2>
+           <p className="text-sm font-semibold text-slate-400 mt-2 tracking-normal leading-relaxed">{error || 'The requested asset data stream has been interrupted.'}</p>
         </div>
         <button
           onClick={() => navigate('/seller/products')}
-          className="px-10 py-5 rounded-[2rem] bg-slate-900 text-white font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-slate-900/20 active:scale-95 transition-all"
+          className="px-10 py-5 rounded-[2rem] bg-slate-900 text-white font-bold text-xs uppercase tracking-widest shadow-2xl shadow-slate-900/20 active:scale-95 transition-all"
         >
-          Return to Vault
+          Return to Products
         </button>
       </div>
     )
@@ -100,16 +100,16 @@ function SellerProductDetail() {
             className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 hover:shadow-md transition-all"
           >
             <FiArrowLeft className="w-4 h-4" />
-            BACK TO VAULT
+            Back to Products
           </button>
           
           <div className="flex items-center gap-4">
             <span className="hidden sm:block text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">ID:{productId.substring(0, 8)}</span>
             <button
               onClick={() => navigate(`/seller/products/${product.id || product._id}/edit`, { state: { product } })}
-              className="px-10 py-3 rounded-2xl bg-slate-900 hover:bg-black text-white text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-900/20 active:scale-95 transition-all"
+              className="px-8 py-3 rounded-2xl bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition-all"
             >
-              CALIBRATE ASSET
+              Edit Product
             </button>
           </div>
         </div>
@@ -129,10 +129,10 @@ function SellerProductDetail() {
 
           <div className="space-y-10 py-4">
             <div className="space-y-4">
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600 bg-blue-50 px-5 py-2 rounded-full border border-blue-100">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 px-5 py-2 rounded-full border border-blue-100">
                 {Array.isArray(product.categories) ? product.categories[0] : (product.categories || 'Market Asset')}
               </span>
-              <h1 className="text-5xl font-black text-slate-900 tracking-tighter font-outfit uppercase leading-[0.9]">{product.product_name}</h1>
+              <h1 className="text-3xl md:text-5xl font-bold text-slate-900 tracking-tight leading-tight">{product.product_name}</h1>
             </div>
 
             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-[0_20px_40px_-10px_rgba(15,23,42,0.05)] space-y-6 relative overflow-hidden">
@@ -140,9 +140,9 @@ function SellerProductDetail() {
                  <FiTag className="w-24 h-24 rotate-12" />
               </div>
               <div className="flex flex-col gap-2 relative z-10">
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Asset Valuation</span>
+                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Asset Valuation</span>
                  <div className="flex items-center gap-6">
-                   <p className="text-5xl font-black text-slate-900 tracking-tight">{formatCurrency(product.selling_price)}</p>
+                   <p className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight">{formatCurrency(product.selling_price)}</p>
                    {discount && (
                       <span className="px-4 py-1.5 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest animate-pulse shadow-lg shadow-blue-500/30">
                          {discount}% ADVANTAGE
@@ -167,28 +167,28 @@ function SellerProductDetail() {
                      <FiRefreshCw strokeWidth={3} />
                   </div>
                   <div>
-                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Condition</p>
-                     <p className="text-xl font-black text-slate-900 leading-none mt-1 uppercase tracking-tighter">PRISTINE</p>
+                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Condition</p>
+                     <p className="text-xl font-bold text-slate-900 leading-none mt-1 tracking-tight">Pristine</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 flex items-center gap-3">
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-3">
                  <span className="w-1.5 h-4 bg-slate-200 rounded-full" />
                  Specifications
               </h3>
-              <p className="text-lg font-bold text-slate-500 leading-relaxed uppercase tracking-tight opacity-70">
-                {product.specification || 'NO DATA REGISTERED FOR THIS ASSET.'}
+              <p className="text-lg font-semibold text-slate-500 leading-relaxed tracking-tight opacity-70">
+                {product.specification || 'No data registered for this asset.'}
               </p>
             </div>
 
             {product.points?.length > 0 && (
               <div className="space-y-6 pt-4">
-                <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 flex items-center gap-3">
+                <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-3">
                    <span className="w-1.5 h-4 bg-blue-600 rounded-full" />
-                   Asset Parameters
+                   Product Parameters
                 </h3>
                 <div className="grid grid-cols-1 gap-4">
                   {product.points.filter(p => p).map((p, i) => (
@@ -199,10 +199,10 @@ function SellerProductDetail() {
                       key={i} 
                       className="flex items-center gap-5 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all group"
                     >
-                      <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                      <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-[10px] font-bold text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
                         {i + 1}
                       </div>
-                      <span className="text-sm font-black text-slate-700 uppercase tracking-tight">{p}</span>
+                      <span className="text-sm font-semibold text-slate-700 tracking-tight">{p}</span>
                     </motion.div>
                   ))}
                 </div>

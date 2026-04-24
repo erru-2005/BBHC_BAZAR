@@ -67,12 +67,22 @@ export default function SellerLayout() {
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col md:ml-64 min-h-screen">
                 {/* Desktop Header */}
-                <div className="hidden md:block">
-                  <SellerHeader onOpenProfile={() => setShowProfile(true)} />
-                </div>
+                <SellerHeader onOpenProfile={() => {
+                    if (window.innerWidth >= 768) {
+                        navigate('/seller/profile')
+                    } else {
+                        setShowProfile(true)
+                    }
+                }} />
 
                 <main className="flex-1 flex flex-col">
-                    <Outlet context={{ setIsAddingProduct }} />
+                    <Outlet context={{ 
+                        setIsAddingProduct, 
+                        onOpenProfile: () => setShowProfile(true),
+                        onLogout: handleLogout,
+                        onResetPassword: () => setResetPasswordOpen(true),
+                        onEditProfile: () => setEditProfileOpen(true)
+                    }} />
                     {/* Extra padding for mobile bottom nav */}
                     <div className="h-28 md:hidden" />
                 </main>
@@ -99,9 +109,9 @@ export default function SellerLayout() {
                 )}
             </AnimatePresence>
 
-            {/* Profile Drawer */}
+            {/* Profile Drawer (Mobile Only) */}
             <AnimatePresence>
-                {showProfile && (
+                {showProfile && window.innerWidth < 768 && (
                     <SellerProfile
                         isOpen={showProfile}
                         onClose={() => setShowProfile(false)}
@@ -123,7 +133,7 @@ export default function SellerLayout() {
                 open={resetPasswordOpen}
                 onClose={() => {
                     setResetPasswordOpen(false)
-                    setShowProfile(true)
+                    if (window.innerWidth < 768) setShowProfile(true)
                 }}
                 userType="seller"
                 identifier={user?.trade_id}
@@ -134,7 +144,7 @@ export default function SellerLayout() {
                 open={editProfileOpen}
                 onClose={() => {
                     setEditProfileOpen(false)
-                    setShowProfile(true)
+                    if (window.innerWidth < 768) setShowProfile(true)
                 }}
                 user={user}
             />

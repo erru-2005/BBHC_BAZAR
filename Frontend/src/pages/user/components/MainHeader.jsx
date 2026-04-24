@@ -98,7 +98,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
                   navigate('/user/bag')
                 }
               }}
-              className="flex items-center gap-2 hover:text-amber-300 transition"
+              className="flex items-center gap-2 hover:text-pink-500 transition"
             >
               <FaBagShopping className="w-5 h-5" />
               <span className="text-white">Bag</span>
@@ -111,7 +111,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
                   navigate('/user/profile')
                 }
               }}
-              className="flex items-center gap-2 hover:text-amber-300 transition"
+              className="flex items-center gap-2 hover:text-pink-500 transition"
             >
               {isAuthenticated && user && userType !== 'seller' && userType !== 'master' ? (
                 <>
@@ -141,7 +141,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
                 // For now, it's a placeholder
                 alert('Mobile app download coming soon!')
               }}
-              className="flex items-center justify-center hover:text-amber-300 transition"
+              className="flex items-center justify-center hover:text-pink-500 transition"
               aria-label="Download mobile app"
             >
               <FaMobileScreenButton className="w-5 h-5" />
@@ -161,7 +161,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
                   navigate('/user/bag')
                 }
               }}
-              className="relative flex items-center justify-center hover:text-amber-300 transition"
+              className="relative flex items-center justify-center hover:text-pink-500 transition"
               aria-label="Shopping bag"
             >
               <FaBagShopping className="w-5 h-5" />
@@ -181,7 +181,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
                   navigate('/user/profile')
                 }
               }}
-              className="flex items-center gap-2 hover:text-amber-300 transition"
+              className="flex items-center gap-2 hover:text-pink-500 transition"
             >
               {isAuthenticated && user && userType !== 'seller' && userType !== 'master' ? (
                 <>
@@ -205,7 +205,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
         <div className="flex flex-col">
           <div className="flex items-center gap-4 sm:gap-6 text-sm text-gray-200 py-2 overflow-x-auto scrollbar-hide">
             <button 
-              className="hover:text-white flex items-center flex-shrink-0" 
+              className="hover:text-pink-500 flex items-center flex-shrink-0" 
               onClick={onOpenMenu} 
               aria-label="Open navigation menu"
             >
@@ -217,7 +217,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
               categories.map((category) => (
                 <button 
                   key={category.id || category._id} 
-                  className="hover:text-white whitespace-nowrap flex-shrink-0"
+                  className="hover:text-pink-500 whitespace-nowrap flex-shrink-0"
                   onClick={() =>
                     navigate(`/category/${category.id || category._id || encodeURIComponent(category.name)}`, {
                       state: { categoryName: category.name }
@@ -243,7 +243,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
               href="https://maps.app.goo.gl/VxcqFH7aferTNzPx8" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center gap-2 hover:text-white transition whitespace-nowrap overflow-x-auto"
+              className="flex items-center gap-2 hover:text-pink-500 transition whitespace-nowrap overflow-x-auto"
             >
               <FaLocationDot className="text-pink-500 w-4 h-4 flex-shrink-0" />
               <span className="text-xs text-gray-300 font-normal">Delivering to</span>

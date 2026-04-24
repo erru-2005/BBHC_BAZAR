@@ -22,13 +22,11 @@ import {
 } from '../../../../services/api'
 import SalesByCategoryChart from './SalesByCategoryChart'
 import OrdersByStatusChart from './OrdersByStatusChart'
-import RevenueVsCommissionsChart from './RevenueVsCommissionsChart'
-import ReturningVsNewChart from './ReturningVsNewChart'
 import TopProductsChart from './TopProductsChart'
 import SalesBySellerChart from './SalesBySellerChart'
-import ChartFilters from './ChartFilters'
 import SummarySection from './SummarySection'
 import { motion } from 'framer-motion'
+import IndependentDateFilters from './IndependentDateFilters'
 
 const Analysis = () => {
   const [stats, setStats] = useState(null)
@@ -41,6 +39,8 @@ const Analysis = () => {
   const [categories, setCategories] = useState([])
   
   const [isLoading, setIsLoading] = useState(true)
+  const [categoryLoading, setCategoryLoading] = useState(false)
+  const [ordersLoading, setOrdersLoading] = useState(false)
   const [filters, setFilters] = useState({ period: 'monthly', category: 'all' })
 
   // Compute analytics from raw data
@@ -146,8 +146,8 @@ const Analysis = () => {
           getOrdersByStatus(params).catch(() => null),
           getRevenueVsCommissions(params).catch(() => []),
           getReturningVsNew(params).catch(() => null),
-          getTopProducts({ ...params, sort_by: 'rating', limit: 5 }).catch(() => null),
-          getSalesBySeller(params).catch(() => []),
+          getTopProducts({ ...params, sort_by: 'rating', limit: 50 }).catch(() => null),
+          getSalesBySeller({ ...params, limit: 50 }).catch(() => []),
           getCategories().catch(() => [])
         ])
 
@@ -230,6 +230,35 @@ const Analysis = () => {
       setIsLoading(false)
     }
   }, [filters])
+
+  // Independent fetchers for charts
+  const handleCategoryFilterChange = async (filterParams) => {
+    try {
+      setCategoryLoading(true)
+      const data = await getSalesByCategory(filterParams)
+      if (data) {
+        setSalesByCategory(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error fetching category analytics:', error)
+    } finally {
+      setCategoryLoading(false)
+    }
+  }
+
+  const handleOrdersFilterChange = async (filterParams) => {
+    try {
+      setOrdersLoading(true)
+      const data = await getOrdersByStatus(filterParams)
+      if (data) {
+        setOrdersByStatus(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error fetching orders status analytics:', error)
+    } finally {
+      setOrdersLoading(false)
+    }
+  }
 
   // Initial data fetch only if socket is not available (fallback)
   useEffect(() => {
@@ -445,30 +474,27 @@ const Analysis = () => {
   return (
     <div className="space-y-6">
 
-      {/* Filters */}
-      <ChartFilters 
-        onFilterChange={handleFilterChange} 
-        categories={categories}
-      />
+      {/* Main filters removed per user request */}
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Sales by Category */}
-        <SalesByCategoryChart data={salesByCategory} isLoading={isLoading} />
-
+        <div className="relative">
+          <IndependentDateFilters 
+            title="Category" 
+            onFilterChange={handleCategoryFilterChange} 
+          />
+          <SalesByCategoryChart data={salesByCategory} isLoading={categoryLoading || isLoading} />
+        </div>
 
         {/* Orders by Status */}
-        <OrdersByStatusChart data={ordersByStatus} isLoading={isLoading} />
-
-        {/* Revenue vs Commissions */}
-        <RevenueVsCommissionsChart 
-          data={revenueVsCommissions} 
-          isLoading={isLoading} 
-        />
-
-
-        {/* Returning vs New Customers */}
-        <ReturningVsNewChart data={returningVsNew} isLoading={isLoading} />
+        <div className="relative">
+          <IndependentDateFilters 
+            title="Orders" 
+            onFilterChange={handleOrdersFilterChange} 
+          />
+          <OrdersByStatusChart data={ordersByStatus} isLoading={ordersLoading || isLoading} />
+        </div>
 
         {/* Top Products */}
         <TopProductsChart data={topProducts} isLoading={isLoading} />

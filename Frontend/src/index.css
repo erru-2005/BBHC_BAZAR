@@ -25,7 +25,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #020617;
   color: #f8fafc;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   transition: background-color 0.3s ease;
 }
 
@@ -63,11 +63,12 @@ body {
   background-color: var(--seller-bg);
   color: var(--seller-text-main);
   min-height: 100vh;
-  font-family: 'Inter', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 .seller-theme h1, .seller-theme h2, .seller-theme h3, .seller-theme h4 {
-  font-family: 'Outfit', sans-serif;
+  font-family: inherit;
+  font-weight: 700;
   color: var(--seller-text-main);
 }
 
@@ -142,17 +143,17 @@ body {
 }
 
 .font-outfit {
-  font-family: 'Outfit', sans-serif;
+  font-family: inherit;
 }
 
 .font-inter {
-  font-family: 'Inter', sans-serif;
+  font-family: inherit;
 }
 
 .text-professional {
-  font-family: 'Inter', sans-serif;
-  letter-spacing: -0.015em;
-  line-height: 1.5;
+  font-family: inherit;
+  letter-spacing: normal;
+  line-height: 1.6;
   color: var(--seller-text-secondary);
 }
 

@@ -45,7 +45,7 @@ const TopProductsChart = ({ data, isLoading }) => {
 
   // Create labels with thumbnails (we'll show thumbnails separately)
   const labels = topProducts.map((item, index) => `#${index + 1}`)
-  const ratingData = topProducts.map(item => item.rating)
+  const reviewData = topProducts.map(item => item.rating_count)
   const backgroundColors = topProducts.map((_, index) => 
     CHART_COLORS.primary[index % CHART_COLORS.primary.length]
   )
@@ -54,8 +54,8 @@ const TopProductsChart = ({ data, isLoading }) => {
     labels,
     datasets: [
       {
-        label: 'Rating',
-        data: ratingData,
+        label: 'Reviews',
+        data: reviewData,
         backgroundColor: backgroundColors,
         borderColor: backgroundColors,
         borderWidth: 2,
@@ -75,11 +75,10 @@ const TopProductsChart = ({ data, isLoading }) => {
     scales: {
       x: {
         beginAtZero: true,
-        max: 5,
         ticks: {
-          stepSize: 0.5,
+          stepSize: 1,
           callback: function(value) {
-            return value.toFixed(1) + ' ⭐'
+            return value + ' Reviews'
           }
         },
         grid: {
@@ -135,8 +134,8 @@ const TopProductsChart = ({ data, isLoading }) => {
         transition={{ duration: 0.3 }}
         className="bg-white rounded-xl shadow-lg p-4 sm:p-6 overflow-hidden"
       >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Top Products by Rating</h3>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-1 gap-3">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Top Products by Reviews</h3>
           <div className="flex items-center gap-2">
             <label className="text-xs sm:text-sm text-gray-600">Show:</label>
             <select
@@ -151,6 +150,7 @@ const TopProductsChart = ({ data, isLoading }) => {
           </div>
         </div>
 
+        <p className="text-[10px] text-gray-400 mb-4 px-1">Ranked by total number of customer reviews</p>
         <p className="text-xs sm:text-sm text-gray-500 mb-4 px-2">Click on thumbnail to view product details</p>
         
         {/* Chart with thumbnails on the left */}

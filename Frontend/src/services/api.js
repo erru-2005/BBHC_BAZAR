@@ -8,7 +8,19 @@ import { store } from '../store'
 import { setToken, logout } from '../store/authSlice'
 
 // Create axios instance
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL
+const getBackendUrl = () => {
+  const envUrl = import.meta.env.VITE_BACKEND_URL
+  // If it's a hardcoded IP that doesn't match current host, we might want to be careful
+  // but for now, we'll trust the env if it exists, otherwise fallback to current hostname
+  if (envUrl) return envUrl
+  
+  // Dynamic fallback: same host as frontend, but port 5001
+  const host = window.location.hostname
+  const protocol = window.location.protocol
+  return `${protocol}//${host}:5001`
+}
+
+const API_BASE_URL = getBackendUrl()
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 45000, // 45 seconds global timeout

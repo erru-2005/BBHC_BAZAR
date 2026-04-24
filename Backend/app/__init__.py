@@ -17,7 +17,7 @@ from config import Config
 mongo = PyMongo()
 cors = CORS()
 jwt = JWTManager()
-socketio = SocketIO(cors_allowed_origins="*", transports=['websocket'])
+socketio = SocketIO(cors_allowed_origins="*", transports=['polling', 'websocket'], engineio_logger=False, logger=False)
 
 
 def create_app(config_class=Config):
@@ -62,29 +62,18 @@ def create_app(config_class=Config):
     mongo.init_app(app)
     
     # Initialize CORS with proper OPTIONS handling
+    # We use a robust configuration that allows the browser to handle credentials correctly
+    allowed_origins = app.config.get('CORS_ORIGINS', '*')
+    
     cors.init_app(app, resources={
         r"/*": {
-            "origins": app.config['CORS_ORIGINS'],
+            "origins": allowed_origins,
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
             "supports_credentials": True,
             "expose_headers": ["Content-Type", "Authorization"]
         }
     })
-    
-    # Explicitly handle OPTIONS requests for CORS preflight
-    @app.before_request
-    def handle_preflight():
-        if request.method == "OPTIONS":
-            response = jsonify({})
-            response.headers.add("Access-Control-Allow-Origin", 
-                               app.config['CORS_ORIGINS'] if isinstance(app.config['CORS_ORIGINS'], str) 
-                               else ", ".join(app.config['CORS_ORIGINS']) if isinstance(app.config['CORS_ORIGINS'], list) 
-                               else "*")
-            response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-            response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-            response.headers.add("Access-Control-Allow-Credentials", "true")
-            return response
     
     # Initialize JWT
     jwt.init_app(app)

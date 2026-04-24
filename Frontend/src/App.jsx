@@ -30,7 +30,8 @@ import {
   SellerEditProduct,
   SellerMyServices,
   SellerAddService,
-  SellerSettings
+  SellerSettings,
+  SellerProfilePage
 } from './pages'
 import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -140,8 +141,9 @@ function SplashWrapper() {
 
       try {
         if (userType === 'user') {
-          // User wishlist
-          if (home.wishlist.length === 0) {
+          // User wishlist - only if token is present
+          const token = localStorage.getItem('token')
+          if (token && home.wishlist.length === 0) {
             const wishlistItems = await getWishlist(200, 0)
             const ids = wishlistItems
               .map((item) => item.product_id || item.product_snapshot?.id)
@@ -151,10 +153,11 @@ function SplashWrapper() {
         } 
         else if (userType === 'seller') {
           // Seller products and orders
+          const token = localStorage.getItem('token')
           const needsProducts = !sellerState.lastFetched.products
           const needsOrders = !sellerState.lastFetched.orders
           
-          if (needsProducts || needsOrders) {
+          if (token && (needsProducts || needsOrders)) {
             const [products, ordersData] = await Promise.all([
               needsProducts ? getSellerMyProducts() : Promise.resolve(sellerState.products),
               needsOrders ? getOrders() : Promise.resolve(sellerState.orders)
@@ -168,11 +171,12 @@ function SplashWrapper() {
         }
         else if (userType === 'master') {
           // Master essential lists
+          const token = localStorage.getItem('token')
           const needsSellers = !masterState.lastFetched.sellers
           const needsMasters = !masterState.lastFetched.masters
           const needsOutlets = !masterState.lastFetched.outlets
           
-          if (needsSellers || needsMasters || needsOutlets) {
+          if (token && (needsSellers || needsMasters || needsOutlets)) {
             const [sellersData, masters, outletsData] = await Promise.all([
               needsSellers ? getSellers({ limit: 100 }) : Promise.resolve({ sellers: masterState.sellers }),
               needsMasters ? getMasters() : Promise.resolve(masterState.masters),
@@ -186,7 +190,8 @@ function SplashWrapper() {
         }
         else if (userType === 'outlet_man') {
           // Outlet orders
-          if (!outletState.lastFetched) {
+          const token = localStorage.getItem('token')
+          if (token && !outletState.lastFetched) {
             const ordersData = await getOrders()
             const orders = Array.isArray(ordersData?.orders) ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : [])
             dispatch(setOutletOrders(orders))
@@ -306,6 +311,7 @@ function SplashWrapper() {
                 <Route path="/seller/services" element={<SellerMyServices />} />
                 <Route path="/seller/services/new" element={<SellerAddService />} />
                 <Route path="/seller/settings" element={<SellerSettings />} />
+                <Route path="/seller/profile" element={<SellerProfilePage />} />
               </Route>
               <Route
                 path="/master/dashboard"

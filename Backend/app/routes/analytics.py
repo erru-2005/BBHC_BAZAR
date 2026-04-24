@@ -39,7 +39,9 @@ def get_sales_by_category():
             return jsonify({'error': 'Unauthorized. Master access required.'}), 403
         
         period = request.args.get('period', 'monthly')
-        data = AnalyticsService.get_sales_by_category(period)
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        data = AnalyticsService.get_sales_by_category(period, start_date=start_date, end_date=end_date)
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get sales by category: {str(e)}'}), 500
@@ -57,7 +59,9 @@ def get_sales_trend():
             return jsonify({'error': 'Unauthorized. Master access required.'}), 403
         
         period = request.args.get('period', 'monthly')
-        data = AnalyticsService.get_sales_trend(period)
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        data = AnalyticsService.get_sales_trend(period, start_date=start_date, end_date=end_date)
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get sales trend: {str(e)}'}), 500
@@ -75,7 +79,9 @@ def get_orders_by_status():
             return jsonify({'error': 'Unauthorized. Master access required.'}), 403
         
         period = request.args.get('period', 'monthly')
-        data = AnalyticsService.get_orders_by_status(period)
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        data = AnalyticsService.get_orders_by_status(period, start_date=start_date, end_date=end_date)
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get orders by status: {str(e)}'}), 500
@@ -93,7 +99,9 @@ def get_revenue_vs_commissions():
             return jsonify({'error': 'Unauthorized. Master access required.'}), 403
         
         period = request.args.get('period', 'monthly')
-        data = AnalyticsService.get_revenue_vs_commissions(period)
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        data = AnalyticsService.get_revenue_vs_commissions(period, start_date=start_date, end_date=end_date)
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get revenue vs commissions: {str(e)}'}), 500
@@ -111,7 +119,9 @@ def get_customer_growth():
             return jsonify({'error': 'Unauthorized. Master access required.'}), 403
         
         period = request.args.get('period', 'monthly')
-        data = AnalyticsService.get_customer_growth(period)
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        data = AnalyticsService.get_customer_growth(period, start_date=start_date, end_date=end_date)
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get customer growth: {str(e)}'}), 500
@@ -129,7 +139,9 @@ def get_returning_vs_new():
             return jsonify({'error': 'Unauthorized. Master access required.'}), 403
         
         period = request.args.get('period', 'monthly')
-        data = AnalyticsService.get_returning_vs_new(period)
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        data = AnalyticsService.get_returning_vs_new(period, start_date=start_date, end_date=end_date)
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get returning vs new: {str(e)}'}), 500
@@ -149,9 +161,11 @@ def get_top_products():
             return jsonify({'error': 'Unauthorized. Master access required.'}), 403
         
         period = request.args.get('period', 'monthly')
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
         sort_by = request.args.get('sort_by', 'rating')  # 'rating' or 'sales'
         limit = request.args.get('limit', type=int, default=5)
-        data = AnalyticsService.get_top_products(period, sort_by=sort_by, limit=limit)
+        data = AnalyticsService.get_top_products(period, sort_by=sort_by, limit=limit, start_date=start_date, end_date=end_date)
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get top products: {str(e)}'}), 500
@@ -169,7 +183,10 @@ def get_sales_by_seller():
             return jsonify({'error': 'Unauthorized. Master access required.'}), 403
         
         period = request.args.get('period', 'monthly')
-        data = AnalyticsService.get_sales_by_seller(period)
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
+        limit = request.args.get('limit', type=int, default=5)
+        data = AnalyticsService.get_sales_by_seller(period, limit=limit, start_date=start_date, end_date=end_date)
         return jsonify(data), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get sales by seller: {str(e)}'}), 500

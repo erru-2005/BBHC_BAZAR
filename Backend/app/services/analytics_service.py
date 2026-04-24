@@ -181,10 +181,10 @@ class AnalyticsService:
             }
     
     @staticmethod
-    def get_sales_by_category(period='monthly'):
+    def get_sales_by_category(period='monthly', start_date=None, end_date=None):
         """Get sales by category - calculate total revenue by category"""
         try:
-            date_filter = AnalyticsService._get_date_filter(period)
+            date_filter = AnalyticsService._get_date_filter(period, start_date, end_date)
             
             # Get all categories from categories collection
             categories = list(mongo.db.categories.find({}))
@@ -241,16 +241,22 @@ class AnalyticsService:
                 category_sales[category_name] += order_total
                 category_counts[category_name] += 1
             
-            # Create result with all categories (even if sales is 0)
+            # Create result with all categories that have sales
             result = []
-            for cat_name in category_names:
-                result.append({
-                    'category': cat_name,
-                    'name': cat_name,
-                    'value': round(category_sales.get(cat_name, 0), 2),  # Revenue amount
-                    'sales': round(category_sales.get(cat_name, 0), 2),  # Also include as 'sales' for compatibility
-                    'orders': category_counts.get(cat_name, 0)  # Order count for reference
-                })
+            
+            # Combine categories from collection and categories from orders
+            all_cat_names = set(category_names) | set(category_sales.keys())
+            
+            for cat_name in all_cat_names:
+                total_val = round(category_sales.get(cat_name, 0), 2)
+                if total_val > 0 or cat_name in category_names:
+                    result.append({
+                        'category': cat_name,
+                        'name': cat_name,
+                        'value': total_val,  # Revenue amount
+                        'sales': total_val,  # Also include as 'sales' for compatibility
+                        'orders': category_counts.get(cat_name, 0)  # Order count for reference
+                    })
             
             # Sort by revenue descending
             result.sort(key=lambda x: x['value'], reverse=True)
@@ -263,10 +269,10 @@ class AnalyticsService:
             return []
     
     @staticmethod
-    def get_sales_trend(period='monthly'):
+    def get_sales_trend(period='monthly', start_date=None, end_date=None):
         """Get sales trend over time"""
         try:
-            date_filter = AnalyticsService._get_date_filter(period)
+            date_filter = AnalyticsService._get_date_filter(period, start_date, end_date)
             
             orders = list(mongo.db.orders.find({
                 'status': 'completed',
@@ -308,10 +314,10 @@ class AnalyticsService:
             return []
     
     @staticmethod
-    def get_orders_by_status(period='monthly'):
+    def get_orders_by_status(period='monthly', start_date=None, end_date=None):
         """Get orders grouped by status"""
         try:
-            date_filter = AnalyticsService._get_date_filter(period)
+            date_filter = AnalyticsService._get_date_filter(period, start_date, end_date)
             
             pipeline = [
                 {'$match': {'created_at': date_filter}},
@@ -328,29 +334,38 @@ class AnalyticsService:
             
             results = list(mongo.db.orders.aggregate(pipeline))
             
+            # System active statuses whitelist
+            active_statuses = [
+                'pending', 'pending_seller', 'accepted', 'seller_accepted', 
+                'seller_rejected', 'completed', 'handed_over', 'cancelled'
+            ]
+            
+            status_map = {r.get('status', 'unknown'): r.get('count', 0) for r in results}
+            
             return [
-                {'status': r.get('status', 'unknown'), 'count': r.get('count', 0)}
-                for r in results
+                {'status': status, 'count': status_map.get(status, 0)}
+                for status in active_statuses
+                if status in status_map or status_map.get(status, 0) > 0 # Only show if in map or has count
             ]
         except Exception as e:
             print(f"Error computing orders by status: {e}")
             return []
     
     @staticmethod
-    def get_revenue_vs_commissions(period='monthly'):
+    def get_revenue_vs_commissions(period='monthly', start_date=None, end_date=None):
         """Get revenue vs commissions earned from statistics collection"""
         try:
             from app.services.statistics_service import StatisticsService
-            return StatisticsService.get_revenue_vs_commissions(period)
+            return StatisticsService.get_revenue_vs_commissions(period, start_date, end_date)
         except Exception as e:
             print(f"Error computing revenue vs commissions: {e}")
             return []
     
     @staticmethod
-    def get_customer_growth(period='monthly'):
+    def get_customer_growth(period='monthly', start_date=None, end_date=None):
         """Get customer growth over time"""
         try:
-            date_filter = AnalyticsService._get_date_filter(period)
+            date_filter = AnalyticsService._get_date_filter(period, start_date, end_date)
             
             # Get users in the period
             users = list(mongo.db.users.find({'created_at': date_filter}))
@@ -389,10 +404,10 @@ class AnalyticsService:
             return []
     
     @staticmethod
-    def get_returning_vs_new(period='monthly'):
+    def get_returning_vs_new(period='monthly', start_date=None, end_date=None):
         """Get returning vs new customers"""
         try:
-            date_filter = AnalyticsService._get_date_filter(period)
+            date_filter = AnalyticsService._get_date_filter(period, start_date, end_date)
             
             # Get all users who made orders in the period
             orders = list(mongo.db.orders.find({
@@ -428,7 +443,7 @@ class AnalyticsService:
     
     
     @staticmethod
-    def get_top_products(period='monthly', sort_by='rating', limit=5):
+    def get_top_products(period='monthly', sort_by='rating', limit=5, start_date=None, end_date=None):
         """Get top products by rating or sales"""
         try:
             if sort_by == 'rating':
@@ -443,7 +458,8 @@ class AnalyticsService:
                         }
                     },
                     {
-                        '$sort': {'avg_rating': -1, 'rating_count': -1}
+                        # Prioritize review volume (highest reviews)
+                        '$sort': {'rating_count': -1, 'avg_rating': -1}
                     },
                     {
                         '$limit': limit
@@ -488,7 +504,7 @@ class AnalyticsService:
                 return result
             else:
                 # Get top selling products (by revenue)
-                date_filter = AnalyticsService._get_date_filter(period)
+                date_filter = AnalyticsService._get_date_filter(period, start_date, end_date)
                 
                 orders = list(mongo.db.orders.find({
                     'status': 'completed',
@@ -563,11 +579,11 @@ class AnalyticsService:
             return []
     
     @staticmethod
-    def get_sales_by_seller(period='monthly'):
+    def get_sales_by_seller(period='monthly', limit=5, start_date=None, end_date=None):
         """Get sales by seller - revenue earned by each seller (after commission deduction)"""
         try:
             # Get date filter for period
-            date_filter = AnalyticsService._get_date_filter(period)
+            date_filter = AnalyticsService._get_date_filter(period, start_date, end_date)
             
             # Get all sellers from sellers collection
             sellers = list(mongo.db.sellers.find({}))
@@ -577,31 +593,27 @@ class AnalyticsService:
             
             for seller in sellers:
                 seller_id = seller.get('_id')
-                # Get seller name from first_name and last_name
                 first_name = seller.get('first_name', '')
                 last_name = seller.get('last_name', '')
                 trade_id = seller.get('trade_id', '')
                 
-                # Construct seller name
                 if first_name or last_name:
                     seller_name = f"{first_name} {last_name}".strip()
                 else:
-                    seller_name = 'Unknown'
+                    seller_name = trade_id or 'Unknown'
                 
-                # Include trade_id in the name if available
-                if trade_id and seller_name != 'Unknown':
+                # Include trade_id in the name
+                if trade_id and seller_name != trade_id and seller_name != 'Unknown':
                     seller_name = f"{seller_name} ({trade_id})"
                 elif trade_id:
                     seller_name = trade_id
                 
                 # Find all completed orders for this seller within the period
-                # Handle both ObjectId and string seller_id
                 orders_query = {
                     'status': 'completed',
                     'created_at': date_filter
                 }
                 
-                # Try to match seller_id (could be ObjectId or string)
                 try:
                     orders_query['seller_id'] = ObjectId(seller_id) if isinstance(seller_id, str) else seller_id
                 except:
@@ -609,39 +621,34 @@ class AnalyticsService:
                 
                 orders = list(mongo.db.orders.find(orders_query))
                 
-                # Calculate total revenue from completed orders
-                # Check multiple field names for order total
                 total_revenue = 0
                 for order in orders:
-                    # Order model uses 'total_amount' in BSON
                     order_total = order.get('total_amount') or order.get('totalAmount') or order.get('order_total') or 0
                     if order_total == 0:
-                        # If still 0, try calculating from quantity and unit_price
                         quantity = order.get('quantity', 0)
                         unit_price = order.get('unit_price', 0)
                         if quantity > 0 and unit_price > 0:
                             order_total = quantity * unit_price
                     total_revenue += order_total
                 
-                # Calculate seller revenue after commission deduction
                 seller_revenue = total_revenue * (1 - commission_rate)
                 
-                # Only include sellers with at least one completed order
-                if len(orders) > 0:
-                    result.append({
-                        'seller': seller_name,
-                        'seller_id': str(seller_id),
-                        'trade_id': trade_id,
-                        'sales': round(seller_revenue, 2),
-                        'revenue': round(seller_revenue, 2),  # Revenue earned by seller (after commission)
-                        'orders': len(orders),
-                        'total_sales': round(total_revenue, 2)  # Total sales before commission
-                    })
+                # Include all sellers (even if revenue is 0)
+                result.append({
+                    'seller': seller_name,
+                    'seller_id': str(seller_id),
+                    'trade_id': trade_id,
+                    'sales': round(seller_revenue, 2),
+                    'revenue': round(seller_revenue, 2),
+                    'orders': len(orders),
+                    'total_sales': round(total_revenue, 2)
+                })
             
             # Sort by revenue descending
             result.sort(key=lambda x: x['revenue'], reverse=True)
             
-            return result
+            # Return limited results
+            return result[:limit]
         except Exception as e:
             print(f"Error computing sales by seller: {e}")
             import traceback
@@ -649,16 +656,42 @@ class AnalyticsService:
             return []
     
     @staticmethod
-    def _get_date_filter(period='monthly'):
-        """Get date filter based on period"""
+    def _get_date_filter(period='monthly', start_date=None, end_date=None):
+        """Get date filter based on period or custom range"""
         now = datetime.now(timezone.utc)
         
-        if period == 'daily':
-            start_date = now - timedelta(days=30)
-        elif period == 'weekly':
-            start_date = now - timedelta(weeks=12)
-        else:  # monthly
-            start_date = now - timedelta(days=365)
+        # Priority 1: Use custom range if provided
+        if start_date and end_date:
+            try:
+                if isinstance(start_date, str):
+                    start = datetime.fromisoformat(start_date.replace('Z', '+00:00')).replace(tzinfo=timezone.utc)
+                else:
+                    start = start_date
+                    
+                if isinstance(end_date, str):
+                    # End of day for end_date
+                    end = datetime.fromisoformat(end_date.replace('Z', '+00:00')).replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+                else:
+                    end = end_date
+                
+                return {'$gte': start, '$lte': end}
+            except Exception as e:
+                # Try simple date format YYYY-MM-DD
+                try:
+                    if isinstance(start_date, str):
+                        start = datetime.strptime(start_date, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+                    if isinstance(end_date, str):
+                        end = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+                    return {'$gte': start, '$lte': end}
+                except:
+                    print(f"Error parsing custom dates: {e}")
         
-        return {'$gte': start_date, '$lte': now}
+        if period == 'daily':
+            start_date_calc = now - timedelta(days=30)
+        elif period == 'weekly':
+            start_date_calc = now - timedelta(weeks=12)
+        else:  # monthly
+            start_date_calc = now - timedelta(days=365)
+        
+        return {'$gte': start_date_calc, '$lte': now}
 

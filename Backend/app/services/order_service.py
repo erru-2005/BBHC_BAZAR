@@ -81,16 +81,22 @@ class OrderService:
         return order
 
     @staticmethod
-    def get_orders(filter_query=None, limit=200):
-        """Fetch orders that match a filter."""
+    def get_orders(filter_query=None, page=1, limit=10):
+        """Fetch orders that match a filter with pagination."""
         filter_query = filter_query or {}
+        skip = (page - 1) * limit
+        
+        total = mongo.db.orders.count_documents(filter_query)
+        
         cursor = (
             mongo.db.orders
             .find(filter_query)
             .sort('created_at', -1)
+            .skip(skip)
             .limit(limit)
         )
-        return [Order.from_bson(doc) for doc in cursor]
+        orders = [Order.from_bson(doc) for doc in cursor]
+        return orders, total
 
     @staticmethod
     def get_order_by_id(order_id):
@@ -115,20 +121,20 @@ class OrderService:
             return None
 
     @staticmethod
-    def get_orders_by_user(user_id, limit=100):
+    def get_orders_by_user(user_id, page=1, limit=10):
         try:
             user_obj_id = ObjectId(user_id)
         except Exception:
-            return []
-        return OrderService.get_orders({'user_id': user_obj_id}, limit=limit)
+            return [], 0
+        return OrderService.get_orders({'user_id': user_obj_id}, page=page, limit=limit)
 
     @staticmethod
-    def get_orders_by_seller(seller_id, limit=100):
+    def get_orders_by_seller(seller_id, page=1, limit=10):
         try:
             seller_obj_id = ObjectId(seller_id)
         except Exception:
-            return []
-        return OrderService.get_orders({'seller_id': seller_obj_id}, limit=limit)
+            return [], 0
+        return OrderService.get_orders({'seller_id': seller_obj_id}, page=page, limit=limit)
 
     @staticmethod
     def update_order_status(order_id, status, note=None, updated_by=None):

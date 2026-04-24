@@ -147,8 +147,8 @@ export default function SellerAnalytics() {
     <div className="p-4 md:p-8 flex flex-col gap-10 max-w-7xl mx-auto w-full mb-12">
       {/* Header */}
       <div className="flex flex-col gap-3">
-        <h1 className="text-4xl font-black text-slate-900 tracking-tight font-outfit uppercase">Account <span className="text-blue-600">Analytics</span></h1>
-        <p className="text-base text-slate-600 font-bold">Real-time performance metrics synchronized with your database</p>
+        <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Account <span className="text-blue-600">Analytics</span></h1>
+        <p className="text-base text-slate-600 font-semibold">Real-time performance metrics synchronized with your database</p>
       </div>
 
       {/* Quick Stats Grid */}
@@ -168,14 +168,14 @@ export default function SellerAnalytics() {
               <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center text-${item.color}-600 bg-slate-50 shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-all duration-300`}>
                 <item.icon className="w-7 h-7" />
               </div>
-              <div className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full text-[11px] font-black tracking-tighter shadow-sm">
-                <FiArrowUpRight strokeWidth={3} /> {item.trends}
+              <div className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-tight shadow-sm">
+                <FiArrowUpRight strokeWidth={2.5} /> {item.trends}
               </div>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">{item.label}</p>
-              <h2 className="text-3xl font-black text-slate-900 tracking-tighter">{item.value}</h2>
+              <p className="text-xs font-semibold text-slate-500 tracking-normal">{item.label}</p>
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{item.value}</h2>
             </div>
           </motion.div>
         ))}
@@ -192,11 +192,11 @@ export default function SellerAnalytics() {
         >
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Top 5 Revenue Products</h3>
-              <p className="text-sm text-slate-500 font-bold tracking-widest uppercase mt-1">Market Performance insights</p>
+              <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Top 5 Revenue Products</h3>
+              <p className="text-sm text-slate-500 font-semibold tracking-normal mt-1">Market performance insights</p>
             </div>
-            <div className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-blue-500/30">
-                DB Live Sync
+            <div className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-[10px] font-bold tracking-widest uppercase shadow-lg shadow-blue-500/30">
+                Live Sync
             </div>
           </div>
 
@@ -206,7 +206,7 @@ export default function SellerAnalytics() {
             ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 gap-6">
                     <FiBox className="w-20 h-20 opacity-10" />
-                    <p className="font-black text-sm uppercase tracking-[0.3em] text-slate-400">Inventory analysis pending sales</p>
+                    <p className="font-bold text-sm text-slate-400">Inventory analysis pending sales</p>
                 </div>
             )}
           </div>
@@ -226,13 +226,13 @@ export default function SellerAnalytics() {
                     <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-blue-400 backdrop-blur-md border border-white/10 shrink-0">
                     <FiTrendingUp className="w-7 h-7" />
                     </div>
-                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em]">Operational Level</span>
+                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Operational Level</span>
                 </div>
                 <div className="space-y-4">
                    <div className="flex items-end justify-between">
                       <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-1">Efficiency Index</p>
-                        <h3 className="text-5xl font-black tracking-tighter text-white">98.4<span className="text-blue-500">%</span></h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Efficiency Index</p>
+                        <h3 className="text-5xl font-bold tracking-tighter text-white">98.4<span className="text-blue-500">%</span></h3>
                       </div>
                    </div>
                    <div className="h-2.5 w-full bg-white/10 rounded-full overflow-hidden shadow-inner">
@@ -252,8 +252,8 @@ export default function SellerAnalytics() {
                 <FiPackage className="w-8 h-8" />
              </div>
              <div className="text-center space-y-1">
-                <h4 className="text-xs font-black text-slate-500 uppercase tracking-[0.25em]">Average Order Value</h4>
-                <p className="text-3xl font-black text-slate-900 tracking-tighter">{stats.avgOrderValue}</p>
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Average Order Value</h4>
+                <p className="text-3xl font-bold text-slate-900 tracking-tight">{stats.avgOrderValue}</p>
              </div>
           </div>
         </motion.div>

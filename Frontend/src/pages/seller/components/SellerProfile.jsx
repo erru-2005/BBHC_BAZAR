@@ -49,7 +49,7 @@ const OrderStatusIcon = ({ icon: Icon, label, color, bgColor }) => (
         <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-[1.75rem] ${bgColor} flex items-center justify-center text-2xl sm:text-3xl shadow-sm border border-white group-hover:scale-110 transition-all duration-500`}>
             <Icon className={color} />
         </div>
-        <span className="text-[10px] font-black text-slate-400 text-center uppercase tracking-[0.2em] leading-tight group-hover:text-blue-600 transition-colors">
+        <span className="text-[11px] font-semibold text-slate-500 text-center tracking-normal leading-tight group-hover:text-blue-600 transition-colors">
             {label}
         </span>
     </motion.div>
@@ -66,7 +66,7 @@ const ActionItem = ({ icon: Icon, label, onClick }) => (
             <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-white transition-all shadow-inner">
                 <Icon className="w-5 h-5" />
             </div>
-            <span className="text-sm font-black text-slate-800 group-hover:text-slate-900 transition-colors tracking-tight uppercase">{label}</span>
+            <span className="text-sm font-bold text-slate-800 group-hover:text-slate-900 transition-colors tracking-tight">{label}</span>
         </div>
         <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-50 group-hover:bg-blue-600 group-hover:text-white transition-all">
             <FiChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
@@ -77,6 +77,7 @@ const ActionItem = ({ icon: Icon, label, onClick }) => (
 function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEditProfile }) {
     const dispatch = useDispatch()
     const [isUploading, setIsUploading] = useState(false)
+    const [uploadSuccess, setUploadSuccess] = useState(false)
     const [previewUrl, setPreviewUrl] = useState(null)
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
 
@@ -114,7 +115,9 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
             const imageUrl = uploadRes.url
             await updateSellerProfile(user.id, { image_url: imageUrl })
             dispatch(updateUserInfo({ image_url: imageUrl }))
+            setUploadSuccess(true)
             showToast('Profile picture updated!', 'success')
+            setTimeout(() => setUploadSuccess(false), 3000)
         } catch (error) {
             console.error('Upload failed:', error)
             showToast(error.message || 'Failed to update profile picture', 'error')
@@ -173,7 +176,7 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                         >
                                             <FiChevronLeft className="w-6 h-6" strokeWidth={2.5} />
                                         </motion.button>
-                                        <h2 className="text-slate-400 font-extrabold text-[9px] uppercase tracking-[0.4em]">Merchant Profile</h2>
+                                        <h2 className="text-slate-400 font-bold text-[11px] tracking-widest uppercase">Seller Profile</h2>
                                         <div className="w-12" />
                                     </div>
 
@@ -210,22 +213,31 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                                                 <div className="absolute top-0 w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
                                                             </div>
                                                             <div className="flex flex-col items-center">
-                                                                <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] animate-pulse">Uploading</span>
-                                                                <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest mt-1">Syncing Asset</span>
+                                                                <span className="text-[10px] font-bold text-white uppercase tracking-wider animate-pulse">Uploading</span>
+                                                                <span className="text-[9px] font-semibold text-blue-400 mt-1">Updating profile...</span>
                                                             </div>
                                                         </motion.div>
                                                     )}
                                                 </AnimatePresence>
                                                 
                                                 {previewUrl || user?.image_url || user?.image ? (
-                                                    <img 
-                                                        src={fixImageUrl(previewUrl || user.image_url || user.image)} 
-                                                        alt="Avatar" 
-                                                        className="w-full h-full object-cover scale-105 transition-all duration-700 group-hover/profile:scale-125 group-hover/profile:rotate-1" 
-                                                    />
+                                                    <div className="w-full h-full relative overflow-hidden rounded-full bg-slate-100">
+                                                        <motion.div 
+                                                            initial={{ scale: 1.5 }}
+                                                            animate={{ scale: 1.2 }}
+                                                            transition={{ duration: 0.7 }}
+                                                            className="w-full h-full"
+                                                            style={{ 
+                                                                backgroundImage: `url(${fixImageUrl(previewUrl || user.image_url || user.image)})`,
+                                                                backgroundSize: 'cover',
+                                                                backgroundPosition: 'center',
+                                                                backgroundRepeat: 'no-repeat'
+                                                            }}
+                                                        />
+                                                    </div>
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                                                        <span className="text-6xl sm:text-8xl font-black text-blue-100 uppercase font-outfit select-none">
+                                                        <span className="text-6xl sm:text-8xl font-bold text-blue-100 select-none">
                                                          {user?.first_name?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || user?.trade_id?.charAt(0).toUpperCase() || 'S'}
                                                         </span>
                                                     </div>
@@ -237,25 +249,36 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                         </div>
                                         
                                         <motion.label 
-                                            htmlFor="profile-upload"
                                             whileHover={{ scale: 1.1, rotate: 12 }}
                                             whileTap={{ scale: 0.9 }}
-                                            className="absolute bottom-1 right-2 w-11 h-11 sm:w-14 sm:h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-xl border-4 border-[#F8FAFC] cursor-pointer z-30 transition-transform duration-300"
+                                            className="absolute bottom-1 right-2 w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-xl border-4 border-white cursor-pointer z-20"
                                         >
-                                            <FiCamera className="w-5 h-5 sm:w-6 sm:h-6" />
-                                            <input 
-                                                type="file" 
-                                                id="profile-upload" 
-                                                className="hidden" 
-                                                accept="image/*" 
-                                                onChange={handleImageChange}
-                                                disabled={isUploading}
-                                            />
+                                            <FiCamera className="w-6 h-6" />
+                                            <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} disabled={isUploading} />
                                         </motion.label>
+
+                                        {/* Floating Success Indicator Outside Circle */}
+                                        <AnimatePresence>
+                                            {uploadSuccess && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                                                    className="absolute -bottom-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-emerald-500 text-white px-6 py-3 rounded-full shadow-2xl shadow-emerald-500/40 whitespace-nowrap"
+                                                >
+                                                    <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-emerald-500">
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={5}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    </div>
+                                                    <span className="text-[11px] font-black uppercase tracking-[0.2em]">Photo Synchronized</span>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </motion.div>
 
                                     <motion.div variants={childVariants} className="text-center px-6 mt-8 z-10 w-full">
-                                        <h3 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight mb-2 capitalize font-outfit">
+                                        <h3 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight mb-2 capitalize">
                                             {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : (user?.name || user?.full_name || 'Seller Account')}
                                         </h3>
                                     </motion.div>
@@ -265,7 +288,7 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                 <div className="mt-12 mb-10">
                                     <motion.div variants={childVariants} className="flex items-center gap-4 mb-10 px-2">
                                         <div className="w-1.5 h-7 bg-blue-600 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.4)]" />
-                                        <h4 className="text-[13px] font-black uppercase tracking-[0.4em] text-slate-500">Activity Console</h4>
+                                        <h4 className="text-[13px] font-bold uppercase tracking-widest text-slate-500">Activity Console</h4>
                                     </motion.div>
                                     <div className="grid grid-cols-3 gap-y-12 gap-x-4">
                                         <OrderStatusIcon icon={FiCreditCard} label="Liquidity" color="text-blue-600" bgColor="bg-blue-50/50 border-blue-100/50" />
@@ -288,16 +311,16 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
                                         whileHover={{ scale: 1.02, backgroundColor: "#FFF1F2" }}
                                         whileTap={{ scale: 0.96 }}
                                         onClick={onLogout}
-                                        className="w-full max-w-[340px] flex items-center justify-center gap-4 py-6 text-rose-600 font-black uppercase tracking-[0.4em] text-[11px] bg-white rounded-[2.5rem] border-2 border-rose-50 hover:border-rose-100 transition-all shadow-sm active:scale-95"
+                                        className="w-full max-w-[340px] flex items-center justify-center gap-4 py-6 text-rose-600 font-bold uppercase tracking-widest text-[11px] bg-white rounded-[2.5rem] border-2 border-rose-50 hover:border-rose-100 transition-all shadow-sm active:scale-95"
                                     >
                                         <FiLogOut className="w-5 h-5" />
-                                        Secure Logout
+                                        Log Out
                                     </motion.button>
                                     
                                     <motion.div variants={childVariants} className="text-center opacity-30 px-10">
                                         <div className="h-px w-20 bg-slate-300 mx-auto mb-6" />
-                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em]">BBHC BAZAAR v3.0.0</p>
-                                        <p className="text-[7px] font-bold text-slate-400 mt-2 uppercase tracking-widest">ENCRYPTED • CLOUD SYNC</p>
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">BBHC BAZAAR v3.0.0</p>
+                                        <p className="text-[8px] font-semibold text-slate-400 mt-2 uppercase tracking-widest">Secured • Cloud Sync</p>
                                     </motion.div>
                                 </div>
                             </div>

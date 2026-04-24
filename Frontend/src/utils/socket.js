@@ -5,7 +5,17 @@
 import { io } from 'socket.io-client'
 
 // Socket.IO connection URL
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001'
+const getSocketUrl = () => {
+  const envUrl = import.meta.env.VITE_SOCKET_URL
+  if (envUrl) return envUrl
+  
+  // Dynamic fallback: same host as frontend, but port 5001
+  const host = window.location.hostname
+  const protocol = window.location.protocol
+  return `${protocol}//${host}:5001`
+}
+
+const SOCKET_URL = getSocketUrl()
 
 // Singleton socket instance and state
 let socketInstance = null

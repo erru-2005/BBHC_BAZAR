@@ -71,7 +71,7 @@ function SellerEditProfile({ open, onClose, user }) {
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-lg rounded-[3rem] bg-white border border-slate-100 shadow-[0_40px_100px_-20px_rgba(15,23,42,0.25)] overflow-hidden relative"
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto no-scrollbar rounded-[3rem] bg-white border border-slate-100 shadow-[0_40px_100px_-20px_rgba(15,23,42,0.25)] relative"
       >
         {/* Top Header / Banner */}
         <div className="relative h-40 flex items-center justify-center">
@@ -91,10 +91,14 @@ function SellerEditProfile({ open, onClose, user }) {
                 <div className="w-28 h-28 rounded-[2.5rem] bg-white border-[8px] border-white flex items-center justify-center text-slate-800 shadow-2xl relative overflow-hidden group">
                     <div className="absolute inset-0 bg-blue-600 opacity-0" />
                     {user?.image_url || user?.image ? (
-                        <img 
-                          src={fixImageUrl(user.image_url || user.image)} 
-                          alt="Branding" 
-                          className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                        <div 
+                          className="w-full h-full scale-[1.2]"
+                          style={{ 
+                              backgroundImage: `url(${fixImageUrl(user.image_url || user.image)})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              backgroundRepeat: 'no-repeat'
+                          }}
                         />
                     ) : (
                         <FiUser className="w-12 h-12 text-slate-100" />
@@ -199,7 +203,7 @@ function SellerEditProfile({ open, onClose, user }) {
                     <button
                       type="button"
                       onClick={onClose}
-                      className="w-full py-2 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-slate-800 transition-colors"
+                      className="w-full py-3 text-[11px] font-black uppercase tracking-[0.3em] text-rose-600 hover:text-rose-700 transition-colors"
                     >
                       ABORT EDIT
                     </button>

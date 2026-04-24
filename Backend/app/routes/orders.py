@@ -228,18 +228,27 @@ def list_orders():
     user_type = claims.get('user_type')
     user_id = get_jwt_identity()
 
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 10))
+
     if user_type == 'master':
-        orders = OrderService.get_orders()
+        orders, total = OrderService.get_orders(page=page, limit=limit)
     elif user_type == 'outlet_man':
-        orders = OrderService.get_orders()
+        orders, total = OrderService.get_orders(page=page, limit=limit)
     elif user_type == 'seller':
-        orders = OrderService.get_orders_by_seller(user_id)
+        orders, total = OrderService.get_orders_by_seller(user_id, page=page, limit=limit)
     elif user_type == 'user':
-        orders = OrderService.get_orders_by_user(user_id)
+        orders, total = OrderService.get_orders_by_user(user_id, page=page, limit=limit)
     else:
         return jsonify({'error': f'Unauthorized to view orders. User type: {user_type}'}), 403
 
-    return jsonify({'orders': _serialize_orders(orders)}), 200
+    return jsonify({
+        'orders': _serialize_orders(orders),
+        'total': total,
+        'page': page,
+        'limit': limit,
+        'totalPages': (total + limit - 1) // limit
+    }), 200
 
 
 @orders_bp.route('/orders/<order_id>', methods=['GET'])

@@ -8,9 +8,14 @@ import {
   FiPlus
 } from 'react-icons/fi'
 import { motion } from 'framer-motion'
+import { useSelector } from 'react-redux'
+import { fixImageUrl } from '../../../utils/image'
+import { useNavigate } from 'react-router-dom'
 
 export default function SellerSidebar({ onOpenAddProduct }) {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user } = useSelector((state) => state.auth)
   
   const menuItems = [
     { label: 'Dashboard', icon: FiHome, path: '/seller/dashboard', state: { view: 'dashboard' } },
@@ -50,8 +55,8 @@ export default function SellerSidebar({ onOpenAddProduct }) {
                />
                
                <div className="flex items-center gap-0.5">
-                  <span className="text-2xl font-black text-slate-900 tracking-tighter font-outfit">BBHC</span>
-                  <span className="text-2xl font-black text-[#FF3399] tracking-tighter font-outfit filter drop-shadow-[0_2px_10px_rgba(255,51,153,0.3)]">Bazaar</span>
+                  <span className="text-2xl font-bold text-slate-900 tracking-tight">BBHC</span>
+                  <span className="text-2xl font-bold text-[#FF3399] tracking-tight filter drop-shadow-[0_2px_10px_rgba(255,51,153,0.3)]">Bazaar</span>
                </div>
             </div>
           </motion.div>
@@ -74,7 +79,9 @@ export default function SellerSidebar({ onOpenAddProduct }) {
                 <div className={`transition-all duration-300 ${active ? 'scale-110' : 'group-hover:scale-110'}`}>
                    <item.icon className="w-5 h-5" />
                 </div>
-                <span className={`font-bold text-[11px] md:text-[12px] tracking-tight uppercase ${active ? 'text-slate-900' : ''}`}>{item.label}</span>
+                <span className={`text-sm font-semibold tracking-normal transition-colors ${active ? 'text-slate-900' : 'text-slate-500'}`}>
+                  {item.label}
+                </span>
                 
                 {active && (
                   <motion.div 
@@ -89,12 +96,36 @@ export default function SellerSidebar({ onOpenAddProduct }) {
       </div>
 
       <div className="mt-auto p-8 pt-0">
-        <div className="bg-slate-900 rounded-[2rem] p-5 relative overflow-hidden group mb-4">
-           <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600 rounded-full blur-[40px] opacity-20 group-hover:opacity-40 transition-opacity" />
-           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Need help?</p>
-           <p className="text-[11px] font-black text-white mb-3">Upgrade to Pro</p>
-           <button className="text-[9px] font-black text-blue-400 uppercase tracking-widest hover:text-blue-300 transition-colors">Learn More →</button>
-        </div>
+        <motion.div 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => navigate('/seller/profile')}
+          className="bg-white border border-slate-200 rounded-[2rem] p-5 relative overflow-hidden group mb-4 cursor-pointer hover:border-blue-400 transition-all"
+        >
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 flex-shrink-0 shadow-inner">
+               {user?.image_url || user?.image ? (
+                  <div 
+                    className="w-full h-full scale-[1.2]" 
+                    style={{ 
+                        backgroundImage: `url(${fixImageUrl(user.image_url || user.image)})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat'
+                    }}
+                  />
+               ) : (
+                  <div className="w-full h-full flex items-center justify-center text-blue-600 bg-blue-50 font-bold text-lg uppercase">
+                    {user?.first_name?.charAt(0) || 'A'}
+                  </div>
+               )}
+            </div>
+            <div className="text-left min-w-0">
+              <p className="text-sm font-bold text-slate-900 line-clamp-1">{user?.first_name || 'Account'}</p>
+              <p className="text-xs font-semibold text-slate-400">Verified Seller</p>
+            </div>
+          </div>
+        </motion.div>
 
         <motion.button
           whileHover={{ scale: 1.02, boxShadow: "0 10px 20px -10px rgba(37, 99, 235, 0.4)" }}

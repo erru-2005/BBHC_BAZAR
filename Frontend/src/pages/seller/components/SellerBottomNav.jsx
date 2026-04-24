@@ -57,7 +57,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
         },
         {
             id: 'products',
-            label: 'Vault',
+            label: 'Products',
             icon: HiOutlineCube,
             activeIcon: HiCube,
             action: () => navigate('/seller/products')
@@ -122,8 +122,8 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                                             strokeWidth={isActive ? 0 : 2}
                                         />
                                     </motion.div>
-                                    <span className={`text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
-                                        {item.label}
+                                    <span className={`text-[11px] font-medium tracking-normal transition-all duration-300 ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                                        {item.label.charAt(0).toUpperCase() + item.label.slice(1).toLowerCase()}
                                     </span>
                                 </button>
                             )
@@ -186,7 +186,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                                             strokeWidth={isActive ? 0 : 2}
                                         />
                                     </motion.div>
-                                    <span className={`text-[9px] font-black uppercase tracking-widest transition-all duration-300 ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                                    <span className={`text-[11px] font-semibold tracking-normal transition-all duration-300 ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
                                         {item.label}
                                     </span>
                                 </button>

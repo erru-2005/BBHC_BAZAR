@@ -125,7 +125,20 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
         dispatch(setLoading(false))
         dispatch(setRefreshing(false))
       } catch (err) {
-        dispatch(setError(err.message || 'Failed to load products'))
+        console.error('Home load error:', err)
+        // Differentiate between auth errors and connectivity issues
+        const isAuthError = err.message?.toLowerCase().includes('authorization') || 
+                           err.message?.toLowerCase().includes('login') ||
+                           err.message?.toLowerCase().includes('401')
+        
+        if (isAuthError) {
+          // If it's an auth error but we thought we were authenticated, 
+          // it just means the session is invalid. We can stay on home as a guest.
+          dispatch(setHomeWishlist([]))
+          // Don't show a scary red error box for background wishlist failures
+        } else {
+          dispatch(setError(err.message || 'Failed to load products. Please check your connection.'))
+        }
         dispatch(setLoading(false))
         dispatch(setRefreshing(false))
       }
