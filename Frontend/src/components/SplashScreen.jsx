@@ -46,7 +46,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
 
       // Get initial positions (center of screen)
       const initialRect = logoElement.getBoundingClientRect();
-      
+
       // Get target positions (header logo position)
       const headerRect = headerLogo.getBoundingClientRect();
       const targetX = headerRect.left + headerRect.width / 2;
@@ -76,7 +76,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
       loadingOverlay.className = 'premium-loading-effect';
       const logoWidth = initialRect.width || 250;
       const logoHeight = initialRect.height || 70;
-      
+
       // Premium visible silver shimmer overlay - diagonal from bottom-left to top-right
       loadingOverlay.style.cssText = `
         position: absolute;
@@ -101,7 +101,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
         z-index: 1;
         mix-blend-mode: screen;
       `;
-      
+
       // Append loading overlay to logo
       logoElement.appendChild(loadingOverlay);
 
@@ -119,7 +119,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
 
       // Step 1: Premium visible silver shimmer from bottom-left to top-right
       // Start at bottom-left (100% 100%) and move to top-right (0% 0%)
-      tl.fromTo(loadingOverlay, 
+      tl.fromTo(loadingOverlay,
         {
           backgroundPosition: '100% 100%' // Start at bottom-left
         },
@@ -144,7 +144,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
 
       // Step 4: Move very slowly to header position while keeping splash fully opaque
       const movementDuration = 3.0; // Very slow movement
-      
+
       // Animate logo to header position - starts after skeleton animation and hold complete
       tl.to(containerRef.current, {
         duration: movementDuration,

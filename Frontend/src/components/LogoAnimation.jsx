@@ -57,7 +57,7 @@ function LogoAnimation({ onComplete, headerLogoRef }) {
 
       // Get initial positions (center of screen)
       const initialRect = logoElement.getBoundingClientRect()
-      
+
       // Get target positions (header logo position)
       const headerRect = headerLogo.getBoundingClientRect()
       const targetX = headerRect.left + headerRect.width / 2
