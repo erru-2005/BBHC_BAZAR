@@ -40,6 +40,10 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
     s.categories?.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   return (
     <div className="min-h-screen bg-[#fafbff] text-slate-900">
       <MainHeader ref={headerLogoRef} onOpenMenu={() => setMobileMenuOpen(true)}>
@@ -125,7 +129,6 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
         )}
       </main>
 
-      <SiteFooter />
       <MobileBottomNav items={home?.bottomNavItems} />
     </div>
   )

@@ -262,7 +262,6 @@ function ProductDetail() {
         </div>
       </section>
 
-      <SiteFooter />
       <MobileBottomNav items={bottomNavItems} />
     </div>
   )

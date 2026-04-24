@@ -210,7 +210,6 @@ function ServiceDetail() {
         </div>
       </main>
 
-      <SiteFooter />
       <MobileBottomNav items={home?.bottomNavItems} />
     </div>
   )

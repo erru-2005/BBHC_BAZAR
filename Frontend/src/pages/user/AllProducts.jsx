@@ -35,6 +35,10 @@ function AllProducts({ headerLogoRef: externalHeaderLogoRef }) {
     }
   }, [products.length, globalLoading])
 
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900">
       <MainHeader ref={headerLogoRef} onOpenMenu={() => setMobileMenuOpen(true)}>
@@ -47,7 +51,6 @@ function AllProducts({ headerLogoRef: externalHeaderLogoRef }) {
         <ProductShowcase products={products} loading={loading} error={error} />
       </main>
 
-      <SiteFooter />
       <MobileBottomNav items={home?.bottomNavItems || undefined} />
     </div>
   )

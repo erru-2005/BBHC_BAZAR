@@ -135,6 +135,10 @@ function BuyNow() {
     }
   }
 
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white text-black">
@@ -261,7 +265,6 @@ function BuyNow() {
         </div>
       </main>
 
-      <SiteFooter />
       <MobileBottomNav />
 
       <AnimatePresence>

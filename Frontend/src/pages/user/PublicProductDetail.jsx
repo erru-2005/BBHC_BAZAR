@@ -606,7 +606,6 @@ function PublicProductDetail() {
         onClose={() => setToast(prev => ({ ...prev, show: false }))}
       />
 
-      <SiteFooter />
       <MobileBottomNav items={home.bottomNavItems} />
     </div >
   )
