@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FiX, FiSend, FiRefreshCw, FiEye, FiEyeOff } from 'react-icons/fi'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   requestMasterForgotPasswordOtp,
   requestSellerForgotPasswordOtp,
@@ -154,7 +155,7 @@ function PasswordResetDialog({
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-lg rounded-[2.5rem] bg-white border border-slate-100 shadow-[0_40px_80px_-20px_rgba(15,23,42,0.2)] overflow-hidden"
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto no-scrollbar rounded-[2.5rem] bg-white border border-slate-100 shadow-[0_40px_80px_-20px_rgba(15,23,42,0.2)]"
       >
         <div className="flex items-center justify-between border-b border-slate-50 px-8 py-6 bg-slate-50/30">
           <div>
@@ -318,7 +319,7 @@ function PasswordResetDialog({
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-slate-900 transition-all"
+              className="px-6 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-rose-600 hover:text-rose-700 transition-all"
             >
               CANCEL
             </button>

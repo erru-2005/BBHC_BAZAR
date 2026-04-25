@@ -9,7 +9,7 @@ class ProductCreationSchema(Schema):
     categories = fields.List(fields.Str(), required=False, allow_none=True)
     selling_price = fields.Float(required=True, validate=validate.Range(min=0.01))
     max_price = fields.Float(required=True, validate=validate.Range(min=0.01))
-    quantity = fields.Int(required=True, validate=validate.Range(min=1))
+    quantity = fields.Int(required=False, allow_none=True, validate=validate.Range(min=0))
     seller_trade_id = fields.Str(required=False, allow_none=True)
     seller_name = fields.Str(required=False, allow_none=True)
     seller_email = fields.Email(required=False, allow_none=True)

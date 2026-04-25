@@ -25,6 +25,10 @@ function OrdersList() {
   const [filteredOrders, setFilteredOrders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalOrders, setTotalOrders] = useState(0)
+  const ordersPerPage = 10
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
@@ -34,18 +38,20 @@ function OrdersList() {
   const [fetchError, setFetchError] = useState(null)
   const socket = getSocket()
 
-  // Initialize orders if missing
+  // Initialize orders if missing or on page change
   useEffect(() => {
-    if (!lastFetched.orders || orders.length === 0) {
-      fetchOrders()
-    }
-  }, [orders.length, lastFetched.orders])
+    fetchOrders(currentPage)
+  }, [currentPage])
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (page = 1) => {
     try {
       dispatch(setMastersLoading({ field: 'orders', loading: true }))
-      const apiOrders = await getOrders()
+      const response = await getOrders({ page, limit: ordersPerPage })
+      // getOrders returns { orders, total, page, limit, totalPages }
+      const apiOrders = response.orders || []
       dispatch(setMastersData({ field: 'orders', data: apiOrders }))
+      setTotalPages(response.totalPages || 1)
+      setTotalOrders(response.total || 0)
     } catch (err) {
       setFetchError(err.message)
     } finally {
@@ -439,11 +445,16 @@ function OrdersList() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending':
+      case 'pending_seller':
         return 'bg-yellow-100 text-yellow-800'
       case 'accepted':
+      case 'seller_accepted':
         return 'bg-green-100 text-green-800'
+      case 'seller_rejected':
       case 'rejected':
         return 'bg-red-100 text-red-800'
+      case 'handed_over':
+        return 'bg-purple-100 text-purple-800'
       case 'completed':
         return 'bg-blue-100 text-blue-800'
       case 'cancelled':
@@ -467,7 +478,7 @@ function OrdersList() {
                 placeholder="Search orders, products, sellers, users..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-black"
               />
             </div>
           </div>
@@ -479,13 +490,17 @@ function OrdersList() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none pl-10 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white cursor-pointer"
+                className="appearance-none pl-10 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white cursor-pointer text-black"
               >
                 <option value="all">All Status</option>
-                <option value="pending">Pending</option>
+                <option value="pending">Pending (Outlet)</option>
+                <option value="pending_seller">Pending Seller</option>
                 <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
+                <option value="seller_accepted">Seller Accepted</option>
+                <option value="handed_over">Handed Over</option>
                 <option value="completed">Completed</option>
+                <option value="seller_rejected">Seller Rejected</option>
+                <option value="cancelled">Cancelled</option>
               </select>
               <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
             </div>
@@ -615,6 +630,63 @@ function OrdersList() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="bg-gray-50 border-t border-gray-200 px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-sm text-gray-700">
+              Showing <span className="font-medium">{(currentPage - 1) * ordersPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * ordersPerPage, totalOrders)}</span> of <span className="font-medium">{totalOrders}</span> orders
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1 || loadingOrders}
+                className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {[...Array(totalPages)].map((_, i) => {
+                  const pageNum = i + 1;
+                  if (
+                    pageNum === 1 || 
+                    pageNum === totalPages || 
+                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-10 h-10 flex items-center justify-center rounded-lg font-medium transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  } else if (
+                    (pageNum === 2 && currentPage > 3) || 
+                    (pageNum === totalPages - 1 && currentPage < totalPages - 2)
+                  ) {
+                    return <span key={pageNum} className="px-1 text-gray-400">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages || loadingOrders}
+                className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Order Detail Modal */}

@@ -22,14 +22,13 @@ const convertFileToDataUrl = (file) =>
 
 function SellerProductForm({ initialProduct = null }) {
   const navigate = useNavigate()
-  const { user } = useSelector((state) => state.auth)
+  const { user, userType } = useSelector((state) => state.auth)
 
   const [form, setForm] = useState({
     productName: '',
     specification: '',
     sellingPrice: '',
     maxPrice: '',
-    quantity: '',
     category: ''
   })
   const [points, setPoints] = useState(INITIAL_POINTS)
@@ -49,12 +48,14 @@ function SellerProductForm({ initialProduct = null }) {
         const categoriesList = Array.isArray(data) ? data : (data?.categories || [])
         setCategories(categoriesList)
 
-        // Load category commission rates
-        try {
-          const rates = await getCategoryCommissionRates()
-          setCategoryCommissionRates(rates || {})
-        } catch (err) {
-          console.warn('Failed to load category commission rates', err)
+        // Load category commission rates - Only for Masters to prevent 403 for sellers
+        if (userType === 'master') {
+          try {
+            const rates = await getCategoryCommissionRates()
+            setCategoryCommissionRates(rates || {})
+          } catch (err) {
+            setCategoryCommissionRates({})
+          }
         }
       } catch (error) {
         console.error('Failed to load categories', error)
@@ -70,11 +71,6 @@ function SellerProductForm({ initialProduct = null }) {
         specification: initialProduct.specification || '',
         sellingPrice: initialProduct.selling_price || '',
         maxPrice: initialProduct.max_price || '',
-        quantity:
-          initialProduct.quantity ||
-          initialProduct.stock ||
-          initialProduct.available_quantity ||
-          '',
         category: Array.isArray(initialProduct.categories) ? initialProduct.categories[0] : initialProduct.categories || ''
       })
       setPoints(
@@ -202,17 +198,12 @@ function SellerProductForm({ initialProduct = null }) {
 
     const selling = Number(form.sellingPrice)
     const max = Number(form.maxPrice)
-    const quantity = Number(form.quantity)
     if (!selling || !max || selling <= 0 || max <= 0) {
       setStatus({ type: 'error', message: 'Please provide valid selling and MRP prices.' })
       return
     }
     if (max < selling) {
       setStatus({ type: 'error', message: 'MRP must be greater than or equal to selling price.' })
-      return
-    }
-    if (!quantity || quantity <= 0) {
-      setStatus({ type: 'error', message: 'Quantity must be greater than zero.' })
       return
     }
 
@@ -224,7 +215,6 @@ function SellerProductForm({ initialProduct = null }) {
       gallery: gallery.map((item) => item.preview),
       selling_price: selling,
       max_price: max,
-      quantity,
       categories: form.category ? [form.category] : []
     }
 
@@ -270,8 +260,8 @@ function SellerProductForm({ initialProduct = null }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         <div className="space-y-4">
-          <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-            Visual Identity <span className="text-rose-500">*</span>
+          <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+            Product Thumbnail <span className="text-rose-600">*</span>
           </label>
           <div className="relative group">
             <input
@@ -289,7 +279,7 @@ function SellerProductForm({ initialProduct = null }) {
                      <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-slate-300 shadow-sm border border-slate-50 mx-auto">
                         <FiBox className="w-6 h-6" />
                      </div>
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Upload Main Display</p>
+                     <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Upload Main Display</p>
                   </div>
                )}
                <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
@@ -300,8 +290,8 @@ function SellerProductForm({ initialProduct = null }) {
         </div>
 
         <div className="space-y-4">
-          <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-            Asset Gallery <span className="text-slate-300 font-bold">(optional)</span>
+          <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+            Product Gallery <span className="text-slate-500 font-semibold">(optional)</span>
           </label>
           <div className="grid grid-cols-3 gap-3 h-56">
             <div className="relative group border-2 border-dashed border-slate-100 rounded-[2rem] bg-slate-50/30 hover:bg-white hover:border-blue-200 transition-all flex items-center justify-center cursor-pointer overflow-hidden">
@@ -312,7 +302,7 @@ function SellerProductForm({ initialProduct = null }) {
                   onChange={handleGalleryChange}
                   className="absolute inset-0 opacity-0 cursor-pointer z-10"
                 />
-                <FiPlus className="w-6 h-6 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                <FiPlus className="w-6 h-6 text-slate-500 group-hover:text-blue-500 transition-colors" />
             </div>
             {gallery.map((image, index) => (
               <div key={`${image.preview}-${index}`} className="relative rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm group">
@@ -327,39 +317,39 @@ function SellerProductForm({ initialProduct = null }) {
       <div className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-3">
-            <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-              Asset Designation <span className="text-rose-500">*</span>
+            <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+              Product Name <span className="text-rose-600 font-semibold">*</span>
             </label>
             <input
               type="text"
               name="productName"
               value={form.productName}
               onChange={handleChange}
-              className="w-full px-6 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-bold placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+              className="w-full px-6 py-4 bg-white border border-slate-300 rounded-2xl text-slate-900 font-semibold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
               placeholder="Enter product name"
               required
             />
           </div>
 
           <div className="space-y-3">
-            <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-              Market Segment <span className="text-slate-300 font-bold">(optional)</span>
+            <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+              Category <span className="text-slate-500 font-semibold">(optional)</span>
             </label>
             <div className="relative">
               <select
                 value={form.category}
                 name="category"
                 onChange={handleChange}
-                className="w-full px-6 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-bold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner appearance-none"
+                className="w-full px-6 py-4 bg-white border border-slate-300 rounded-2xl text-slate-900 font-semibold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm appearance-none"
               >
-                <option value="" className="text-slate-400">SELECT CLASSIFICATION</option>
+                <option value="" className="text-slate-500 font-semibold">Select Category</option>
                 {categories.map((category) => {
                   const categoryName = category.name || category
                   const categoryId = category.id || category._id || categoryName
                   const commissionRate = categoryCommissionRates[categoryName]
                   return (
                     <option key={categoryId} value={categoryName}>
-                      {categoryName.toUpperCase()} {commissionRate ? `[${commissionRate}% FEES]` : ''}
+                      {categoryName} {commissionRate ? `[${commissionRate}% Fees]` : ''}
                     </option>
                   )
                 })}
@@ -373,8 +363,8 @@ function SellerProductForm({ initialProduct = null }) {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-4">
-            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
-              Valuation (₹) <span className="text-blue-600">*</span>
+            <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+              Selling Price (₹) <span className="text-blue-700">*</span>
             </label>
             <input
               type="number"
@@ -383,7 +373,7 @@ function SellerProductForm({ initialProduct = null }) {
               name="sellingPrice"
               value={form.sellingPrice}
               onChange={handleChange}
-              className="w-full px-6 py-5 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-black placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+              className="w-full px-6 py-5 bg-white border border-slate-300 rounded-2xl text-slate-900 font-bold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
               placeholder="0.00"
               required
             />
@@ -398,14 +388,14 @@ function SellerProductForm({ initialProduct = null }) {
                    <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
                 </div>
                 <div className="text-2xl font-black text-slate-900 mt-1">₹{calculateTotalPrice()}</div>
-                <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Inclusive of commission & platform fees</p>
+                <p className="text-[9px] font-bold text-slate-600 mt-1 uppercase">Inclusive of commission & platform fees</p>
               </motion.div>
             )}
           </div>
 
           <div className="space-y-4">
-            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
-              Reference MRP (₹) <span className="text-rose-500">*</span>
+            <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+              MRP (₹) <span className="text-rose-600">*</span>
             </label>
             <input
               type="number"
@@ -414,48 +404,32 @@ function SellerProductForm({ initialProduct = null }) {
               name="maxPrice"
               value={form.maxPrice}
               onChange={handleChange}
-              className="w-full px-6 py-5 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-black placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
+              className="w-full px-6 py-5 bg-white border border-slate-300 rounded-2xl text-slate-900 font-bold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
               placeholder="0.00"
               required
             />
           </div>
 
-          <div className="space-y-4">
-            <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
-              Inventory Depth <span className="text-blue-600">*</span>
-            </label>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              name="quantity"
-              value={form.quantity}
-              onChange={handleChange}
-              className="w-full px-6 py-5 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-900 font-black placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
-              placeholder="Units available"
-              required
-            />
-          </div>
         </div>
 
         <div className="space-y-4">
-          <label className="block text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] ml-1">
-            Technical Specification <span className="text-blue-600">*</span>
+          <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+            Product Description <span className="text-blue-700">*</span>
           </label>
           <textarea
             name="specification"
             value={form.specification}
             onChange={handleChange}
             rows={6}
-            className="w-full px-6 py-6 bg-slate-50/50 border border-slate-100 rounded-[2.5rem] text-slate-900 font-medium placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner resize-none"
-            placeholder="Detailed asset characterization and technical parameters..."
+            className="w-full px-6 py-6 bg-white border border-slate-300 rounded-[2.5rem] text-slate-900 font-medium placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm resize-none"
+            placeholder="Detailed product description and technical details..."
             required
           />
         </div>
 
         <div className="space-y-6">
-          <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-            Asset Highlights <span className="text-rose-500">*</span>
+          <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+            Product Features <span className="text-rose-600">*</span>
           </label>
           <div className="space-y-4">
             {points.map((point, index) => (
@@ -466,15 +440,15 @@ function SellerProductForm({ initialProduct = null }) {
                 transition={{ delay: index * 0.1 }}
                 className="flex items-center gap-4 group"
               >
-                <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-[10px] font-black text-slate-400 border border-slate-100 shrink-0">
+                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600 border border-slate-200 shrink-0">
                   {index + 1}
                 </div>
                 <input
                   type="text"
                   value={point}
                   onChange={(event) => handlePointChange(index, event.target.value)}
-                  className="flex-1 px-6 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl text-slate-800 font-bold placeholder:text-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white outline-none transition-all shadow-inner"
-                  placeholder="Enter unique feature..."
+                  className="flex-1 px-6 py-4 bg-white border border-slate-300 rounded-2xl text-slate-800 font-semibold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
+                  placeholder="Enter key feature..."
                 />
                 {points.length > 1 && (
                   <button
@@ -490,9 +464,9 @@ function SellerProductForm({ initialProduct = null }) {
             <button
               type="button"
               onClick={handleAddPointField}
-              className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] hover:bg-slate-50 hover:text-blue-600 hover:border-blue-100 transition-all flex items-center justify-center gap-3"
+              className="w-full py-5 rounded-2xl border-2 border-dashed border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:bg-slate-50 hover:text-blue-600 hover:border-blue-100 transition-all flex items-center justify-center gap-3"
             >
-              <FiPlus strokeWidth={3} /> ADD DIMENSION
+              <FiPlus strokeWidth={3} /> Add Feature
             </button>
           </div>
         </div>
@@ -504,14 +478,14 @@ function SellerProductForm({ initialProduct = null }) {
           disabled={submitting}
           className="flex-1 py-6 bg-slate-900 text-white text-[11px] font-black uppercase tracking-[0.3em] rounded-[1.5rem] hover:bg-black active:scale-[0.98] transition-all disabled:opacity-50 shadow-2xl shadow-slate-900/20"
         >
-          {submitting ? (isEditing ? 'TRANSMITTING...' : 'INITIALIZING...') : isEditing ? 'COMMIT UPDATES' : 'DEPLOY ASSET'}
+          {submitting ? (isEditing ? 'SAVING...' : 'ADDING PRODUCT...') : isEditing ? 'UPDATE PRODUCT' : 'ADD PRODUCT'}
         </button>
         <button
           type="button"
           onClick={() => navigate('/seller/products')}
-          className="px-10 py-6 border border-slate-100 bg-slate-50/50 text-slate-400 text-[11px] font-black uppercase tracking-[0.3em] rounded-[1.5rem] hover:bg-white hover:text-slate-900 transition-all"
+          className="px-10 py-6 border border-slate-200 bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-[0.3em] rounded-[1.5rem] hover:bg-white hover:text-slate-900 transition-all"
         >
-          ABORT
+          CANCEL
         </button>
       </div>
     </form>

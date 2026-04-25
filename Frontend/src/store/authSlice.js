@@ -59,10 +59,12 @@ const authSlice = createSlice({
       }
     },
     restoreUser(state, action) {
+      if (!action.payload) return
       // Restore user data from backend (called when app loads with token)
       state.user = action.payload.user
       state.userType = action.payload.userType
-      if (state.token) {
+      if (state.token || localStorage.getItem('token')) {
+        state.token = state.token || localStorage.getItem('token')
         state.isAuthenticated = true
       }
     },

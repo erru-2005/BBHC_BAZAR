@@ -320,20 +320,22 @@ function Bag() {
 
                         {/* Quantity Controls */}
                         <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2 border border-gray-300 rounded-lg">
+                          <div className="flex items-center gap-2 border border-gray-400 rounded-lg bg-white shadow-sm">
                             <button
                               onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
                               disabled={item.quantity <= 1}
-                              className="p-2 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                              className="p-2 text-black hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              aria-label="Decrease quantity"
                             >
                               <FaMinus className="w-3 h-3" />
                             </button>
-                            <span className="px-4 py-2 text-sm font-medium min-w-[3rem] text-center">
+                            <span className="px-4 py-2 text-sm font-bold text-black min-w-[3rem] text-center border-x border-gray-100">
                               {item.quantity}
                             </span>
                             <button
                               onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                              className="p-2 hover:bg-gray-100 transition"
+                              className="p-2 text-black hover:bg-gray-100 transition-colors"
+                              aria-label="Increase quantity"
                             >
                               <FaPlus className="w-3 h-3" />
                             </button>

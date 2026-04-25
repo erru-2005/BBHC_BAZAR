@@ -7,7 +7,7 @@ import { createCategory, createProduct, getCategories, getSellers, updateProduct
 const INITIAL_POINTS = ['', '', '']
 
 function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancelEdit = () => {} }) {
-  const [form, setForm] = useState({ productName: '', specification: '', sellingPrice: '', maxPrice: '', quantity: '', commissionRate: '' })
+  const [form, setForm] = useState({ productName: '', specification: '', sellingPrice: '', maxPrice: '', commissionRate: '' })
   const [media, setMedia] = useState({ thumbnail: null, gallery: [] })
   const [points, setPoints] = useState(INITIAL_POINTS)
   const [status, setStatus] = useState({ type: null, message: '' })
@@ -34,7 +34,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   }, [selectedSellerId, availableSellers])
 
   const resetForm = () => {
-    setForm({ productName: '', specification: '', sellingPrice: '', maxPrice: '', quantity: '', commissionRate: '' })
+    setForm({ productName: '', specification: '', sellingPrice: '', maxPrice: '', commissionRate: '' })
     setPoints(INITIAL_POINTS)
     setMedia({ thumbnail: null, gallery: [] })
     setSelectedCategory('')
@@ -225,12 +225,6 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
         specification: editingProduct.specification || '',
         sellingPrice: editingProduct.selling_price || editingProduct.price || '',
         maxPrice: editingProduct.max_price || editingProduct.mrp || '',
-        quantity:
-          editingProduct.quantity ||
-          editingProduct.stock ||
-          editingProduct.available_quantity ||
-          editingProduct.inventory ||
-          '',
         commissionRate: editingProduct.commission_rate || editingProduct.commissionRate || ''
       })
       setPoints(
@@ -325,17 +319,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
 
     const selling = Number(form.sellingPrice)
     const max = Number(form.maxPrice)
-    const quantity = Number(form.quantity)
-    if (!selling || !max) {
-      setStatus({ type: 'error', message: 'Please enter both selling price and MRP.' })
-      return
-    }
-    if (!quantity) {
-      setStatus({ type: 'error', message: 'Please enter product quantity.' })
-      return
-    }
-    if (selling <= 0 || max <= 0 || quantity <= 0) {
-      setStatus({ type: 'error', message: 'Price and quantity values must be greater than zero.' })
+    if (selling <= 0 || max <= 0) {
+      setStatus({ type: 'error', message: 'Price values must be greater than zero.' })
       return
     }
     if (max < selling) {
@@ -351,7 +336,6 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       gallery: serializeGalleryForPayload(media.gallery),
       selling_price: selling,
       max_price: max,
-      quantity,
       commission_rate: form.commissionRate ? parseFloat(form.commissionRate) : null,
       categories: selectedCategory ? [selectedCategory] : [],
       created_by: selectedSeller.trade_id || `${selectedSeller.first_name || ''} ${selectedSeller.last_name || ''}`.trim() || selectedSeller.email,
@@ -594,22 +578,6 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quantity <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                name="quantity"
-                value={form.quantity}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium"
-                placeholder="Enter available quantity"
-                required
-              />
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

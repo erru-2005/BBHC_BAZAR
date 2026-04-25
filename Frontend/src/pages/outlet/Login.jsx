@@ -130,7 +130,7 @@ function OutletLogin() {
                     value={formData.outlet_access_code}
                     onChange={handleChange}
                     placeholder="Outlet Access Code"
-                    className="w-full px-4 py-3 rounded-xl bg-gray-100 shadow-[inset_4px_4px_8px_#bebebe,inset_-4px_-4px_8px_#ffffff] border-none outline-none text-gray-800 placeholder-gray-400 focus:shadow-[inset_6px_6px_12px_#bebebe,inset_-6px_-6px_12px_#ffffff] transition-all"
+                    className="w-full px-4 py-3 rounded-xl bg-gray-100 shadow-[inset_4px_4px_8px_#bebebe,inset_-4px_-4px_8px_#ffffff] border-none outline-none text-black placeholder-gray-400 focus:shadow-[inset_6px_6px_12px_#bebebe,inset_-6px_-6px_12px_#ffffff] transition-all"
                     required
                     disabled={loading}
                   />
@@ -149,7 +149,7 @@ function OutletLogin() {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="Password"
-                    className="w-full px-4 py-3 rounded-xl bg-gray-100 shadow-[inset_4px_4px_8px_#bebebe,inset_-4px_-4px_8px_#ffffff] border-none outline-none text-gray-800 placeholder-gray-400 focus:shadow-[inset_6px_6px_12px_#bebebe,inset_-6px_-6px_12px_#ffffff] transition-all pr-12"
+                    className="w-full px-4 py-3 rounded-xl bg-gray-100 shadow-[inset_4px_4px_8px_#bebebe,inset_-4px_-4px_8px_#ffffff] border-none outline-none text-black placeholder-gray-400 focus:shadow-[inset_6px_6px_12px_#bebebe,inset_-6px_-6px_12px_#ffffff] transition-all pr-12"
                     required
                     disabled={loading}
                   />

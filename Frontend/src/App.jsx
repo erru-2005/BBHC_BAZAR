@@ -29,7 +29,9 @@ import {
   SellerAddProduct,
   SellerEditProduct,
   SellerMyServices,
-  SellerAddService
+  SellerAddService,
+  SellerSettings,
+  SellerProfilePage
 } from './pages'
 import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -59,6 +61,7 @@ function SplashWrapper() {
   const location = useLocation()
   const dispatch = useDispatch()
   const { isAuthenticated, userType, token } = useSelector((state) => state.auth)
+  const { isDarkMode } = useSelector((state) => state.theme)
   const { home } = useSelector((state) => state.data)
   const sellerState = useSelector((state) => state.seller)
   const masterState = useSelector((state) => state.master)
@@ -72,6 +75,14 @@ function SplashWrapper() {
   const [showContent, setShowContent] = useState(!showSplash)
   const headerLogoRef = useRef(null)
 
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [isDarkMode])
+
   // 0. Session Restoration on Mount
   useEffect(() => {
     const restoreSession = async () => {
@@ -80,15 +91,29 @@ function SplashWrapper() {
         try {
           // Verify token and get user profile
           const data = await getCurrentUser()
+          
+          // ROLE ISOLATION: 
+          // If we are on a customer-facing path (User side), and the found token is NOT a 'user' token,
+          // we should NOT automatically restore it as the primary authenticated user for the consumer site.
+          // This prevents "Seller cache" from being used as "User data".
+          const isUserPath = location.pathname.startsWith('/user/') || 
+                            location.pathname === '/' || 
+                            location.pathname.startsWith('/product/') ||
+                            location.pathname.startsWith('/category/')
+          
+          if (isUserPath && data.userType !== 'user') {
+            console.warn('[Session] Ignoring merchant/admin token for consumer flow isolation.')
+            return
+          }
+
           dispatch(restoreUser(data))
         } catch (err) {
           console.error('[Session] Restoration failed:', err)
-          // Don't clear storage here, the API interceptor handles 401s
         }
       }
     }
     restoreSession()
-  }, [dispatch, isAuthenticated])
+  }, [dispatch, isAuthenticated, location.pathname])
 
   // 1. Initial data loading - handles all roles
   useEffect(() => {
@@ -116,8 +141,9 @@ function SplashWrapper() {
 
       try {
         if (userType === 'user') {
-          // User wishlist
-          if (home.wishlist.length === 0) {
+          // User wishlist - only if token is present
+          const token = localStorage.getItem('token')
+          if (token && home.wishlist.length === 0) {
             const wishlistItems = await getWishlist(200, 0)
             const ids = wishlistItems
               .map((item) => item.product_id || item.product_snapshot?.id)
@@ -127,10 +153,11 @@ function SplashWrapper() {
         } 
         else if (userType === 'seller') {
           // Seller products and orders
+          const token = localStorage.getItem('token')
           const needsProducts = !sellerState.lastFetched.products
           const needsOrders = !sellerState.lastFetched.orders
           
-          if (needsProducts || needsOrders) {
+          if (token && (needsProducts || needsOrders)) {
             const [products, ordersData] = await Promise.all([
               needsProducts ? getSellerMyProducts() : Promise.resolve(sellerState.products),
               needsOrders ? getOrders() : Promise.resolve(sellerState.orders)
@@ -144,11 +171,12 @@ function SplashWrapper() {
         }
         else if (userType === 'master') {
           // Master essential lists
+          const token = localStorage.getItem('token')
           const needsSellers = !masterState.lastFetched.sellers
           const needsMasters = !masterState.lastFetched.masters
           const needsOutlets = !masterState.lastFetched.outlets
           
-          if (needsSellers || needsMasters || needsOutlets) {
+          if (token && (needsSellers || needsMasters || needsOutlets)) {
             const [sellersData, masters, outletsData] = await Promise.all([
               needsSellers ? getSellers({ limit: 100 }) : Promise.resolve({ sellers: masterState.sellers }),
               needsMasters ? getMasters() : Promise.resolve(masterState.masters),
@@ -162,7 +190,8 @@ function SplashWrapper() {
         }
         else if (userType === 'outlet_man') {
           // Outlet orders
-          if (!outletState.lastFetched) {
+          const token = localStorage.getItem('token')
+          if (token && !outletState.lastFetched) {
             const ordersData = await getOrders()
             const orders = Array.isArray(ordersData?.orders) ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : [])
             dispatch(setOutletOrders(orders))
@@ -281,6 +310,8 @@ function SplashWrapper() {
                 <Route path="/seller/products/:productId/edit" element={<SellerEditProduct />} />
                 <Route path="/seller/services" element={<SellerMyServices />} />
                 <Route path="/seller/services/new" element={<SellerAddService />} />
+                <Route path="/seller/settings" element={<SellerSettings />} />
+                <Route path="/seller/profile" element={<SellerProfilePage />} />
               </Route>
               <Route
                 path="/master/dashboard"

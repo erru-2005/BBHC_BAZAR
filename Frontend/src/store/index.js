@@ -6,6 +6,7 @@ import authReducer from './authSlice'
 import sellerReducer from './sellerSlice'
 import masterReducer from './masterSlice'
 import outletReducer from './outletSlice'
+import themeReducer from './themeSlice'
 
 // Configure persist for auth reducer
 const authPersistConfig = {
@@ -14,7 +15,13 @@ const authPersistConfig = {
   whitelist: ['user', 'token', 'isAuthenticated', 'userType'] // Only persist these fields
 }
 
+const themePersistConfig = {
+  key: 'theme',
+  storage
+}
+
 const persistedAuthReducer = persistReducer(authPersistConfig, authReducer)
+const persistedThemeReducer = persistReducer(themePersistConfig, themeReducer)
 
 export const store = configureStore({
   reducer: {
@@ -22,7 +29,8 @@ export const store = configureStore({
     auth: persistedAuthReducer,
     seller: sellerReducer,
     master: masterReducer,
-    outlet: outletReducer
+    outlet: outletReducer,
+    theme: persistedThemeReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

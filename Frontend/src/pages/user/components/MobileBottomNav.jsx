@@ -31,26 +31,29 @@ function MobileBottomNav({ items = defaultItems }) {
     const getActiveItem = () => {
         const currentPath = location.pathname
 
-        // Priority order: check specific routes first
-        // Me routes
-        if (currentPath === '/user/profile' || currentPath === '/user/orders') {
+        // Profile takes 'me' priority
+        if (currentPath === '/user/profile') {
             return 'me'
         }
 
-        // Bag routes - check this before home to ensure bag takes priority
+        // Bag routes take 'bag' priority
         if (currentPath === '/user/bag' || currentPath.startsWith('/user/bag/')) {
             return 'bag'
         }
 
-        // Home - only active on exact root path
-        if (currentPath === '/') {
+        // General shopping routes should highlight 'home'
+        if (
+            currentPath === '/' || 
+            currentPath.startsWith('/product/') || 
+            currentPath === '/user/orders' ||
+            currentPath === '/wishlist'
+        ) {
             return 'home'
         }
+
         if (currentPath === '/products') return 'product'
         if (currentPath === '/services') return 'service'
-        if (currentPath === '/wishlist') return 'wishlist'
 
-        // For all other paths, no item should be active
         return null
     }
 

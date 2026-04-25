@@ -192,54 +192,74 @@ function Outlet() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header Row */}
           <div className="flex justify-between items-center py-4">
-            {/* Brand Name - Pink Bazaar */}
+            {/* Brand Logo with Animation */}
             <div className="flex items-center">
-              <h1 className="text-xl sm:text-2xl font-bold">
-                <span className="text-white">BBHC</span>
-                <span className="text-[#f4369e]">Bazaar</span>
-              </h1>
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                onClick={() => navigate('/outlet')}
+                className="relative group cursor-pointer flex-shrink-0"
+              >
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-10 group-hover:opacity-30 transition-all duration-500" />
+                
+                <div className="relative flex items-center bg-black border border-gray-800 rounded-xl py-1.5 px-3 shadow-sm overflow-hidden">
+                  <motion.div 
+                    animate={{ left: ['-100%', '200%'] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
+                    className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 pointer-events-none"
+                  />
+                  
+                  <div className="flex items-center gap-1">
+                    <span className="text-xl sm:text-2xl font-bold text-white tracking-tight">BBHC</span>
+                    <span className="text-xl sm:text-2xl font-bold text-[#f4369e] tracking-tight">Bazaar</span>
+                  </div>
+                </div>
+              </motion.div>
             </div>
 
             {/* Welcome Message */}
             {user && (
-              <div className="flex items-center gap-2 text-sm text-white">
-                <span>Welcome, <span className="font-medium">{outletManName}</span></span>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex flex-col text-right">
+                  <span className="text-sm font-semibold text-white capitalize">{outletManName}</span>
+                  <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Outlet Manager</span>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-white font-bold">
+                  {outletManName.charAt(0).toUpperCase()}
+                </div>
               </div>
             )}
           </div>
 
           {/* Tabs Navigation */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-3">
+          <div className="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="tab-button px-3 sm:px-4 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center justify-center gap-2 select-none bg-gray-800 text-white hover:bg-gray-700 active:bg-gray-600 flex-shrink-0 z-10 min-w-[44px] min-h-[44px]"
-              title="Open menu"
-              aria-label="Open tab menu"
+              className="flex-shrink-0 w-11 h-11 rounded-xl bg-gray-800 text-white flex items-center justify-center hover:bg-gray-700 transition-colors"
             >
-              <FaBars className="w-5 h-5 flex-shrink-0 text-white" />
+              <FaBars className="w-5 h-5" />
             </button>
 
             <button
               onClick={() => handleTabSelection('home')}
-              className={`tab-button px-5 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 select-none ${
+              className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap flex items-center gap-2 ${
                 activeTab === 'home'
-                  ? 'bg-white text-black shadow-md'
-                  : 'bg-gray-800 text-white hover:bg-gray-700'
+                  ? 'bg-white text-black shadow-lg'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
             >
-              <HiHome className="w-5 h-5 flex-shrink-0" />
+              <HiHome className="w-5 h-5" />
               <span>Home</span>
             </button>
 
             <button
               onClick={() => handleTabSelection('orders')}
-              className={`tab-button px-5 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 select-none ${
+              className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap flex items-center gap-2 ${
                 activeTab === 'orders'
-                  ? 'bg-white text-black shadow-md'
-                  : 'bg-gray-800 text-white hover:bg-gray-700'
+                  ? 'bg-white text-black shadow-lg'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
             >
-              <FaShoppingBag className="w-5 h-5 flex-shrink-0" />
+              <FaShoppingBag className="w-4.5 h-4.5" />
               <span>Orders</span>
             </button>
           </div>
@@ -247,110 +267,169 @@ function Outlet() {
       </div>
 
       {/* Tab Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
         {activeTab === 'home' && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">Outlet Dashboard</h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-600">Scan or search orders by token</p>
+          <div className="max-w-4xl mx-auto space-y-8">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-3">Outlet Dashboard</h2>
+              <p className="text-gray-500 font-medium">Scan order tokens to verify and complete transactions</p>
             </div>
 
             {/* Token Search/Scan */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <FaQrcode className="w-6 h-6 text-gray-700" />
-                <h3 className="text-xl font-semibold text-gray-900">Token Scanner</h3>
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-700">
+                  <FaQrcode className="w-5 h-5" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 tracking-tight">Token Scanner</h3>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
                   value={tokenInput}
                   onChange={(e) => setTokenInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleTokenScan()}
                   placeholder="Enter token or scan QR code"
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                  className="flex-1 px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-black/5 focus:border-black text-black font-medium transition-all"
                 />
                 <button
                   onClick={handleTokenScan}
                   disabled={scanning || !tokenInput.trim()}
-                  className="px-6 py-3 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-8 py-3.5 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-black/10 active:scale-95"
                 >
                   <FaSearch className="w-4 h-4" />
-                  {scanning ? 'Scanning...' : 'Scan'}
+                  {scanning ? 'Searching...' : 'Scan Token'}
                 </button>
               </div>
 
               {scanError && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                  {scanError}
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium flex items-center gap-2"
+                >
+                  <FaTimes className="shrink-0" /> {scanError}
+                </motion.div>
               )}
 
               {scanResult && !showOrderDetails && (
-                <div className={`p-4 rounded-lg text-sm ${
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className={`mt-6 p-5 rounded-2xl border ${
                   scanResult.success 
-                    ? 'bg-green-50 border border-green-200 text-green-700' 
-                    : 'bg-red-50 border border-red-200 text-red-700'
+                    ? 'bg-green-50 border-green-100 text-green-700' 
+                    : 'bg-red-50 border-red-100 text-red-700'
                 }`}>
-                  <p className="font-semibold mb-2">{scanResult.success ? 'Success' : 'Error'}</p>
-                  <p>{scanResult.message}</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    {scanResult.success ? <FaCheck /> : <FaTimes />}
+                    <p className="font-bold uppercase tracking-wider text-xs">{scanResult.success ? 'Action Successful' : 'Action Failed'}</p>
+                  </div>
+                  <p className="font-medium">{scanResult.message}</p>
                   {scanResult.order && (
-                    <div className="mt-3 pt-3 border-t border-current/20">
-                      <p className="text-xs">Order #{scanResult.order.orderNumber}</p>
-                      <p className="text-xs">Status: {scanResult.order.status}</p>
+                    <div className="mt-3 pt-3 border-t border-current/10 flex justify-between items-center">
+                      <span className="text-xs font-bold uppercase opacity-70">Order #{scanResult.order.orderNumber}</span>
+                      <span className="text-xs font-bold uppercase px-2 py-1 bg-current/10 rounded-lg">{scanResult.order.status}</span>
                     </div>
                   )}
-                </div>
+                </motion.div>
               )}
             </div>
 
-            {/* Recently Completed Orders Table */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Recently Completed Orders</h3>
+            {/* Recently Completed Orders */}
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-bold text-gray-900 tracking-tight">Recent Completions</h3>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">Live Updates Active</span>
+              </div>
+
               {loadingOrders ? (
-                <div className="text-center py-8 text-gray-500">Loading orders...</div>
-              ) : completedOrders.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">No completed orders yet</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Order #</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Product</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Seller</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Customer</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Qty</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Amount</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Completed</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {completedOrders.map((order) => (
-                        <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4 text-sm text-gray-900 font-medium">{order.orderNumber}</td>
-                          <td className="py-3 px-4 text-sm text-gray-700">
-                            {order.product?.name || 'N/A'}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-700">
-                            {order.seller?.trade_id || order.seller?.first_name || 'N/A'}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-700">
-                            {order.user?.name || order.user?.first_name || 'N/A'}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-700">{order.quantity}</td>
-                          <td className="py-3 px-4 text-sm text-gray-900 font-semibold text-right">
-                            ₹{Number(order.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
-                            {formatDate(order.updatedAt || order.createdAt)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="flex flex-col items-center py-12 gap-4">
+                  <div className="w-10 h-10 border-4 border-gray-100 border-t-black rounded-full animate-spin" />
+                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Fetching orders...</p>
                 </div>
+              ) : completedOrders.length === 0 ? (
+                <div className="text-center py-12 border-2 border-dashed border-gray-100 rounded-2xl">
+                  <p className="text-gray-400 font-medium">No completed orders found in recent history</p>
+                </div>
+              ) : (
+                <>
+                  {/* Mobile Cards View */}
+                  <div className="grid grid-cols-1 gap-4 md:hidden">
+                    {completedOrders.map((order) => (
+                      <div key={order.id} className="p-5 border border-gray-100 rounded-2xl bg-gray-50/50 space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Order Ref</p>
+                            <p className="text-sm font-bold text-gray-900">#{order.orderNumber}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total</p>
+                            <p className="text-sm font-bold text-gray-900">₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-4 p-3 bg-white rounded-xl border border-gray-100">
+                          <div className="w-12 h-12 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+                            <FaBox className="text-gray-300 w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-gray-800 truncate uppercase">{order.product?.name || 'N/A'}</p>
+                            <p className="text-[10px] font-medium text-gray-500 mt-1">Customer: {order.user?.name || 'N/A'}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2">
+                           <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg uppercase">Completed</span>
+                           <span className="text-[10px] font-medium text-gray-400">{formatDate(order.updatedAt || order.createdAt)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full border-separate border-spacing-y-2">
+                      <thead>
+                        <tr className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          <th className="pb-4 px-4">Order #</th>
+                          <th className="pb-4 px-4">Product Details</th>
+                          <th className="pb-4 px-4">Entity Details</th>
+                          <th className="pb-4 px-4 text-right">Amount</th>
+                          <th className="pb-4 px-4">Timestamp</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {completedOrders.map((order) => (
+                          <tr key={order.id} className="group hover:bg-gray-50 transition-all">
+                            <td className="py-4 px-4 bg-white border-y border-l border-gray-100 first:rounded-l-2xl">
+                              <span className="text-sm font-bold text-gray-900">#{order.orderNumber}</span>
+                            </td>
+                            <td className="py-4 px-4 bg-white border-y border-gray-100">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-gray-800 uppercase tracking-tight truncate max-w-[150px]">{order.product?.name || 'N/A'}</span>
+                                <span className="text-[10px] font-bold text-gray-400">QTY: {order.quantity}</span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 bg-white border-y border-gray-100">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-bold text-blue-600 uppercase">Seller: {order.seller?.trade_id || 'N/A'}</span>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase">Cust: {order.user?.name || 'N/A'}</span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 bg-white border-y border-gray-100 text-right">
+                              <span className="text-sm font-bold text-gray-900">₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}</span>
+                            </td>
+                            <td className="py-4 px-4 bg-white border-y border-r border-gray-100 last:rounded-r-2xl">
+                              <span className="text-[10px] font-bold text-gray-400 uppercase">{formatDate(order.updatedAt || order.createdAt)}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
 
