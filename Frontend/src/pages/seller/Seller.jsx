@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiMoreHorizontal, FiEye, FiPackage, FiSearch, FiCheckCircle, FiAlertCircle, FiPlus, FiXCircle } from 'react-icons/fi'
+import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiMoreHorizontal, FiEye, FiPackage, FiSearch, FiCheckCircle, FiAlertCircle, FiPlus, FiXCircle, FiFilter } from 'react-icons/fi'
 import { FaQrcode } from 'react-icons/fa6'
 
 import { getSocket } from '../../utils/socket'
@@ -36,6 +36,8 @@ function Seller() {
   const [qrOrder, setQrOrder] = useState(null)
   const [newOrderNotification, setNewOrderNotification] = useState(null)
   const [dashboardSearch, setDashboardSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [rejectingOrder, setRejectingOrder] = useState(null)
   const [acceptingOrder, setAcceptingOrder] = useState(null)
   const [rejectionReason, setRejectionReason] = useState('')
@@ -164,6 +166,10 @@ function Seller() {
       activeStates.includes(o.status || 'pending_seller')
     )
 
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(o => (o.status || 'pending_seller') === statusFilter)
+    }
+
     if (dashboardSearch) {
       const s = dashboardSearch.toLowerCase()
       filtered = filtered.filter(o =>
@@ -174,7 +180,7 @@ function Seller() {
     }
 
     return filtered.slice(0, 10)
-  }, [orders, dashboardSearch])
+  }, [orders, dashboardSearch, statusFilter])
 
   const handleLocalAccept = async (orderId) => {
     try {
@@ -252,29 +258,6 @@ function Seller() {
             />
           </div>
         </motion.div>
-
-          <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="relative group min-w-[280px]">
-            <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
-            <input
-              type="text"
-              value={dashboardSearch}
-              onChange={(e) => setDashboardSearch(e.target.value)}
-              placeholder="Search active orders..."
-              className="w-full bg-white border border-slate-200 pl-12 pr-4 py-3 rounded-2xl text-sm font-semibold text-slate-800 focus:border-blue-600 outline-none shadow-sm transition-all"
-            />
-          </div>
-          <button
-            onClick={() => setIsAddingProduct(true)}
-            className="group relative bg-slate-900 px-8 py-4 rounded-2xl text-xs font-bold text-white shadow-xl shadow-slate-900/10 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-blue-600 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-            <div className="relative flex items-center gap-3 tracking-normal">
-              <FiPlus className="w-4 h-4" strokeWidth={2} />
-              New Listing
-            </div>
-          </button>
-        </div>
       </section>
 
       {/* Quick Stats Grid - Mobile & Desktop Visibility */}
@@ -306,9 +289,70 @@ function Seller() {
         ))}
       </section>
 
-      {/* Recent Orders Table */}
-      <section className="seller-card-premium p-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+      {/* Search & Actions Bar - Innovative & Space Efficient */}
+      <section className="flex items-center gap-2 mb-2">
+        <div className="relative flex-1 group">
+          <div className="absolute inset-0 bg-blue-500/5 rounded-[1.5rem] blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
+          <div className="relative">
+            <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors w-5 h-5" />
+            <input
+              type="text"
+              value={dashboardSearch}
+              onChange={(e) => setDashboardSearch(e.target.value)}
+              placeholder="Search active orders..."
+              className="w-full bg-white border border-slate-200 pl-12 pr-4 py-4 rounded-[1.5rem] text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-500/5 outline-none shadow-sm transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Custom Status Dropdown */}
+        <div className="relative flex-shrink-0">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className={`h-[60px] w-[60px] md:w-auto md:px-6 rounded-[1.5rem] flex items-center justify-center gap-2 transition-all shadow-xl shadow-slate-900/5 ${isFilterOpen ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
+          >
+            <FiFilter className={`w-5 h-5 ${isFilterOpen ? 'text-white' : 'text-blue-600'}`} />
+            <span className="hidden md:block text-[10px] font-black uppercase tracking-widest">{statusFilter === 'all' ? 'Filter' : statusFilter.replace('_', ' ')}</span>
+          </motion.button>
+
+          <AnimatePresence>
+            {isFilterOpen && (
+              <div className="absolute right-0 top-full z-[100] mt-3">
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="w-64 bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-slate-100 p-2 overflow-hidden origin-top-right"
+                >
+                {[
+                  { label: 'All Activity', value: 'all' },
+                  { label: 'Pending Approval', value: 'pending_seller' },
+                  { label: 'Accepted (QR Ready)', value: 'seller_accepted' },
+                  { label: 'In Fulfillment', value: 'ready_for_pickup' }
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      setStatusFilter(opt.value)
+                      setIsFilterOpen(false)
+                    }}
+                    className={`w-full text-left px-5 py-3.5 rounded-xl text-xs font-bold transition-colors ${statusFilter === opt.value ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+        </div>
+      </section>
+
+      {/* Recent Orders Section - Maximize Mobile Space */}
+      <section className="bg-transparent md:bg-white md:seller-card-premium p-0 md:p-8 rounded-none md:rounded-[3rem] border-0 md:border border-slate-100">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 md:mb-12 px-4 md:px-0 pt-4 md:pt-0">
           <div>
             <h3 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">Recent Orders</h3>
             <p className="text-xs md:text-sm text-slate-500 font-medium tracking-wide mt-1 opacity-70">Real-time order synchronization active</p>
@@ -331,8 +375,8 @@ function Seller() {
           </div>
         </div>
 
-        {/* Mobile View: Professional Cards */}
-        <div className="grid grid-cols-1 gap-4 md:hidden mt-6">
+        {/* Mobile View: High-Density Professional Cards */}
+        <div className="grid grid-cols-1 gap-4 md:hidden mt-4 px-4 pb-8">
           {recentOrders.map((order, index) => {
             const status = order.status || 'pending_seller'
             const isAccepted = status === 'seller_accepted'
@@ -346,9 +390,9 @@ function Seller() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm active:scale-[0.98] transition-all"
+                className="bg-white border border-slate-200/60 rounded-[1.75rem] p-4 shadow-sm active:scale-[0.98] transition-all"
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <span className="w-8 h-8 rounded-full bg-slate-900 text-white text-[10px] font-black flex items-center justify-center">
                       {index + 1}
