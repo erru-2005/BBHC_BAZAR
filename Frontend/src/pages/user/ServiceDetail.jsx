@@ -6,10 +6,11 @@ import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
 import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
-import { getServiceById } from '../../services/api'
+import { getServiceById, getProductRatingStats, getSellerRatingStats } from '../../services/api'
 import { getImageUrl } from '../../utils/image'
 import { FiArrowLeft, FiCheckCircle, FiShield, FiClock, FiStar, FiChevronRight } from 'react-icons/fi'
 import { motion } from 'framer-motion'
+import RatingBadge from '../../components/RatingBadge'
 
 function ServiceDetail() {
   const { serviceId } = useParams()
@@ -18,25 +19,38 @@ function ServiceDetail() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [service, setService] = useState(location.state?.service || null)
   const [loading, setLoading] = useState(!location.state?.service)
+  const [ratingStats, setRatingStats] = useState(null)
+  const [sellerRatingStats, setSellerRatingStats] = useState(null)
   const { home } = useSelector((state) => state.data)
 
   useEffect(() => {
-    if (!service) {
-      const loadService = async () => {
-        try {
-          setLoading(true)
-          const data = await getServiceById(serviceId)
-          setService(data)
-        } catch (err) {
-          console.error(err)
-        } finally {
-          setLoading(false)
+    const loadService = async () => {
+      try {
+        setLoading(true)
+        const data = await getServiceById(serviceId)
+        setService(data)
+        
+        // Load product rating stats
+        const stats = await getProductRatingStats(serviceId)
+        setRatingStats(stats)
+        
+        // Load seller rating stats if seller_id is available
+        if (data.seller_id) {
+          const sStats = await getSellerRatingStats(data.seller_id)
+          setSellerRatingStats(sStats)
         }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
       }
+    }
+    
+    if (!service || !ratingStats) {
       loadService()
     }
     window.scrollTo(0, 0)
-  }, [serviceId, service])
+  }, [serviceId])
 
   if (loading) {
     return (
@@ -68,7 +82,7 @@ function ServiceDetail() {
 
       <MobileMenu open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6 lg:py-12">
+      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-6 lg:py-12 pb-24 lg:pb-12">
         {/* Breadcrumbs / Back button */}
         <button 
           onClick={() => navigate(-1)} 
@@ -90,11 +104,13 @@ function ServiceDetail() {
                 alt={service.service_name} 
                 className="w-full h-full object-cover" 
               />
-              <div className="absolute top-6 left-6 flex gap-2">
-                <span className="px-5 py-2 bg-white/90 backdrop-blur-xl rounded-full text-xs font-black uppercase tracking-widest text-indigo-600 shadow-xl border border-white">
-                  {service.categories?.[0] || 'Premium Service'}
-                </span>
-              </div>
+              {service.categories?.[0] && (
+                <div className="absolute top-6 left-6 flex gap-2">
+                  <span className="px-5 py-2 bg-white/90 backdrop-blur-xl rounded-full text-xs font-black uppercase tracking-widest text-indigo-600 shadow-xl border border-white">
+                    {service.categories[0]}
+                  </span>
+                </div>
+              )}
             </motion.div>
 
             {/* Gallery if exists */}
@@ -133,8 +149,27 @@ function ServiceDetail() {
 
                 <div className="relative z-10">
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="flex text-amber-400"><FiStar className="fill-current w-4 h-4" /><FiStar className="fill-current w-4 h-4" /><FiStar className="fill-current w-4 h-4" /><FiStar className="fill-current w-4 h-4" /><FiStar className="fill-current w-4 h-4" /></div>
-                    <span className="text-xs font-black text-slate-400">5.0 (24 Reviews)</span>
+                    {ratingStats && ratingStats.total_ratings > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <RatingBadge 
+                          value={Number(ratingStats.average_rating)} 
+                          displayValue={Number(ratingStats.average_rating).toFixed(1)}
+                          size="sm"
+                        />
+                        <span className="text-[10px] font-black text-slate-400">({ratingStats.total_ratings} Reviews)</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="flex text-amber-400">
+                          <FiStar className="fill-current w-3.5 h-3.5" />
+                          <FiStar className="fill-current w-3.5 h-3.5" />
+                          <FiStar className="fill-current w-3.5 h-3.5" />
+                          <FiStar className="fill-current w-3.5 h-3.5" />
+                          <FiStar className="fill-current w-3.5 h-3.5 text-slate-200" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400">New Service</span>
+                      </div>
+                    )}
                   </div>
 
                   <h1 className="text-3xl lg:text-4xl font-black text-slate-900 leading-tight mb-4">
@@ -195,16 +230,7 @@ function ServiceDetail() {
                 </div>
               </motion.div>
 
-              {/* Seller Info */}
-              <div className="bg-slate-900 rounded-[40px] p-8 text-white flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Provided By</p>
-                  <p className="text-lg font-black">{service.seller_name || 'Expert Partner'}</p>
-                </div>
-                <div className="w-14 h-14 bg-white/10 rounded-2xl backdrop-blur-md flex items-center justify-center font-black text-xl">
-                  { (service.seller_name || 'E')[0].toUpperCase() }
-                </div>
-              </div>
+
             </div>
           </div>
         </div>

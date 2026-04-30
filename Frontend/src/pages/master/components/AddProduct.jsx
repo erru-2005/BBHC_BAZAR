@@ -22,6 +22,17 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   const [categoryCommissionRates, setCategoryCommissionRates] = useState({})
   const [appliedCategoryCommission, setAppliedCategoryCommission] = useState(null)
   const [isLoadingSellers, setIsLoadingSellers] = useState(true)
+  const [showConfirmReset, setShowConfirmReset] = useState(false)
+  const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
+  const [errors, setErrors] = useState({})
+  
+  const nameRef = useRef(null)
+  const sellerRef = useRef(null)
+  const sellingPriceRef = useRef(null)
+  const maxPriceRef = useRef(null)
+  const specRef = useRef(null)
+  const pointRef = useRef(null)
+  const thumbnailRef = useRef(null)
   const statusRef = useRef(null)
 
   const selectedSeller = useMemo(() => {
@@ -39,6 +50,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     setMedia({ thumbnail: null, gallery: [] })
     setSelectedCategory('')
     setSelectedSellerId('')
+    setErrors({})
   }
 
   // Auto-apply category commission when category is selected
@@ -87,6 +99,15 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     const { name, value } = e.target
     setForm((prev) => ({ ...prev, [name]: value }))
     setStatus({ type: null, message: '' })
+    
+    // Clear field-specific error
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrs = { ...prev }
+        delete newErrs[name]
+        return newErrs
+      })
+    }
     
     // If product-specific commission is entered, clear category commission indicator
     if (name === 'commissionRate' && value) {
@@ -289,6 +310,71 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     }
   }, [editingProduct, sellerList])
 
+  const validateForm = () => {
+    const newErrors = {}
+    let firstErrorRef = null
+
+    if (!form.productName.trim()) {
+      newErrors.productName = 'Product name is required'
+      if (!firstErrorRef) firstErrorRef = nameRef
+    }
+
+    if (!selectedSellerId) {
+      newErrors.selectedSellerId = 'Please assign a seller'
+      if (!firstErrorRef) firstErrorRef = sellerRef
+    }
+
+    const selling = Number(form.sellingPrice)
+    const max = Number(form.maxPrice)
+
+    if (!form.sellingPrice || selling <= 0) {
+      newErrors.sellingPrice = 'Valid selling price is required'
+      if (!firstErrorRef) firstErrorRef = sellingPriceRef
+    }
+
+    if (!form.maxPrice || max <= 0) {
+      newErrors.maxPrice = 'Valid MRP is required'
+      if (!firstErrorRef) firstErrorRef = maxPriceRef
+    } else if (max < selling) {
+      newErrors.maxPrice = 'MRP must be >= selling price'
+      if (!firstErrorRef) firstErrorRef = maxPriceRef
+    }
+
+    if (!media.thumbnail) {
+      newErrors.thumbnail = 'Thumbnail image is required'
+      if (!firstErrorRef) firstErrorRef = thumbnailRef
+    }
+
+    if (!form.specification.trim()) {
+      newErrors.specification = 'Specification is required'
+      if (!firstErrorRef) firstErrorRef = specRef
+    }
+
+    const hasPoints = points.some(p => p.trim())
+    if (!hasPoints) {
+      newErrors.points = 'At least one bullet point is required'
+      if (!firstErrorRef) firstErrorRef = pointRef
+    }
+
+    setErrors(newErrors)
+    if (Object.keys(newErrors).length > 0) {
+      if (firstErrorRef && firstErrorRef.current) {
+        firstErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        firstErrorRef.current.focus()
+      }
+      setStatus({ type: 'error', message: 'Please correct the highlighted errors.' })
+      return false
+    }
+
+    return true
+  }
+
+  const handleOpenSubmitConfirm = () => {
+    if (validateForm()) {
+      setShowConfirmSubmit(true)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
 
@@ -369,6 +455,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       setStatus({ type: 'error', message: error.message || 'Failed to save product.' })
     } finally {
       setIsSubmitting(false)
+      setShowConfirmSubmit(false)
     }
   }
 
@@ -407,13 +494,21 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               </div>
             ) : (
               <select
+                ref={sellerRef}
                 value={selectedSellerId}
                 onChange={(e) => {
-                  setSelectedSellerId(e.target.value)
+                  const val = e.target.value
+                  setSelectedSellerId(val)
                   setStatus({ type: null, message: '' })
+                  if (errors.selectedSellerId && val) {
+                    setErrors(prev => {
+                      const newErrs = { ...prev }
+                      delete newErrs.selectedSellerId
+                      return newErrs
+                    })
+                  }
                 }}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white text-black font-bold"
-                required
+                className={`w-full px-4 py-2.5 border ${errors.selectedSellerId ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition bg-white text-black font-bold`}
               >
                 <option value="">Select seller</option>
                 {sellerList.map((seller) => {
@@ -427,6 +522,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 })}
               </select>
             )}
+            {errors.selectedSellerId && <p className="text-red-500 text-xs mt-1 font-bold">{errors.selectedSellerId}</p>}
             {selectedSeller && (
               <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                 <div className="font-semibold text-gray-900">
@@ -453,16 +549,19 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
             </p>
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Thumbnail Image <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleThumbnailChange}
-                  className="w-full text-sm text-gray-700 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-900 border border-dashed border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-black"
-                  required={!isEditing || !media.thumbnail}
-                />
+                <div 
+                  ref={thumbnailRef}
+                  tabIndex="0"
+                  className={`mt-1 border border-dashed ${errors.thumbnail ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-black`}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailChange}
+                    className="w-full text-sm text-gray-700 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-900 focus:outline-none"
+                  />
+                </div>
+                {errors.thumbnail && <p className="text-red-500 text-xs mt-1 font-bold">{errors.thumbnail}</p>}
                 <p className="mt-1 text-xs text-gray-500">Displayed on product cards and listings.</p>
                 {media.thumbnail && (
                   <div className="mt-3 relative">
@@ -533,14 +632,15 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               Product Name <span className="text-red-500">*</span>
             </label>
             <input
+              ref={nameRef}
               type="text"
               name="productName"
               value={form.productName}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium"
+              className={`w-full px-4 py-2.5 border ${errors.productName ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium`}
               placeholder="Enter product name"
-              required
             />
+            {errors.productName && <p className="text-red-500 text-xs mt-1 font-bold">{errors.productName}</p>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -549,16 +649,17 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 Selling Price (₹) <span className="text-red-500">*</span>
               </label>
               <input
+                ref={sellingPriceRef}
                 type="number"
                 min="0"
                 step="0.01"
                 name="sellingPrice"
                 value={form.sellingPrice}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium"
+                className={`w-full px-4 py-2.5 border ${errors.sellingPrice ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium`}
                 placeholder="Enter current selling price"
-                required
               />
+              {errors.sellingPrice && <p className="text-red-500 text-xs mt-1 font-bold">{errors.sellingPrice}</p>}
             </div>
 
             <div>
@@ -566,16 +667,17 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 MRP / Max Price (₹) <span className="text-red-500">*</span>
               </label>
               <input
+                ref={maxPriceRef}
                 type="number"
                 min="0"
                 step="0.01"
                 name="maxPrice"
                 value={form.maxPrice}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium"
+                className={`w-full px-4 py-2.5 border ${errors.maxPrice ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium`}
                 placeholder="Enter MRP (maximum price)"
-                required
               />
+              {errors.maxPrice && <p className="text-red-500 text-xs mt-1 font-bold">{errors.maxPrice}</p>}
             </div>
 
           </div>
@@ -634,14 +736,15 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               Specification <span className="text-red-500">*</span>
             </label>
             <textarea
+              ref={specRef}
               name="specification"
               value={form.specification}
               onChange={handleChange}
               rows={4}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition resize-none text-black font-bold"
+              className={`w-full px-4 py-2.5 border ${errors.specification ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition resize-none text-black font-bold`}
               placeholder="Describe the specification"
-              required
             />
+            {errors.specification && <p className="text-red-500 text-xs mt-1 font-bold">{errors.specification}</p>}
           </div>
 
           <div>
@@ -693,10 +796,11 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 <div key={index} className="flex items-center gap-2">
                   <span className="mt-2 text-xs text-gray-400 w-4 text-right">{index + 1}.</span>
                   <input
+                    ref={index === 0 ? pointRef : null}
                     type="text"
                     value={point}
                     onChange={(e) => handlePointChange(index, e.target.value)}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-black font-bold"
+                    className={`flex-1 px-4 py-2.5 border ${errors.points && index === 0 ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-black font-bold`}
                     placeholder="Enter a bullet point"
                   />
                   {points.length > 1 && (
@@ -718,35 +822,73 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               >
                 + Add another point
               </button>
+              {errors.points && <p className="text-red-500 text-xs mt-1 font-bold">{errors.points}</p>}
               <p className="mt-1 text-xs text-gray-500">
                 Each input is treated as one bullet point. Leave unused rows empty.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex justify-end items-center gap-4 pt-8 border-t border-gray-100">
             <button
-              type="submit"
+              type="button"
+              onClick={() => setShowConfirmReset(true)}
+              className="px-8 py-3 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
+            >
+              {isEditing ? 'Cancel Edit' : 'Reset Form'}
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenSubmitConfirm}
               disabled={isSubmitting}
-              className="flex-1 py-3 bg-black text-white font-semibold rounded-lg hover:bg-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors disabled:opacity-60"
+              className="px-10 py-3 rounded-xl bg-black text-white font-bold hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
             >
               {isSubmitting ? (isEditing ? 'Updating...' : 'Saving...') : isEditing ? 'Update Product' : 'Save Product'}
             </button>
-            {isEditing && (
-              <button
-                type="button"
-                onClick={() => {
-                  resetForm()
-                  onCancelEdit()
-                }}
-                className="py-3 px-6 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-            )}
           </div>
         </form>
       </div>
+
+      {/* Confirmation Modals */}
+      {showConfirmReset && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Are you sure?</h3>
+            <p className="text-gray-500 mb-8 font-medium">This will clear all the information you've entered so far. This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowConfirmReset(false)} className="flex-1 py-4 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50">No, stay</button>
+              <button 
+                onClick={() => {
+                  isEditing ? onCancelEdit() : resetForm();
+                  setShowConfirmReset(false);
+                }} 
+                className="flex-1 py-4 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700"
+              >
+                Yes, reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showConfirmSubmit && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Confirm {isEditing ? 'Update' : 'Creation'}</h3>
+            <p className="text-gray-500 mb-8 font-medium">Ready to {isEditing ? 'update this product' : 'list this new product'} on the marketplace? Make sure all details are accurate.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowConfirmSubmit(false)} className="flex-1 py-4 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50">Review</button>
+              <button 
+                onClick={(e) => handleSubmit(e)} 
+                className="flex-1 py-4 rounded-2xl bg-black text-white font-bold hover:bg-gray-800"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {showCategoryModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">

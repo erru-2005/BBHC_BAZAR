@@ -15,8 +15,11 @@ const SummarySection = ({ stats, salesByCategory, ordersByStatus, topProducts, s
   
   // Calculate order status summary
   const completedOrders = ordersByStatus?.find(o => o.status === 'completed')?.count || 0
-  const pendingOrders = ordersByStatus?.find(o => o.status === 'pending')?.count || 0
-  const cancelledOrders = ordersByStatus?.find(o => o.status === 'cancelled')?.count || 0
+  const processingOrders = ordersByStatus?.find(o => o.status === 'seller_accepted')?.count || 0
+  const handedOverOrders = ordersByStatus?.find(o => o.status === 'handed_over')?.count || 0
+  const pendingOrders = ordersByStatus?.find(o => o.status === 'pending_seller')?.count || 0
+  const cancelledOrders = (ordersByStatus?.find(o => o.status === 'cancelled')?.count || 0) + 
+                         (ordersByStatus?.find(o => o.status === 'cancelled_master')?.count || 0)
   
   // Calculate top category
   const topCategory = salesByCategory && salesByCategory.length > 0
@@ -72,7 +75,9 @@ const SummarySection = ({ stats, salesByCategory, ordersByStatus, topProducts, s
       title: 'Order Status',
       items: [
         { label: 'Completed', value: completedOrders, color: 'text-green-600' },
-        { label: 'Pending', value: pendingOrders, color: 'text-yellow-600' },
+        { label: 'At Outlet', value: handedOverOrders, color: 'text-purple-600' },
+        { label: 'Processing', value: processingOrders, color: 'text-blue-600' },
+        { label: 'New Orders', value: pendingOrders, color: 'text-yellow-600' },
         { label: 'Cancelled', value: cancelledOrders, color: 'text-red-600' }
       ]
     },

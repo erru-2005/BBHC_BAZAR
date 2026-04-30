@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FiPlus, FiX, FiCheck, FiInfo, FiSave } from 'react-icons/fi'
 import { createService, updateService, getCategories, getSellers } from '../../../services/api'
 
@@ -29,6 +29,16 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
   const [status, setStatus] = useState({ type: null, message: '' })
   const [submitting, setSubmitting] = useState(false)
   const [isLoadingSellers, setIsLoadingSellers] = useState(true)
+  const [showConfirmReset, setShowConfirmReset] = useState(false)
+  const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
+  const [errors, setErrors] = useState({})
+
+  const nameRef = useRef(null)
+  const sellerRef = useRef(null)
+  const chargeRef = useRef(null)
+  const descRef = useRef(null)
+  const pointRef = useRef(null)
+  const thumbnailRef = useRef(null)
 
   // Populate form if editing
   useEffect(() => {
@@ -86,11 +96,19 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
     setThumbnail(null)
     setGallery([])
     setStatus({ type: null, message: '' })
+    setErrors({})
   }
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
     setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrs = { ...prev }
+        delete newErrs[name]
+        return newErrs
+      })
+    }
   }
 
   const handlePointChange = (index, value) => {
@@ -115,6 +133,55 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
 
   const handleRemoveGalleryImage = (index) => {
     setGallery(gallery.filter((_, i) => i !== index))
+  }
+
+  const validateForm = () => {
+    const newErrors = {}
+    let firstErrorRef = null
+
+    if (!form.serviceName.trim()) {
+      newErrors.serviceName = 'Service name is required'
+      if (!firstErrorRef) firstErrorRef = nameRef
+    }
+
+    if (!form.sellerTradeId) {
+      newErrors.sellerTradeId = 'Please assign a seller'
+      if (!firstErrorRef) firstErrorRef = sellerRef
+    }
+
+    if (!form.serviceCharge || Number(form.serviceCharge) <= 0) {
+      newErrors.serviceCharge = 'Valid service charge is required'
+      if (!firstErrorRef) firstErrorRef = chargeRef
+    }
+
+    if (!thumbnail) {
+      newErrors.thumbnail = 'Thumbnail is required'
+      if (!firstErrorRef) firstErrorRef = thumbnailRef
+    }
+
+    const hasPoints = points.some(p => p.trim())
+    if (!hasPoints) {
+      newErrors.points = 'At least one service highlight is required'
+      if (!firstErrorRef) firstErrorRef = pointRef
+    }
+
+    setErrors(newErrors)
+    if (Object.keys(newErrors).length > 0) {
+      if (firstErrorRef && firstErrorRef.current) {
+        firstErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        firstErrorRef.current.focus()
+      }
+      setStatus({ type: 'error', message: 'Please correct the highlighted errors.' })
+      return false
+    }
+
+    return true
+  }
+
+  const handleOpenSubmitConfirm = () => {
+    if (validateForm()) {
+      setShowConfirmSubmit(true)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -158,6 +225,7 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
       setStatus({ type: 'error', message: err.message })
     } finally {
       setSubmitting(false)
+      setShowConfirmSubmit(false)
     }
   }
 
@@ -196,7 +264,15 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Service Name *</label>
-              <input type="text" name="serviceName" value={form.serviceName} onChange={handleChange} required className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-black outline-none text-black font-bold" />
+              <input 
+                ref={nameRef}
+                type="text" 
+                name="serviceName" 
+                value={form.serviceName} 
+                onChange={handleChange} 
+                className={`w-full h-12 px-4 rounded-xl border ${errors.serviceName ? 'border-red-500 bg-red-50' : 'border-gray-300'} focus:ring-2 focus:ring-black outline-none text-black font-bold`} 
+              />
+              {errors.serviceName && <p className="text-red-500 text-xs mt-1 font-bold">{errors.serviceName}</p>}
             </div>
 
             <div>
@@ -211,17 +287,32 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
                   No sellers available. Record a seller in List Sellers first.
                 </div>
               ) : (
-                <select name="sellerTradeId" value={form.sellerTradeId} onChange={handleChange} required className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-black outline-none bg-white text-black font-bold">
+                <select 
+                  ref={sellerRef}
+                  name="sellerTradeId" 
+                  value={form.sellerTradeId} 
+                  onChange={handleChange} 
+                  className={`w-full h-12 px-4 rounded-xl border ${errors.sellerTradeId ? 'border-red-500 bg-red-50' : 'border-gray-300'} focus:ring-2 focus:ring-black outline-none bg-white text-black font-bold`}
+                >
                   <option value="">Select Seller</option>
                   {sellers.map(s => <option key={s.id || s.trade_id} value={s.trade_id}>{s.trade_id} ({s.first_name || 'No Name'})</option>)}
                 </select>
               )}
+              {errors.sellerTradeId && <p className="text-red-500 text-xs mt-1 font-bold">{errors.sellerTradeId}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Charge (₹) *</label>
-                <input type="number" name="serviceCharge" value={form.serviceCharge} onChange={handleChange} required className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-black outline-none text-black font-bold" />
+                <input 
+                  ref={chargeRef}
+                  type="number" 
+                  name="serviceCharge" 
+                  value={form.serviceCharge} 
+                  onChange={handleChange} 
+                  className={`w-full h-12 px-4 rounded-xl border ${errors.serviceCharge ? 'border-red-500 bg-red-50' : 'border-gray-300'} focus:ring-2 focus:ring-black outline-none text-black font-bold`} 
+                />
+                {errors.serviceCharge && <p className="text-red-500 text-xs mt-1 font-bold">{errors.serviceCharge}</p>}
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Category</label>
@@ -238,7 +329,15 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
 
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2"><FiInfo className="text-gray-400" /> Service Description & Requirements</label>
-              <textarea name="description" value={form.description} onChange={handleChange} rows={5} className="w-full p-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-black outline-none resize-none text-black font-bold" placeholder="Describe the fan repair, instrument details, etc."></textarea>
+              <textarea 
+                ref={descRef}
+                name="description" 
+                value={form.description} 
+                onChange={handleChange} 
+                rows={5} 
+                className="w-full p-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-black outline-none resize-none text-black font-bold" 
+                placeholder="Describe the fan repair, instrument details, etc."
+              ></textarea>
             </div>
           </div>
 
@@ -246,7 +345,11 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Thumbnail (Required)</label>
-              <div className="relative h-44 rounded-xl border-2 border-dashed border-gray-200 hover:border-gray-400 transition-all overflow-hidden flex items-center justify-center bg-gray-50">
+              <div 
+                ref={thumbnailRef}
+                tabIndex="0"
+                className={`relative h-44 rounded-xl border-2 border-dashed ${errors.thumbnail ? 'border-red-500 bg-red-50' : 'border-gray-200'} hover:border-gray-400 transition-all overflow-hidden flex items-center justify-center bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black`}
+              >
                 {thumbnail ? (
                   <div className="relative w-full h-full">
                     <img src={thumbnail.preview} className="w-full h-full object-cover" />
@@ -259,10 +362,13 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
                     </button>
                   </div>
                 ) : (
-                  <div className="text-center font-bold text-gray-400">Click to upload banner</div>
+                  <div className={`text-center font-bold ${errors.thumbnail ? 'text-red-500' : 'text-gray-400'}`}>
+                    {errors.thumbnail ? errors.thumbnail : 'Click to upload banner'}
+                  </div>
                 )}
                 <input type="file" onChange={handleThumbnailChange} className="absolute inset-0 opacity-0 cursor-pointer" />
               </div>
+              {errors.thumbnail && <p className="text-red-500 text-xs mt-1 font-bold">{errors.thumbnail}</p>}
             </div>
 
             <div>
@@ -292,11 +398,19 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
               <div className="space-y-2">
                 {points.map((p, i) => (
                   <div key={i} className="flex gap-2">
-                    <input type="text" value={p} onChange={(e) => handlePointChange(i, e.target.value)} className="flex-1 h-10 px-3 rounded-lg border border-gray-300 text-sm text-black font-bold" placeholder="Bullet point..." />
+                    <input 
+                      ref={i === 0 ? pointRef : null}
+                      type="text" 
+                      value={p} 
+                      onChange={(e) => handlePointChange(i, e.target.value)} 
+                      className={`flex-1 h-10 px-3 rounded-lg border ${errors.points && i === 0 ? 'border-red-500 bg-red-50' : 'border-gray-300'} text-sm text-black font-bold`} 
+                      placeholder="Bullet point..." 
+                    />
                     {points.length > 1 && <button type="button" onClick={() => handleRemovePoint(i)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><FiX /></button>}
                   </div>
                 ))}
                 <button type="button" onClick={handleAddPoint} className="text-xs font-bold text-gray-500 hover:text-black font-bold">+ Add Point</button>
+                {errors.points && <p className="text-red-500 text-xs mt-1 font-bold">{errors.points}</p>}
               </div>
             </div>
 
@@ -307,18 +421,19 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+        <div className="flex justify-end items-center gap-4 pt-8 border-t border-gray-100">
           <button 
             type="button" 
-            onClick={editingService ? onCancelEdit : resetForm}
-            className="px-8 py-3 rounded-xl font-bold text-gray-600 hover:bg-gray-100 transition-all font-bold"
+            onClick={() => setShowConfirmReset(true)}
+            className="px-8 py-3 rounded-xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
           >
             {editingService ? 'Cancel Edit' : 'Reset Form'}
           </button>
           <button 
-            type="submit" 
+            type="button"
+            onClick={handleOpenSubmitConfirm}
             disabled={submitting} 
-            className={`px-10 py-3 rounded-xl bg-black text-white font-bold hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2 font-bold`}
+            className="px-10 py-3 rounded-xl bg-black text-white font-bold hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
           >
             {submitting ? 'Processing...' : (
               <>
@@ -329,6 +444,46 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
           </button>
         </div>
       </form>
+
+      {/* Confirmation Modals */}
+      {showConfirmReset && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Are you sure?</h3>
+            <p className="text-gray-500 mb-8 font-medium">This will clear all the information you've entered so far. This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowConfirmReset(false)} className="flex-1 py-4 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50">No, stay</button>
+              <button 
+                onClick={() => {
+                  editingService ? onCancelEdit() : resetForm();
+                  setShowConfirmReset(false);
+                }} 
+                className="flex-1 py-4 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700"
+              >
+                Yes, reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showConfirmSubmit && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Confirm {editingService ? 'Update' : 'Creation'}</h3>
+            <p className="text-gray-500 mb-8 font-medium">Ready to {editingService ? 'update this service' : 'list this new service'} on the marketplace? Make sure all details are accurate.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowConfirmSubmit(false)} className="flex-1 py-4 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50">Review</button>
+              <button 
+                onClick={(e) => handleSubmit(e)} 
+                className="flex-1 py-4 rounded-2xl bg-black text-white font-bold hover:bg-gray-800"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

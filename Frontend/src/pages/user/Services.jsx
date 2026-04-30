@@ -52,7 +52,7 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
 
       <MobileMenu open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 lg:py-12">
+      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 lg:py-12 pb-24 lg:pb-12">
         {/* Header Section */}
         <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-4">

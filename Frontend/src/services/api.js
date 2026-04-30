@@ -1203,6 +1203,20 @@ export const getProductRatingStats = async (productId) => {
 }
 
 /**
+ * Get rating statistics for a seller
+ * @param {string} sellerId - Seller ID
+ * @returns {Promise} Rating statistics
+ */
+export const getSellerRatingStats = async (sellerId) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.SELLER_RATING_STATS(sellerId))
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch seller rating stats')
+  }
+}
+
+/**
  * Get products by rating category
  * @param {string} category - Rating category (1_star, 2_star, 3_star, 4_star, 5_star)
  * @param {number} limit - Limit results

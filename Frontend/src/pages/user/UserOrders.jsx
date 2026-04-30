@@ -12,23 +12,19 @@ import { getOrders, cancelOrder } from '../../services/api'
 import { getSocket } from '../../utils/socket'
 
 const STATUS_STYLES = {
-  pending_seller: { label: 'Pending', className: 'bg-red-100 text-red-800 border border-red-500' },
+  pending_seller: { label: 'New Order', className: 'bg-amber-100 text-amber-800 border border-amber-500' },
   seller_accepted: { label: 'Accepted', className: 'bg-blue-100 text-blue-800 border border-blue-500' },
-  seller_rejected: { label: 'Rejected', className: 'bg-red-100 text-red-800 border border-red-500' },
-  ready_for_pickup: { label: 'Ready', className: 'bg-green-100 text-green-800 border border-green-500' },
-  handed_over: { label: 'Handed Over', className: 'bg-yellow-100 text-yellow-800 border border-yellow-500' },
-  completed: { label: 'Completed', className: 'bg-green-100 text-green-800 border border-green-500' },
+  seller_rejected: { label: 'Rejected', className: 'bg-rose-100 text-rose-800 border border-rose-500' },
+  handed_over: { label: 'Handed Over', className: 'bg-purple-100 text-purple-800 border border-purple-500' },
+  completed: { label: 'Completed', className: 'bg-emerald-100 text-emerald-800 border border-emerald-500' },
   cancelled: { label: 'Cancelled', className: 'bg-gray-100 text-gray-800 border border-gray-500' },
-  cancelled_master: { label: 'Cancelled', className: 'bg-red-100 text-red-800 border border-red-500' },
-  pending: { label: 'Pending', className: 'bg-red-100 text-red-800 border border-red-500' },
-  accepted: { label: 'Accepted', className: 'bg-blue-100 text-blue-800 border border-blue-500' },
-  rejected: { label: 'Rejected', className: 'bg-red-100 text-red-800 border border-red-500' }
+  cancelled_master: { label: 'Master Cancelled', className: 'bg-gray-100 text-gray-800 border border-gray-500' }
 }
 
 function UserOrders() {
   const navigate = useNavigate()
   const { user, token } = useSelector((state) => state.auth)
-  const { home } = useSelector((state) => state.data)
+
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -105,7 +101,7 @@ function UserOrders() {
 
   const copyToken = async (token) => {
     if (!token) return
-    
+
     try {
       // Try modern clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -199,20 +195,20 @@ function UserOrders() {
   const getStatusMessage = (order) => {
     switch (order.status) {
       case 'pending_seller':
-        return 'Waiting for seller confirmation'
+        return 'Step 1: Order received. Waiting for the seller to confirm your items.'
       case 'seller_accepted':
-        return 'Seller has confirmed your order. QR code is ready for pickup.'
-      case 'seller_rejected':
-        return 'Seller has rejected this order.'
+        return 'Step 2: Seller confirmed! They are now preparing your order for the outlet.'
       case 'handed_over':
-        return 'Product has been handed over at outlet. You can now collect it.'
+        return 'Step 3: Arrived at Outlet. Your product is ready! Visit the BBHCBazaar outlet with your QR code.'
       case 'completed':
-        return 'Order completed successfully!'
+        return 'Step 4: Finalized. You have collected your product. Thank you for shopping!'
+      case 'seller_rejected':
+        return 'The seller could not fulfill this order and has rejected it.'
       case 'cancelled':
       case 'cancelled_master':
-        return 'This order has been cancelled.'
+        return 'This order has been cancelled and is no longer active.'
       default:
-        return 'Order is being processed.'
+        return 'Your order is currently in progress.'
     }
   }
 
@@ -237,12 +233,12 @@ function UserOrders() {
             <p className="text-xs uppercase text-black tracking-widest truncate">Order #{order.orderNumber}</p>
             <p className="text-xs text-black flex items-center gap-1 mt-1">
               <FaClock className="w-3 h-3" />
-              {createdAt ? new Date(createdAt).toLocaleString('en-IN', { 
-                year: 'numeric', 
-                month: '2-digit', 
-                day: '2-digit', 
-                hour: '2-digit', 
-                minute: '2-digit' 
+              {createdAt ? new Date(createdAt).toLocaleString('en-IN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
               }) : '—'}
             </p>
           </div>
@@ -342,7 +338,7 @@ function UserOrders() {
         onClose={() => setMobileMenuOpen(false)}
       />
       <div className="space-y-4 text-black">
-        
+
 
         <div className="border-b border-black p-4 space-y-3">
           <div className="text-center space-y-2">
@@ -400,7 +396,7 @@ function UserOrders() {
             >
               <h3 className="text-lg font-semibold text-black">Order Details</h3>
               <p className="text-sm text-black">{getStatusMessage(activeOrder)}</p>
-              
+
               {(activeOrder.status === 'cancelled' || activeOrder.status === 'cancelled_master' || activeOrder.status === 'seller_rejected') ? (
                 <p className="text-sm text-black">
                   This order is no longer active. QR code is not available.
@@ -455,7 +451,7 @@ function UserOrders() {
                   QR code will be available once the seller accepts your order.
                 </p>
               )}
-              
+
               <p className="text-xs text-black uppercase tracking-widest">
                 Order #{activeOrder.orderNumber}
               </p>

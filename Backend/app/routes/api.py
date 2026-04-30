@@ -681,7 +681,6 @@ def create_product():
             'categories': data.get('categories', []),
             'selling_price': data['selling_price'],
             'max_price': data['max_price'],
-            'quantity': data['quantity'],
             'seller_trade_id': data.get('seller_trade_id'),
             'seller_name': data.get('seller_name'),
             'seller_email': data.get('seller_email'),
@@ -734,7 +733,16 @@ def get_product(product_id):
         product = ProductService.get_product_by_id(product_id)
         if not product:
             return jsonify({'error': 'Product not found'}), 404
-        return jsonify({'product': product.to_dict()}), 200
+            
+        product_dict = product.to_dict()
+        
+        # Add seller_id if available for ratings
+        if product.seller_trade_id:
+            seller = SellerService.get_seller_by_trade_id(product.seller_trade_id)
+            if seller:
+                product_dict['seller_id'] = str(seller._id)
+                
+        return jsonify({'product': product_dict}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -946,7 +954,16 @@ def get_service_detail(service_id):
         service = ServiceService.get_service_by_id(service_id)
         if not service:
             return jsonify({'error': 'Service not found'}), 404
-        return jsonify({'service': service.to_dict()}), 200
+            
+        service_dict = service.to_dict()
+        
+        # Add seller_id if available for ratings
+        if service.seller_trade_id:
+            seller = SellerService.get_seller_by_trade_id(service.seller_trade_id)
+            if seller:
+                service_dict['seller_id'] = str(seller._id)
+                
+        return jsonify({'service': service_dict}), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get service: {str(e)}'}), 500
 

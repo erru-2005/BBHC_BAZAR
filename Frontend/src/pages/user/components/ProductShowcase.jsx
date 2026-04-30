@@ -17,7 +17,55 @@ const getImageSrc = (image) => {
   return getImageUrl(path)
 }
 
-function ProductShowcase({ products = [], loading, error }) {
+const ServiceCard = ({ service, index }) => {
+  const navigate = useNavigate()
+  const thumbnail = service.thumbnail || service.media?.thumbnail || service.image
+  
+  return (
+    <motion.div
+      className="relative col-span-2 sm:col-span-2 lg:col-span-2 xl:col-span-2 rounded-2xl border border-gray-100 bg-white p-2.5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+      initial={motionVariants.fadeIn.initial}
+      whileInView={motionVariants.fadeIn.animate}
+      viewport={{ once: true }}
+      transition={{ ...transitions.smooth, delay: index * 0.1 }}
+      onClick={() => navigate(`/service/public/${service.id || service._id}`)}
+    >
+      <div className="relative rounded-xl overflow-hidden aspect-[16/9] mb-3 bg-slate-900 group">
+        <img 
+          src={getImageSrc(thumbnail)} 
+          alt={service.service_name}
+          className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+        
+
+
+        <div className="absolute bottom-3 right-3">
+           <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center border border-white/10 shadow-lg">
+             <FaShoppingBag className="w-3 h-3 text-white" />
+           </div>
+        </div>
+      </div>
+      
+      <div className="flex-1 space-y-1">
+        <h3 className="text-base font-black text-gray-900 leading-tight group-hover:text-indigo-600 transition-colors">
+          {service.service_name}
+        </h3>
+        <p className="text-xs text-gray-500 line-clamp-2 font-medium leading-relaxed">
+          {service.description || 'Professional services tailored for your needs. Experience the best in class service from BBHC.'}
+        </p>
+        
+        <div className="pt-2">
+           <span className="text-indigo-600 font-bold text-xs hover:underline decoration-2 underline-offset-4 tracking-wide">
+             Explore Service →
+           </span>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+function ProductShowcase({ products = [], services = [], loading, error }) {
   const [addingToBag, setAddingToBag] = useState(new Set())
   const [bagItemsByProduct, setBagItemsByProduct] = useState({})
   const [wishlistLoading, setWishlistLoading] = useState(new Set())
@@ -305,233 +353,242 @@ function ProductShowcase({ products = [], loading, error }) {
           const bagInfo = bagItemsByProduct[productIdStr]
           const isLiked = wishlistSet.has(productIdStr)
 
+          // Logic to show a service card only once after the first 4 products
+          const showService = index === 3
+          const activeService = services && services.length > 0 ? services[0] : null
+
           return (
-            <motion.article
-              key={productId}
-              className="group relative rounded-2xl border border-gray-100 bg-white p-2.5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
-              initial={motionVariants.fadeIn.initial}
-              whileInView={motionVariants.fadeIn.animate}
-              viewport={{ once: true }}
-              transition={{ ...transitions.smooth, delay: index * 0.05 }}
-              onClick={() => handleCardClick(product)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  handleCardClick(product)
-                }
-              }}
-            >
-              <div className="relative rounded-xl overflow-hidden aspect-[4/3] mb-2 bg-gray-50 flex items-center justify-center">
-                {getImageSrc(thumbnail) ? (
-                  <img
-                    src={getImageSrc(thumbnail)}
-                    alt={product.product_name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="text-xs text-gray-400">No image</div>
-                )}
-              </div>
-
-              <div className="absolute top-3 right-3 z-40">
-                <div className="relative z-40">
-                  <button
-                    className={`p-1.5 rounded-full border ${
-                      isLiked
-                        ? 'bg-red-50 border-red-200 text-red-600'
-                        : 'bg-white border-gray-200 text-gray-500'
-                    }`}
-                    onClick={(event) => toggleLike(event, productIdStr)}
-                    aria-label={isLiked ? 'Remove from wishlist' : 'Add to wishlist'}
-                    disabled={wishlistLoading.has(productIdStr)}
-                  >
-                    {wishlistLoading.has(productIdStr) ? (
-                      <span className="block w-4 h-4 border-2 border-t-transparent border-red-400 rounded-full animate-spin" />
-                    ) : (
-                      <FaHeart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-                    )}
-                  </button>
-                  <HeartBurst trigger={heartBursts[productIdStr]} />
-                </div>
-              </div>
-
-              <div className="flex-1">
-                <h3 className="text-[13px] font-medium text-gray-800 line-clamp-1 mb-1">{product.product_name}</h3>
-                
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <p className="text-sm font-bold text-gray-900">₹{displayPrice.toLocaleString('en-IN')}</p>
-                  {discountPercentage && (
-                    <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded leading-none uppercase">
-                      {discountPercentage}% OFF
-                    </span>
-                  )}
-                </div>
-                
-                {maxPrice > displayPrice && (
-                  <p className="text-[11px] text-gray-400 line-through mt-0.5">₹{maxPrice.toLocaleString('en-IN')}</p>
-                )}
-
-                {/* Optional rating - hidden on mobile for cleaner look if needed, but keeping small */}
-                <div className="hidden sm:flex items-center gap-2 mt-2">
-                  {rating !== null && rating > 0 && (
-                    <RatingBadge
-                      value={rating}
-                      displayValue={rating.toFixed(1)}
-                      size="sm"
+            <div key={productIdStr} className="contents">
+              <motion.article
+                key={productId}
+                className="group relative rounded-2xl border border-gray-100 bg-white p-2.5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+                initial={motionVariants.fadeIn.initial}
+                whileInView={motionVariants.fadeIn.animate}
+                viewport={{ once: true }}
+                transition={{ ...transitions.smooth, delay: index * 0.05 }}
+                onClick={() => handleCardClick(product)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleCardClick(product)
+                  }
+                }}
+              >
+                <div className="relative rounded-xl overflow-hidden aspect-[4/3] mb-2 bg-gray-50 flex items-center justify-center">
+                  {getImageSrc(thumbnail) ? (
+                    <img
+                      src={getImageSrc(thumbnail)}
+                      alt={product.product_name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
+                  ) : (
+                    <div className="text-xs text-gray-400">No image</div>
                   )}
                 </div>
-              </div>
-                {/* Action: Add to Bag / Quantity controls - Hidden on very small screens for pure look, shown as icons elsewhere */}
-                <div className="pt-2 hidden sm:block">
-                  {bagInfo ? (
-                    <div className="inline-flex items-center rounded-full border border-gray-300 bg-white">
-                      <button
-                        className="p-1.5 text-gray-600 hover:text-gray-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                        onClick={async (e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
 
-                          const newQty = (bagInfo.quantity || 1) - 1
+                <div className="absolute top-3 right-3 z-40">
+                  <div className="relative z-40">
+                    <button
+                      className={`p-1.5 rounded-full border ${
+                        isLiked
+                          ? 'bg-red-50 border-red-200 text-red-600'
+                          : 'bg-white border-gray-200 text-gray-500'
+                      }`}
+                      onClick={(event) => toggleLike(event, productIdStr)}
+                      aria-label={isLiked ? 'Remove from wishlist' : 'Add to wishlist'}
+                      disabled={wishlistLoading.has(productIdStr)}
+                    >
+                      {wishlistLoading.has(productIdStr) ? (
+                        <span className="block w-4 h-4 border-2 border-t-transparent border-red-400 rounded-full animate-spin" />
+                      ) : (
+                        <FaHeart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                      )}
+                    </button>
+                    <HeartBurst trigger={heartBursts[productIdStr]} />
+                  </div>
+                </div>
 
-                          // Optimistic update
-                          setBagItemsByProduct((prev) => {
-                            const next = { ...prev }
-                            if (newQty <= 0) {
-                              delete next[String(productId)]
-                            } else {
-                              next[String(productId)] = {
+                <div className="flex-1">
+                  <h3 className="text-[13px] font-medium text-gray-800 line-clamp-1 mb-1">{product.product_name}</h3>
+                  
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-bold text-gray-900">₹{displayPrice.toLocaleString('en-IN')}</p>
+                    {discountPercentage && (
+                      <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded leading-none uppercase">
+                        {discountPercentage}% OFF
+                      </span>
+                    )}
+                  </div>
+                  
+                  {maxPrice > displayPrice && (
+                    <p className="text-[11px] text-gray-400 line-through mt-0.5">₹{maxPrice.toLocaleString('en-IN')}</p>
+                  )}
+
+                  {/* Optional rating - hidden on mobile for cleaner look if needed, but keeping small */}
+                  <div className="hidden sm:flex items-center gap-2 mt-2">
+                    {rating !== null && rating > 0 && (
+                      <RatingBadge
+                        value={rating}
+                        displayValue={rating.toFixed(1)}
+                        size="sm"
+                      />
+                    )}
+                  </div>
+                </div>
+                  {/* Action: Add to Bag / Quantity controls - Hidden on very small screens for pure look, shown as icons elsewhere */}
+                  <div className="pt-2 hidden sm:block">
+                    {bagInfo ? (
+                      <div className="inline-flex items-center rounded-full border border-gray-300 bg-white">
+                        <button
+                          className="p-1.5 text-gray-600 hover:text-gray-900 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                          onClick={async (e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+
+                            const newQty = (bagInfo.quantity || 1) - 1
+
+                            // Optimistic update
+                            setBagItemsByProduct((prev) => {
+                              const next = { ...prev }
+                              if (newQty <= 0) {
+                                delete next[String(productId)]
+                              } else {
+                                next[String(productId)] = {
+                                  ...bagInfo,
+                                  quantity: newQty
+                                }
+                              }
+                              return next
+                            })
+
+                            try {
+                              if (newQty <= 0) {
+                                await removeFromBag(bagInfo.bagItemId)
+                              } else {
+                                await updateBagItem(bagInfo.bagItemId, newQty)
+                              }
+                            } catch (error) {
+                              alert(error.message || 'Failed to update quantity')
+                            }
+                          }}
+                          aria-label="Decrease quantity"
+                        >
+                          <FaMinus className="w-3 h-3" />
+                        </button>
+                        <span className="px-3 text-sm font-semibold min-w-[2.5rem] text-center">
+                          {bagInfo.quantity}
+                        </span>
+                        <button
+                          className="p-1.5 text-gray-600 hover:text-gray-900 transition"
+                          onClick={async (e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+
+                            const newQty = (bagInfo.quantity || 1) + 1
+
+                            // Optimistic update
+                            setBagItemsByProduct((prev) => ({
+                              ...prev,
+                              [String(productId)]: {
                                 ...bagInfo,
                                 quantity: newQty
                               }
-                            }
-                            return next
-                          })
+                            }))
 
-                          try {
-                            if (newQty <= 0) {
-                              await removeFromBag(bagInfo.bagItemId)
-                            } else {
+                            try {
                               await updateBagItem(bagInfo.bagItemId, newQty)
+                            } catch (error) {
+                              alert(error.message || 'Failed to update quantity')
                             }
-                          } catch (error) {
-                            alert(error.message || 'Failed to update quantity')
-                          }
-                        }}
-                        aria-label="Decrease quantity"
-                      >
-                        <FaMinus className="w-3 h-3" />
-                      </button>
-                      <span className="px-3 text-sm font-semibold min-w-[2.5rem] text-center">
-                        {bagInfo.quantity}
-                      </span>
-                      <button
-                        className="p-1.5 text-gray-600 hover:text-gray-900 transition"
+                          }}
+                          aria-label="Increase quantity"
+                        >
+                          <FaPlus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                    <button
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
                         onClick={async (e) => {
                           e.preventDefault()
                           e.stopPropagation()
+                          const effectiveId = product.id || product._id
+                          if (!effectiveId) return
 
-                          const newQty = (bagInfo.quantity || 1) + 1
-
-                          // Optimistic update
-                          setBagItemsByProduct((prev) => ({
-                            ...prev,
-                            [String(productId)]: {
-                              ...bagInfo,
-                              quantity: newQty
-                            }
-                          }))
+                          if (!isAuthenticated || userType !== 'user') {
+                            navigate('/user/phone-entry', {
+                              state: {
+                                returnTo: `/product/public/${effectiveId}`,
+                                message: 'Please login to add items to your bag.'
+                              }
+                            })
+                            return
+                          }
 
                           try {
-                            await updateBagItem(bagInfo.bagItemId, newQty)
+                            setAddingToBag((prev) => {
+                              const next = new Set(prev)
+                              next.add(effectiveId)
+                              return next
+                            })
+                            const bagItem = await addToBag(effectiveId, 1)
+
+                            if (bagItem) {
+                              const bagProductId =
+                                bagItem.product_id ||
+                                bagItem.product?.id ||
+                                effectiveId
+
+                              setBagItemsByProduct((prev) => ({
+                                ...prev,
+                                [String(bagProductId)]: {
+                                  bagItemId: bagItem.id,
+                                  quantity: bagItem.quantity || 1
+                                }
+                              }))
+                            }
                           } catch (error) {
-                            alert(error.message || 'Failed to update quantity')
+                            alert(error.message || 'Failed to add to bag')
+                          } finally {
+                            setAddingToBag((prev) => {
+                              const next = new Set(prev)
+                              next.delete(effectiveId)
+                              return next
+                            })
                           }
                         }}
-                        aria-label="Increase quantity"
-                      >
-                        <FaPlus className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                  <button
-                      className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-4 py-1.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      onClick={async (e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        const effectiveId = product.id || product._id
-                        if (!effectiveId) return
-
-                        if (!isAuthenticated || userType !== 'user') {
-                          navigate('/user/phone-entry', {
-                            state: {
-                              returnTo: `/product/public/${effectiveId}`,
-                              message: 'Please login to add items to your bag.'
-                            }
-                          })
-                          return
-                        }
-
-                        try {
-                          setAddingToBag((prev) => {
-                            const next = new Set(prev)
-                            next.add(effectiveId)
-                            return next
-                          })
-                          const bagItem = await addToBag(effectiveId, 1)
-
-                          if (bagItem) {
-                            const bagProductId =
-                              bagItem.product_id ||
-                              bagItem.product?.id ||
-                              effectiveId
-
-                            setBagItemsByProduct((prev) => ({
-                              ...prev,
-                              [String(bagProductId)]: {
-                                bagItemId: bagItem.id,
-                                quantity: bagItem.quantity || 1
-                              }
-                            }))
-                          }
-                        } catch (error) {
-                          alert(error.message || 'Failed to add to bag')
-                        } finally {
-                          setAddingToBag((prev) => {
-                            const next = new Set(prev)
-                            next.delete(effectiveId)
-                            return next
-                          })
-                        }
-                      }}
-                      disabled={addingToBag.has(product.id || product._id)}
-                    aria-label="Add to bag"
-                  >
-                    <FaShoppingBag className="w-4 h-4 text-pink-500" />
-                      {addingToBag.has(product.id || product._id) ? 'Adding...' : 'Add to Bag'}
-                  </button>
-                  )}
-                </div>
-                {rating !== null && rating > 0 && (
-                  <div className="hidden sm:flex items-center gap-1 text-xs text-green-600 mt-2">
-                    {Array.from({ length: 5 }, (_, i) => {
-                      const index = i + 1
-                      const fullStars = Math.floor(rating)
-                      const fraction = rating - fullStars
-                      const hasHalf = fraction > 0
-
-                      if (index <= fullStars) return <FaStar key={index} className="w-3 h-3" />
-                      if (index === fullStars + 1 && hasHalf) return <FaStarHalfAlt key={index} className="w-3 h-3" />
-                      return <FaStar key={index} className="w-3 h-3 text-gray-200" />
-                    })}
-                    <span className="text-[10px] text-gray-400 ml-1">
-                      ({reviews})
-                    </span>
+                        disabled={addingToBag.has(product.id || product._id)}
+                      aria-label="Add to bag"
+                    >
+                      <FaShoppingBag className="w-4 h-4 text-pink-500" />
+                        {addingToBag.has(product.id || product._id) ? 'Adding...' : 'Add to Bag'}
+                    </button>
+                    )}
                   </div>
-                )}
-            </motion.article>
+                  {rating !== null && rating > 0 && (
+                    <div className="hidden sm:flex items-center gap-1 text-xs text-green-600 mt-2">
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const index = i + 1
+                        const fullStars = Math.floor(rating)
+                        const fraction = rating - fullStars
+                        const hasHalf = fraction > 0
+
+                        if (index <= fullStars) return <FaStar key={index} className="w-3 h-3" />
+                        if (index === fullStars + 1 && hasHalf) return <FaStarHalfAlt key={index} className="w-3 h-3" />
+                        return <FaStar key={index} className="w-3 h-3 text-gray-200" />
+                      })}
+                      <span className="text-[10px] text-gray-400 ml-1">
+                        ({reviews})
+                      </span>
+                    </div>
+                  )}
+              </motion.article>
+              {showService && activeService && (
+                <ServiceCard service={activeService} index={index} />
+              )}
+            </div>
           )
         })}
       </div>

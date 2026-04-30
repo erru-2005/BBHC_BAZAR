@@ -302,6 +302,7 @@ function SplashWrapper() {
               <Route path="/product/public/:productId" element={<PublicProductDetail />} />
               <Route path="/product/:productId/buy" element={<BuyNow />} />
               <Route path="/service/:serviceId" element={<ServiceDetail />} />
+              <Route path="/service/public/:serviceId" element={<ServiceDetail />} />
               <Route element={<ProtectedRoute requiredUserType="seller"><SellerLayout /></ProtectedRoute>}>
                 <Route path="/seller/dashboard" element={<Seller />} />
                 <Route path="/seller/products" element={<SellerMyProducts />} />
