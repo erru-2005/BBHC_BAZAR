@@ -4,6 +4,7 @@ import {
     HiClipboardDocumentList, HiOutlineClipboardDocumentList,
     HiCube, HiOutlineCube,
     HiUser, HiOutlineUser,
+    HiWallet, HiOutlineWallet,
     HiPlus
 } from 'react-icons/hi2'
 import { motion } from 'framer-motion'
@@ -16,6 +17,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
     const getActiveTab = () => {
         if (isProfileActive) return 'profile'
         if (showOrders) return 'orders'
+        if (location.pathname === '/seller/dashboard' && location.state?.view === 'wallet') return 'wallet'
         if (location.pathname.startsWith('/seller/products')) return 'products'
         if (location.pathname.startsWith('/seller/services')) return 'products'
         if (location.pathname === '/seller/dashboard' && !showOrders) return 'home'
@@ -34,6 +36,8 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                 setShowOrders(false)
                 if (location.pathname !== '/seller/dashboard') {
                     navigate('/seller/dashboard')
+                } else {
+                    navigate('/seller/dashboard', { state: { view: 'dashboard' }, replace: true })
                 }
             }
         },
@@ -56,11 +60,11 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
             action: onOpenAddProduct
         },
         {
-            id: 'products',
-            label: 'Products',
-            icon: HiOutlineCube,
-            activeIcon: HiCube,
-            action: () => navigate('/seller/products')
+            id: 'wallet',
+            label: 'Wallet',
+            icon: HiOutlineWallet,
+            activeIcon: HiWallet,
+            action: () => navigate('/seller/dashboard', { state: { view: 'wallet' } })
         },
         {
             id: 'profile',

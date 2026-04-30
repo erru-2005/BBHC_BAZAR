@@ -35,6 +35,7 @@ export const API_ENDPOINTS = {
     BLACKLIST_SELLER: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}/blacklist`,
     BLACKLIST_OUTLET_MAN: (outletManId) => `${API_BASE_URL}/api/outlet_men/${outletManId}/blacklist`,
     UNBLACKLIST_OUTLET_MAN: (outletManId) => `${API_BASE_URL}/api/outlet_men/${outletManId}/blacklist`,
+    ADD_CREDITS: (sellerId) => `${API_BASE_URL}/api/sellers/${sellerId}/credits`,
     PRODUCTS: `${API_BASE_URL}/api/products`,
     SELLER_PRODUCTS: `${API_BASE_URL}/api/seller/products`,
     SELLER_MY_PRODUCTS: `${API_BASE_URL}/api/seller/my-products`,

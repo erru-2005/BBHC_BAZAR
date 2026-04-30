@@ -8,9 +8,10 @@ import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
 import { getServiceById, getProductRatingStats, getSellerRatingStats } from '../../services/api'
 import { getImageUrl } from '../../utils/image'
-import { FiArrowLeft, FiCheckCircle, FiShield, FiClock, FiStar, FiChevronRight } from 'react-icons/fi'
-import { motion } from 'framer-motion'
+import { FiArrowLeft, FiCheckCircle, FiShield, FiClock, FiStar, FiChevronRight, FiChevronLeft } from 'react-icons/fi'
+import { motion, AnimatePresence } from 'framer-motion'
 import RatingBadge from '../../components/RatingBadge'
+import DetailSkeleton from './components/DetailSkeleton'
 
 function ServiceDetail() {
   const { serviceId } = useParams()
@@ -19,28 +20,41 @@ function ServiceDetail() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [service, setService] = useState(location.state?.service || null)
   const [loading, setLoading] = useState(!location.state?.service)
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [ratingStats, setRatingStats] = useState(null)
   const [sellerRatingStats, setSellerRatingStats] = useState(null)
   const { home } = useSelector((state) => state.data)
+
+  // Combine thumbnail and gallery into a single list
+  const allImages = service ? [
+    service.thumbnail,
+    ...(service.gallery || [])
+  ].filter(Boolean) : []
 
   useEffect(() => {
     const loadService = async () => {
       try {
         setLoading(true)
         const data = await getServiceById(serviceId)
-        setService(data)
-        
-        // Load product rating stats
-        const stats = await getProductRatingStats(serviceId)
-        setRatingStats(stats)
-        
-        // Load seller rating stats if seller_id is available
-        if (data.seller_id) {
-          const sStats = await getSellerRatingStats(data.seller_id)
-          setSellerRatingStats(sStats)
+        // Ensure strictly DB-driven content
+        if (data) {
+          setService(data)
+          
+          // Load product rating stats
+          const stats = await getProductRatingStats(serviceId)
+          setRatingStats(stats)
+          
+          // Load seller rating stats if seller_id is available
+          if (data.seller_id) {
+            const sStats = await getSellerRatingStats(data.seller_id)
+            setSellerRatingStats(sStats)
+          }
+        } else {
+          setService(null)
         }
       } catch (err) {
         console.error(err)
+        setService(null)
       } finally {
         setLoading(false)
       }
@@ -54,8 +68,11 @@ function ServiceDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#fafbff]">
+        <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
+          <MobileSearchBar />
+        </MainHeader>
+        <DetailSkeleton />
       </div>
     )
   }
@@ -73,6 +90,9 @@ function ServiceDetail() {
   }
 
   const displayPrice = service.total_service_charge || service.service_charge
+
+  const nextImage = () => setActiveImageIndex((prev) => (prev + 1) % allImages.length)
+  const prevImage = () => setActiveImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)
 
   return (
     <div className="min-h-screen bg-[#fafbff] text-slate-900">
@@ -94,31 +114,70 @@ function ServiceDetail() {
         <div className="grid lg:grid-cols-12 gap-8 lg:gap-16">
           {/* Left Column: Visuals & Core Info */}
           <div className="lg:col-span-7 space-y-8">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative aspect-[16/10] rounded-[40px] overflow-hidden shadow-2xl shadow-indigo-100 border border-white"
-            >
-              <img 
-                src={getImageUrl(service.thumbnail)} 
-                alt={service.service_name} 
-                className="w-full h-full object-cover" 
-              />
-              {service.categories?.[0] && (
-                <div className="absolute top-6 left-6 flex gap-2">
-                  <span className="px-5 py-2 bg-white/90 backdrop-blur-xl rounded-full text-xs font-black uppercase tracking-widest text-indigo-600 shadow-xl border border-white">
-                    {service.categories[0]}
-                  </span>
-                </div>
-              )}
-            </motion.div>
+            <div className="relative group">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="relative aspect-[16/10] rounded-[40px] overflow-hidden shadow-2xl shadow-indigo-100 border border-white bg-slate-50"
+              >
+                <AnimatePresence mode="wait">
+                  <motion.img 
+                    key={activeImageIndex}
+                    src={getImageUrl(allImages[activeImageIndex])} 
+                    alt={service.service_name} 
+                    className="w-full h-full object-cover"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </AnimatePresence>
+                
+                {service.categories?.[0] && (
+                  <div className="absolute top-6 left-6 flex gap-2 z-10">
+                    <span className="px-5 py-2 bg-white/90 backdrop-blur-xl rounded-full text-xs font-black uppercase tracking-widest text-indigo-600 shadow-xl border border-white">
+                      {service.categories[0]}
+                    </span>
+                  </div>
+                )}
 
-            {/* Gallery if exists */}
-            {service.gallery && service.gallery.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                {service.gallery.map((img, i) => (
-                  <div key={i} className="aspect-square rounded-3xl overflow-hidden border-2 border-white shadow-sm cursor-pointer hover:scale-105 transition-transform">
-                    <img src={getImageUrl(img)} className="w-full h-full object-cover" alt={`Gallery ${i}`} />
+                {/* Slider Controls - Only if multiple images */}
+                {allImages.length > 1 && (
+                  <>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); prevImage(); }}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center text-slate-800 shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
+                    >
+                      <FiChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); nextImage(); }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center text-slate-800 shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
+                    >
+                      <FiChevronRight className="w-6 h-6" />
+                    </button>
+
+                    {/* Image Counter Badge */}
+                    <div className="absolute bottom-6 right-6 px-4 py-2 bg-black/50 backdrop-blur-md rounded-2xl text-[10px] font-black text-white uppercase tracking-widest border border-white/20">
+                      {activeImageIndex + 1} / {allImages.length}
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            </div>
+
+            {/* Gallery Thumbnails */}
+            {allImages.length > 1 && (
+              <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+                {allImages.map((img, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => setActiveImageIndex(i)}
+                    className={`flex-shrink-0 w-24 aspect-square rounded-2xl overflow-hidden border-2 transition-all cursor-pointer ${
+                      activeImageIndex === i ? 'border-indigo-600 scale-105 shadow-lg' : 'border-white shadow-sm hover:border-indigo-200'
+                    }`}
+                  >
+                    <img src={getImageUrl(img)} className="w-full h-full object-cover" alt={`Thumbnail ${i}`} />
                   </div>
                 ))}
               </div>

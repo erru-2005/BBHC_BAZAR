@@ -11,7 +11,7 @@ class Seller:
     
     def __init__(self, trade_id, email, password_hash, phone_number=None,
                  first_name=None, last_name=None, image_url=None, is_active=False, 
-                 created_by="system", created_at=None, _id=None):
+                 credits=30, created_by="system", created_at=None, _id=None):
         self._id = _id or ObjectId()
         self.trade_id = trade_id
         self.email = email
@@ -21,6 +21,7 @@ class Seller:
         self.last_name = last_name
         self.image_url = image_url
         self.is_active = is_active
+        self.credits = credits
         self.created_by = created_by
         self.created_at = created_at or datetime.now(timezone.utc)
     
@@ -50,6 +51,7 @@ class Seller:
             'last_name': self.last_name,
             'image_url': self.image_url,
             'is_active': self.is_active,
+            'credits': self.credits,
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at
         }
@@ -69,6 +71,7 @@ class Seller:
             'last_name': self.last_name,
             'image_url': self.image_url,
             'is_active': self.is_active,
+            'credits': self.credits,
             'created_by': self.created_by,
             'created_at': self.created_at
         }
@@ -95,6 +98,7 @@ class Seller:
             last_name=bson_doc.get('last_name'),
             image_url=bson_doc.get('image_url'),
             is_active=bson_doc.get('is_active', False),
+            credits=bson_doc.get('credits', 30),
             created_by=bson_doc.get('created_by', 'system'),
             created_at=bson_doc.get('created_at')
         )

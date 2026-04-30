@@ -5,6 +5,7 @@ import MobileSearchBar from './components/MobileSearchBar'
 import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
 import ServiceCard from './components/ServiceCard'
+import ServiceSkeleton from './components/ServiceSkeleton'
 import { getServices } from '../../services/api'
 import { useSelector } from 'react-redux'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -25,9 +26,11 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
       try {
         setLoading(true)
         const data = await getServices()
-        setServices(data)
+        // Ensure strictly DB-driven content
+        setServices(Array.isArray(data) ? data : [])
       } catch (err) {
         console.error('Failed to load services', err)
+        setServices([]) // Fallback to empty instead of any potential stale data
       } finally {
         setLoading(false)
       }
@@ -36,7 +39,7 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
   }, [])
 
   const filteredServices = services.filter(s => 
-    s.service_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.service_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.categories?.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
@@ -82,9 +85,9 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
 
         {/* Content Section */}
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-8">
             {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-              <div key={i} className="bg-slate-100 h-64 rounded-3xl animate-pulse" />
+              <ServiceSkeleton key={i} />
             ))}
           </div>
         ) : filteredServices.length > 0 ? (

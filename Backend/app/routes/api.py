@@ -247,6 +247,45 @@ def update_seller(seller_id):
         return jsonify({'error': f'Failed to update seller: {str(e)}'}), 500
 
 
+@api_bp.route('/sellers/<seller_id>/credits', methods=['POST'])
+@jwt_required()
+def add_seller_credits(seller_id):
+    """Add credits to a seller (only masters can add)"""
+    try:
+        # Get current user info from JWT token
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+        
+        # Security check: Only masters OR the seller themselves can add credits
+        if current_user_type != 'master' and str(current_user_id) != str(seller_id):
+            return jsonify({'error': 'Unauthorized. Only masters or the account owner can add credits.'}), 403
+        
+        data = request.get_json()
+        if not data or 'amount' not in data:
+            return jsonify({'error': 'Amount is required'}), 400
+            
+        amount = int(data.get('amount', 0))
+        if amount <= 0:
+            return jsonify({'error': 'Amount must be positive'}), 400
+            
+        # Add credits
+        updated_seller = SellerService.add_credits(seller_id, amount)
+        if not updated_seller:
+            return jsonify({'error': 'Seller not found'}), 404
+            
+        return jsonify({
+            'message': f'Successfully added {amount} credits',
+            'credits': updated_seller.credits,
+            'seller': updated_seller.to_dict()
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to add credits: {str(e)}'}), 500
+
+
 @api_bp.route('/sellers/<seller_id>/blacklist', methods=['POST'])
 @jwt_required()
 def blacklist_seller(seller_id):
