@@ -85,6 +85,7 @@ class SellerService:
                 last_name=seller_data.get('last_name'),
                 image_url=seller_data.get('image_url'),
                 is_active=seller_data.get('is_active', False),
+                credits=seller_data.get('credits', 30),
                 created_by=seller_data.get('created_by', 'system'),
                 created_at=seller_data.get('created_at')
             )
@@ -142,6 +143,22 @@ class SellerService:
             return SellerService.get_seller_by_id(seller_id)
         except Exception as e:
             raise Exception(f"Error updating seller: {str(e)}")
+
+    @staticmethod
+    def add_credits(seller_id, amount):
+        """Add credits to a seller's account"""
+        try:
+            result = mongo.db.sellers.update_one(
+                {'_id': ObjectId(seller_id)},
+                {'$inc': {'credits': amount}}
+            )
+            
+            if result.matched_count == 0:
+                return None
+                
+            return SellerService.get_seller_by_id(seller_id)
+        except Exception as e:
+            raise Exception(f"Error adding credits: {str(e)}")
     
     @staticmethod
     def get_all_sellers(skip=0, limit=20, include_blacklisted=False):

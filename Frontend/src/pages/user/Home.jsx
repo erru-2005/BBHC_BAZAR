@@ -14,7 +14,7 @@ import MobileBottomNav from './components/MobileBottomNav'
 import ProductShowcase from './components/ProductShowcase'
 import LogoAnimation from '../../components/LogoAnimation'
 import { setHomeProducts, setHomeWishlist, setError, setLoading, setRefreshing, updateProductInCache } from '../../store/dataSlice'
-import { getProducts, getWishlist } from '../../services/api'
+import { getProducts, getWishlist, getServices } from '../../services/api'
 import { initSocket, getSocket } from '../../utils/socket'
 import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
 
@@ -23,6 +23,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
   const dispatch = useDispatch()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [services, setServices] = useState([])
   const [showLogoAnimation, setShowLogoAnimation] = useState(false)
   const internalHeaderLogoRef = useRef(null)
   const headerLogoRef = externalHeaderLogoRef || internalHeaderLogoRef
@@ -104,8 +105,13 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
           dispatch(setRefreshing(true))
         }
         
-        const backendProducts = await getProducts()
+        const [backendProducts, backendServices] = await Promise.all([
+          getProducts(),
+          getServices()
+        ])
+        
         dispatch(setHomeProducts(backendProducts))
+        setServices(backendServices)
 
         // Load wishlist only for logged-in users
         if (isAuthenticated && userType === 'user') {
@@ -276,7 +282,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
         {recommendationRows.map((row) => (
           <RecommendationRow key={row.id} title={row.title} products={row.products} />
         ))}
-        <ProductShowcase products={products} loading={loading} error={error} />
+        <ProductShowcase products={products} services={services} loading={loading} error={error} />
       </main>
 
       <SiteFooter />

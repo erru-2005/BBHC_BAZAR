@@ -8,7 +8,10 @@ import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
 import { setHomeProducts, updateProductInCache, toggleWishlist } from '../../store/dataSlice'
 import { initSocket, getSocket } from '../../utils/socket'
+import { getSellerRatingStats } from '../../services/api'
 import ProductCard from './components/ProductCard'
+import RatingBadge from '../../components/RatingBadge'
+import { FiStar } from 'react-icons/fi'
 
 function ProductDetail() {
   const { productId } = useParams()
@@ -19,6 +22,7 @@ function ProductDetail() {
   const { home } = useSelector((state) => state.data)
   const { recommendationRows, wishlist, bottomNavItems, products } = home
   const { token } = useSelector((state) => state.auth)
+  const [sellerRatingStats, setSellerRatingStats] = useState(null)
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
@@ -93,13 +97,20 @@ function ProductDetail() {
     socket.on('rating_updated', handleRatingUpdate)
     socket.on('product_updated', handleProductUpdate)
 
+    // Load seller rating stats if product exists
+    if (product?.seller_id) {
+      getSellerRatingStats(product.seller_id)
+        .then(stats => setSellerRatingStats(stats))
+        .catch(err => console.error('Failed to load seller ratings:', err))
+    }
+
     return () => {
       if (socket) {
         socket.off('rating_updated', handleRatingUpdate)
         socket.off('product_updated', handleProductUpdate)
       }
     }
-  }, [token, dispatch, products])
+  }, [token, dispatch, products, product?.seller_id])
 
   const imageList = product?.images?.length ? product.images : product?.image ? [product.image] : []
   const [activeImageIndex, setActiveImageIndex] = useState(0)
@@ -182,9 +193,19 @@ function ProductDetail() {
             <div className="space-y-1">
               <p className="text-xs sm:text-sm uppercase tracking-wide text-slate-500">{product.brand}</p>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 capitalize">{product.name}</h1>
-              <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-slate-600">
-                <span className="font-semibold text-slate-900">{product.rating}★</span>
-                <span>{product.reviews} ratings</span>
+              <div className="flex items-center gap-2 sm:gap-3">
+                {product.rating > 0 ? (
+                  <>
+                    <RatingBadge 
+                      value={Number(product.rating)} 
+                      displayValue={Number(product.rating).toFixed(1)}
+                      size="sm"
+                    />
+                    <span className="text-xs sm:text-sm text-slate-500">({product.reviews || 0} reviews)</span>
+                  </>
+                ) : (
+                  <span className="text-xs sm:text-sm text-slate-400 font-semibold tracking-wide uppercase">New Product</span>
+                )}
               </div>
             </div>
 
@@ -221,6 +242,27 @@ function ProductDetail() {
               <button className="w-full px-4 py-2.5 sm:py-3 rounded-full border border-gray-300 text-sm sm:text-base font-semibold text-gray-800 hover:bg-gray-50 transition">
                 Add to bag
               </button>
+            </div>
+
+            {/* Seller Info */}
+            <div className="bg-slate-900 rounded-[30px] p-6 text-white flex items-center justify-between border border-white/5 shadow-xl mt-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Provided By</p>
+                <p className="text-base sm:text-lg font-black leading-tight mb-1 truncate">{product.seller_name || 'Expert Partner'}</p>
+                
+                {sellerRatingStats && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-0.5 text-amber-400">
+                      <FiStar className="fill-current w-3 h-3" />
+                      <span className="text-xs font-black text-white">{sellerRatingStats.average_rating || '5.0'}</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400">({sellerRatingStats.total_ratings || 0} reviews)</span>
+                  </div>
+                )}
+              </div>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20 ml-4">
+                { (product.seller_name || 'E')[0].toUpperCase() }
+              </div>
             </div>
 
             {product.highlights?.length ? (
@@ -262,7 +304,6 @@ function ProductDetail() {
         </div>
       </section>
 
-      <SiteFooter />
       <MobileBottomNav items={bottomNavItems} />
     </div>
   )

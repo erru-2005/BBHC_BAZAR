@@ -164,6 +164,45 @@ class RatingService:
             raise Exception(f"Error fetching rating stats: {str(e)}")
 
     @staticmethod
+    def get_seller_rating_stats(seller_id):
+        """Get rating statistics for a seller"""
+        try:
+            seller_id = ObjectId(seller_id)
+
+            # Aggregate ratings by star count where seller_id matches
+            pipeline = [
+                {'$match': {'seller_id': seller_id}},
+                {'$group': {
+                    '_id': '$rating',
+                    'count': {'$sum': 1}
+                }},
+                {'$sort': {'_id': -1}}
+            ]
+
+            star_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+            total_ratings = 0
+            total_score = 0
+
+            for result in mongo.db.ratings.aggregate(pipeline):
+                star = result['_id']
+                count = result['count']
+                if star in star_counts:
+                    star_counts[star] = count
+                    total_ratings += count
+                    total_score += star * count
+
+            average_rating = total_score / total_ratings if total_ratings > 0 else 0
+
+            return {
+                'total_ratings': total_ratings,
+                'average_rating': round(average_rating, 2),
+                'star_distribution': star_counts
+            }
+
+        except Exception as e:
+            raise Exception(f"Error fetching seller rating stats: {str(e)}")
+
+    @staticmethod
     def get_products_by_rating_category(rating_category, limit=20, skip=0):
         """Get products categorized by rating (1_star, 2_star, etc.)"""
         try:

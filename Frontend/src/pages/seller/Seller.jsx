@@ -12,6 +12,7 @@ import { getOrders, getSellerMyProducts, sellerAcceptOrder, sellerRejectOrder } 
 import SellerOrders from './components/SellerOrders'
 import SellerNotifications from './components/SellerNotifications'
 import SellerAnalytics from './components/SellerAnalytics'
+import SellerWallet from './components/SellerWallet'
 import QRCode from 'react-qr-code'
 import { motion, AnimatePresence } from 'framer-motion'
 import { fixImageUrl } from '../../utils/image'
@@ -227,6 +228,7 @@ function Seller() {
   if (activeView === 'orders') return <div className="p-4 md:p-12 max-w-7xl mx-auto w-full"><SellerOrders /></div>
   if (activeView === 'notifications') return <SellerNotifications />
   if (activeView === 'analytics') return <SellerAnalytics />
+  if (activeView === 'wallet') return <SellerWallet />
 
   return (
     <div className="p-4 md:p-8 flex flex-col gap-4 max-w-7xl mx-auto w-full">

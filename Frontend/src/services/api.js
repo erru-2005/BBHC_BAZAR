@@ -693,6 +693,21 @@ export const getSellers = async (params = {}) => {
 }
 
 /**
+ * Add credits to a seller
+ * @param {string} sellerId
+ * @param {number} amount
+ * @returns {Promise} Update response
+ */
+export const addSellerCredits = async (sellerId, amount) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.ADD_CREDITS(sellerId), { amount })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to add credits')
+  }
+}
+
+/**
  * Get all outlet men
  * @returns {Promise} List of outlet men
  */
@@ -1199,6 +1214,20 @@ export const getProductRatingStats = async (productId) => {
     return response
   } catch (error) {
     throw new Error(error.message || 'Failed to fetch rating stats')
+  }
+}
+
+/**
+ * Get rating statistics for a seller
+ * @param {string} sellerId - Seller ID
+ * @returns {Promise} Rating statistics
+ */
+export const getSellerRatingStats = async (sellerId) => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.SELLER_RATING_STATS(sellerId))
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch seller rating stats')
   }
 }
 

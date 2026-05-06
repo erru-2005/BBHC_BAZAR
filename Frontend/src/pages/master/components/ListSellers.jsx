@@ -5,9 +5,25 @@ import { useState, useEffect, useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import 'react-loading-skeleton/dist/skeleton.css'
 import { getSellers, updateSeller, blacklistSeller } from '../../../services/api'
-import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi'
+import { FiEdit2, FiTrash2, FiSearch, FiPlusCircle } from 'react-icons/fi'
 import { useDispatch, useSelector } from 'react-redux'
 import { setMastersData, setMastersLoading, updateMasterSeller } from '../../../store/masterSlice'
+import { addSellerCredits } from '../../../services/api'
+import Portal from '../../../components/Portal'
+
+const CreditCoin = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="10" fill="url(#coin_grad_master)" stroke="#EAB308" strokeWidth="0.5"/>
+    <circle cx="12" cy="12" r="7" stroke="#FDE047" strokeWidth="1" strokeDasharray="2 2"/>
+    <path d="M12 7V17M12 7L9 10M12 7L15 10" stroke="#854D0E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <defs>
+      <linearGradient id="coin_grad_master" x1="4" y1="4" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#FDE047"/>
+        <stop offset="1" stopColor="#EAB308"/>
+      </linearGradient>
+    </defs>
+  </svg>
+)
 
 function ListSellers() {
   const dispatch = useDispatch()
@@ -20,6 +36,11 @@ function ListSellers() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletingSeller, setDeletingSeller] = useState(null)
+  
+  const [showCreditModal, setShowCreditModal] = useState(false)
+  const [creditTarget, setCreditTarget] = useState(null)
+  const [creditAmount, setCreditAmount] = useState(50)
+
   const [formData, setFormData] = useState({
     email: '',
     phone_number: '',
@@ -108,6 +129,30 @@ function ListSellers() {
       setDeletingSeller(null)
     } catch (err) {
       setError(err.message || 'Failed to blacklist seller')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCreditSubmit = async (e) => {
+    e.preventDefault()
+    if (!creditTarget || creditAmount <= 0) return
+
+    try {
+      setSubmitting(true)
+      const response = await addSellerCredits(creditTarget.id || creditTarget._id, creditAmount)
+      
+      // Update local Redux store
+      dispatch(updateMasterSeller({
+        ...(creditTarget.id ? { id: creditTarget.id } : { _id: creditTarget._id }),
+        credits: response.credits
+      }))
+      
+      setShowCreditModal(false)
+      setCreditTarget(null)
+      setCreditAmount(50)
+    } catch (err) {
+      setError(err.message || 'Failed to add credits')
     } finally {
       setSubmitting(false)
     }
@@ -312,6 +357,9 @@ function ListSellers() {
                     Name
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Credits
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -319,9 +367,6 @@ function ListSellers() {
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created At
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -340,6 +385,12 @@ function ListSellers() {
                         : '-'}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                      <div className="flex items-center gap-1.5">
+                        <CreditCoin size={16} />
+                        <span className="font-bold">{seller.credits ?? 30}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                       {seller.email}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
@@ -354,13 +405,18 @@ function ListSellers() {
                         {seller.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                      {seller.created_at 
-                        ? new Date(seller.created_at).toLocaleDateString()
-                        : '-'}
-                    </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setCreditTarget(seller)
+                            setShowCreditModal(true)
+                          }}
+                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          title="Add Credits"
+                        >
+                          <FiPlusCircle className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => handleEdit(seller)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -586,6 +642,82 @@ function ListSellers() {
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {showCreditModal && creditTarget && (
+          <Portal>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-2xl shadow-2xl max-w-[400px] w-full overflow-hidden"
+              >
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <CreditCoin size={28} />
+                    <h3 className="text-xl font-bold text-gray-900">Add Seller Credits</h3>
+                  </div>
+                  <p className="text-gray-600 mb-6 text-sm">
+                    Add credits to <strong>{creditTarget.trade_id}</strong>. Current balance: <strong>{creditTarget.credits ?? 30}</strong>
+                  </p>
+                  <form onSubmit={handleCreditSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Credit Amount
+                      </label>
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        {[50, 100, 500].map(amt => (
+                          <button
+                            type="button"
+                            key={amt}
+                            onClick={() => setCreditAmount(amt)}
+                            className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                              creditAmount === amt 
+                                ? 'bg-amber-500 text-white shadow-md' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            +{amt}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="number"
+                        value={creditAmount}
+                        onChange={(e) => setCreditAmount(Number(e.target.value))}
+                        min="1"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent font-bold"
+                      />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCreditModal(false)
+                          setCreditTarget(null)
+                        }}
+                        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        disabled={submitting}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shadow-lg shadow-amber-100 disabled:opacity-50"
+                        disabled={submitting || creditAmount <= 0}
+                      >
+                        {submitting ? 'Adding...' : 'Confirm Credits'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+            </div>
+          </Portal>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

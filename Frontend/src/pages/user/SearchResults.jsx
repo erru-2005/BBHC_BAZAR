@@ -68,6 +68,10 @@ function SearchResults({ headerLogoRef: externalHeaderLogoRef }) {
 
   const resultTitle = query ? `Results for "${query}"` : 'Search'
 
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
@@ -104,7 +108,6 @@ function SearchResults({ headerLogoRef: externalHeaderLogoRef }) {
         <ProductShowcase products={filteredProducts} loading={loading} error={error} />
       </main>
 
-      <SiteFooter />
       <MobileBottomNav items={home?.bottomNavItems || undefined} />
     </div>
   )

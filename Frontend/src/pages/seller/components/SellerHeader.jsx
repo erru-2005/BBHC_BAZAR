@@ -1,9 +1,12 @@
-import { FiSearch, FiBell, FiAward, FiTrendingUp, FiZap, FiTarget } from 'react-icons/fi'
+import { FiSearch, FiBell, FiAward, FiTrendingUp, FiZap, FiTarget, FiPlus, FiDollarSign } from 'react-icons/fi'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { fixImageUrl } from '../../../utils/image'
 import { useState, useEffect } from 'react'
+import { addSellerCredits } from '../../../services/api'
+import { updateUserInfo } from '../../../store/authSlice'
+import Portal from '../../../components/Portal'
 
 const insights = [
   { text: "Market Trend: Electronics up by 15%", icon: FiTrendingUp, color: "text-blue-500", bg: "bg-blue-50" },
@@ -12,10 +15,129 @@ const insights = [
   { text: "Price Alert: 2 items need optimization", icon: FiTarget, color: "text-rose-500", bg: "bg-rose-50" },
 ]
 
+const CreditCoin = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="filter drop-shadow-sm">
+    <circle cx="12" cy="12" r="10" fill="url(#coin_grad)" stroke="#EAB308" strokeWidth="0.5"/>
+    <circle cx="12" cy="12" r="7" stroke="#FDE047" strokeWidth="1" strokeDasharray="2 2"/>
+    <path d="M12 7V17M12 7L9 10M12 7L15 10" stroke="#854D0E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <defs>
+      <linearGradient id="coin_grad" x1="4" y1="4" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#FDE047"/>
+        <stop offset="1" stopColor="#EAB308"/>
+      </linearGradient>
+    </defs>
+  </svg>
+)
+
+function AddCreditsModal({ isOpen, onClose, onAdded }) {
+  const { user } = useSelector((state) => state.auth)
+  const [amount, setAmount] = useState(50)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  const handleAdd = async () => {
+    if (amount <= 0) return
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await addSellerCredits(user.id || user._id, amount)
+      onAdded(response.credits)
+      onClose()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Portal>
+      <div className="fixed inset-0 z-[9999] grid place-items-center p-4 overflow-y-auto">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md" 
+        />
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 40 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 40 }}
+          className="relative w-full max-w-[420px] bg-white rounded-[32px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-100 my-auto"
+        >
+          <div className="p-8">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center">
+                <CreditCoin />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Add Credits</h3>
+                <p className="text-sm text-slate-500">Boost your store visibility</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                {[50, 100, 500].map((val) => (
+                  <button
+                    key={val}
+                    onClick={() => setAmount(val)}
+                    className={`py-3 rounded-2xl font-bold text-sm transition-all ${
+                      amount === val 
+                        ? 'bg-amber-500 text-white shadow-lg shadow-amber-200' 
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    +{val}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative">
+                <input 
+                  type="number" 
+                  value={amount}
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                  className="w-full bg-slate-50 border-2 border-transparent focus:border-amber-400 rounded-2xl px-5 py-4 font-bold text-slate-900 outline-none transition-all"
+                  placeholder="Enter custom amount"
+                />
+                <div className="absolute right-5 top-1/2 -translate-y-1/2">
+                  <CreditCoin />
+                </div>
+              </div>
+
+              {error && <p className="text-xs text-rose-500 font-bold ml-1">{error}</p>}
+
+              <button
+                onClick={handleAdd}
+                disabled={loading || amount <= 0}
+                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl shadow-slate-200 hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <FiPlus className="w-5 h-5" />
+                    Confirm Addition
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </Portal>
+  )
+}
+
 export default function SellerHeader({ onOpenProfile }) {
+  const dispatch = useDispatch()
   const { user } = useSelector((state) => state.auth)
   const navigate = useNavigate()
   const [insightIndex, setInsightIndex] = useState(0)
+  const [isCreditModalOpen, setIsCreditModalOpen] = useState(false)
+  const [localCredits, setLocalCredits] = useState(user?.credits || 0)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -24,11 +146,32 @@ export default function SellerHeader({ onOpenProfile }) {
     return () => clearInterval(timer)
   }, [])
 
+  useEffect(() => {
+    if (user?.credits !== undefined) {
+      setLocalCredits(user.credits)
+    }
+  }, [user?.credits])
+
   const currentInsight = insights[insightIndex]
   const InsightIcon = currentInsight.icon
 
+  const handleCreditsAdded = (newTotal) => {
+    setLocalCredits(newTotal)
+    dispatch(updateUserInfo({ credits: newTotal }))
+  }
+
   return (
     <header className="h-20 bg-white/80 backdrop-blur-2xl border-b border-slate-200/50 flex items-center justify-between px-4 md:px-8 sticky top-0 z-40">
+      <AnimatePresence>
+        {isCreditModalOpen && (
+          <AddCreditsModal 
+            isOpen={isCreditModalOpen} 
+            onClose={() => setIsCreditModalOpen(false)} 
+            onAdded={handleCreditsAdded}
+          />
+        )}
+      </AnimatePresence>
+      
       <div className="flex items-center gap-4 flex-1">
         {/* Innovative Logo with Professional Shine */}
         <motion.div 
@@ -111,6 +254,27 @@ export default function SellerHeader({ onOpenProfile }) {
       </div>
 
       <div className="flex items-center gap-2 md:gap-5">
+        {/* Credits System */}
+        <div 
+          onClick={() => navigate('/seller/dashboard', { state: { view: 'wallet' } })}
+          className="flex items-center gap-2 bg-amber-50 border border-amber-200/50 rounded-2xl px-3 py-1.5 shadow-sm group/credit transition-all hover:bg-white hover:border-amber-300 cursor-pointer"
+        >
+          <CreditCoin />
+          <div className="flex flex-col leading-none">
+            <span className="text-[9px] font-black text-amber-600 uppercase tracking-tighter">Credits</span>
+            <span className="text-sm font-black text-slate-900">{localCredits}</span>
+          </div>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsCreditModalOpen(true)
+            }}
+            className="ml-1 w-6 h-6 bg-amber-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-amber-200/50 hover:bg-amber-600 transition-all active:scale-90"
+          >
+            <FiPlus className="w-3.5 h-3.5 stroke-[3]" />
+          </button>
+        </div>
+
         <button 
           onClick={() => navigate('/seller/dashboard', { state: { view: 'notifications' } })}
           className="relative p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"

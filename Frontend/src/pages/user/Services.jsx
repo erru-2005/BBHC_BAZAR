@@ -5,6 +5,7 @@ import MobileSearchBar from './components/MobileSearchBar'
 import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
 import ServiceCard from './components/ServiceCard'
+import ServiceSkeleton from './components/ServiceSkeleton'
 import { getServices } from '../../services/api'
 import { useSelector } from 'react-redux'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -25,9 +26,11 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
       try {
         setLoading(true)
         const data = await getServices()
-        setServices(data)
+        // Ensure strictly DB-driven content
+        setServices(Array.isArray(data) ? data : [])
       } catch (err) {
         console.error('Failed to load services', err)
+        setServices([]) // Fallback to empty instead of any potential stale data
       } finally {
         setLoading(false)
       }
@@ -36,9 +39,13 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
   }, [])
 
   const filteredServices = services.filter(s => 
-    s.service_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.service_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.categories?.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))
   )
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#fafbff] text-slate-900">
@@ -48,7 +55,7 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
 
       <MobileMenu open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 lg:py-12">
+      <main className="max-w-7xl mx-auto px-4 lg:px-8 py-8 lg:py-12 pb-24 lg:pb-12">
         {/* Header Section */}
         <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-4">
@@ -78,9 +85,9 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
 
         {/* Content Section */}
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-8">
             {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-              <div key={i} className="bg-slate-100 h-64 rounded-3xl animate-pulse" />
+              <ServiceSkeleton key={i} />
             ))}
           </div>
         ) : filteredServices.length > 0 ? (
@@ -125,7 +132,6 @@ function Services({ headerLogoRef: externalHeaderLogoRef }) {
         )}
       </main>
 
-      <SiteFooter />
       <MobileBottomNav items={home?.bottomNavItems} />
     </div>
   )

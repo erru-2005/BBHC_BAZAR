@@ -127,6 +127,18 @@ def get_product_rating_stats(product_id):
         return jsonify({'error': f'Error fetching rating stats: {str(e)}'}), 500
 
 
+@ratings_bp.route('/sellers/<seller_id>/ratings/stats', methods=['GET'])
+def get_seller_rating_stats(seller_id):
+    """Get rating statistics for a seller (public endpoint)"""
+    try:
+        stats = RatingService.get_seller_rating_stats(seller_id)
+        
+        return jsonify(stats), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Error fetching seller rating stats: {str(e)}'}), 500
+
+
 @ratings_bp.route('/ratings/category/<rating_category>', methods=['GET'])
 def get_products_by_rating_category(rating_category):
     """Get products categorized by rating (1_star, 2_star, etc.)"""

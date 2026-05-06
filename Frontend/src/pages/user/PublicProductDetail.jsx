@@ -12,12 +12,13 @@ import { getProducts, addToBag } from '../../services/api'
 import { FaHeart, FaShoppingBag, FaMinus, FaPlus } from 'react-icons/fa'
 import StarRating from '../../components/StarRating'
 import RatingBadge from '../../components/RatingBadge'
-import { addToWishlist, removeFromWishlist, getProductRatingStats } from '../../services/api'
+import { addToWishlist, removeFromWishlist, getProductRatingStats, getSellerRatingStats } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
 import { getSocket, initSocket } from '../../utils/socket'
 import HeartBurst from '../../components/HeartBurst'
 import Toast from '../../components/Toast'
 import { getImageUrl } from '../../utils/image'
+import { FiStar } from 'react-icons/fi'
 
 // Sub-component for animated wishlist button (Other Products)
 const WishlistActionButton = ({ productId, isWishlisted, onToggle, isAuthenticated, userType, navigate }) => {
@@ -89,6 +90,7 @@ function PublicProductDetail() {
   const isWishlisted = product ? wishlistIds.includes(String(product.id || product._id)) : false
   const [wishlistLoading, setWishlistLoading] = useState(false)
   const [ratingStats, setRatingStats] = useState(null)
+  const [sellerRatingStats, setSellerRatingStats] = useState(null)
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
 
@@ -199,13 +201,19 @@ function PublicProductDetail() {
       try {
         const stats = await getProductRatingStats(id)
         setRatingStats(stats || null)
+        
+        // Also fetch seller rating if product data is available
+        if (product?.seller_id) {
+          const sStats = await getSellerRatingStats(product.seller_id)
+          setSellerRatingStats(sStats)
+        }
       } catch {
         setRatingStats(null)
       }
     }
 
     loadStats()
-  }, [productId])
+  }, [productId, product?.seller_id])
 
   // Listen for real-time rating updates
   useEffect(() => {
@@ -367,7 +375,7 @@ function PublicProductDetail() {
                     MRP: <span className="line-through">{formatCurrency(product.max_price)}</span>
                   </p>
                 )}
-                {product.commission_rate && product.commission_rate > 0 && (
+                {product.commission_rate > 0 && (
                   <p className="text-xs text-gray-500">
                     Includes {product.commission_rate}% commission
                   </p>
@@ -403,31 +411,7 @@ function PublicProductDetail() {
               </div>
             )}
 
-            {/* Quantity Selector */}
-            <div className="pt-2">
-              <p className="text-[10px] sm:text-xs uppercase tracking-widest text-gray-500 mb-2 sm:mb-3">Quantity</p>
-              <div className="inline-flex items-center rounded-full border border-gray-300 bg-white">
-                <button
-                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                  disabled={quantity <= 1}
-                  className="p-2 sm:p-2.5 text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                  aria-label="Decrease quantity"
-                >
-                  <FaMinus className="w-3 h-3 sm:w-4 sm:h-4" />
-                </button>
-                <span className="px-4 sm:px-6 font-semibold text-base sm:text-lg min-w-[3rem] text-center">{quantity}</span>
-                <button
-                  onClick={() => {
-                    const maxQty = Number(product.quantity || product.stock || 999)
-                    setQuantity((prev) => Math.min(maxQty, prev + 1))
-                  }}
-                  className="p-2 sm:p-2.5 text-gray-600 hover:text-gray-900 transition"
-                  aria-label="Increase quantity"
-                >
-                  <FaPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-                </button>
-              </div>
-            </div>
+
 
             <div className="flex flex-col gap-2 sm:gap-3 pt-2 w-full max-w-full">
               <button
@@ -478,6 +462,27 @@ function PublicProductDetail() {
                 <FaShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
                 {addingToBag ? 'Adding...' : 'Add to bag'}
               </button>
+
+              {/* Seller Info */}
+              <div className="bg-slate-900 rounded-[30px] p-6 text-white flex items-center justify-between border border-white/5 shadow-xl mt-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Provided By</p>
+                  <p className="text-base sm:text-lg font-black leading-tight mb-1 truncate">{product.seller_name || 'Expert Partner'}</p>
+                  
+                  {sellerRatingStats && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-0.5 text-amber-400">
+                        <FiStar className="fill-current w-3 h-3" />
+                        <span className="text-xs font-black text-white">{sellerRatingStats.average_rating || '5.0'}</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400">({sellerRatingStats.total_ratings || 0} reviews)</span>
+                    </div>
+                  )}
+                </div>
+                <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20 ml-4">
+                  { (product.seller_name || 'E')[0].toUpperCase() }
+                </div>
+              </div>
 
               {/* Star Rating Panel */}
               <div className="pt-3 sm:pt-4 border-t border-gray-200">
@@ -606,7 +611,6 @@ function PublicProductDetail() {
         onClose={() => setToast(prev => ({ ...prev, show: false }))}
       />
 
-      <SiteFooter />
       <MobileBottomNav items={home.bottomNavItems} />
     </div >
   )

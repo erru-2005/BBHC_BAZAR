@@ -22,26 +22,47 @@ const OrdersByStatusChart = ({ data, isLoading }) => {
     )
   }
 
-  // Format data for Chart.js
-  const formattedData = data.map(item => ({
-    status: item.status.charAt(0).toUpperCase() + item.status.slice(1),
-    count: item.count || item.orders || 0
-  }))
+  // Define logical sequence and labels for statuses
+  const STATUS_CONFIG = {
+    'pending_seller': { label: 'New Order', color: CHART_COLORS.status.pending || '#f39c12' },
+    'seller_accepted': { label: 'Seller Accepted', color: CHART_COLORS.status.accepted || '#3498db' },
+    'handed_over': { label: 'At Outlet', color: CHART_COLORS.status.handed_over || '#9b59b6' },
+    'completed': { label: 'Completed', color: CHART_COLORS.status.completed || '#2ecc71' },
+    'seller_rejected': { label: 'Rejected', color: CHART_COLORS.status.rejected || '#e74c3c' },
+    'cancelled': { label: 'Cancelled', color: CHART_COLORS.status.cancelled || '#7f8c8d' },
+    'cancelled_master': { label: 'Master Cancelled', color: CHART_COLORS.status.cancelled_master || '#c0392b' }
+  }
 
-  const labels = formattedData.map(item => item.status)
-  const counts = formattedData.map(item => item.count)
-  const backgroundColors = formattedData.map(item => 
-    CHART_COLORS.status[item.status.toLowerCase()] || CHART_COLORS.primary[0]
-  )
+  // Filter and sort based on predefined sequence
+  const orderedStatuses = [
+    'pending_seller', 'seller_accepted', 'handed_over',
+    'completed', 'seller_rejected', 'cancelled', 'cancelled_master'
+  ]
+
+  const chartLabels = []
+  const chartCounts = []
+  const chartColors = []
+
+  orderedStatuses.forEach(statusKey => {
+    const item = data.find(d => d.status === statusKey)
+    const config = STATUS_CONFIG[statusKey]
+
+    // Only show if it has a count OR it's a primary workflow status
+    const count = item ? (item.count || item.orders || 0) : 0
+
+    chartLabels.push(config.label)
+    chartCounts.push(count)
+    chartColors.push(config.color)
+  })
 
   const chartData = {
-    labels,
+    labels: chartLabels,
     datasets: [
       {
         label: 'Orders',
-        data: counts,
-        backgroundColor: backgroundColors,
-        borderColor: backgroundColors.map(color => color),
+        data: chartCounts,
+        backgroundColor: chartColors,
+        borderColor: chartColors,
         borderWidth: 2,
         borderRadius: 8,
         borderSkipped: false
@@ -72,7 +93,7 @@ const OrdersByStatusChart = ({ data, isLoading }) => {
       tooltip: {
         ...defaultOptions.plugins.tooltip,
         callbacks: {
-          label: function(context) {
+          label: function (context) {
             return `Orders: ${context.parsed.y}`
           }
         }

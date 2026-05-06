@@ -21,7 +21,6 @@ class Product:
         created_by='system',
         created_by_user_id=None,
         created_by_user_type=None,
-        quantity=0,
         seller_trade_id=None,
         seller_name=None,
         seller_email=None,
@@ -49,7 +48,6 @@ class Product:
         self.created_by = created_by
         self.created_by_user_id = created_by_user_id
         self.created_by_user_type = created_by_user_type
-        self.quantity = quantity
         self.seller_trade_id = seller_trade_id
         self.seller_name = seller_name
         self.seller_email = seller_email
@@ -78,7 +76,6 @@ class Product:
             'created_by': self.created_by,
             'created_by_user_id': self.created_by_user_id,
             'created_by_user_type': self.created_by_user_type,
-            'quantity': self.quantity,
             'seller_trade_id': self.seller_trade_id,
             'seller_name': self.seller_name,
             'seller_email': self.seller_email,
@@ -108,7 +105,6 @@ class Product:
             'created_by': self.created_by,
             'created_by_user_id': self.created_by_user_id,
             'created_by_user_type': self.created_by_user_type,
-            'quantity': self.quantity,
             'seller_trade_id': self.seller_trade_id,
             'seller_name': self.seller_name,
             'seller_email': self.seller_email,
@@ -142,7 +138,6 @@ class Product:
             created_by=bson_doc.get('created_by', 'system'),
             created_by_user_id=bson_doc.get('created_by_user_id'),
             created_by_user_type=bson_doc.get('created_by_user_type'),
-            quantity=bson_doc.get('quantity', 0),
             seller_trade_id=bson_doc.get('seller_trade_id'),
             seller_name=bson_doc.get('seller_name'),
             seller_email=bson_doc.get('seller_email'),

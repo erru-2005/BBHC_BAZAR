@@ -444,23 +444,34 @@ function OrdersList() {
   // Get status badge color
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending':
       case 'pending_seller':
         return 'bg-yellow-100 text-yellow-800'
-      case 'accepted':
       case 'seller_accepted':
-        return 'bg-green-100 text-green-800'
+        return 'bg-indigo-100 text-indigo-800'
       case 'seller_rejected':
-      case 'rejected':
-        return 'bg-red-100 text-red-800'
+        return 'bg-rose-100 text-rose-800'
       case 'handed_over':
         return 'bg-purple-100 text-purple-800'
       case 'completed':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-emerald-100 text-emerald-800'
       case 'cancelled':
+      case 'cancelled_master':
         return 'bg-gray-100 text-gray-800'
       default:
         return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'pending_seller': return 'New Order'
+      case 'seller_accepted': return 'Processing'
+      case 'seller_rejected': return 'Rejected'
+      case 'handed_over': return 'At Outlet'
+      case 'completed': return 'Finalized'
+      case 'cancelled': return 'User Cancelled'
+      case 'cancelled_master': return 'Master Cancelled'
+      default: return status?.charAt(0).toUpperCase() + status?.slice(1)
     }
   }
 
@@ -493,14 +504,13 @@ function OrdersList() {
                 className="appearance-none pl-10 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white cursor-pointer text-black"
               >
                 <option value="all">All Status</option>
-                <option value="pending">Pending (Outlet)</option>
                 <option value="pending_seller">Pending Seller</option>
-                <option value="accepted">Accepted</option>
                 <option value="seller_accepted">Seller Accepted</option>
-                <option value="handed_over">Handed Over</option>
+                <option value="handed_over">At Outlet (Handed Over)</option>
                 <option value="completed">Completed</option>
                 <option value="seller_rejected">Seller Rejected</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="cancelled">User Cancelled</option>
+                <option value="cancelled_master">Master Cancelled</option>
               </select>
               <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
             </div>
@@ -617,7 +627,7 @@ function OrdersList() {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                          {order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
+                          {getStatusLabel(order.status)}
                         </span>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -687,6 +697,51 @@ function OrdersList() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Workflow Explanation Card */}
+      <div className="mt-10 bg-slate-900 rounded-3xl p-8 text-white border border-white/5 shadow-2xl overflow-hidden relative group">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] -mr-32 -mt-32 rounded-full" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30">
+              <FaCheckCircle className="w-5 h-5" />
+            </div>
+            <h3 className="text-xl font-bold">Order Lifecycle Workflow</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { status: 'Pending Seller', desc: 'Order created by user. Waiting for seller to accept or reject.', color: 'text-yellow-400' },
+              { status: 'Seller Accepted', desc: 'Seller accepted. QR codes generated for both user and seller.', color: 'text-indigo-400' },
+              { status: 'Handed Over', desc: 'Seller reached outlet and scanned their QR. Product is now at outlet.', color: 'text-purple-400' },
+              { status: 'Completed', desc: 'User reached outlet, paid, scanned their QR and collected the product.', color: 'text-emerald-400' }
+            ].map((step, idx) => (
+              <div key={idx} className="bg-white/5 rounded-2xl p-5 border border-white/5 hover:bg-white/10 transition-colors">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Step {idx + 1}</span>
+                  <div className={`w-2 h-2 rounded-full ${step.color.replace('text', 'bg')}`} />
+                </div>
+                <h4 className={`font-black mb-2 ${step.color}`}>{step.status}</h4>
+                <p className="text-xs text-slate-400 leading-relaxed font-medium">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-white/5 flex items-center gap-4">
+             <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Exceptions:</div>
+             <div className="flex gap-4">
+                <div className="flex items-center gap-1.5">
+                   <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                   <span className="text-xs font-bold text-rose-400">Seller Rejected</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                   <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                   <span className="text-xs font-bold text-slate-400">User/Master Cancelled</span>
+                </div>
+             </div>
+          </div>
+        </div>
       </div>
 
       {/* Order Detail Modal */}

@@ -16,8 +16,8 @@ function MasterLogin() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const { loading, error, userType, isAuthenticated } = useSelector((state) => state.auth)
-  
   useEffect(() => {
+    window.scrollTo(0, 0)
     // If already logged in as master, go straight to dashboard and prevent seeing login
     if (isAuthenticated && userType === 'master') {
       navigate('/master/dashboard', { replace: true })

@@ -334,10 +334,10 @@ class AnalyticsService:
             
             results = list(mongo.db.orders.aggregate(pipeline))
             
-            # System active statuses whitelist
+            # System active statuses whitelist (in logical sequence)
             active_statuses = [
-                'pending', 'pending_seller', 'accepted', 'seller_accepted', 
-                'seller_rejected', 'completed', 'handed_over', 'cancelled'
+                'pending_seller', 'seller_accepted', 'handed_over', 
+                'completed', 'seller_rejected', 'cancelled', 'cancelled_master'
             ]
             
             status_map = {r.get('status', 'unknown'): r.get('count', 0) for r in results}

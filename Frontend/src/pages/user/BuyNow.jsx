@@ -136,6 +136,10 @@ function BuyNow() {
     }
   }
 
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white text-black">
@@ -155,7 +159,7 @@ function BuyNow() {
         onClose={() => setMobileMenuOpen(false)}
       />
 
-      <main className="max-w-5xl mx-auto space-y-6">
+      <main className="max-w-5xl mx-auto space-y-6 pb-24 lg:pb-8">
         <button
           onClick={() => navigate(`/product/${productId}`)}
           className="inline-flex items-center gap-2 text-sm font-semibold text-black hover:opacity-70 transition-opacity"
@@ -259,7 +263,6 @@ function BuyNow() {
         </div>
       </main>
 
-      <SiteFooter />
       <MobileBottomNav />
 
       <AnimatePresence>
@@ -274,7 +277,7 @@ function BuyNow() {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-white rounded-3xl p-8 max-w-lg w-full text-center shadow-2xl space-y-6"
+              className="bg-white rounded-3xl p-8 max-w-[420px] w-full text-center shadow-2xl space-y-6"
             >
               <SuccessAnimation />
               <div>
@@ -339,36 +342,101 @@ function BuyNow() {
 }
 
 function SuccessAnimation() {
-  const confetti = Array.from({ length: 12 })
+  const confettiColors = ['#FFD700', '#FF4500', '#1E90FF', '#32CD32', '#FF1493', '#8A2BE2']
+  const shapes = ['rect', 'circle', 'strip']
+  
   return (
-    <div className="relative flex items-center justify-center">
+    <div className="relative flex items-center justify-center py-8">
+      {/* Central Tick Circle */}
       <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 0.4, ease: 'easeOut' }}
-        className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center shadow-xl"
+        initial={{ scale: 0, rotate: -90 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ 
+          type: 'spring', 
+          stiffness: 260, 
+          damping: 20,
+          delay: 0.2
+        }}
+        className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 flex items-center justify-center shadow-[0_10px_40px_-10px_rgba(16,185,129,0.5)] z-20"
       >
-        <motion.span
-          initial={{ scale: 0, rotate: -20 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
-          className="text-4xl text-white font-black"
+        <motion.svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-12 w-12 text-white"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={4}
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
         >
-          ✓
-        </motion.span>
+          <motion.path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M5 13l4 4L19 7"
+          />
+        </motion.svg>
       </motion.div>
-      {confetti.map((_, index) => (
-        <motion.span
-          key={index}
-          className="absolute w-2 h-2 rounded-full bg-emerald-400"
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{
-            opacity: [0, 1, 0],
-            scale: [0, 1, 1],
-            x: Math.cos((index / confetti.length) * Math.PI * 2) * 80,
-            y: Math.sin((index / confetti.length) * Math.PI * 2) * 80
+
+      {/* Bursting Particles (The Sparkles) */}
+      {Array.from({ length: 40 }).map((_, index) => {
+        const color = confettiColors[index % confettiColors.length]
+        const angle = (index / 40) * Math.PI * 2 + (Math.random() * 0.5)
+        const distance = 100 + Math.random() * 120
+        const size = 4 + Math.random() * 8
+        const shape = shapes[index % shapes.length]
+        const delay = 0.6 + (Math.random() * 0.2)
+        const duration = 2.5 + Math.random() * 1.5
+
+        return (
+          <motion.div
+            key={index}
+            className="absolute z-10"
+            initial={{ 
+              opacity: 0, 
+              scale: 0, 
+              x: 0, 
+              y: 0,
+              rotate: 0
+            }}
+            animate={{
+              opacity: [0, 1, 1, 0],
+              scale: [0, 1.5, 1, 0],
+              x: Math.cos(angle) * distance,
+              y: Math.sin(angle) * distance,
+              rotate: [0, Math.random() * 1000 - 500]
+            }}
+            transition={{
+              duration: duration,
+              delay: delay,
+              ease: [0.22, 1, 0.36, 1],
+              repeat: 1,
+              repeatDelay: 0.5
+            }}
+            style={{
+              width: shape === 'strip' ? size * 3 : size,
+              height: shape === 'strip' ? size / 2 : size,
+              backgroundColor: color,
+              borderRadius: shape === 'circle' ? '50%' : '2px',
+              boxShadow: `0 0 10px ${color}40`,
+            }}
+          />
+        )
+      })}
+
+      {/* Ripple Effect */}
+      {[1, 2].map((i) => (
+        <motion.div
+          key={i}
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 2.5, opacity: 0 }}
+          transition={{ 
+            duration: 1.5, 
+            delay: 0.4 + (i * 0.2), 
+            repeat: 1,
+            repeatDelay: 2
           }}
-          transition={{ duration: 1.2, delay: 0.2 + index * 0.02, repeat: Infinity, repeatDelay: 1.5 }}
+          className="absolute w-24 h-24 rounded-full border border-emerald-400/50 z-0"
         />
       ))}
     </div>
