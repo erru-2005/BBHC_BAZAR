@@ -11,6 +11,7 @@ function SellerOrders() {
   const { orders, ordersLoading: loading } = useSelector((state) => state.seller)
   const [error, setError] = useState(null)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all') // 'all', 'product', 'service'
   const [searchQuery, setSearchQuery] = useState('')
   const [isSynced, setIsSynced] = useState(false)
   const [actionOrder, setActionOrder] = useState(null)
@@ -81,7 +82,11 @@ function SellerOrders() {
       (o.product?.product_name?.toLowerCase().includes(searchLow)) ||
       (o.id?.toString().includes(searchLow))
 
-    return matchesStatus && matchesSearch
+    const matchesType = typeFilter === 'all' || 
+      (typeFilter === 'product' && !o.booking) || 
+      (typeFilter === 'service' && o.booking)
+
+    return matchesStatus && matchesSearch && matchesType
   })
 
   const formatCurrency = (val) => `₹${Number(val || 0).toLocaleString('en-IN')}`
@@ -125,26 +130,49 @@ function SellerOrders() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 p-2 bg-slate-50 rounded-[2.5rem] border border-slate-100/50 backdrop-blur-sm">
-        {[
-          { id: 'all', label: 'All Orders', icon: FiBox, color: 'blue' },
-          { id: 'pending', label: 'Pending', icon: FiRefreshCw, color: 'amber' },
-          { id: 'delivered', label: 'Completed', icon: FiPackage, color: 'emerald' },
-          { id: 'cancelled', label: 'Cancelled', icon: FiXCircle, color: 'rose' }
-        ].map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setStatusFilter(f.id)}
-            className={`flex items-center gap-3 px-6 py-3 rounded-[1.75rem] transition-all duration-500 border ${statusFilter === f.id
-              ? 'bg-white text-blue-600 shadow-xl shadow-blue-500/10 border-white'
-              : 'text-slate-400 border-transparent hover:text-slate-900'
+      {/* Type Slider & Filters */}
+      <div className="flex flex-col md:flex-row items-center gap-6">
+        {/* Product/Service Slider */}
+        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full md:w-auto">
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'product', label: 'Products' },
+            { id: 'service', label: 'Services' }
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTypeFilter(t.id)}
+              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                typeFilter === t.id 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
-          >
-            <f.icon className={`w-5 h-5 transition-transform ${statusFilter === f.id ? 'scale-110' : ''}`} />
-            <span className="font-bold text-xs tracking-normal">{f.label}</span>
-          </button>
-        ))}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 p-1.5 bg-slate-50 rounded-[2rem] border border-slate-100/50 flex-1">
+          {[
+            { id: 'all', label: 'All Status', icon: FiBox },
+            { id: 'pending', label: 'Pending', icon: FiRefreshCw },
+            { id: 'delivered', label: 'Completed', icon: FiPackage },
+            { id: 'cancelled', label: 'Cancelled', icon: FiXCircle }
+          ].map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setStatusFilter(f.id)}
+              className={`flex items-center gap-2.5 px-5 py-2.5 rounded-[1.5rem] transition-all duration-300 border ${statusFilter === f.id
+                ? 'bg-white text-blue-600 shadow-md border-white'
+                : 'text-slate-400 border-transparent hover:text-slate-600'
+                }`}
+            >
+              <f.icon className="w-4 h-4" />
+              <span className="font-bold text-[10px] tracking-tight">{f.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Orders List */}
@@ -233,7 +261,18 @@ function SellerOrders() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h5 className="font-bold text-sm text-slate-800 truncate tracking-tight">{order.product?.product_name || order.product?.name || 'Asset Item'}</h5>
-                    <p className="text-xs text-slate-500 font-semibold mt-1 opacity-80">{order.quantity} Unit(s) × {formatCurrency(order.unitPrice || (order.total_amount / order.quantity))}</p>
+                    <p className="text-xs text-slate-500 font-semibold mt-1 opacity-80">
+                      {order.booking ? (
+                        <span className="text-blue-600">
+                          {order.booking.type === 'single' 
+                            ? `Scheduled: ${new Date(order.booking.startDate).toLocaleDateString()}` 
+                            : `Range: ${new Date(order.booking.startDate).toLocaleDateString()} - ${new Date(order.booking.endDate).toLocaleDateString()}`
+                          }
+                        </span>
+                      ) : (
+                        `${order.quantity} Unit(s) × ${formatCurrency(order.unitPrice || (order.total_amount / order.quantity))}`
+                      )}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valuation</p>
@@ -257,17 +296,27 @@ function SellerOrders() {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                       {order.status === 'pending_seller' && (
+                       {order.status === 'pending_seller' ? (
                          <>
                            <button 
-                             onClick={() => setActionOrder(order)}
+                             disabled={processingId === order.id}
+                             onClick={() => {
+                               setRejectionReason('Service/Product not available at the moment') // Default or open modal
+                               setActionOrder(order)
+                             }}
+                             className="px-4 py-2 rounded-xl bg-slate-100 text-[10px] font-black text-slate-400 hover:text-rose-600 hover:bg-rose-50 uppercase tracking-widest transition-all"
+                           >
+                             REJECT
+                           </button>
+                           <button 
+                             disabled={processingId === order.id}
+                             onClick={() => handleAccept(order.id)}
                              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-blue-600/10 hover:bg-blue-700 active:scale-95 transition-all"
                            >
-                             DECIDE <FiArrowUpRight className="w-3.5 h-3.5" />
+                             {processingId === order.id ? <FiRefreshCw className="animate-spin w-3 h-3" /> : 'ACCEPT'}
                            </button>
                          </>
-                       )}
-                       {order.status !== 'pending_seller' && (
+                       ) : (
                          <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-xs font-bold text-white tracking-normal shadow-lg shadow-slate-900/10 hover:bg-slate-800 active:scale-95 transition-all">
                            Details <FiEye className="w-3.5 h-3.5" />
                          </button>

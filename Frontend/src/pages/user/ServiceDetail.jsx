@@ -12,6 +12,7 @@ import { FiArrowLeft, FiCheckCircle, FiShield, FiClock, FiStar, FiChevronRight, 
 import { motion, AnimatePresence } from 'framer-motion'
 import RatingBadge from '../../components/RatingBadge'
 import DetailSkeleton from './components/DetailSkeleton'
+import Portal from '../../components/Portal'
 
 function ServiceDetail() {
   const { serviceId } = useParams()
@@ -279,7 +280,10 @@ function ServiceDetail() {
 
                   {/* Action Buttons */}
                   <div className="space-y-4">
-                    <button className="w-full h-18 bg-indigo-600 text-white font-black rounded-3xl shadow-xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                    <button 
+                      onClick={() => navigate(`/service/${service.id || service._id}/book`, { state: { product: service } })}
+                      className="w-full h-18 bg-indigo-600 text-white font-black rounded-3xl shadow-xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                    >
                       Book Now <FiChevronRight className="w-6 h-6" />
                     </button>
                     <button className="w-full h-18 bg-white border-2 border-slate-100 text-slate-600 font-bold rounded-3xl hover:bg-slate-50 transition-colors">
@@ -294,7 +298,6 @@ function ServiceDetail() {
           </div>
         </div>
       </main>
-
       <MobileBottomNav items={home?.bottomNavItems} />
     </div>
   )

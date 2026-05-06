@@ -6,7 +6,7 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from flask import send_from_directory, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, verify_jwt_in_request
 from marshmallow import ValidationError
 from app.schemas.registration_schemas import MasterRegistrationSchema, SellerRegistrationSchema
 from app.schemas.product_service_schemas import ProductCreationSchema, ServiceCreationSchema
@@ -23,6 +23,25 @@ from app.utils.validators import validate_email
 from datetime import datetime, timezone
 
 api_bp = Blueprint('api', __name__)
+
+_SELLER_PRIVATE_FIELDS = ('seller_name', 'seller_email', 'seller_phone', 'seller_phone_number')
+
+
+def _is_master_request():
+    """Return True only when request is authenticated as master."""
+    try:
+        verify_jwt_in_request(optional=True)
+        claims = get_jwt() or {}
+        return claims.get('user_type') == 'master'
+    except Exception:
+        return False
+
+
+def _sanitize_product_seller_fields(product_dict):
+    """Remove seller private profile fields from product payload."""
+    for private_key in _SELLER_PRIVATE_FIELDS:
+        product_dict.pop(private_key, None)
+    return product_dict
 
 
 @api_bp.route('/', methods=['GET'])
@@ -754,11 +773,18 @@ def get_products():
     try:
         skip = request.args.get('skip', 0, type=int)
         limit = request.args.get('limit', 100, type=int)
+        can_view_seller_private = _is_master_request()
 
         products = ProductService.get_all_products(skip=skip, limit=limit)
+        product_payload = []
+        for product in products:
+            product_dict = product.to_dict()
+            if not can_view_seller_private:
+                _sanitize_product_seller_fields(product_dict)
+            product_payload.append(product_dict)
 
         return jsonify({
-            'products': [product.to_dict() for product in products],
+            'products': product_payload,
             'count': len(products)
         }), 200
     except Exception as e:
@@ -774,6 +800,9 @@ def get_product(product_id):
             return jsonify({'error': 'Product not found'}), 404
             
         product_dict = product.to_dict()
+        can_view_seller_private = _is_master_request()
+        if not can_view_seller_private:
+            _sanitize_product_seller_fields(product_dict)
         
         # Add seller_id if available for ratings
         if product.seller_trade_id:

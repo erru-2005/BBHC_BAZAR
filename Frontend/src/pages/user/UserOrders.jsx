@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { FaArrowLeft, FaBox, FaClock, FaTruck, FaCircleXmark, FaDownload, FaCopy, FaQrcode } from 'react-icons/fa6'
+import { FaArrowLeft, FaBox, FaClock, FaTruck, FaDownload, FaCopy, FaQrcode } from 'react-icons/fa6'
 import { AnimatePresence, motion } from 'framer-motion'
 import QRCode from 'react-qr-code'
 import MainHeader from './components/MainHeader'
@@ -12,14 +12,32 @@ import { getOrders, cancelOrder } from '../../services/api'
 import { getSocket } from '../../utils/socket'
 
 const STATUS_STYLES = {
-  pending_seller: { label: 'New Order', className: 'bg-amber-100 text-amber-800 border border-amber-500' },
-  seller_accepted: { label: 'Accepted', className: 'bg-blue-100 text-blue-800 border border-blue-500' },
-  seller_rejected: { label: 'Rejected', className: 'bg-rose-100 text-rose-800 border border-rose-500' },
-  handed_over: { label: 'Handed Over', className: 'bg-purple-100 text-purple-800 border border-purple-500' },
-  completed: { label: 'Completed', className: 'bg-emerald-100 text-emerald-800 border border-emerald-500' },
-  cancelled: { label: 'Cancelled', className: 'bg-gray-100 text-gray-800 border border-gray-500' },
-  cancelled_master: { label: 'Master Cancelled', className: 'bg-gray-100 text-gray-800 border border-gray-500' }
+  pending_seller: { label: 'New Order', className: 'bg-amber-100 text-amber-800 border border-amber-200' },
+  seller_accepted: { label: 'Accepted', className: 'bg-sky-100 text-sky-800 border border-sky-200' },
+  seller_rejected: { label: 'Rejected', className: 'bg-rose-100 text-rose-800 border border-rose-200' },
+  handed_over: { label: 'Handed Over', className: 'bg-violet-100 text-violet-800 border border-violet-200' },
+  completed: { label: 'Completed', className: 'bg-emerald-100 text-emerald-800 border border-emerald-200' },
+  cancelled: { label: 'Cancelled', className: 'bg-gray-100 text-gray-700 border border-gray-200' },
+  cancelled_master: { label: 'Master Cancelled', className: 'bg-gray-100 text-gray-700 border border-gray-200' }
 }
+
+const TablerXCircle = ({ className = 'w-4 h-4' }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden="true"
+  >
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <circle cx="12" cy="12" r="9" />
+    <path d="M10 10l4 4m0 -4l-4 4" />
+  </svg>
+)
 
 function UserOrders() {
   const navigate = useNavigate()
@@ -226,12 +244,12 @@ function UserOrders() {
     return (
       <div
         key={order.id}
-        className="flex flex-col gap-3 bg-gray-50 border border-black"
+        className="flex flex-col gap-3 rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"
       >
-        <div className="flex items-start justify-between gap-3 p-4 border-b border-black">
+        <div className="flex items-start justify-between gap-3 p-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50">
           <div className="flex-1 min-w-0">
-            <p className="text-xs uppercase text-black tracking-widest truncate">Order #{order.orderNumber}</p>
-            <p className="text-xs text-black flex items-center gap-1 mt-1">
+            <p className="text-xs uppercase text-slate-700 tracking-widest truncate">Order #{order.orderNumber}</p>
+            <p className="text-xs text-slate-600 flex items-center gap-1 mt-1">
               <FaClock className="w-3 h-3" />
               {createdAt ? new Date(createdAt).toLocaleString('en-IN', {
                 year: 'numeric',
@@ -242,7 +260,7 @@ function UserOrders() {
               }) : '—'}
             </p>
           </div>
-          <span className={`px-2 py-1 text-xs font-semibold whitespace-nowrap ${status.className}`}>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${status.className}`}>
             {status.label}
           </span>
         </div>
@@ -251,15 +269,15 @@ function UserOrders() {
           <img
             src={productImg}
             alt={productName}
-            className="w-16 h-16 object-cover border border-black flex-shrink-0"
+            className="w-16 h-16 object-cover rounded-lg border border-slate-200 flex-shrink-0"
           />
           <div className="flex-1 min-w-0 space-y-1">
-            <h3 className="text-sm font-semibold text-black truncate">{productName}</h3>
-            <p className="text-xs text-black">Quantity: {order.quantity}</p>
-            <p className="text-sm text-black">
+            <h3 className="text-sm font-semibold text-slate-900 truncate">{productName}</h3>
+            <p className="text-xs text-slate-600">Quantity: {order.quantity}</p>
+            <p className="text-sm text-slate-700">
               Total: <span className="font-bold">₹{totalAmount}</span>
             </p>
-            <p className="text-xs text-black flex items-center gap-1">
+            <p className="text-xs text-slate-600 flex items-center gap-1">
               <FaTruck className="w-3 h-3" />
               <span className="truncate">{order.pickupLocation || order.pickup_location || 'BBHCBazaar outlet'}</span>
             </p>
@@ -269,9 +287,9 @@ function UserOrders() {
         {token && (
           <div className="px-4 pb-3 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-black font-medium">Token:</span>
-              <div className="flex-1 min-w-0 flex items-center gap-2 bg-white border border-gray-300 px-2 py-1">
-                <p className="text-xs font-mono text-black break-all flex-1">{token}</p>
+              <span className="text-xs text-slate-700 font-medium">Token:</span>
+              <div className="flex-1 min-w-0 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
+                <p className="text-xs font-mono text-slate-700 break-all flex-1">{token}</p>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -279,7 +297,7 @@ function UserOrders() {
                     e.stopPropagation()
                     copyToken(token)
                   }}
-                  className="flex-shrink-0 p-1 hover:bg-black hover:text-white transition border-0 bg-transparent cursor-pointer"
+                  className="flex-shrink-0 p-1.5 rounded-md hover:bg-slate-200 text-slate-600 transition border-0 bg-transparent cursor-pointer"
                   title="Copy token"
                 >
                   <FaCopy className="w-3 h-3" />
@@ -292,7 +310,7 @@ function UserOrders() {
                       e.stopPropagation()
                       setActiveOrder(order)
                     }}
-                    className="flex-shrink-0 p-1 hover:bg-black hover:text-white transition border-0 bg-transparent cursor-pointer"
+                    className="flex-shrink-0 p-1.5 rounded-md hover:bg-slate-200 text-slate-600 transition border-0 bg-transparent cursor-pointer"
                     title="View QR Code"
                   >
                     <FaQrcode className="w-3 h-3" />
@@ -314,9 +332,9 @@ function UserOrders() {
                 handleCancelOrder(order.id)
               }}
               disabled={cancelingId === order.id}
-              className="w-full inline-flex items-center justify-center gap-2 border border-red-500 bg-red-50 text-red-700 font-semibold py-2 hover:bg-red-100 transition disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm font-medium px-3 py-1.5 hover:bg-red-100 transition disabled:opacity-50"
             >
-              <FaCircleXmark className="w-4 h-4" />
+              <TablerXCircle className="w-3.5 h-3.5" />
               {cancelingId === order.id ? 'Cancelling...' : 'Cancel Order'}
             </button>
           </div>
@@ -328,7 +346,7 @@ function UserOrders() {
   const showEmptyState = !loading && orders.length === 0
 
   return (
-    <div className="min-h-screen bg-white pb-24 lg:pb-6">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-sky-50 pb-24 lg:pb-6">
       <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
         <MobileSearchBar />
       </MainHeader>
@@ -337,40 +355,40 @@ function UserOrders() {
         open={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
       />
-      <div className="space-y-4 text-black">
+      <div className="space-y-4 text-slate-900">
 
 
-        <div className="border-b border-black p-4 space-y-3">
-          <div className="text-center space-y-2">
-            <FaBox className="w-10 h-10 text-black mx-auto" />
-            <h1 className="text-xl font-bold">Your Orders</h1>
-            <p className="text-sm text-black">
+        <div className="p-4 md:p-5 max-w-5xl mx-auto space-y-4">
+          <div className="text-center space-y-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <FaBox className="w-10 h-10 text-blue-600 mx-auto" />
+            <h1 className="text-2xl font-bold text-slate-900">Your Orders</h1>
+            <p className="text-sm text-slate-600">
               Hi {user?.first_name || 'there'}, track your purchases and pickup instructions here.
             </p>
           </div>
 
           {error && (
-            <div className="border border-red-500 bg-red-50 p-3 text-sm text-red-700">
+            <div className="border border-red-200 bg-red-50 rounded-xl p-3 text-sm text-red-700">
               {error}
             </div>
           )}
 
           {loading ? (
-            <div className="text-center text-black py-10">Loading your orders...</div>
+            <div className="text-center text-slate-600 py-10 bg-white rounded-2xl border border-slate-200 shadow-sm">Loading your orders...</div>
           ) : showEmptyState ? (
-            <div className="border border-black bg-gray-50 p-6 text-center space-y-4">
-              <p className="text-black">
+            <div className="border border-slate-200 bg-white rounded-2xl shadow-sm p-6 text-center space-y-4">
+              <p className="text-slate-600">
                 Once you place an order, it will appear here with real-time status updates.
               </p>
               <button
                 onClick={() => navigate('/')}
-                className="px-6 py-3 border border-black bg-white text-black font-semibold hover:bg-black hover:text-white transition"
+                className="px-6 py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100 transition"
               >
                 Start Shopping
               </button>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {orders.map(renderOrderCard)}
             </div>
           )}
@@ -384,7 +402,7 @@ function UserOrders() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4"
+            className="fixed inset-0 bg-slate-900/55 backdrop-blur-sm z-50 flex items-center justify-center px-4"
             onClick={() => setActiveOrder(null)}
           >
             <motion.div
@@ -392,33 +410,34 @@ function UserOrders() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-black w-full max-w-md text-center space-y-4 p-6"
+              className="bg-gradient-to-b from-emerald-50 to-white border border-emerald-200 text-center space-y-4 p-5 sm:p-6 rounded-3xl shadow-2xl"
+              style={{ width: 'clamp(18rem, 92vw, 34rem)' }}
             >
-              <h3 className="text-lg font-semibold text-black">Order Details</h3>
-              <p className="text-sm text-black">{getStatusMessage(activeOrder)}</p>
+              <h3 className="text-2xl font-bold text-emerald-900">Order Details</h3>
+              <p className="text-sm text-slate-700 leading-relaxed">{getStatusMessage(activeOrder)}</p>
 
               {(activeOrder.status === 'cancelled' || activeOrder.status === 'cancelled_master' || activeOrder.status === 'seller_rejected') ? (
-                <p className="text-sm text-black">
+                <p className="text-sm text-slate-600">
                   This order is no longer active. QR code is not available.
                 </p>
               ) : (activeOrder.status === 'pending_seller') ? (
-                <p className="text-sm text-black">
+                <p className="text-sm text-slate-600">
                   Waiting for seller to accept your order. QR code will be available once accepted.
                 </p>
               ) : (activeOrder.secureTokenUser || activeOrder.qrCodeData) ? (
                 <>
-                  <p className="text-sm text-black">
+                  <p className="text-sm text-slate-700">
                     Show this code at the BBHCBazaar outlet to complete payment and collect your product.
                   </p>
-                  <div className="inline-block bg-white border border-black p-4" ref={qrPreviewRef}>
+                  <div className="inline-block bg-white border border-emerald-200 rounded-2xl p-4 shadow-sm" ref={qrPreviewRef}>
                     <QRCode
                       value={activeOrder.secureTokenUser || activeOrder.qrCodeData || activeOrder.qr_code_data || ''}
                       size={200}
                     />
                   </div>
                   {activeOrder.secureTokenUser && (
-                    <div className="flex items-center gap-2 justify-center flex-wrap">
-                      <p className="text-xs text-black font-mono break-all">
+                    <div className="flex items-center gap-2 justify-center flex-wrap bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                      <p className="text-xs text-emerald-900 font-mono break-all">
                         Token: {activeOrder.secureTokenUser}
                       </p>
                       <button
@@ -428,7 +447,7 @@ function UserOrders() {
                           e.stopPropagation()
                           copyToken(activeOrder.secureTokenUser)
                         }}
-                        className="p-1 border border-black hover:bg-black hover:text-white transition bg-white cursor-pointer"
+                        className="p-1.5 border border-emerald-200 rounded-md hover:bg-emerald-100 text-emerald-800 transition bg-white cursor-pointer"
                         title="Copy token"
                       >
                         <FaCopy className="w-3 h-3" />
@@ -440,24 +459,24 @@ function UserOrders() {
                   )}
                   <button
                     onClick={downloadActiveOrderQR}
-                    className="w-full inline-flex items-center justify-center gap-2 border border-black bg-white text-black font-semibold py-3 hover:bg-black hover:text-white transition"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-700 text-white font-semibold py-2.5 hover:bg-emerald-800 transition"
                   >
                     <FaDownload className="w-4 h-4" />
                     Download QR
                   </button>
                 </>
               ) : (
-                <p className="text-sm text-black">
+                <p className="text-sm text-slate-600">
                   QR code will be available once the seller accepts your order.
                 </p>
               )}
 
-              <p className="text-xs text-black uppercase tracking-widest">
+              <p className="text-xs text-slate-500 uppercase tracking-[0.2em]">
                 Order #{activeOrder.orderNumber}
               </p>
               <button
                 onClick={() => setActiveOrder(null)}
-                className="w-full border border-black bg-white text-black font-semibold py-3 hover:bg-black hover:text-white transition"
+                className="w-full rounded-xl border border-emerald-200 bg-white text-emerald-800 font-semibold py-2.5 hover:bg-emerald-50 transition"
               >
                 Close
               </button>

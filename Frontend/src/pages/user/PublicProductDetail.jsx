@@ -12,13 +12,12 @@ import { getProducts, addToBag } from '../../services/api'
 import { FaHeart, FaShoppingBag, FaMinus, FaPlus } from 'react-icons/fa'
 import StarRating from '../../components/StarRating'
 import RatingBadge from '../../components/RatingBadge'
-import { addToWishlist, removeFromWishlist, getProductRatingStats, getSellerRatingStats } from '../../services/api'
+import { addToWishlist, removeFromWishlist, getProductRatingStats } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
 import { getSocket, initSocket } from '../../utils/socket'
 import HeartBurst from '../../components/HeartBurst'
 import Toast from '../../components/Toast'
 import { getImageUrl } from '../../utils/image'
-import { FiStar } from 'react-icons/fi'
 
 // Sub-component for animated wishlist button (Other Products)
 const WishlistActionButton = ({ productId, isWishlisted, onToggle, isAuthenticated, userType, navigate }) => {
@@ -90,7 +89,6 @@ function PublicProductDetail() {
   const isWishlisted = product ? wishlistIds.includes(String(product.id || product._id)) : false
   const [wishlistLoading, setWishlistLoading] = useState(false)
   const [ratingStats, setRatingStats] = useState(null)
-  const [sellerRatingStats, setSellerRatingStats] = useState(null)
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
 
@@ -202,18 +200,13 @@ function PublicProductDetail() {
         const stats = await getProductRatingStats(id)
         setRatingStats(stats || null)
         
-        // Also fetch seller rating if product data is available
-        if (product?.seller_id) {
-          const sStats = await getSellerRatingStats(product.seller_id)
-          setSellerRatingStats(sStats)
-        }
       } catch {
         setRatingStats(null)
       }
     }
 
     loadStats()
-  }, [productId, product?.seller_id])
+  }, [productId])
 
   // Listen for real-time rating updates
   useEffect(() => {
@@ -462,27 +455,6 @@ function PublicProductDetail() {
                 <FaShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
                 {addingToBag ? 'Adding...' : 'Add to bag'}
               </button>
-
-              {/* Seller Info */}
-              <div className="bg-slate-900 rounded-[30px] p-6 text-white flex items-center justify-between border border-white/5 shadow-xl mt-4">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Provided By</p>
-                  <p className="text-base sm:text-lg font-black leading-tight mb-1 truncate">{product.seller_name || 'Expert Partner'}</p>
-                  
-                  {sellerRatingStats && (
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-0.5 text-amber-400">
-                        <FiStar className="fill-current w-3 h-3" />
-                        <span className="text-xs font-black text-white">{sellerRatingStats.average_rating || '5.0'}</span>
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-400">({sellerRatingStats.total_ratings || 0} reviews)</span>
-                    </div>
-                  )}
-                </div>
-                <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg border border-white/20 ml-4">
-                  { (product.seller_name || 'E')[0].toUpperCase() }
-                </div>
-              </div>
 
               {/* Star Rating Panel */}
               <div className="pt-3 sm:pt-4 border-t border-gray-200">

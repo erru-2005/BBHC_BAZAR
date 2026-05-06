@@ -31,7 +31,8 @@ import {
   SellerMyServices,
   SellerAddService,
   SellerSettings,
-  SellerProfilePage
+  SellerProfilePage,
+  ServiceBooking
 } from './pages'
 import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -303,6 +304,7 @@ function SplashWrapper() {
               <Route path="/product/:productId/buy" element={<BuyNow />} />
               <Route path="/service/:serviceId" element={<ServiceDetail />} />
               <Route path="/service/public/:serviceId" element={<ServiceDetail />} />
+              <Route path="/service/:serviceId/book" element={<ServiceBooking />} />
               <Route element={<ProtectedRoute requiredUserType="seller"><SellerLayout /></ProtectedRoute>}>
                 <Route path="/seller/dashboard" element={<Seller />} />
                 <Route path="/seller/products" element={<SellerMyProducts />} />

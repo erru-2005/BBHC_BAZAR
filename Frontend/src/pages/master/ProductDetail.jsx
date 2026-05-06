@@ -83,10 +83,6 @@ function MasterProductDetail() {
     )
   }
 
-  const sellerFullName = [product.seller_name || product.seller_trade_id].filter(Boolean).join(' ')
-  const sellerTradeId = product.seller_trade_id || product.created_by_user_id || product.created_by || '—'
-  const sellerEmail = product.seller_email || product.created_by_email || '—'
-  const sellerPhone = product.seller_phone || product.seller_phone_number || '—'
   const quantityValue =
     product.quantity || product.stock || product.available_quantity || product.inventory || null
 
@@ -142,22 +138,6 @@ function MasterProductDetail() {
                   )}
                 </div>
               )}
-
-              <div className="border border-gray-200 rounded-2xl p-4 bg-slate-50 space-y-3">
-                <p className="text-[11px] uppercase tracking-widest text-gray-500">Seller</p>
-                {sellerFullName ? (
-                  <>
-                    <p className="text-lg font-semibold text-gray-900">{sellerFullName}</p>
-                    <div className="text-sm text-gray-600 space-y-1">
-                      {sellerTradeId && <p>Trade ID: {sellerTradeId}</p>}
-                      {sellerEmail && sellerEmail !== '—' && <p>Email: {sellerEmail}</p>}
-                      {sellerPhone && sellerPhone !== '—' && <p>Phone: {sellerPhone}</p>}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-500">No seller information available.</p>
-                )}
-              </div>
 
               <div>
                 <p className="text-xs uppercase tracking-widest text-gray-500 mb-2">Specification</p>

@@ -183,6 +183,7 @@ def create_order():
             'address': user_snapshot.get('address')
         },
         'seller_snapshot': seller_snapshot,
+        'booking': payload.get('booking'),
         'metadata': {
             'source': payload.get('source') or 'buy_now',
             'platform': payload.get('platform') or 'web',

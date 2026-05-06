@@ -35,6 +35,8 @@ function BuyNow() {
   const [showSuccess, setShowSuccess] = useState(false)
   const successQrRef = useRef(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const bookingData = location.state?.booking || null
+  const isService = !!bookingData
 
   const downloadSvgFromRef = (node, filename) => {
     if (!node) return
@@ -109,6 +111,7 @@ function BuyNow() {
   }
 
   const handleIncrease = () => {
+    if (isService) return
     setQuantity((prev) => Math.min(availableQuantity, prev + 1))
   }
 
@@ -122,7 +125,8 @@ function BuyNow() {
     try {
       const payload = {
         product_id: product.id || product._id,
-        quantity,
+        quantity: isService ? 1 : quantity,
+        booking: bookingData,
         platform: 'web',
         device: navigator.userAgent
       }
@@ -149,7 +153,7 @@ function BuyNow() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-emerald-50 text-slate-900">
       <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
         <MobileSearchBar />
       </MainHeader>
@@ -159,63 +163,74 @@ function BuyNow() {
         onClose={() => setMobileMenuOpen(false)}
       />
 
-      <main className="max-w-5xl mx-auto space-y-6 pb-24 lg:pb-8">
+      <main className="max-w-5xl mx-auto space-y-5 px-3 sm:px-4 pb-24 lg:pb-8">
         <button
           onClick={() => navigate(`/product/${productId}`)}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-black hover:opacity-70 transition-opacity"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-full px-4 py-2 hover:bg-emerald-50 transition"
         >
           <FaArrowLeft className="w-4 h-4" /> Back to product
         </button>
 
-        <div className="bg-white border border-black overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
           <div className="grid lg:grid-cols-2 gap-0">
-            <div className="p-8 border-b lg:border-b-0 lg:border-r border-black flex flex-col gap-5">
+            <div className="p-5 sm:p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col gap-5">
               <div className="flex items-start gap-4">
                 <img
                   src={product.thumbnail}
                   alt={product.product_name}
-                  className="w-24 h-24 object-cover border border-black"
+                  className="w-24 h-24 object-cover rounded-xl border border-slate-200"
                 />
                 <div className="flex-1">
-                  <p className="text-xs uppercase tracking-widest text-black">Product</p>
-                  <h1 className="text-2xl font-semibold mt-1 text-black">{product.product_name}</h1>
-                  <p className="text-sm text-black mt-1">
+                  <p className="text-xs uppercase tracking-widest text-slate-500">Product</p>
+                  <h1 className="text-2xl font-semibold mt-1 text-slate-900">{product.product_name}</h1>
+                  <p className="text-sm text-slate-600 mt-1">
                     {product.categories?.[0] || 'BBHCBazaar Collection'}
                   </p>
                 </div>
               </div>
 
-              <div className="border border-black p-4">
+              <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs uppercase tracking-widest text-black">Quantity</p>
-                    <p className="text-sm text-black">Max available: {availableQuantity}</p>
+                    <p className="text-xs uppercase tracking-widest text-slate-500">
+                      {isService ? 'Schedule' : 'Quantity'}
+                    </p>
+                    {isService ? (
+                      <p className="text-sm font-bold text-blue-600 mt-1">
+                        {bookingData.type === 'single' 
+                          ? `On ${new Date(bookingData.startDate).toLocaleDateString()}` 
+                          : `${new Date(bookingData.startDate).toLocaleDateString()} - ${new Date(bookingData.endDate).toLocaleDateString()}`
+                        }
+                      </p>
+                    ) : null}
                   </div>
-                  <div className="inline-flex items-center bg-white border border-black">
-                    <button
-                      onClick={handleDecrease}
-                      className="p-2 text-black hover:opacity-70 disabled:opacity-40"
-                      disabled={quantity <= 1}
-                      aria-label="Decrease quantity"
-                    >
-                      <FaMinus className="w-3 h-3" />
-                    </button>
-                    <span className="px-4 font-semibold text-lg text-black">{quantity}</span>
-                    <button
-                      onClick={handleIncrease}
-                      className="p-2 text-black hover:opacity-70 disabled:opacity-40"
-      disabled={quantity >= availableQuantity}
-                      aria-label="Increase quantity"
-                    >
-                      <FaPlus className="w-3 h-3" />
-                    </button>
-                  </div>
+                  {!isService && (
+                    <div className="inline-flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                      <button
+                        onClick={handleDecrease}
+                        className="p-2 text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                        disabled={quantity <= 1}
+                        aria-label="Decrease quantity"
+                      >
+                        <FaMinus className="w-3 h-3" />
+                      </button>
+                      <span className="px-4 font-semibold text-lg text-slate-900">{quantity}</span>
+                      <button
+                        onClick={handleIncrease}
+                        className="p-2 text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                        disabled={quantity >= availableQuantity}
+                        aria-label="Increase quantity"
+                      >
+                        <FaPlus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="border border-black p-4 bg-white">
-                <p className="text-xs uppercase tracking-widest text-black mb-2">Order info</p>
-                <ul className="text-sm text-black space-y-2 list-disc list-inside">
+              <div className="border border-emerald-200 rounded-2xl p-4 bg-emerald-50/60">
+                <p className="text-xs uppercase tracking-widest text-emerald-700 mb-2">Order info</p>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside">
                   <li>Collect your product at the BBHCBazaar outlet.</li>
                   <li>Scan the generated QR code at the pickup counter to pay securely.</li>
                   <li>Your Orders will be visible instantly under Menu &gt; Orders .</li>
@@ -223,9 +238,9 @@ function BuyNow() {
               </div>
             </div>
 
-            <div className="p-8 space-y-5">
-              <div className="border border-black bg-white p-4 space-y-2">
-                <div className="flex justify-between text-sm text-black">
+            <div className="p-5 sm:p-6 lg:p-8 space-y-5">
+              <div className="border border-slate-200 bg-slate-50 rounded-2xl p-4 space-y-2">
+                <div className="flex justify-between text-sm text-slate-700">
                   <span>Unit price</span>
                   <span>₹{Number(product.total_selling_price || product.selling_price || product.max_price || 0).toLocaleString('en-IN')}</span>
                 </div>
@@ -235,18 +250,18 @@ function BuyNow() {
                     <span>₹{Number((product.selling_price * product.commission_rate / 100) || 0).toLocaleString('en-IN')}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm text-black">
+                <div className="flex justify-between text-sm text-slate-700">
                   <span>Quantity</span>
                   <span>{quantity}</span>
                 </div>
-                <div className="border-t border-black pt-3 flex justify-between items-center">
-                  <span className="text-sm font-semibold text-black">Total</span>
-                  <span className="text-2xl font-black text-black">₹{total.toLocaleString('en-IN')}</span>
+                <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
+                  <span className="text-sm font-semibold text-slate-800">Total</span>
+                  <span className="text-2xl font-black text-emerald-700">₹{total.toLocaleString('en-IN')}</span>
                 </div>
               </div>
 
               {error && (
-                <div className="border border-black bg-white px-4 py-3 text-sm text-black">
+                <div className="border border-red-200 bg-red-50 rounded-xl px-4 py-3 text-sm text-red-700">
                   {error}
                 </div>
               )}
@@ -254,7 +269,7 @@ function BuyNow() {
               <button
                 onClick={handleConfirm}
                 disabled={loading}
-                className="w-full bg-black text-white font-semibold py-3.5 text-sm uppercase tracking-widest hover:opacity-80 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="w-full rounded-xl bg-emerald-700 text-white font-semibold py-3.5 text-sm uppercase tracking-widest hover:bg-emerald-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm"
               >
                 {loading ? 'Processing...' : 'Confirm purchase'}
               </button>

@@ -32,4 +32,5 @@ export { default as Wishlist } from './user/Wishlist'
 export { default as SearchResults } from './user/SearchResults'
 export { default as SellerSettings } from './seller/Settings'
 export { default as SellerProfilePage } from './seller/SellerProfilePage'
+export { default as ServiceBooking } from './user/ServiceBooking'
 
