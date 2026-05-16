@@ -17,7 +17,7 @@ export default function AddProductOverlay({ isOpen, onClose }) {
     }, [isOpen])
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center pointer-events-none">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
             {/* Backdrop Blur */}
             <motion.div
                 initial={{ opacity: 0 }}
@@ -29,38 +29,33 @@ export default function AddProductOverlay({ isOpen, onClose }) {
 
             {/* The Blooming Card */}
             <motion.div
-                layoutId="add-product-fab"
                 initial={{ 
-                    scale: 0.1, 
+                    scale: 0.95, 
                     opacity: 0, 
-                    borderRadius: "9999px",
-                    y: 100 
+                    y: 20 
                 }}
                 animate={{ 
                     scale: 1, 
                     opacity: 1, 
-                    borderRadius: "3rem",
                     y: 0 
                 }}
                 exit={{ 
-                    scale: 0.1, 
+                    scale: 0.95, 
                     opacity: 0, 
-                    borderRadius: "9999px",
-                    y: 100 
+                    y: 20 
                 }}
-                className="relative w-full h-[100dvh] sm:h-auto sm:max-w-4xl sm:max-h-[90vh] bg-white sm:rounded-[3.5rem] shadow-[0_80px_120px_-30px_rgba(15,23,42,0.5)] border-t sm:border border-slate-100 overflow-hidden pointer-events-auto flex flex-col"
+                className="relative w-[clamp(280px,88vw,1000px)] h-[clamp(440px,82vh,850px)] md:w-[clamp(320px,95vw,1000px)] md:h-[clamp(500px,90vh,850px)] bg-white rounded-[2.5rem] md:rounded-[3.5rem] shadow-[0_80px_120px_-30px_rgba(15,23,42,0.5)] border border-slate-100 overflow-hidden pointer-events-auto flex flex-col"
                 transition={{
                     type: "spring",
-                    stiffness: 260,
-                    damping: 30,
-                    mass: 1.2
+                    stiffness: 300,
+                    damping: 30
                 }}
             >
                 {/* Header */}
                 <motion.div 
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1, duration: 0.5 }}
+                    transition={{ duration: 0.3 }}
                     className="flex flex-col sm:flex-row sm:items-center justify-between px-8 py-10 sm:py-10 border-b border-slate-100 bg-white/40 backdrop-blur-3xl sticky top-0 z-20 gap-6"
                 >
                     <div className="space-y-1">
@@ -101,7 +96,7 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2, duration: 0.8 }}
+                    transition={{ duration: 0.4 }}
                     className="flex-1 overflow-y-auto no-scrollbar scroll-smooth"
                 >
                     <div className="p-6 md:p-10 lg:p-12">
@@ -114,7 +109,7 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                             {mode === 'product' ? (
                                 <SellerProductForm onClose={onClose} />
                             ) : (
-                                <ServiceForm />
+                                <ServiceForm onClose={onClose} />
                             )}
                         </motion.div>
                     </div>

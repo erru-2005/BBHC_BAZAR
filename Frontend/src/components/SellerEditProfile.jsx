@@ -71,7 +71,8 @@ function SellerEditProfile({ open, onClose, user }) {
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="w-full max-w-md max-h-[90vh] overflow-y-auto no-scrollbar rounded-[3rem] bg-white border border-slate-100 shadow-[0_40px_100px_-20px_rgba(15,23,42,0.25)] relative"
+        className="w-full max-h-[90vh] overflow-y-auto no-scrollbar rounded-[3rem] bg-white border border-slate-100 shadow-[0_40px_100px_-20px_rgba(15,23,42,0.25)] relative"
+        style={{ width: 'clamp(320px, 95%, 480px)' }}
       >
         {/* Top Header / Banner */}
         <div className="relative h-40 flex items-center justify-center">

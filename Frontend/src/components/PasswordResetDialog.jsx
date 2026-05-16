@@ -155,7 +155,8 @@ function PasswordResetDialog({
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md max-h-[90vh] overflow-y-auto no-scrollbar rounded-[2.5rem] bg-white border border-slate-100 shadow-[0_40px_80px_-20px_rgba(15,23,42,0.25)]"
+        className="w-full max-h-[90vh] overflow-y-auto no-scrollbar rounded-[2.5rem] bg-white border border-slate-100 shadow-[0_40px_80px_-20px_rgba(15,23,42,0.25)]"
+        style={{ width: 'clamp(320px, 95%, 450px)' }}
       >
         <div className="flex items-center justify-between border-b border-slate-50 px-8 py-6 bg-slate-50/30">
           <div>

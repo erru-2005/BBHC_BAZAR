@@ -159,16 +159,16 @@ export default function SellerAnalytics() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1, type: "spring", stiffness: 100 }}
-            whileHover={{ y: -8, boxShadow: "0 25px 50px -12px rgba(0,0,0,0.15)" }}
-            className="seller-card-premium p-8 relative overflow-hidden group border-2 border-transparent hover:border-blue-500/20"
+            whileHover={{ y: -8, scale: 1.02 }}
+            className={`p-8 relative overflow-hidden group border border-white/60 rounded-[2.5rem] bg-${item.color}-50/30 backdrop-blur-md shadow-xl shadow-blue-900/5`}
           >
-            <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full opacity-[0.03] group-hover:opacity-[0.08] group-hover:scale-150 transition-all duration-700 bg-slate-900`} />
+            <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full opacity-[0.2] group-hover:opacity-[0.3] group-hover:scale-150 transition-all duration-700 bg-white`} />
             
             <div className="flex items-center justify-between mb-6">
-              <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center text-${item.color}-600 bg-slate-50 shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-all duration-300`}>
+              <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center text-${item.color}-600 bg-white shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all duration-300`}>
                 <item.icon className="w-7 h-7" />
               </div>
-              <div className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-tight shadow-sm">
+              <div className="flex items-center gap-1.5 text-emerald-600 bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full text-[11px] font-bold tracking-tight shadow-sm border border-white/40">
                 <FiArrowUpRight strokeWidth={2.5} /> {item.trends}
               </div>
             </div>
@@ -188,7 +188,7 @@ export default function SellerAnalytics() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="lg:col-span-2 seller-card-premium p-10 min-h-[500px] flex flex-col gap-8 shadow-xl"
+          className="lg:col-span-2 bg-blue-50/20 backdrop-blur-xl border border-white/60 rounded-[3rem] p-10 min-h-[500px] flex flex-col gap-8 shadow-xl shadow-blue-900/5"
         >
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
@@ -247,7 +247,7 @@ export default function SellerAnalytics() {
              </div>
           </div>
 
-          <div className="seller-card-premium p-8 h-[280px] border-2 border-slate-100 flex flex-col justify-center items-center gap-6 group hover:border-blue-500/40 transition-all duration-500 bg-white shadow-xl">
+          <div className="bg-blue-50/30 backdrop-blur-md p-8 h-[280px] border border-white/60 rounded-[2.5rem] flex flex-col justify-center items-center gap-6 group hover:border-blue-500/40 transition-all duration-500 shadow-xl shadow-blue-900/5">
              <div className="w-16 h-16 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-all duration-500 shadow-sm">
                 <FiPackage className="w-8 h-8" />
              </div>

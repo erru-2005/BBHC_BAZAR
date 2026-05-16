@@ -54,7 +54,7 @@ class OrderService:
 
     @staticmethod
     def create_order(order_data):
-        """Insert a new order document."""
+        """Insert a new order document into the appropriate collection."""
         order_data = order_data.copy()
         order_data['order_number'] = order_data.get('order_number') or OrderService.generate_order_number()
         order_data['product_id'] = OrderService._ensure_object_id(order_data['product_id'])
@@ -67,6 +67,13 @@ class OrderService:
         order_data['updated_at'] = datetime.now(timezone.utc)
         order_data['status'] = order_data.get('status', 'pending_seller')
         
+        # Detect if it's a service order
+        product_snapshot = order_data.get('product_snapshot') or {}
+        product_name = (product_snapshot.get('name') or product_snapshot.get('product_name') or '').lower()
+        is_service = bool(order_data.get('booking')) or 'creativework' in product_name or 'service' in product_name
+        
+        order_data['type'] = 'service' if is_service else 'product'
+
         # Initialize status history
         if 'status_history' not in order_data:
             order_data['status_history'] = [{
@@ -76,46 +83,69 @@ class OrderService:
             }]
 
         order = Order(**order_data)
-        result = mongo.db.orders.insert_one(order.to_bson())
+        collection = mongo.db.service_orders if is_service else mongo.db.orders
+        result = collection.insert_one(order.to_bson())
         order._id = result.inserted_id
         return order
 
     @staticmethod
     def get_orders(filter_query=None, page=1, limit=10):
-        """Fetch orders that match a filter with pagination."""
+        """Fetch orders from both product and service collections, merged and sorted."""
         filter_query = filter_query or {}
         skip = (page - 1) * limit
         
-        total = mongo.db.orders.count_documents(filter_query)
+        # Count documents in both collections
+        count_products = mongo.db.orders.count_documents(filter_query)
+        count_services = mongo.db.service_orders.count_documents(filter_query)
+        total = count_products + count_services
         
-        cursor = (
-            mongo.db.orders
-            .find(filter_query)
-            .sort('created_at', -1)
-            .skip(skip)
-            .limit(limit)
-        )
-        orders = [Order.from_bson(doc) for doc in cursor]
+        # Since we need to merge and sort across collections, we fetch a bit more then merge
+        # but for simple pagination we just query both and merge.
+        # This is a basic implementation of merging two sorted streams.
+        cursor_products = mongo.db.orders.find(filter_query).sort('created_at', -1).limit(skip + limit)
+        cursor_services = mongo.db.service_orders.find(filter_query).sort('created_at', -1).limit(skip + limit)
+        
+        all_docs = list(cursor_products) + list(cursor_services)
+        # Sort merged list by created_at descending
+        all_docs.sort(key=lambda x: x.get('created_at', datetime.min), reverse=True)
+        
+        # Apply pagination
+        paged_docs = all_docs[skip : skip + limit]
+        orders = [Order.from_bson(doc) for doc in paged_docs]
         return orders, total
 
     @staticmethod
     def get_order_by_id(order_id):
         try:
-            doc = mongo.db.orders.find_one({'_id': ObjectId(order_id)})
+            oid = ObjectId(order_id)
+            # Try product orders first
+            doc = mongo.db.orders.find_one({'_id': oid})
+            if not doc:
+                # Then try service orders
+                doc = mongo.db.service_orders.find_one({'_id': oid})
             return Order.from_bson(doc)
         except Exception:
             return None
 
     @staticmethod
     def get_order_by_token(token):
-        """Find order by secure token (user or seller)."""
+        """Find order by secure token in either collection."""
         try:
+            # Try product orders
             doc = mongo.db.orders.find_one({
                 '$or': [
                     {'secure_token_user': token},
                     {'secure_token_seller': token}
                 ]
             })
+            if not doc:
+                # Try service orders
+                doc = mongo.db.service_orders.find_one({
+                    '$or': [
+                        {'secure_token_user': token},
+                        {'secure_token_seller': token}
+                    ]
+                })
             return Order.from_bson(doc)
         except Exception:
             return None
@@ -159,7 +189,10 @@ class OrderService:
             'updated_by': updated_by
         })
 
-        result = mongo.db.orders.update_one(
+        # Identify collection based on type
+        collection = mongo.db.service_orders if current_order.type == 'service' else mongo.db.orders
+
+        result = collection.update_one(
             {'_id': order_obj_id},
             {
                 '$set': {
@@ -215,39 +248,68 @@ class OrderService:
         if str(order.seller_id) != str(seller_id):
             return None, "Order does not belong to this seller"
 
-        # Generate secure tokens
-        user_token = OrderService.generate_secure_token(
-            str(order._id), str(order.seller_id), str(order.user_id), 'user'
-        )
-        seller_token = OrderService.generate_secure_token(
-            str(order._id), str(order.seller_id), str(order.user_id), 'seller'
-        )
+        # Detect if it's a service order using explicit type field
+        is_service = order.type == 'service' or bool(order.booking)
+        
+        # Determine target collection
+        collection = mongo.db.service_orders if is_service else mongo.db.orders
+        
+        if is_service:
+            # For services, accept means direct completion and credit deduction
+            from app.services.seller_service import SellerService
+            
+            # Check if seller has enough credits (25 required)
+            seller = SellerService.get_seller_by_id(seller_id)
+            if not seller or seller.credits < 25:
+                return None, "Insufficient credits (25 required to accept service)"
 
-        # Generate QR code data (tokens will be used for scanning)
-        qr_data_user = f"BBHC|ORDER:{order.order_number}|TOKEN:{user_token}"
-        qr_data_seller = f"BBHC|ORDER:{order.order_number}|TOKEN:{seller_token}"
-
-        # Update order
-        result = mongo.db.orders.update_one(
-            {'_id': order_obj_id},
-            {
-                '$set': {
-                    'status': 'seller_accepted',
-                    'secure_token_user': user_token,
-                    'secure_token_seller': seller_token,
-                    'qr_code_data': qr_data_user,
-                    'updated_at': datetime.now(timezone.utc)
-                },
-                '$push': {
-                    'status_history': {
-                        'status': 'seller_accepted',
-                        'timestamp': datetime.now(timezone.utc),
-                        'note': 'Seller accepted the order',
-                        'updated_by': f'seller:{seller_id}'
+            # Deduct 25 credits
+            SellerService.deduct_credits(seller_id, 25)
+            
+            # Update order to completed in service_orders
+            result = collection.update_one(
+                {'_id': order_obj_id},
+                {
+                    '$set': {
+                        'status': 'completed',
+                        'updated_at': datetime.now(timezone.utc)
+                    },
+                    '$push': {
+                        'status_history': {
+                            'status': 'completed',
+                            'timestamp': datetime.now(timezone.utc),
+                            'note': 'Service accepted and completed (25 credits deducted)',
+                            'updated_by': f'seller:{seller_id}'
+                        }
                     }
                 }
-            }
-        )
+            )
+        else:
+            # For products, keep existing logic (seller_accepted -> tokens -> QR)
+            user_token = OrderService.generate_secure_token(str(order._id), str(order.seller_id), str(order.user_id), 'user')
+            seller_token = OrderService.generate_secure_token(str(order._id), str(order.seller_id), str(order.user_id), 'seller')
+            qr_data_user = f"BBHC|ORDER:{order.order_number}|TOKEN:{user_token}"
+
+            result = collection.update_one(
+                {'_id': order_obj_id},
+                {
+                    '$set': {
+                        'status': 'seller_accepted',
+                        'secure_token_user': user_token,
+                        'secure_token_seller': seller_token,
+                        'qr_code_data': qr_data_user,
+                        'updated_at': datetime.now(timezone.utc)
+                    },
+                    '$push': {
+                        'status_history': {
+                            'status': 'seller_accepted',
+                            'timestamp': datetime.now(timezone.utc),
+                            'note': 'Seller accepted the order',
+                            'updated_by': f'seller:{seller_id}'
+                        }
+                    }
+                }
+            )
 
         if result.matched_count == 0:
             return None, "Failed to update order"
@@ -279,8 +341,11 @@ class OrderService:
 
         # Product quantity deduction is no longer used
 
+        # Identify collection based on type
+        collection = mongo.db.service_orders if order.type == 'service' else mongo.db.orders
+
         # Update order with rejection reason
-        result = mongo.db.orders.update_one(
+        result = collection.update_one(
             {'_id': order_obj_id},
             {
                 '$set': {
@@ -307,13 +372,29 @@ class OrderService:
         return updated_order, None
 
     @staticmethod
-    def scan_token(token, scanner_role, scanner_id):
+    def scan_token(token, scanner_role, scanner_id, preview=False):
         """Scan QR token and update order status based on role and current state."""
         order = OrderService.get_order_by_token(token)
         if not order:
             return None, "Invalid token or order not found"
 
-        # Check if token is already used
+        # Basic validations that should show even in preview
+        if scanner_role == 'user' and order.token_used_user:
+            return None, "This token has already been used"
+        if scanner_role == 'seller' and order.token_used_seller:
+            return None, "This token has already been used"
+
+        # Validate token matches role
+        if scanner_role == 'user' and order.secure_token_user != token:
+            return None, "Invalid token for user"
+        if scanner_role == 'seller' and order.secure_token_seller != token:
+            return None, "Invalid token for seller"
+
+        # If it's just a preview, return the order now
+        if preview:
+            return order, None
+
+        # Check if token is already used (duplicate check for clarity)
         if scanner_role == 'user' and order.token_used_user:
             return None, "This token has already been used"
         if scanner_role == 'seller' and order.token_used_seller:
@@ -405,7 +486,10 @@ class OrderService:
             if push_data:
                 update_doc['$push'] = push_data
 
-            result = mongo.db.orders.update_one(
+            # Identify collection
+            collection = mongo.db.service_orders if order.type == 'service' else mongo.db.orders
+
+            result = collection.update_one(
                 {'_id': order_obj_id},
                 update_doc
             )
@@ -443,7 +527,10 @@ class OrderService:
         # Generate cancellation code for audit
         cancellation_code = secrets.token_urlsafe(8).upper()
 
-        result = mongo.db.orders.update_one(
+        # Identify collection
+        collection = mongo.db.service_orders if order.type == 'service' else mongo.db.orders
+
+        result = collection.update_one(
             {'_id': order_obj_id},
             {
                 '$set': {
@@ -480,16 +567,18 @@ class OrderService:
         except Exception:
             return None, "Invalid order ID"
 
-        order_doc = mongo.db.orders.find_one({'_id': order_obj_id, 'user_id': user_obj_id})
-        if not order_doc:
+        order = OrderService.get_order_by_id(order_id)
+        if not order or str(order.user_id) != str(user_id):
             return None, "Order not found"
 
-        status = order_doc.get('status', 'pending_seller')
-        if status not in ['pending_seller']:
+        if order.status not in ['pending_seller']:
             return None, "Order cannot be cancelled at this stage"
 
+        # Identify collection
+        collection = mongo.db.service_orders if order.type == 'service' else mongo.db.orders
+
         # Update order with cancellation reason
-        result = mongo.db.orders.update_one(
+        result = collection.update_one(
             {'_id': order_obj_id},
             {
                 '$set': {

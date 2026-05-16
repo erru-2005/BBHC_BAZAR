@@ -37,6 +37,59 @@ const apiCache = {
 }
 const CACHE_DURATION = 30000 // 30 seconds cache
 
+// Role-specific token detection for isolation
+const getContextAwareToken = (requestUrl = '') => {
+  const currentPath = window.location.pathname
+  
+  // 1. Check API URL first (direct intent - most reliable)
+  
+  // Master-specific endpoints & actions
+  const isMasterEndpoint = ['/api/register_master', '/api/sellers', '/api/analytics', '/api/products/pending', '/api/services/pending', '/api/masters', '/api/auth/master', '/cancel-master'].some(ep => requestUrl.includes(ep))
+  const isMasterAction = (requestUrl.includes('/api/products/') || requestUrl.includes('/api/services/')) && 
+                         (requestUrl.includes('/approve') || requestUrl.includes('/accept') || requestUrl.includes('/reject'))
+  
+  if (isMasterEndpoint || isMasterAction) return localStorage.getItem('bbhc_master_token')
+  
+  // Seller-specific endpoints & actions
+  const isSellerEndpoint = requestUrl.includes('/api/seller')
+  const isSellerAction = requestUrl.includes('/api/orders/') && 
+                         (requestUrl.includes('/accept') || requestUrl.includes('/reject'))
+  const isOrderScan = requestUrl.includes('/api/orders/scan')
+  
+  if (isSellerEndpoint || isSellerAction) return localStorage.getItem('bbhc_seller_token')
+  if (isOrderScan) return localStorage.getItem('bbhc_seller_token') || localStorage.getItem('bbhc_outlet_man_token')
+  
+  // Outlet-specific endpoints
+  if (requestUrl.includes('/api/outlet_man')) return localStorage.getItem('bbhc_outlet_man_token')
+  
+  // 2. Check UI context if API URL is generic (e.g., /api/auth/me, /api/auth/refresh, /api/orders)
+  if (currentPath.startsWith('/seller')) return localStorage.getItem('bbhc_seller_token')
+  if (currentPath.startsWith('/outlet')) return localStorage.getItem('bbhc_outlet_man_token')
+  if (currentPath.startsWith('/master')) return localStorage.getItem('bbhc_master_token')
+  
+  // Default to user token for consumer-facing endpoints
+  return localStorage.getItem('bbhc_user_token') || localStorage.getItem('token')
+}
+
+const getContextAwareRefresh = () => {
+  const currentPath = window.location.pathname
+  if (currentPath.startsWith('/seller')) return localStorage.getItem('bbhc_seller_refresh_token')
+  if (currentPath.startsWith('/outlet')) return localStorage.getItem('bbhc_outlet_man_refresh_token')
+  if (currentPath.startsWith('/master')) return localStorage.getItem('bbhc_master_refresh_token')
+  return localStorage.getItem('bbhc_user_refresh_token') || localStorage.getItem('refresh_token')
+}
+
+const setContextAwareToken = (token) => {
+  const currentPath = window.location.pathname
+  let key = 'bbhc_user_token'
+  if (currentPath.startsWith('/seller')) key = 'bbhc_seller_token'
+  else if (currentPath.startsWith('/outlet')) key = 'bbhc_outlet_man_token'
+  else if (currentPath.startsWith('/master')) key = 'bbhc_master_token'
+  
+  localStorage.setItem(key, token)
+  localStorage.setItem('token', token) // Legacy fallback
+}
+
 // Add request interceptor to include token
 apiClient.interceptors.request.use(
   (config) => {
@@ -44,11 +97,10 @@ apiClient.interceptors.request.use(
     if (config.skipAuthRefresh) {
       return config
     }
-    const token = localStorage.getItem('token')
+    const token = getContextAwareToken(config.url)
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    // Removed warning - it's normal for public endpoints to not have tokens
     return config
   },
   (error) => {
@@ -103,14 +155,12 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true
       isRefreshing = true
 
-      const refreshToken = localStorage.getItem('refresh_token')
+      const refreshToken = getContextAwareRefresh()
       
       // If no refresh token, logout immediately
       if (!refreshToken) {
         isRefreshing = false
         processQueue(new Error('No refresh token available'), null)
-        localStorage.removeItem('token')
-        localStorage.removeItem('refresh_token')
         store.dispatch(logout())
         const message = error.response?.data?.error || 'Authentication failed. Please log in again.'
         throw new Error(message)
@@ -134,8 +184,8 @@ apiClient.interceptors.response.use(
           throw new Error('No access token received from refresh endpoint')
         }
         
-        // Update stored token
-        localStorage.setItem('token', newAccessToken)
+        // Update stored token context-aware
+        setContextAwareToken(newAccessToken)
         
         // Update Redux store
         store.dispatch(setToken(newAccessToken))
@@ -152,11 +202,6 @@ apiClient.interceptors.response.use(
         // Refresh failed - logout user
         isRefreshing = false
         processQueue(refreshError, null)
-        
-        localStorage.removeItem('token')
-        localStorage.removeItem('refresh_token')
-        
-        // Dispatch logout action
         store.dispatch(logout())
         
         const message = refreshError.response?.data?.error || refreshError.message || 'Session expired. Please log in again.'
@@ -984,7 +1029,7 @@ export const getPendingProducts = async () => {
  */
 export const approveProduct = async (productId) => {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.API.APPROVE_PRODUCT(productId))
+    const response = await apiClient.post(API_ENDPOINTS.API.APPROVE_PRODUCT(productId), {})
     return response
   } catch (error) {
     throw new Error(error.message || 'Failed to approve product')
@@ -1405,7 +1450,7 @@ export const getPendingServices = async () => {
  */
 export const acceptService = async (serviceId) => {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.API.APPROVE_SERVICE(serviceId))
+    const response = await apiClient.post(API_ENDPOINTS.API.APPROVE_SERVICE(serviceId), {})
     return response.message || 'Service approved'
   } catch (error) {
     throw new Error(error.message || 'Failed to approve service')
@@ -1465,7 +1510,7 @@ export const createSellerService = async (serviceData) => {
 
 export const cancelOrder = async (orderId) => {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_CANCEL(orderId))
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_CANCEL(orderId), {})
     return response.order
   } catch (error) {
     throw new Error(error.message || 'Failed to cancel order')
@@ -1483,7 +1528,7 @@ export const getOrder = async (orderId) => {
 
 export const sellerAcceptOrder = async (orderId) => {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_ACCEPT(orderId))
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_ACCEPT(orderId), {})
     return response.order
   } catch (error) {
     throw new Error(error.message || 'Failed to accept order')
@@ -1501,9 +1546,9 @@ export const sellerRejectOrder = async (orderId, reason = null) => {
   }
 }
 
-export const scanOrderToken = async (token) => {
+export const scanOrderToken = async (token, preview = false) => {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_SCAN, { token })
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_SCAN, { token, preview })
     return response.order
   } catch (error) {
     throw new Error(error.message || 'Failed to scan token')

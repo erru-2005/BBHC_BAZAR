@@ -87,23 +87,31 @@ function SplashWrapper() {
   // 0. Session Restoration on Mount
   useEffect(() => {
     const restoreSession = async () => {
-      const storedToken = localStorage.getItem('token')
+      // Determine which token to look for based on current path
+      const path = location.pathname
+      let targetRole = 'user'
+      if (path.startsWith('/seller')) targetRole = 'seller'
+      else if (path.startsWith('/outlet')) targetRole = 'outlet_man'
+      else if (path.startsWith('/master')) targetRole = 'master'
+
+      const roleKey = targetRole === 'user' ? 'bbhc_user_token' : `bbhc_${targetRole}_token`
+      const storedToken = localStorage.getItem(roleKey) || localStorage.getItem('token')
+      
       if (storedToken && !isAuthenticated) {
         try {
-          // Verify token and get user profile
+          // getCurrentUser in api.js is now context-aware and will use the correct token
           const data = await getCurrentUser()
           
-          // ROLE ISOLATION: 
-          // If we are on a customer-facing path (User side), and the found token is NOT a 'user' token,
-          // we should NOT automatically restore it as the primary authenticated user for the consumer site.
-          // This prevents "Seller cache" from being used as "User data".
-          const isUserPath = location.pathname.startsWith('/user/') || 
-                            location.pathname === '/' || 
-                            location.pathname.startsWith('/product/') ||
-                            location.pathname.startsWith('/category/')
+          // STRICT ISOLATION: 
+          // If we are on a path that requires a specific role, ensure the token matches that role.
+          if (targetRole !== 'user' && data.userType !== targetRole) {
+            console.warn(`[Session] Path ${targetRole} requires ${targetRole} role, but found ${data.userType}.`)
+            return
+          }
           
+          // If on user path, only allow 'user' role to be restored
+          const isUserPath = path === '/' || path.startsWith('/user/') || path.startsWith('/product/')
           if (isUserPath && data.userType !== 'user') {
-            console.warn('[Session] Ignoring merchant/admin token for consumer flow isolation.')
             return
           }
 

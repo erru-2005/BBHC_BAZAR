@@ -79,7 +79,7 @@ export default function SellerWallet() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Credit Addition Panel */}
         <section className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+          <div className="bg-blue-50/20 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-blue-900/5 border border-white/60">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
                 <FiPlus className="w-6 h-6" />
@@ -110,7 +110,7 @@ export default function SellerWallet() {
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
-                  className="w-full h-16 bg-slate-50 border-2 border-slate-100 rounded-3xl px-8 font-black text-slate-900 text-xl outline-none focus:border-blue-600 transition-all shadow-inner"
+                  className="w-full h-16 bg-white/40 border border-white/60 rounded-3xl px-8 font-black text-slate-900 text-xl outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner backdrop-blur-sm"
                   placeholder="0.00"
                 />
                 <div className="absolute right-6 top-1/2 -translate-y-1/2">
@@ -170,7 +170,7 @@ export default function SellerWallet() {
              </ul>
           </div>
 
-          <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
+          <div className="bg-blue-50/20 backdrop-blur-xl rounded-[2.5rem] p-8 border border-white/60 shadow-xl shadow-blue-900/5">
              <div className="flex items-center justify-between mb-6">
                 <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Activity</h4>
                 <FiClock className="text-slate-300" />

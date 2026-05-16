@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { motion, AnimatePresence } from 'framer-motion'
+import SuccessAnimation from '../../components/SuccessAnimation'
 import MainHeader from './components/MainHeader'
 import MobileMenu from './components/MobileMenu'
 import MobileBottomNav from './components/MobileBottomNav'
@@ -113,6 +114,10 @@ function Bag() {
   const handleCheckout = async () => {
     if (bagItems.length === 0) {
       alert('Your bag is empty')
+      return
+    }
+    if (userType !== 'user') {
+      setCheckoutError('Only customers can place orders. Please login with a user account.')
       return
     }
 
@@ -491,7 +496,7 @@ function CheckoutConfirmModal({ bagItems, subtotal, deliveryFee, total, onConfir
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-2xl max-w-[420px] w-full p-6"
+        className="bg-white rounded-[2rem] shadow-2xl w-[clamp(320px,95vw,480px)] p-8"
       >
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Confirm Purchase</h2>
         <p className="text-gray-600 mb-6">
@@ -587,7 +592,7 @@ function CheckoutSuccessModal({ orders, failedItems, onClose, onContinueShopping
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.8, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl p-6 sm:p-8 max-w-[420px] w-full max-h-[90vh] overflow-y-auto text-center shadow-2xl space-y-6"
+        className="bg-white rounded-3xl p-6 sm:p-8 w-[clamp(320px,95vw,480px)] max-h-[90vh] overflow-y-auto text-center shadow-2xl space-y-6"
       >
         <SuccessAnimation />
         <div>
@@ -674,109 +679,6 @@ function CheckoutSuccessModal({ orders, failedItems, onClose, onContinueShopping
         </div>
       </motion.div>
     </motion.div>
-  )
-}
-
-// Success Animation Component
-function SuccessAnimation() {
-  const confettiColors = ['#FFD700', '#FF4500', '#1E90FF', '#32CD32', '#FF1493', '#8A2BE2']
-  const shapes = ['rect', 'circle', 'strip']
-  
-  return (
-    <div className="relative flex items-center justify-center py-8">
-      {/* Central Tick Circle */}
-      <motion.div
-        initial={{ scale: 0, rotate: -90 }}
-        animate={{ scale: 1, rotate: 0 }}
-        transition={{ 
-          type: 'spring', 
-          stiffness: 260, 
-          damping: 20,
-          delay: 0.2
-        }}
-        className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 flex items-center justify-center shadow-[0_10px_40px_-10px_rgba(16,185,129,0.5)] z-20"
-      >
-        <motion.svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-12 w-12 text-white"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={4}
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={{ pathLength: 1, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
-        >
-          <motion.path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M5 13l4 4L19 7"
-          />
-        </motion.svg>
-      </motion.div>
-
-      {/* Bursting Particles (The Sparkles) */}
-      {Array.from({ length: 40 }).map((_, index) => {
-        const color = confettiColors[index % confettiColors.length]
-        const angle = (index / 40) * Math.PI * 2 + (Math.random() * 0.5)
-        const distance = 100 + Math.random() * 120
-        const size = 4 + Math.random() * 8
-        const shape = shapes[index % shapes.length]
-        const delay = 0.6 + (Math.random() * 0.2)
-        const duration = 2.5 + Math.random() * 1.5
-
-        return (
-          <motion.div
-            key={index}
-            className="absolute z-10"
-            initial={{ 
-              opacity: 0, 
-              scale: 0, 
-              x: 0, 
-              y: 0,
-              rotate: 0
-            }}
-            animate={{
-              opacity: [0, 1, 1, 0],
-              scale: [0, 1.5, 1, 0],
-              x: Math.cos(angle) * distance,
-              y: Math.sin(angle) * distance,
-              rotate: [0, Math.random() * 1000 - 500]
-            }}
-            transition={{
-              duration: duration,
-              delay: delay,
-              ease: [0.22, 1, 0.36, 1],
-              repeat: 1,
-              repeatDelay: 0.5
-            }}
-            style={{
-              width: shape === 'strip' ? size * 3 : size,
-              height: shape === 'strip' ? size / 2 : size,
-              backgroundColor: color,
-              borderRadius: shape === 'circle' ? '50%' : '2px',
-              boxShadow: `0 0 10px ${color}40`,
-            }}
-          />
-        )
-      })}
-
-      {/* Ripple Effect */}
-      {[1, 2].map((i) => (
-        <motion.div
-          key={i}
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 2.5, opacity: 0 }}
-          transition={{ 
-            duration: 1.5, 
-            delay: 0.4 + (i * 0.2), 
-            repeat: 1,
-            repeatDelay: 2
-          }}
-          className="absolute w-24 h-24 rounded-full border border-emerald-400/50 z-0"
-        />
-      ))}
-    </div>
   )
 }
 

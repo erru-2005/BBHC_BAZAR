@@ -120,7 +120,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                                     >
                                         <Icon
                                             className={`h-[22px] w-[22px] transition-all duration-500 ${isActive
-                                                ? 'text-blue-700 scale-110'
+                                                ? 'text-slate-900 scale-110'
                                                 : 'text-slate-600 group-hover:text-slate-900'
                                                 }`}
                                             strokeWidth={isActive ? 0 : 2}
@@ -147,7 +147,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                                 boxShadow: "0 0 30px 10px rgba(37, 99, 235, 0.4)" 
                             }}
                             onClick={onOpenAddProduct}
-                            className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_20px_40px_-5px_rgba(37,99,235,0.4)] ring-[6px] ring-white relative group overflow-hidden"
+                            className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-white shadow-[0_15px_30px_-5px_rgba(0,0,0,0.2)] ring-[6px] ring-white relative group overflow-hidden"
                             transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         >
                             {/* Animated Ripple Background */}
@@ -163,7 +163,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                         <motion.div 
                             animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.4, 0.2] }}
                             transition={{ duration: 2, repeat: Infinity }}
-                            className="absolute inset-0 -z-10 bg-blue-500 rounded-full blur-2xl"
+                            className="absolute inset-0 -z-10 bg-slate-400 rounded-full blur-2xl"
                         />
                     </div>
 
@@ -184,7 +184,7 @@ export default function SellerBottomNav({ showOrders, setShowOrders, isProfileAc
                                     >
                                         <Icon
                                             className={`h-[22px] w-[22px] transition-all duration-500 ${isActive
-                                                ? 'text-blue-700 scale-110'
+                                                ? 'text-slate-900 scale-110'
                                                 : 'text-slate-600 group-hover:text-slate-900'
                                                 }`}
                                             strokeWidth={isActive ? 0 : 2}

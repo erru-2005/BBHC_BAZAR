@@ -145,6 +145,27 @@ class SellerService:
             raise Exception(f"Error updating seller: {str(e)}")
 
     @staticmethod
+    def deduct_credits(seller_id, amount):
+        """Deduct credits from a seller's account and notify via socket"""
+        try:
+            result = mongo.db.sellers.update_one(
+                {'_id': ObjectId(seller_id)},
+                {'$inc': {'credits': -abs(amount)}}
+            )
+            
+            if result.matched_count == 0:
+                return None
+                
+            updated_seller = SellerService.get_seller_by_id(seller_id)
+            if updated_seller:
+                from app.sockets.emitter import emit_seller_update
+                emit_seller_update(seller_id, updated_seller.to_dict())
+                
+            return updated_seller
+        except Exception as e:
+            raise Exception(f"Error deducting credits: {str(e)}")
+
+    @staticmethod
     def add_credits(seller_id, amount):
         """Add credits to a seller's account"""
         try:

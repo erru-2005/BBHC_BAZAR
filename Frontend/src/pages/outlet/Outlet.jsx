@@ -3,6 +3,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { logout } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
@@ -34,6 +35,7 @@ function Outlet() {
   const [scanError, setScanError] = useState(null)
   const [showOrderDetails, setShowOrderDetails] = useState(false)
   const [pendingOrder, setPendingOrder] = useState(null)
+  const [pendingToken, setPendingToken] = useState('')
   const [confirming, setConfirming] = useState(false)
   
   const { orders, loading: loadingOrders, lastFetched } = useSelector(state => state.outlet)
@@ -105,23 +107,16 @@ function Outlet() {
     setScanError(null)
     setScanResult(null)
     setPendingOrder(null)
+    setPendingToken(scannedToken)
     setShowOrderDetails(false)
 
     try {
-      // First, get order details without confirming
-      // We'll need to modify the API or create a preview endpoint
-      // For now, we'll scan and show details, then require confirmation
-      const order = await scanOrderToken(scannedToken)
+      // Get order details IN PREVIEW MODE first
+      const order = await scanOrderToken(scannedToken, true)
       
-      // Check if order was already processed
-      if (order.status === 'completed' || order.status === 'handed_over') {
-        setPendingOrder(order)
-        setShowOrderDetails(true)
-      } else {
-        // If order needs confirmation, show details popup
-        setPendingOrder(order)
-        setShowOrderDetails(true)
-      }
+      // Show details popup - user must confirm to take action
+      setPendingOrder(order)
+      setShowOrderDetails(true)
       
       setTokenInput('')
     } catch (err) {
@@ -136,21 +131,27 @@ function Outlet() {
   }
 
   const handleConfirmScan = async () => {
-    if (!pendingOrder) return
+    if (!pendingOrder || !pendingToken) return
 
     setConfirming(true)
     try {
-      // The scan already happened, we just need to refresh and close
+      // PERFORM ACTUAL ACTION NOW (preview = false)
+      const updatedOrder = await scanOrderToken(pendingToken, false)
+      
       await loadCompletedOrders()
       setShowOrderDetails(false)
-      setPendingOrder(null)
+      
       setScanResult({
         success: true,
-        message: getScanMessage(pendingOrder, tokenInput),
-        order: pendingOrder
+        message: getScanMessage(updatedOrder, pendingToken),
+        order: updatedOrder
       })
+      
+      setPendingOrder(null)
+      setPendingToken('')
     } catch (err) {
       setScanError(err.message || 'Failed to confirm')
+      setShowOrderDetails(false)
     } finally {
       setConfirming(false)
     }

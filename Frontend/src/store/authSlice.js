@@ -9,6 +9,16 @@ const initialState = {
   error: null
 }
 
+const getRoleKey = (role) => {
+  if (!role) return 'bbhc_user_token'
+  return `bbhc_${role}_token`
+}
+
+const getRefreshKey = (role) => {
+  if (!role) return 'bbhc_user_refresh_token'
+  return `bbhc_${role}_refresh_token`
+}
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -18,16 +28,25 @@ const authSlice = createSlice({
       state.error = null
     },
     loginSuccess(state, action) {
+      const { user, token, userType, refresh_token } = action.payload
       state.loading = false
       state.isAuthenticated = true
-      state.user = action.payload.user
-      state.token = action.payload.token
-      state.userType = action.payload.userType
+      state.user = user
+      state.token = token
+      state.userType = userType
       state.error = null
-      // Only store token in localStorage (not user data - use Redux for that)
-      localStorage.setItem('token', action.payload.token)
-      if (action.payload.refresh_token) {
-        localStorage.setItem('refresh_token', action.payload.refresh_token)
+      
+      // Role-specific storage to prevent session crossover
+      const roleKey = getRoleKey(userType)
+      localStorage.setItem(roleKey, token)
+      
+      // Also set the generic 'token' for legacy compatibility, 
+      // but the role-specific one is now primary for isolation.
+      localStorage.setItem('token', token)
+      
+      if (refresh_token) {
+        localStorage.setItem(getRefreshKey(userType), refresh_token)
+        localStorage.setItem('refresh_token', refresh_token)
       }
     },
     loginFailure(state, action) {
@@ -38,33 +57,47 @@ const authSlice = createSlice({
       state.token = null
       state.userType = null
     },
-    logout(state) {
-      state.isAuthenticated = false
-      state.user = null
-      state.token = null
-      state.userType = null
-      state.error = null
-      // Clear localStorage (only token stored there)
-      localStorage.removeItem('token')
-      localStorage.removeItem('refresh_token')
+    logout(state, action) {
+      // action.payload can optionally specify WHICH role to logout
+      // if not specified, we logout the CURRENT session role
+      const targetRole = action.payload || state.userType
+      
+      if (targetRole === state.userType || !targetRole) {
+        state.isAuthenticated = false
+        state.user = null
+        state.token = null
+        state.userType = null
+        state.error = null
+      }
+      
+      // Clear role-specific storage
+      localStorage.removeItem(getRoleKey(targetRole))
+      localStorage.removeItem(getRefreshKey(targetRole))
+      
+      // If we just logged out the "main" token, clear it too
+      if (localStorage.getItem('token') === localStorage.getItem(getRoleKey(targetRole))) {
+         localStorage.removeItem('token')
+         localStorage.removeItem('refresh_token')
+      }
     },
     checkAuth(state) {
-      // Only check for token - user data will be fetched from backend if token exists
+      // Logic moved to App.jsx for path-aware role detection
       const token = localStorage.getItem('token')
-      
       if (token && !state.token) {
         state.token = token
-        // User data will be fetched from backend on app load if token exists
-        // Don't set isAuthenticated here - it will be set after user data is loaded
       }
     },
     restoreUser(state, action) {
       if (!action.payload) return
-      // Restore user data from backend (called when app loads with token)
       state.user = action.payload.user
       state.userType = action.payload.userType
-      if (state.token || localStorage.getItem('token')) {
-        state.token = state.token || localStorage.getItem('token')
+      
+      const roleToken = localStorage.getItem(getRoleKey(action.payload.userType))
+      if (roleToken) {
+        state.token = roleToken
+        state.isAuthenticated = true
+      } else if (localStorage.getItem('token')) {
+        state.token = localStorage.getItem('token')
         state.isAuthenticated = true
       }
     },
@@ -75,8 +108,11 @@ const authSlice = createSlice({
       }
     },
     setToken(state, action) {
-      state.token = action.payload
-      localStorage.setItem('token', action.payload)
+      const token = action.payload
+      state.token = token
+      const roleKey = getRoleKey(state.userType)
+      localStorage.setItem(roleKey, token)
+      localStorage.setItem('token', token)
       if (state.user) {
         state.isAuthenticated = true
       }

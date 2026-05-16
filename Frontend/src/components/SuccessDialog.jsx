@@ -16,8 +16,7 @@ function SuccessDialog({ open, onClose, title, message }) {
         border: 'none',
         borderRadius: '12px',
         boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        maxWidth: '420px',
-        width: '90%'
+        width: 'clamp(280px, 90%, 350px)'
       }}
       overlayStyle={{
         background: 'rgba(0, 0, 0, 0.5)',
@@ -25,31 +24,27 @@ function SuccessDialog({ open, onClose, title, message }) {
       }}
       onClose={onClose}
     >
-      <div className="bg-white rounded-xl overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 bg-green-50">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-full bg-green-100 text-green-600">
-              <FaCheckCircle className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">{title || 'Success'}</h3>
+      <div className="bg-white rounded-2xl overflow-hidden p-8 text-center">
+        {/* Icon */}
+        <div className="flex justify-center mb-4">
+          <div className="w-14 h-14 rounded-full bg-green-50 text-green-500 flex items-center justify-center shadow-inner">
+            <FaCheckCircle className="w-7 h-7" />
           </div>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-5">
-          <p className="text-gray-700 leading-relaxed">{message}</p>
+        {/* Content */}
+        <div className="mb-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">{title || 'Success'}</h3>
+          <p className="text-sm text-gray-500 font-medium leading-relaxed">{message}</p>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-          >
-            OK
-          </button>
-        </div>
+        {/* Action */}
+        <button
+          onClick={onClose}
+          className="w-full py-3 text-sm font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 active:scale-95"
+        >
+          CONTINUE
+        </button>
       </div>
     </Popup>
   )

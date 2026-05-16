@@ -48,8 +48,7 @@ function AddCategoryDialog({ open, onClose, onAdd, existingCategories = [] }) {
         border: 'none',
         borderRadius: '12px',
         boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        maxWidth: '420px',
-        width: '90%'
+        width: 'clamp(300px, 90%, 420px)'
       }}
       overlayStyle={{
         background: 'rgba(0, 0, 0, 0.5)',

@@ -37,7 +37,9 @@ class Order:
         cancellation_code=None,
         rejection_reason=None,
         rejected_by=None,
+        booking=None,
         metadata=None,
+        type='product',
         created_at=None,
         updated_at=None,
         _id=None
@@ -73,7 +75,9 @@ class Order:
         self.cancellation_code = cancellation_code
         self.rejection_reason = rejection_reason
         self.rejected_by = rejected_by
+        self.booking = booking
         self.metadata = metadata or {}
+        self.type = type
         self.created_at = created_at or datetime.now(timezone.utc)
         self.updated_at = updated_at or datetime.now(timezone.utc)
 
@@ -108,7 +112,9 @@ class Order:
             'product': self.product_snapshot,
             'user': self.user_snapshot,
             'seller': self.seller_snapshot,
+            'booking': self.booking,
             'metadata': self.metadata,
+            'type': self.type,
             'createdAt': self._format_datetime(self.created_at),
             'updatedAt': self._format_datetime(self.updated_at)
         }
@@ -144,7 +150,9 @@ class Order:
             'product_snapshot': self.product_snapshot,
             'user_snapshot': self.user_snapshot,
             'seller_snapshot': self.seller_snapshot,
+            'booking': self.booking,
             'metadata': self.metadata,
+            'type': self.type,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
@@ -182,7 +190,9 @@ class Order:
             product_snapshot=bson_doc.get('product_snapshot', {}),
             user_snapshot=bson_doc.get('user_snapshot', {}),
             seller_snapshot=bson_doc.get('seller_snapshot', {}),
+            booking=bson_doc.get('booking'),
             metadata=bson_doc.get('metadata', {}),
+            type=bson_doc.get('type', 'product'),
             created_at=bson_doc.get('created_at'),
             updated_at=bson_doc.get('updated_at')
         )

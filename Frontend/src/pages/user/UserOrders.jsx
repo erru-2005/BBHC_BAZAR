@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { FaArrowLeft, FaBox, FaClock, FaTruck, FaDownload, FaCopy, FaQrcode } from 'react-icons/fa6'
+import { FaArrowLeft, FaBox, FaClock, FaTruck, FaDownload, FaCopy, FaQrcode, FaCircleInfo } from 'react-icons/fa6'
 import { AnimatePresence, motion } from 'framer-motion'
 import QRCode from 'react-qr-code'
 import MainHeader from './components/MainHeader'
@@ -51,6 +51,30 @@ function UserOrders() {
   const qrPreviewRef = useRef(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [copiedToken, setCopiedToken] = useState(null)
+  const [dashboardTypeFilter, setDashboardTypeFilter] = useState('product') // 'product', 'service'
+
+  // Helper to check if an order is a service based on broadened logic
+  const isOrderService = (order) => {
+    if (!order) return false
+    const productData = order.product || order.product_snapshot || {}
+    const productName = (productData.name || productData.product_name || '').toLowerCase()
+    const productCategories = (productData.categories || []).map(c => c.toLowerCase())
+    
+    return order.type === 'service' || 
+           (order.booking && (order.booking.type || order.booking.startDate || order.booking.endDate || order.booking.flexible)) || 
+           productName.includes('creativework') ||
+           productName.includes('creative') ||
+           productName.includes('work') ||
+           productName.includes('service') ||
+           productCategories.some(cat => cat.includes('service') || cat.includes('creative') || cat.includes('work'))
+  }
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => {
+      const isService = isOrderService(o)
+      return dashboardTypeFilter === 'product' ? !isService : !!isService
+    })
+  }, [orders, dashboardTypeFilter])
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -221,10 +245,12 @@ function UserOrders() {
       case 'completed':
         return 'Step 4: Finalized. You have collected your product. Thank you for shopping!'
       case 'seller_rejected':
-        return 'The seller could not fulfill this order and has rejected it.'
+        const sReason = order.rejectionReason || order.rejection_reason
+        return `The seller could not fulfill this order and has rejected it.${sReason ? ` Reason: ${sReason}` : ''}`
       case 'cancelled':
       case 'cancelled_master':
-        return 'This order has been cancelled and is no longer active.'
+        const cReason = order.rejectionReason || order.rejection_reason
+        return `This order has been cancelled and is no longer active.${cReason ? ` Reason: ${cReason}` : ''}`
       default:
         return 'Your order is currently in progress.'
     }
@@ -248,8 +274,13 @@ function UserOrders() {
       >
         <div className="flex items-start justify-between gap-3 p-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50">
           <div className="flex-1 min-w-0">
-            <p className="text-xs uppercase text-slate-700 tracking-widest truncate">Order #{order.orderNumber}</p>
-            <p className="text-xs text-slate-600 flex items-center gap-1 mt-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isOrderService(order) ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'}`}>
+                {isOrderService(order) ? 'Service' : 'Product'}
+              </span>
+              <p className="text-[10px] uppercase text-slate-500 tracking-widest truncate font-medium">Order #{order.orderNumber}</p>
+            </div>
+            <p className="text-[10px] text-slate-500 flex items-center gap-1 font-medium">
               <FaClock className="w-3 h-3" />
               {createdAt ? new Date(createdAt).toLocaleString('en-IN', {
                 year: 'numeric',
@@ -260,25 +291,32 @@ function UserOrders() {
               }) : '—'}
             </p>
           </div>
-          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${status.className}`}>
+          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-sm ${status.className}`}>
             {status.label}
           </span>
         </div>
 
-        <div className="flex gap-3 p-4">
-          <img
-            src={productImg}
-            alt={productName}
-            className="w-16 h-16 object-cover rounded-lg border border-slate-200 flex-shrink-0"
-          />
-          <div className="flex-1 min-w-0 space-y-1">
-            <h3 className="text-sm font-semibold text-slate-900 truncate">{productName}</h3>
-            <p className="text-xs text-slate-600">Quantity: {order.quantity}</p>
-            <p className="text-sm text-slate-700">
-              Total: <span className="font-bold">₹{totalAmount}</span>
-            </p>
-            <p className="text-xs text-slate-600 flex items-center gap-1">
-              <FaTruck className="w-3 h-3" />
+        <div className="flex gap-4 p-4 items-center">
+          <div className="w-20 h-20 rounded-2xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 shadow-inner flex-shrink-0">
+            {productImg ? (
+              <img
+                src={productImg}
+                alt={productName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <FaBox className="w-8 h-8 opacity-20 text-slate-400" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <h3 className="text-sm font-bold text-slate-900 leading-tight line-clamp-1">{productName}</h3>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-slate-500 font-medium">Qty: <span className="text-slate-900 font-bold">{order.quantity}</span></p>
+              <div className="w-1 h-1 rounded-full bg-slate-200" />
+              <p className="text-xs text-slate-500 font-medium">Total: <span className="text-blue-600 font-bold">₹{totalAmount}</span></p>
+            </div>
+            <p className="text-[10px] text-slate-500 flex items-center gap-1.5 font-medium">
+              <FaTruck className="w-3 h-3 text-slate-300" />
               <span className="truncate">{order.pickupLocation || order.pickup_location || 'BBHCBazaar outlet'}</span>
             </p>
           </div>
@@ -324,6 +362,18 @@ function UserOrders() {
           </div>
         )}
 
+        {(order.status === 'seller_rejected' || order.status === 'cancelled' || order.status === 'cancelled_master') && (
+          <div className="mx-4 mb-4 p-3 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3">
+            <FaCircleInfo className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-red-800 uppercase tracking-wider">Order Terminated</p>
+              <p className="text-xs text-red-700 leading-relaxed font-medium">
+                {order.rejectionReason || order.rejection_reason || 'No specific reason provided.'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {canCancel && (
           <div className="px-4 pb-4">
             <button
@@ -365,6 +415,36 @@ function UserOrders() {
             <p className="text-sm text-slate-600">
               Hi {user?.first_name || 'there'}, track your purchases and pickup instructions here.
             </p>
+
+            {/* Innovative Filter Section */}
+            <div className="relative flex bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200 shadow-inner w-full max-w-[400px] mx-auto h-14 overflow-hidden mt-6">
+              {/* Animated Background Slider */}
+              <motion.div 
+                className="absolute top-1.5 bottom-1.5 bg-white rounded-xl shadow-lg shadow-blue-500/10 border border-blue-50/50"
+                initial={false}
+                animate={{ 
+                  left: dashboardTypeFilter === 'product' ? '6px' : 'calc(50% + 3px)',
+                  right: dashboardTypeFilter === 'product' ? 'calc(50% + 3px)' : '6px'
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              />
+
+              {[
+                { id: 'product', label: 'Products', icon: FaBox },
+                { id: 'service', label: 'Services', icon: FaClock }
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setDashboardTypeFilter(t.id)}
+                  className={`relative flex-1 flex items-center justify-center gap-3 z-10 transition-colors duration-300 border-0 bg-transparent cursor-pointer ${
+                    dashboardTypeFilter === t.id ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <t.icon size={16} className={dashboardTypeFilter === t.id ? 'animate-pulse' : ''} />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && (
@@ -389,7 +469,16 @@ function UserOrders() {
             </div>
           ) : (
             <div className="space-y-4">
-              {orders.map(renderOrderCard)}
+              {filteredOrders.length > 0 ? (
+                filteredOrders.map(renderOrderCard)
+              ) : (
+                <div className="py-12 text-center bg-white rounded-3xl border border-slate-100 shadow-sm">
+                  <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 border border-slate-50">
+                    <FaBox className="w-6 h-6 text-slate-300" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No {dashboardTypeFilter}s found</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -417,9 +506,19 @@ function UserOrders() {
               <p className="text-sm text-slate-700 leading-relaxed">{getStatusMessage(activeOrder)}</p>
 
               {(activeOrder.status === 'cancelled' || activeOrder.status === 'cancelled_master' || activeOrder.status === 'seller_rejected') ? (
-                <p className="text-sm text-slate-600">
-                  This order is no longer active. QR code is not available.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-600">
+                    This order is no longer active. QR code is not available.
+                  </p>
+                  {(activeOrder.rejectionReason || activeOrder.rejection_reason) && (
+                    <div className="p-4 rounded-2xl bg-red-50 border border-red-100 text-left">
+                      <p className="text-[10px] font-black text-red-800 uppercase tracking-widest mb-1">Reason for Rejection</p>
+                      <p className="text-sm text-red-700 font-medium leading-relaxed">
+                        {activeOrder.rejectionReason || activeOrder.rejection_reason}
+                      </p>
+                    </div>
+                  )}
+                </div>
               ) : (activeOrder.status === 'pending_seller') ? (
                 <p className="text-sm text-slate-600">
                   Waiting for seller to accept your order. QR code will be available once accepted.

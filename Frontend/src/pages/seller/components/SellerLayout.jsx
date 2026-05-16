@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useState, Suspense, lazy } from 'react'
+import { useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import SellerBottomNav from './SellerBottomNav'
 import SellerProfile from './SellerProfile'
@@ -13,7 +13,7 @@ import PasswordResetDialog from '../../../components/PasswordResetDialog'
 import SellerEditProfile from '../../../components/SellerEditProfile'
 
 // Lazy load the overlay to keep bundle small
-const AddProductOverlay = lazy(() => import('./AddProductOverlay'))
+import AddProductOverlay from './AddProductOverlay'
 
 export default function SellerLayout() {
     const [showProfile, setShowProfile] = useState(false)
@@ -65,7 +65,7 @@ export default function SellerLayout() {
             <SellerSidebar onOpenAddProduct={() => setIsAddingProduct(true)} />
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col md:ml-64 min-h-screen">
+            <div className="flex-1 flex flex-col md:pl-64 min-h-screen">
                 {/* Desktop Header */}
                 <SellerHeader onOpenProfile={() => {
                     if (window.innerWidth >= 768) {
@@ -100,12 +100,10 @@ export default function SellerLayout() {
             {/* Blooming Add Product Overlay */}
             <AnimatePresence>
                 {isAddingProduct && (
-                    <Suspense fallback={null}>
                         <AddProductOverlay
                             isOpen={isAddingProduct}
                             onClose={() => setIsAddingProduct(false)}
                         />
-                    </Suspense>
                 )}
             </AnimatePresence>
 

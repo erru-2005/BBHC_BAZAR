@@ -141,3 +141,10 @@ def emit_rating_update(product_id, rating_stats):
         'rating_stats': rating_stats
     }
     socketio.emit('rating_updated', payload)
+    
+
+def emit_seller_update(seller_id, seller_dict):
+    """Emit updated seller profile/wallet data to the specific seller."""
+    if not seller_id or not seller_dict:
+        return
+    _emit_to_seller(seller_id, 'seller_updated', seller_dict)
