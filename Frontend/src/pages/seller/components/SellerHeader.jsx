@@ -191,7 +191,7 @@ export default function SellerHeader({ onOpenProfile }) {
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ scale: 1.02 }}
             onClick={() => navigate('/seller/dashboard')}
-            className="relative group cursor-pointer flex-shrink-0"
+            className="relative group cursor-pointer flex-shrink-0 md:hidden"
           >
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-10 group-hover:opacity-30 transition-all duration-500" />
             
