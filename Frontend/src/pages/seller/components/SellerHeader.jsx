@@ -4,7 +4,6 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { fixImageUrl } from '../../../utils/image'
 import { useState, useEffect } from 'react'
-import { addSellerCredits } from '../../../services/api'
 import { updateUserInfo } from '../../../store/authSlice'
 import Portal from '../../../components/Portal'
 
@@ -29,25 +28,10 @@ const CreditCoin = () => (
   </svg>
 )
 
-function AddCreditsModal({ isOpen, onClose, onAdded }) {
-  const { user } = useSelector((state) => state.auth)
-  const [amount, setAmount] = useState(50)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  const handleAdd = async () => {
-    if (amount <= 0) return
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await addSellerCredits(user.id || user._id, amount)
-      onAdded(response.credits)
-      onClose()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+function AddCreditsModal({ isOpen, onClose, onNavigateWallet }) {
+  const handleGoWallet = () => {
+    onClose()
+    onNavigateWallet()
   }
 
   return (
@@ -72,58 +56,21 @@ function AddCreditsModal({ isOpen, onClose, onAdded }) {
                 <CreditCoin />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900">Add Credits</h3>
-                <p className="text-sm text-slate-500">Boost your store visibility</p>
+                <h3 className="text-xl font-black text-slate-900">Recharge wallet</h3>
+                <p className="text-sm text-slate-500">Use Razorpay in the Wallet tab</p>
               </div>
             </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                {[50, 100, 500].map((val) => (
-                  <button
-                    key={val}
-                    onClick={() => setAmount(val)}
-                    className={`py-3 rounded-2xl font-bold text-sm transition-all ${
-                      amount === val 
-                        ? 'bg-amber-500 text-white shadow-lg shadow-amber-200' 
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    +{val}
-                  </button>
-                ))}
-              </div>
-
-              <div className="relative">
-                <input 
-                  type="number" 
-                  value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
-                  className="w-full bg-slate-50 border-2 border-transparent focus:border-amber-400 rounded-2xl px-5 py-4 font-bold text-slate-900 outline-none transition-all"
-                  placeholder="Enter custom amount"
-                />
-                <div className="absolute right-5 top-1/2 -translate-y-1/2">
-                  <CreditCoin />
-                </div>
-              </div>
-
-              {error && <p className="text-xs text-rose-500 font-bold ml-1">{error}</p>}
-
-              <button
-                onClick={handleAdd}
-                disabled={loading || amount <= 0}
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl shadow-slate-200 hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <FiPlus className="w-5 h-5" />
-                    Confirm Addition
-                  </>
-                )}
-              </button>
-            </div>
+            <p className="text-sm text-slate-600 mb-6">
+              Seller credits are added via secure payment in your Wallet. Masters can grant credits separately with OTP approval.
+            </p>
+            <button
+              type="button"
+              onClick={handleGoWallet}
+              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-2"
+            >
+              <FiPlus className="w-5 h-5" />
+              Open Wallet
+            </button>
           </div>
         </motion.div>
       </div>
@@ -174,10 +121,10 @@ export default function SellerHeader({ onOpenProfile }) {
     <header className="bg-white/95 md:bg-white/80 backdrop-blur-2xl border-b border-slate-200/50 sticky top-0 z-40">
       <AnimatePresence>
         {isCreditModalOpen && (
-          <AddCreditsModal 
-            isOpen={isCreditModalOpen} 
-            onClose={() => setIsCreditModalOpen(false)} 
-            onAdded={handleCreditsAdded}
+          <AddCreditsModal
+            isOpen={isCreditModalOpen}
+            onClose={() => setIsCreditModalOpen(false)}
+            onNavigateWallet={() => navigate('/seller/dashboard', { state: { view: 'wallet' } })}
           />
         )}
       </AnimatePresence>
@@ -269,7 +216,15 @@ export default function SellerHeader({ onOpenProfile }) {
             <CreditCoin />
             <div className="flex flex-col leading-none">
               <span className="text-[9px] font-black text-amber-600 uppercase tracking-tighter">Credits</span>
-              <span className="text-sm font-black text-slate-900">{localCredits}</span>
+              <motion.span
+                key={localCredits}
+                initial={{ scale: 1.2, color: '#059669' }}
+                animate={{ scale: 1, color: '#0f172a' }}
+                transition={{ duration: 0.45 }}
+                className="text-sm font-black"
+              >
+                {localCredits}
+              </motion.span>
             </div>
             <button 
               onClick={(e) => {
@@ -357,7 +312,15 @@ export default function SellerHeader({ onOpenProfile }) {
           >
             <div className="flex flex-col leading-none">
               <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">Credits</span>
-              <span className="text-xs font-black text-slate-900">{localCredits}</span>
+              <motion.span
+                key={`m-${localCredits}`}
+                initial={{ scale: 1.2, color: '#059669' }}
+                animate={{ scale: 1, color: '#0f172a' }}
+                transition={{ duration: 0.45 }}
+                className="text-xs font-black"
+              >
+                {localCredits}
+              </motion.span>
             </div>
             <button 
               onClick={(e) => {

@@ -7,7 +7,7 @@ from bson import ObjectId
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app, mongo
-from app.utils.image_handler import save_base64_image
+from app.utils.image_handler import migrate_legacy_base64_to_webp
 
 def migrate():
     # We need the app context to access mongo
@@ -25,7 +25,7 @@ def migrate():
             # Thumbnail
             if 'thumbnail' in p and p['thumbnail'] and p['thumbnail'].startswith('data:image'):
                 print(f"Migrating product thumbnail: {p_id}")
-                new_url = save_base64_image(p['thumbnail'], str(p_id), 0, 'products')
+                new_url = migrate_legacy_base64_to_webp(p['thumbnail'], str(p_id), 0, 'products')
                 updates['thumbnail'] = new_url
             
             # Gallery
@@ -35,7 +35,7 @@ def migrate():
                 for i, img in enumerate(p['gallery']):
                     if isinstance(img, str) and img.startswith('data:image'):
                         print(f"Migrating product gallery item {i}: {p_id}")
-                        new_url = save_base64_image(img, str(p_id), i + 1, 'products')
+                        new_url = migrate_legacy_base64_to_webp(img, str(p_id), i + 1, 'products')
                         new_gallery.append(new_url)
                         changed = True
                     else:
@@ -59,7 +59,7 @@ def migrate():
             # Thumbnail
             if 'thumbnail' in s and s['thumbnail'] and s['thumbnail'].startswith('data:image'):
                 print(f"Migrating service thumbnail: {s_id}")
-                new_url = save_base64_image(s['thumbnail'], str(s_id), 0, 'services')
+                new_url = migrate_legacy_base64_to_webp(s['thumbnail'], str(s_id), 0, 'services')
                 updates['thumbnail'] = new_url
             
             # Gallery
@@ -69,7 +69,7 @@ def migrate():
                 for i, img in enumerate(s['gallery']):
                     if isinstance(img, str) and img.startswith('data:image'):
                         print(f"Migrating service gallery item {i}: {s_id}")
-                        new_url = save_base64_image(img, str(s_id), i + 1, 'services')
+                        new_url = migrate_legacy_base64_to_webp(img, str(s_id), i + 1, 'services')
                         new_gallery.append(new_url)
                         changed = True
                     else:

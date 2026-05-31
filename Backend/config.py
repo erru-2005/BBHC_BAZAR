@@ -98,6 +98,14 @@ class Config:
         print(f"  TWILIO_AUTH_TOKEN: {'[OK]' if TWILIO_AUTH_TOKEN else '[MISSING]'}")
         print(f"  TWILIO_PHONE_NUMBER: {'[OK]' if TWILIO_PHONE_NUMBER else '[MISSING]'}")
 
+    # Razorpay (secret must stay server-side only)
+    RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
+    RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
+    if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+        print("[OK] Razorpay credentials loaded")
+    else:
+        print("[WARN] Razorpay credentials missing (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET)")
+
 
 class DevelopmentConfig(Config):
     """Development configuration"""

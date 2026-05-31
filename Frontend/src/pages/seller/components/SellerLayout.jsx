@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import SellerBottomNav from './SellerBottomNav'
 import SellerProfile from './SellerProfile'
@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { logout } from '../../../store/authSlice'
 import { clearDeviceToken } from '../../../utils/device'
 import { getSocket, disconnectSocket } from '../../../utils/socket'
+import { bindPortalRealtimeSync, refreshSellerProfile } from '../../../services/api'
 import PasswordResetDialog from '../../../components/PasswordResetDialog'
 import SellerEditProfile from '../../../components/SellerEditProfile'
 
@@ -23,7 +24,14 @@ export default function SellerLayout() {
     const location = useLocation()
     const navigate = useNavigate()
     const dispatch = useDispatch()
-    const { user } = useSelector((state) => state.auth)
+    const { user, token } = useSelector((state) => state.auth)
+
+    // Realtime credits + profile sync for every seller page (dashboard, wallet, products, etc.)
+    useEffect(() => {
+        if (!user?.id || !token) return
+        bindPortalRealtimeSync()
+        refreshSellerProfile(true)
+    }, [user?.id, token])
 
     const isDashboard = location.pathname === '/seller/dashboard'
     const isOrdersView = isDashboard && location.state?.view === 'orders'

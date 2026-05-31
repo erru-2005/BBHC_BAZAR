@@ -6,6 +6,8 @@ const initialState = {
   outlets: [],
   products: [],
   orders: [],
+  blacklistedSellers: [],
+  blacklistedOutlets: [],
   analytics: null,
   commissions: [],
   loading: {
@@ -14,6 +16,8 @@ const initialState = {
     outlets: false,
     products: false,
     orders: false,
+    blacklistedSellers: false,
+    blacklistedOutlets: false,
     analytics: false,
     commissions: false
   },
@@ -24,6 +28,8 @@ const initialState = {
     outlets: null,
     products: null,
     orders: null,
+    blacklistedSellers: null,
+    blacklistedOutlets: null,
     analytics: null,
     commissions: null
   }
@@ -66,7 +72,38 @@ const masterSlice = createSlice({
     },
     removeMasterItem(state, action) {
        const { field, id } = action.payload
-       state[field] = state[field].filter(item => (item.id || item._id) !== id)
+       const targetId = String(id)
+       state[field] = state[field].filter(item => String(item.id || item._id) !== targetId)
+    },
+    invalidateMasterCache(state, action) {
+      const fields = action.payload
+      if (!fields || fields.length === 0) {
+        Object.keys(state.lastFetched).forEach((key) => {
+          state.lastFetched[key] = null
+        })
+        return
+      }
+      fields.forEach((field) => {
+        if (state.lastFetched[field] !== undefined) {
+          state.lastFetched[field] = null
+        }
+      })
+    },
+    addMasterBlacklistedItem(state, action) {
+      const { field, item } = action.payload
+      const id = String(item?.id || item?._id || '')
+      if (!id || !Array.isArray(state[field])) return
+      const exists = state[field].some((x) => String(x.id || x._id) === id)
+      if (!exists) {
+        state[field].unshift(item)
+      }
+      state.lastFetched[field] = Date.now()
+    },
+    removeMasterBlacklistedItem(state, action) {
+      const { field, id } = action.payload
+      const targetId = String(id)
+      state[field] = state[field].filter((item) => String(item.id || item._id) !== targetId)
+      state.lastFetched[field] = Date.now()
     },
     clearMasterData(state) {
       return initialState
@@ -84,6 +121,9 @@ export const {
   updateMasterSeller,
   updateMasterProduct,
   removeMasterItem,
+  invalidateMasterCache,
+  addMasterBlacklistedItem,
+  removeMasterBlacklistedItem,
   clearMasterData
 } = masterSlice.actions
 

@@ -1,6 +1,8 @@
 from marshmallow import Schema, fields, validate, validates_schema, ValidationError
 
 class ProductCreationSchema(Schema):
+    # Pre-reserved ID from image upload flow (optional; used as MongoDB _id when creating)
+    product_id = fields.Str(required=False, allow_none=True)
     product_name = fields.Str(required=True, validate=validate.Length(min=1, max=255))
     specification = fields.Str(required=True, validate=validate.Length(min=1))
     points = fields.List(fields.Str(validate=validate.Length(min=1)), required=True, validate=validate.Length(min=1))
@@ -22,6 +24,8 @@ class ProductCreationSchema(Schema):
                 raise ValidationError("Max price (MRP) must be greater than or equal to selling price.", field_name="max_price")
 
 class ServiceCreationSchema(Schema):
+    # Pre-reserved ID from image upload flow (optional; used as MongoDB _id when creating)
+    service_id = fields.Str(required=False, allow_none=True)
     service_name = fields.Str(required=True, validate=validate.Length(min=1, max=255))
     description = fields.Str(required=True, validate=validate.Length(min=1))
     points = fields.List(fields.Str(validate=validate.Length(min=1)), required=True, validate=validate.Length(min=1))
@@ -35,3 +39,4 @@ class ServiceCreationSchema(Schema):
     seller_phone = fields.Str(required=False, allow_none=True)
     commission_rate = fields.Float(required=False, allow_none=True)
     availability = fields.Bool(required=False, allow_none=True)
+    requires_booking_date = fields.Bool(required=False, allow_none=True)

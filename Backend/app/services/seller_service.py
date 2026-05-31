@@ -158,7 +158,8 @@ class SellerService:
                 
             updated_seller = SellerService.get_seller_by_id(seller_id)
             if updated_seller:
-                from app.sockets.emitter import emit_seller_update
+                from app.sockets.emitter import emit_seller_update, emit_seller_credits_updated
+                emit_seller_credits_updated(seller_id, updated_seller.credits, updated_seller.trade_id)
                 emit_seller_update(seller_id, updated_seller.to_dict())
                 
             return updated_seller
@@ -176,8 +177,14 @@ class SellerService:
             
             if result.matched_count == 0:
                 return None
-                
-            return SellerService.get_seller_by_id(seller_id)
+
+            updated_seller = SellerService.get_seller_by_id(seller_id)
+            if updated_seller:
+                from app.sockets.emitter import emit_seller_update, emit_seller_credits_updated
+                emit_seller_credits_updated(seller_id, updated_seller.credits, updated_seller.trade_id)
+                emit_seller_update(seller_id, updated_seller.to_dict())
+
+            return updated_seller
         except Exception as e:
             raise Exception(f"Error adding credits: {str(e)}")
     

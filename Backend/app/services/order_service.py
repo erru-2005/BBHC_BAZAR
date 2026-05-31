@@ -257,14 +257,15 @@ class OrderService:
         if is_service:
             # For services, accept means direct completion and credit deduction
             from app.services.seller_service import SellerService
-            
-            # Check if seller has enough credits (25 required)
-            seller = SellerService.get_seller_by_id(seller_id)
-            if not seller or seller.credits < 25:
-                return None, "Insufficient credits (25 required to accept service)"
+            from app.services.platform_settings_service import PlatformSettingsService
 
-            # Deduct 25 credits
-            SellerService.deduct_credits(seller_id, 25)
+            credit_cost = PlatformSettingsService.get_service_accept_credit_cost()
+
+            seller = SellerService.get_seller_by_id(seller_id)
+            if not seller or seller.credits < credit_cost:
+                return None, f"Insufficient credits ({credit_cost} required to accept service)"
+
+            SellerService.deduct_credits(seller_id, credit_cost)
             
             # Update order to completed in service_orders
             result = collection.update_one(
@@ -278,7 +279,7 @@ class OrderService:
                         'status_history': {
                             'status': 'completed',
                             'timestamp': datetime.now(timezone.utc),
-                            'note': 'Service accepted and completed (25 credits deducted)',
+                            'note': f'Service accepted and completed ({credit_cost} credits deducted)',
                             'updated_by': f'seller:{seller_id}'
                         }
                     }

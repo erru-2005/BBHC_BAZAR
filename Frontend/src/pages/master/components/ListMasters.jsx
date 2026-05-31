@@ -7,6 +7,7 @@ import 'react-loading-skeleton/dist/skeleton.css'
 import { getMasters } from '../../../services/api'
 import { useDispatch, useSelector } from 'react-redux'
 import { setMastersData, setMastersLoading } from '../../../store/masterSlice'
+import { isCacheStale, CACHE_TTL } from '../../../services/cacheSync'
 
 function ListMasters() {
   const dispatch = useDispatch()
@@ -16,10 +17,10 @@ function ListMasters() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!lastFetched.masters || masters.length === 0) {
+    if (isCacheStale(lastFetched.masters, CACHE_TTL.master) || masters.length === 0) {
       fetchMasters()
     }
-  }, [masters.length, lastFetched.masters])
+  }, [lastFetched.masters])
 
   const fetchMasters = async () => {
     try {

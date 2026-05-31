@@ -1,16 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { FiPlus, FiX, FiCheck, FiInfo, FiSave } from 'react-icons/fi'
-import { createService, updateService, getCategories, getSellers } from '../../../services/api'
+import {
+  createService,
+  updateService,
+  getCategories,
+  getSellers,
+  createCategory,
+  reserveImageEntityId,
+  uploadEntityImage,
+} from '../../../services/api'
+import { extractStaticPath, resolveImageUrl } from '../../../utils/image'
 
 const INITIAL_POINTS = ['', '', '']
-
-const convertFileToDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
 
 function AddService({ editingService = null, onServiceSaved = () => {}, onCancelEdit = () => {} }) {
   const [form, setForm] = useState({
@@ -19,7 +20,7 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
     serviceCharge: '',
     category: '',
     sellerTradeId: '',
-    availability: true
+    requiresBookingDate: false,
   })
   const [points, setPoints] = useState(INITIAL_POINTS)
   const [thumbnail, setThumbnail] = useState(null)
@@ -32,10 +33,14 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
   const [showConfirmReset, setShowConfirmReset] = useState(false)
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
   const [errors, setErrors] = useState({})
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [categoryStatus, setCategoryStatus] = useState({ type: null, message: '' })
 
   const nameRef = useRef(null)
   const sellerRef = useRef(null)
   const chargeRef = useRef(null)
+  const categoryRef = useRef(null)
   const descRef = useRef(null)
   const pointRef = useRef(null)
   const thumbnailRef = useRef(null)
@@ -49,15 +54,23 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
         serviceCharge: editingService.service_charge || '',
         category: editingService.categories?.[0] || '',
         sellerTradeId: editingService.seller_trade_id || '',
-        availability: editingService.availability !== false
+        requiresBookingDate: editingService.requires_booking_date === true,
       })
       setPoints(editingService.points && editingService.points.length > 0 ? editingService.points : INITIAL_POINTS)
       // For existing images, we store the URL in 'preview' and null in 'file'
       if (editingService.thumbnail) {
-        setThumbnail({ preview: editingService.thumbnail, file: null })
+        setThumbnail({
+          preview: resolveImageUrl(editingService.thumbnail) || editingService.thumbnail,
+          file: null,
+        })
       }
       if (editingService.gallery && Array.isArray(editingService.gallery)) {
-        setGallery(editingService.gallery.map(url => ({ preview: url, file: null })))
+        setGallery(
+          editingService.gallery.map((url) => ({
+            preview: resolveImageUrl(url) || url,
+            file: null,
+          }))
+        )
       }
     } else {
       resetForm()
@@ -68,7 +81,7 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
     const fetchData = async () => {
       try {
         setIsLoadingSellers(true)
-        const cats = await getCategories()
+        const cats = await getCategories('service')
         const sellersData = await getSellers({ limit: 500 })
         // Check if cats is already an array or needs to be extracted
         const categoryList = Array.isArray(cats) ? cats : (cats?.categories || [])
@@ -90,7 +103,7 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
       serviceCharge: '',
       category: '',
       sellerTradeId: '',
-      availability: true
+      requiresBookingDate: false,
     })
     setPoints(INITIAL_POINTS)
     setThumbnail(null)
@@ -122,17 +135,25 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
 
   const handleThumbnailChange = async (e) => {
     const file = e.target.files?.[0]
-    if (file) setThumbnail({ preview: await convertFileToDataUrl(file), file })
+    if (file) setThumbnail({ preview: URL.createObjectURL(file), file })
   }
 
   const handleGalleryChange = async (e) => {
     const files = Array.from(e.target.files || [])
-    const newImgs = await Promise.all(files.map(async f => ({ preview: await convertFileToDataUrl(f), file: f })))
+    const newImgs = files.map((f) => ({ preview: URL.createObjectURL(f), file: f }))
     setGallery([...gallery, ...newImgs])
   }
 
   const handleRemoveGalleryImage = (index) => {
     setGallery(gallery.filter((_, i) => i !== index))
+  }
+
+  const focusFirstField = (ref) => {
+    if (!ref?.current) return
+    requestAnimationFrame(() => {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      ref.current.focus()
+    })
   }
 
   const validateForm = () => {
@@ -154,6 +175,11 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
       if (!firstErrorRef) firstErrorRef = chargeRef
     }
 
+    if (!form.category.trim()) {
+      newErrors.category = 'Category is required'
+      if (!firstErrorRef) firstErrorRef = categoryRef
+    }
+
     if (!thumbnail) {
       newErrors.thumbnail = 'Thumbnail is required'
       if (!firstErrorRef) firstErrorRef = thumbnailRef
@@ -167,14 +193,12 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
 
     setErrors(newErrors)
     if (Object.keys(newErrors).length > 0) {
-      if (firstErrorRef && firstErrorRef.current) {
-        firstErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        firstErrorRef.current.focus()
-      }
-      setStatus({ type: 'error', message: 'Please correct the highlighted errors.' })
+      setStatus({ type: null, message: '' })
+      focusFirstField(firstErrorRef)
       return false
     }
 
+    setErrors({})
     return true
   }
 
@@ -186,31 +210,70 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const cleanedPoints = points.map(p => p.trim()).filter(Boolean)
-    if (!form.serviceName || !form.serviceCharge || !form.sellerTradeId || !thumbnail) {
-      setStatus({ type: 'error', message: 'Required fields and thumbnail missing' })
-      return
-    }
+    if (submitting) return
+    if (!validateForm()) return
 
+    const cleanedPoints = points.map(p => p.trim()).filter(Boolean)
     const selectedSeller = sellers.find(s => s.trade_id === form.sellerTradeId)
+
+    setSubmitting(true)
+    try {
+      let entityId = editingService?.id || editingService?._id
+      if (!entityId) {
+        entityId = await reserveImageEntityId('services')
+      }
+
+      let thumbnailUrl = null
+      if (thumbnail.file) {
+        const uploaded = await uploadEntityImage(thumbnail.file, {
+          entityType: 'services',
+          entityId,
+          index: 0,
+        })
+        thumbnailUrl = uploaded.url
+      } else {
+        thumbnailUrl = extractStaticPath(thumbnail.preview)
+      }
+      if (!thumbnailUrl) {
+        setErrors({ thumbnail: 'Thumbnail is required' })
+        setStatus({ type: null, message: '' })
+        focusFirstField(thumbnailRef)
+        setSubmitting(false)
+        return
+      }
+
+      const galleryUrls = []
+      for (let i = 0; i < gallery.length; i++) {
+        const item = gallery[i]
+        if (item.file) {
+          const uploaded = await uploadEntityImage(item.file, {
+            entityType: 'services',
+            entityId,
+            index: i + 1,
+          })
+          galleryUrls.push(uploaded.url)
+        } else {
+          const path = extractStaticPath(item.preview)
+          if (path) galleryUrls.push(path)
+        }
+      }
 
     const payload = {
       service_name: form.serviceName,
       description: form.description,
       points: cleanedPoints,
-      thumbnail: thumbnail.preview,
-      gallery: gallery.map(img => img.preview),
+      thumbnail: thumbnailUrl,
+      gallery: galleryUrls,
       service_charge: Number(form.serviceCharge),
       categories: form.category ? [form.category] : [],
       seller_trade_id: form.sellerTradeId,
       seller_name: selectedSeller ? `${selectedSeller.first_name || ''} ${selectedSeller.last_name || ''}`.trim() : '',
       seller_email: selectedSeller?.email || '',
       seller_phone: selectedSeller?.phone_number || '',
-      availability: form.availability
+      requires_booking_date: form.requiresBookingDate,
+      service_id: entityId,
     }
 
-    setSubmitting(true)
-    try {
       if (editingService) {
         await updateService(editingService.id || editingService._id, payload)
         setStatus({ type: 'success', message: 'Service updated successfully!' })
@@ -253,11 +316,32 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-10">
-        {status.message && (
-          <div className={`p-4 rounded-xl font-medium ${status.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+        {status.type === 'success' && status.message && (
+          <div className="p-4 rounded-xl font-medium bg-green-50 text-green-700">
             {status.message}
           </div>
         )}
+        {status.type === 'error' && status.message && (
+          <div className="p-4 rounded-xl font-medium bg-red-50 text-red-700">
+            {status.message}
+          </div>
+        )}
+
+        <div className="p-5 bg-gray-50 rounded-xl border border-gray-100">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              name="requiresBookingDate"
+              checked={form.requiresBookingDate}
+              onChange={handleChange}
+              className="w-5 h-5 accent-black"
+            />
+            <span className="text-sm font-bold text-gray-700">Customer must pick a booking date</span>
+          </label>
+          <p className="text-xs text-gray-500 mt-3 ml-8">
+            When enabled, users see date fields while booking and must choose a date before confirming.
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* Left Column: Basic Details */}
@@ -272,7 +356,7 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
                 onChange={handleChange} 
                 className={`w-full h-12 px-4 rounded-xl border ${errors.serviceName ? 'border-red-500 bg-red-50' : 'border-gray-300'} focus:ring-2 focus:ring-black outline-none text-black font-bold`} 
               />
-              {errors.serviceName && <p className="text-red-500 text-xs mt-1 font-bold">{errors.serviceName}</p>}
+              {errors.serviceName && <p className="field-error-text text-xs mt-1 font-bold">{errors.serviceName}</p>}
             </div>
 
             <div>
@@ -298,7 +382,7 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
                   {sellers.map(s => <option key={s.id || s.trade_id} value={s.trade_id}>{s.trade_id} ({s.first_name || 'No Name'})</option>)}
                 </select>
               )}
-              {errors.sellerTradeId && <p className="text-red-500 text-xs mt-1 font-bold">{errors.sellerTradeId}</p>}
+              {errors.sellerTradeId && <p className="field-error-text text-xs mt-1 font-bold">{errors.sellerTradeId}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -312,18 +396,45 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
                   onChange={handleChange} 
                   className={`w-full h-12 px-4 rounded-xl border ${errors.serviceCharge ? 'border-red-500 bg-red-50' : 'border-gray-300'} focus:ring-2 focus:ring-black outline-none text-black font-bold`} 
                 />
-                {errors.serviceCharge && <p className="text-red-500 text-xs mt-1 font-bold">{errors.serviceCharge}</p>}
+                {errors.serviceCharge && <p className="field-error-text text-xs mt-1 font-bold">{errors.serviceCharge}</p>}
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Category</label>
-                <select name="category" value={form.category} onChange={handleChange} className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-black outline-none bg-white text-black font-bold">
-                  <option value="">Select Category</option>
-                  {categories.map(c => {
-                    const catName = typeof c === 'string' ? c : (c.name || c.id || '')
-                    const catId = typeof c === 'string' ? c : (c.id || c._id || c.name)
-                    return <option key={catId} value={catName}>{catName}</option>
-                  })}
-                </select>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Category *</label>
+                <div className="flex gap-2">
+                  <select
+                    ref={categoryRef}
+                    name="category"
+                    value={form.category}
+                    onChange={handleChange}
+                    className={`flex-1 h-12 px-4 rounded-xl border ${errors.category ? 'border-red-500 bg-red-50' : 'border-gray-300'} focus:ring-2 focus:ring-black outline-none bg-white text-black font-bold`}
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map((c) => {
+                      const catName = typeof c === 'string' ? c : (c.name || c.id || '')
+                      const catId = typeof c === 'string' ? c : (c.id || c._id || c.name)
+                      return (
+                        <option key={catId} value={catName}>
+                          {catName}
+                        </option>
+                      )
+                    })}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryStatus({ type: null, message: '' })
+                      setShowCategoryModal(true)
+                    }}
+                    className="h-12 px-4 rounded-xl bg-black text-white font-bold hover:bg-gray-900 whitespace-nowrap"
+                  >
+                    Add
+                  </button>
+                </div>
+                {errors.category ? (
+                  <p className="field-error-text text-xs mt-1 font-bold">{errors.category}</p>
+                ) : (
+                  <p className="mt-1 text-xs text-gray-500">Service categories are separate from product categories.</p>
+                )}
               </div>
             </div>
 
@@ -368,7 +479,7 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
                 )}
                 <input type="file" onChange={handleThumbnailChange} className="absolute inset-0 opacity-0 cursor-pointer" />
               </div>
-              {errors.thumbnail && <p className="text-red-500 text-xs mt-1 font-bold">{errors.thumbnail}</p>}
+              {errors.thumbnail && <p className="field-error-text text-xs mt-1 font-bold">{errors.thumbnail}</p>}
             </div>
 
             <div>
@@ -410,14 +521,10 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
                   </div>
                 ))}
                 <button type="button" onClick={handleAddPoint} className="text-xs font-bold text-gray-500 hover:text-black font-bold">+ Add Point</button>
-                {errors.points && <p className="text-red-500 text-xs mt-1 font-bold">{errors.points}</p>}
+                {errors.points && <p className="field-error-text text-xs mt-1 font-bold">{errors.points}</p>}
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-              <input type="checkbox" name="availability" checked={form.availability} onChange={handleChange} className="w-5 h-5 accent-black font-bold" />
-              <span className="text-sm font-bold text-gray-700">Currently Available for Booking</span>
-            </div>
           </div>
         </div>
 
@@ -447,8 +554,8 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
 
       {/* Confirmation Modals */}
       {showConfirmReset && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="master-modal-backdrop fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="master-modal-panel bg-white rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Are you sure?</h3>
             <p className="text-gray-500 mb-8 font-medium">This will clear all the information you've entered so far. This action cannot be undone.</p>
             <div className="flex gap-3">
@@ -468,17 +575,96 @@ function AddService({ editingService = null, onServiceSaved = () => {}, onCancel
       )}
 
       {showConfirmSubmit && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="master-modal-backdrop fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="master-modal-panel bg-white rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Confirm {editingService ? 'Update' : 'Creation'}</h3>
             <p className="text-gray-500 mb-8 font-medium">Ready to {editingService ? 'update this service' : 'list this new service'} on the marketplace? Make sure all details are accurate.</p>
             <div className="flex gap-3">
-              <button onClick={() => setShowConfirmSubmit(false)} className="flex-1 py-4 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50">Review</button>
-              <button 
-                onClick={(e) => handleSubmit(e)} 
-                className="flex-1 py-4 rounded-2xl bg-black text-white font-bold hover:bg-gray-800"
+              <button
+                type="button"
+                onClick={() => setShowConfirmSubmit(false)}
+                disabled={submitting}
+                className="flex-1 py-4 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Confirm
+                Review
+              </button>
+              <button
+                type="button"
+                onClick={(e) => handleSubmit(e)}
+                disabled={submitting}
+                className="flex-1 py-4 rounded-2xl bg-black text-white font-bold hover:bg-gray-800 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+                    Processing...
+                  </>
+                ) : (
+                  'Confirm'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCategoryModal && (
+        <div className="master-modal-backdrop fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="master-modal-panel bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Add Service Category</h3>
+            {categoryStatus.type && (
+              <p className={`text-sm mb-3 ${categoryStatus.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
+                {categoryStatus.message}
+              </p>
+            )}
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition mb-4 text-black font-bold"
+              placeholder="Enter service category name"
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCategoryModal(false)
+                  setNewCategoryName('')
+                  setCategoryStatus({ type: null, message: '' })
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newCategoryName.trim()) {
+                    setCategoryStatus({ type: 'error', message: 'Category name is required.' })
+                    return
+                  }
+                  try {
+                    const newCategory = await createCategory(newCategoryName.trim(), 'service')
+                    setCategories((prev) => [...prev, newCategory])
+                    setForm((prev) => ({ ...prev, category: newCategory.name }))
+                    setErrors((prev) => {
+                      const next = { ...prev }
+                      delete next.category
+                      return next
+                    })
+                    setCategoryStatus({ type: 'success', message: 'Service category added.' })
+                    setTimeout(() => {
+                      setShowCategoryModal(false)
+                      setNewCategoryName('')
+                      setCategoryStatus({ type: null, message: '' })
+                    }, 800)
+                  } catch (error) {
+                    setCategoryStatus({ type: 'error', message: error.message })
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-black text-white font-semibold hover:bg-gray-900"
+              >
+                Save
               </button>
             </div>
           </div>

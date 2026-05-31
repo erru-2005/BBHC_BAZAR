@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { FiX, FiLogOut, FiKey, FiUser, FiChevronLeft, FiCamera, FiCreditCard, FiTruck, FiRefreshCw, FiXCircle, FiHeart, FiHeadphones, FiChevronRight } from 'react-icons/fi'
 import { useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
-import { uploadFile, updateSellerProfile } from '../../../services/api'
+import { uploadAvatar, updateSellerProfile } from '../../../services/api'
 import { updateUserInfo } from '../../../store/authSlice'
 import { fixImageUrl } from '../../../utils/image'
 import Toast from '../../../components/Toast'
@@ -111,7 +111,7 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
 
         setIsUploading(true)
         try {
-            const uploadRes = await uploadFile(file)
+            const uploadRes = await uploadAvatar(file, user.id)
             const imageUrl = uploadRes.url
             await updateSellerProfile(user.id, { image_url: imageUrl })
             dispatch(updateUserInfo({ image_url: imageUrl }))

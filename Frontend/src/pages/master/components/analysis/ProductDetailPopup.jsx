@@ -10,7 +10,7 @@ const ProductDetailPopup = ({ product, onClose }) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      className="master-modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
       onClick={onClose}
     >
       <motion.div
@@ -18,7 +18,7 @@ const ProductDetailPopup = ({ product, onClose }) => {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-2xl max-w-md w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto"
+        className="master-modal-panel bg-white rounded-xl shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
         <div className="flex justify-between items-start mb-4">

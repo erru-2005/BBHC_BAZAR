@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiSearch, FiPackage, FiBox, FiRefreshCw, FiXCircle, FiArrowUpRight, FiEye } from 'react-icons/fi'
-import { getOrders, sellerAcceptOrder, sellerRejectOrder } from '../../../services/api'
+import { getOrders, sellerAcceptOrder, sellerRejectOrder, getServiceAcceptCredit } from '../../../services/api'
 import { initSocket } from '../../../utils/socket'
-import { fixImageUrl } from '../../../utils/image'
+import { fixImageUrl, getOrderProductImage } from '../../../utils/image'
 import { updateUserInfo } from '../../../store/authSlice'
 
 function SellerOrders() {
@@ -20,6 +20,11 @@ function SellerOrders() {
   const [rejectionReason, setRejectionReason] = useState('')
   const [processingId, setProcessingId] = useState(null)
   const [serviceConfirmOrder, setServiceConfirmOrder] = useState(null)
+  const [serviceAcceptCredit, setServiceAcceptCredit] = useState(25)
+
+  useEffect(() => {
+    getServiceAcceptCredit().then(setServiceAcceptCredit).catch(() => {})
+  }, [])
 
 
   const fetchOrders = async () => {
@@ -51,7 +56,7 @@ function SellerOrders() {
 
     // OPTIMISTIC UPDATE: Instant visual deduction
     if (isService) {
-      dispatch(updateUserInfo({ credits: Math.max(0, (user?.credits || 0) - 25) }))
+      dispatch(updateUserInfo({ credits: Math.max(0, (user?.credits || 0) - serviceAcceptCredit) }))
     }
 
     try {
@@ -255,7 +260,9 @@ function SellerOrders() {
               <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-xs">Awaiting new transmissions</p>
             </div>
           ) : (
-            filteredOrders.map((order) => (
+            filteredOrders.map((order) => {
+              const productImg = getOrderProductImage(order)
+              return (
               <motion.div
                 key={order.id}
                 layout
@@ -291,8 +298,8 @@ function SellerOrders() {
 
                 <div className="flex items-center gap-5 mb-8 p-5 bg-slate-50/50 backdrop-blur-sm rounded-[2rem] border border-white/80 shadow-inner group-hover:bg-slate-50 transition-colors">
                   <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-slate-100 flex-shrink-0 shadow-sm transition-transform group-hover:scale-105">
-                    {order.product?.image || order.product?.thumbnail ? (
-                      <img src={fixImageUrl(order.product.image || order.product.thumbnail)} className="w-full h-full object-cover" />
+                    {productImg ? (
+                      <img src={productImg} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-200"><FiPackage className="w-8 h-8" /></div>
                     )}
@@ -374,7 +381,7 @@ function SellerOrders() {
                   </div>
                 </div>
               </motion.div>
-            ))
+            )})
           )}
         </AnimatePresence>
       </div>
@@ -467,26 +474,26 @@ function SellerOrders() {
               <p className="text-xs text-slate-400 font-medium mb-4 leading-relaxed px-2">
                 Confirm your availability to fulfill this service request.
                 <span className="block mt-2 font-black text-blue-600 uppercase tracking-widest bg-blue-50 py-2 rounded-lg border border-blue-100">
-                  25 credits will be deducted
+                  {serviceAcceptCredit} credits will be deducted
                 </span>
               </p>
 
-              {user?.credits < 25 && (
+              {user?.credits < serviceAcceptCredit && (
                 <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-100 flex flex-col items-center gap-2">
                   <div className="flex items-center gap-2 text-rose-600 font-bold text-[10px] uppercase tracking-widest">
                     <FiXCircle className="w-4 h-4" /> Insufficient Credits
                   </div>
-                  <p className="text-[10px] text-rose-500 font-medium">You need at least 25 credits to accept this service. Please recharge your wallet.</p>
+                  <p className="text-[10px] text-rose-500 font-medium">You need at least {serviceAcceptCredit} credits to accept this service. Please recharge your wallet.</p>
                 </div>
               )}
 
               <div className="flex flex-col gap-3">
                 <motion.button
-                  whileHover={user?.credits >= 25 ? { scale: 1.02 } : {}}
-                  whileTap={user?.credits >= 25 ? { scale: 0.98 } : {}}
-                  disabled={processingId === serviceConfirmOrder.id || user?.credits < 25}
+                  whileHover={user?.credits >= serviceAcceptCredit ? { scale: 1.02 } : {}}
+                  whileTap={user?.credits >= serviceAcceptCredit ? { scale: 0.98 } : {}}
+                  disabled={processingId === serviceConfirmOrder.id || user?.credits < serviceAcceptCredit}
                   onClick={() => handleAccept(serviceConfirmOrder.id)}
-                  className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${user?.credits >= 25
+                  className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${user?.credits >= serviceAcceptCredit
                       ? 'bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-700'
                       : 'bg-slate-100 text-slate-400 cursor-not-allowed grayscale'
                     }`}

@@ -3,17 +3,15 @@ import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { FiPlus, FiX, FiCheck, FiInfo, FiBox, FiChevronDown } from 'react-icons/fi'
-import { createSellerService, getCategories } from '../../../services/api'
+import {
+  createSellerService,
+  getCategories,
+  reserveImageEntityId,
+  uploadEntityImage,
+} from '../../../services/api'
+import { extractStaticPath } from '../../../utils/image'
 
 const INITIAL_POINTS = ['', '', '']
-
-const convertFileToDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
 
 function CategoryDropdown({ categories, selected, onSelect }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -84,7 +82,7 @@ function ServiceForm({ onClose }) {
     description: '',
     serviceCharge: '',
     category: '',
-    availability: true
+    requiresBookingDate: false,
   })
   const [points, setPoints] = useState(INITIAL_POINTS)
   const [thumbnail, setThumbnail] = useState(null)
@@ -96,7 +94,7 @@ function ServiceForm({ onClose }) {
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const data = await getCategories()
+        const data = await getCategories('service')
         const categoriesList = Array.isArray(data) ? data : (data?.categories || [])
         setCategories(categoriesList)
       } catch (error) {
@@ -133,27 +131,16 @@ function ServiceForm({ onClose }) {
   const handleThumbnailChange = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    try {
-      const dataUrl = await convertFileToDataUrl(file)
-      setThumbnail({ preview: dataUrl, file })
-    } catch (err) {
-      console.error(err)
-    }
+    setThumbnail({ preview: URL.createObjectURL(file), file })
   }
 
   const handleGalleryChange = async (e) => {
     const files = Array.from(e.target.files || [])
-    try {
-      const newImages = await Promise.all(
-        files.map(async (file) => ({
-          preview: await convertFileToDataUrl(file),
-          file
-        }))
-      )
-      setGallery([...gallery, ...newImages])
-    } catch (err) {
-      console.error(err)
-    }
+    const newImages = files.map((file) => ({
+      preview: URL.createObjectURL(file),
+      file,
+    }))
+    setGallery([...gallery, ...newImages])
   }
 
   const handleSubmit = async (e) => {
@@ -169,19 +156,44 @@ function ServiceForm({ onClose }) {
       return
     }
 
-    const payload = {
-      service_name: form.serviceName,
-      description: form.description,
-      points: cleanedPoints,
-      thumbnail: thumbnail.preview,
-      gallery: gallery.map(img => img.preview),
-      service_charge: Number(form.serviceCharge),
-      categories: form.category ? [form.category] : [],
-      availability: form.availability
-    }
-
     setSubmitting(true)
     try {
+      const entityId = await reserveImageEntityId('services')
+
+      const thumbUpload = await uploadEntityImage(thumbnail.file, {
+        entityType: 'services',
+        entityId,
+        index: 0,
+      })
+
+      const galleryUrls = []
+      for (let i = 0; i < gallery.length; i++) {
+        const item = gallery[i]
+        if (item.file) {
+          const uploaded = await uploadEntityImage(item.file, {
+            entityType: 'services',
+            entityId,
+            index: i + 1,
+          })
+          galleryUrls.push(uploaded.url)
+        } else {
+          const path = extractStaticPath(item.preview)
+          if (path) galleryUrls.push(path)
+        }
+      }
+
+      const payload = {
+        service_name: form.serviceName,
+        description: form.description,
+        points: cleanedPoints,
+        thumbnail: thumbUpload.url,
+        gallery: galleryUrls,
+        service_charge: Number(form.serviceCharge),
+        categories: form.category ? [form.category] : [],
+        requires_booking_date: form.requiresBookingDate,
+        service_id: entityId,
+      }
+
       await createSellerService(payload)
       setStatus({ type: 'success', message: 'Service submitted for approval!' })
       setTimeout(() => {
@@ -211,6 +223,19 @@ function ServiceForm({ onClose }) {
             {status.message}
           </motion.div>
         )}
+
+        <section className="bg-white border border-slate-100 rounded-[2rem] p-6 md:p-8 shadow-sm">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              name="requiresBookingDate"
+              checked={form.requiresBookingDate}
+              onChange={handleChange}
+              className="w-5 h-5 accent-blue-600"
+            />
+            <span className="text-sm font-bold text-slate-700">Customer must pick a booking date</span>
+          </label>
+        </section>
 
         {/* Media Section */}
         <section className="bg-white border border-slate-100 rounded-[2.5rem] p-8 md:p-10 space-y-8 shadow-sm">

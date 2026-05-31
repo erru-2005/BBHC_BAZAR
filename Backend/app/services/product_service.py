@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from app import mongo
 from app.models.product import Product
-from app.utils.image_handler import save_base64_image, delete_entity_images
+from app.utils.image_handler import save_stored_image_reference, delete_entity_images, is_base64_image
 
 
 class ProductService:
@@ -61,16 +61,22 @@ class ProductService:
                 else:
                     approval_status = 'approved'
 
-            # Generate ID beforehand to use it for folder naming
-            product_id = ObjectId()
-            
-            # Save images to filesystem
-            thumbnail_url = save_base64_image(product_data['thumbnail'], str(product_id), 0, 'products')
+            # Use pre-reserved id when images were uploaded before create
+            product_id = ObjectId(product_data['product_id']) if product_data.get('product_id') else ObjectId()
+
+            thumbnail_url = save_stored_image_reference(
+                product_data['thumbnail'], str(product_id), 0, 'products'
+            )
+            if not thumbnail_url:
+                raise ValueError('Product thumbnail is required. Upload an image first.')
+
             gallery_urls = []
             if 'gallery' in product_data and isinstance(product_data['gallery'], list):
-                for i, img_b64 in enumerate(product_data['gallery']):
-                    url = save_base64_image(img_b64, str(product_id), i + 1, 'products')
-                    gallery_urls.append(url)
+                for i, img_ref in enumerate(product_data['gallery']):
+                    if is_base64_image(img_ref):
+                        raise ValueError('Base64 gallery images are not supported.')
+                    if img_ref and str(img_ref).startswith('/static/'):
+                        gallery_urls.append(str(img_ref))
 
             product = Product(
                 product_name=product_data['product_name'],
@@ -306,14 +312,19 @@ class ProductService:
                 update_fields['categories'] = [str(cat).strip() for cat in categories if str(cat).strip()]
 
             if 'thumbnail' in product_data:
-                update_fields['thumbnail'] = save_base64_image(product_data['thumbnail'], str(product_id), 0, 'products')
+                update_fields['thumbnail'] = save_stored_image_reference(
+                    product_data['thumbnail'], str(product_id), 0, 'products'
+                )
 
             if 'gallery' in product_data:
                 gallery_urls = []
                 if isinstance(product_data['gallery'], list):
-                    for i, img_b64 in enumerate(product_data['gallery']):
-                        url = save_base64_image(img_b64, str(product_id), i + 1, 'products')
-                        gallery_urls.append(url)
+                    for i, img_ref in enumerate(product_data['gallery']):
+                        url = save_stored_image_reference(
+                            img_ref, str(product_id), i + 1, 'products'
+                        )
+                        if url:
+                            gallery_urls.append(url)
                 update_fields['gallery'] = gallery_urls
 
             if not update_fields:

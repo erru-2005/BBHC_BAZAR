@@ -21,7 +21,7 @@ class OTPManager:
         return otp
     
     @staticmethod
-    def store_otp(user_id, user_type, otp, phone_number=None):
+    def store_otp(user_id, user_type, otp, phone_number=None, purpose=None, metadata=None):
         """Store OTP in database with expiry"""
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTPManager.OTP_EXPIRY_MINUTES)
         
@@ -34,16 +34,18 @@ class OTPManager:
             'verified': False
         }
         
-        # Store phone_number if provided (for user registration)
         if phone_number:
             otp_data['phone_number'] = phone_number
+        if purpose:
+            otp_data['purpose'] = purpose
+        if metadata:
+            otp_data['metadata'] = metadata
         
-        # Store in otp_sessions collection
         result = mongo.db.otp_sessions.insert_one(otp_data)
         return str(result.inserted_id)
     
     @staticmethod
-    def verify_otp(session_id, otp):
+    def verify_otp(session_id, otp, expected_purpose=None):
         """Verify OTP and return user info if valid"""
         try:
             from bson import ObjectId
@@ -54,6 +56,9 @@ class OTPManager:
             
             if not session:
                 return None, "Invalid or expired OTP session"
+
+            if expected_purpose and session.get('purpose') != expected_purpose:
+                return None, "Invalid OTP session for this action"
             
             # Check if expired
             now = datetime.now(timezone.utc)
@@ -81,10 +86,11 @@ class OTPManager:
             
             user_info = {
                 'user_id': session['user_id'],
-                'user_type': session['user_type']
+                'user_type': session['user_type'],
+                'purpose': session.get('purpose'),
+                'metadata': session.get('metadata') or {},
             }
             
-            # Include phone_number if present
             if 'phone_number' in session:
                 user_info['phone_number'] = session['phone_number']
             

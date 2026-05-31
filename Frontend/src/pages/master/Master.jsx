@@ -3,10 +3,11 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { logout, loginSuccess } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
+import { bindPortalRealtimeSync } from '../../services/api'
 import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
@@ -35,6 +36,7 @@ const TAB_ORDER_VERSION = '3'
 function Master() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, token } = useSelector((state) => state.auth)
   const [editingProduct, setEditingProduct] = useState(null)
   const [editingService, setEditingService] = useState(null)
@@ -44,7 +46,11 @@ function Master() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
 
-  // Default tab order (Home always first, others can be reordered)
+  // Master: live seller credit updates on list / wallet views
+  useEffect(() => {
+    if (!token) return
+    bindPortalRealtimeSync()
+  }, [token])
   const defaultTabs = [
     { id: 'home', label: 'Home', icon: HiHome },
     { id: 'orders', label: 'Orders', icon: FaShoppingBag },
@@ -116,6 +122,13 @@ function Master() {
     localStorage.setItem('master_tab_order', JSON.stringify(order))
     localStorage.setItem('master_tab_order_version', TAB_ORDER_VERSION)
   }, [tabs])
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab)
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.state?.tab, location.pathname, navigate])
 
   // Cleanup long press timer on unmount
   useEffect(() => {
@@ -564,7 +577,8 @@ function Master() {
         
         {activeTab === 'add-master' && <AddMaster />}
         
-        {activeTab === 'add-product' && (
+        {/* Keep Add Product / Add Service mounted so form data survives tab switches */}
+        <div className={activeTab === 'add-product' ? '' : 'hidden'} aria-hidden={activeTab !== 'add-product'}>
           <AddProduct
             editingProduct={editingProduct}
             onProductSaved={() => {
@@ -573,7 +587,19 @@ function Master() {
             }}
             onCancelEdit={() => setEditingProduct(null)}
           />
-        )}
+        </div>
+
+        <div className={activeTab === 'add-service' ? '' : 'hidden'} aria-hidden={activeTab !== 'add-service'}>
+          <AddService
+            editingService={editingService}
+            onServiceSaved={() => {
+              setEditingService(null)
+              setServicesRefreshKey((prev) => prev + 1)
+              setActiveTab('list-services')
+            }}
+            onCancelEdit={() => setEditingService(null)}
+          />
+        </div>
         
         {activeTab === 'list-sellers' && <ListSellers />}
         
@@ -593,18 +619,6 @@ function Master() {
           />
         )}
 
-        {activeTab === 'add-service' && (
-          <AddService
-            editingService={editingService}
-            onServiceSaved={() => {
-              setEditingService(null)
-              setServicesRefreshKey((prev) => prev + 1)
-              setActiveTab('list-services')
-            }}
-            onCancelEdit={() => setEditingService(null)}
-          />
-        )}
-        
         {activeTab === 'list-services' && (
           <ListServices
             refreshSignal={servicesRefreshKey}

@@ -29,6 +29,9 @@ requests==2.31.0
 # SMS Service
 twilio==9.0.0
 
+# Payments
+razorpay==1.4.2
+
 # Development
 pytest==7.4.3
 pytest-flask==1.3.0

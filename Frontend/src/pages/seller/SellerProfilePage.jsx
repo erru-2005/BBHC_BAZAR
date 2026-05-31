@@ -5,7 +5,7 @@ import {
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useOutletContext } from 'react-router-dom'
-import { uploadFile, updateSellerProfile } from '../../services/api'
+import { uploadAvatar, updateSellerProfile } from '../../services/api'
 import { updateUserInfo } from '../../store/authSlice'
 import { fixImageUrl } from '../../utils/image'
 import Toast from '../../components/Toast'
@@ -93,7 +93,7 @@ export default function SellerProfilePage() {
         setIsUploading(true)
         setUploadSuccess(false)
         try {
-            const uploadRes = await uploadFile(file)
+            const uploadRes = await uploadAvatar(file, user.id)
             const imageUrl = uploadRes.url
             await updateSellerProfile(user.id, { image_url: imageUrl })
             dispatch(updateUserInfo({ image_url: imageUrl }))

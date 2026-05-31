@@ -5,7 +5,7 @@ import { FiRefreshCw, FiPackage, FiSearch, FiPlus, FiArrowUpRight, FiMoreVertica
 import { motion, AnimatePresence } from 'framer-motion'
 import { getSellerMyProducts } from '../../services/api'
 import useProductSocket from '../../hooks/useProductSocket'
-import { fixImageUrl } from '../../utils/image'
+import { resolveImageUrl } from '../../utils/image'
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null || value === '') return '₹0'
@@ -123,7 +123,7 @@ function SellerMyProducts() {
                   <div className="relative aspect-[4/3] overflow-hidden rounded-[1.75rem] bg-slate-100 border border-slate-200/50">
                     {product.thumbnail || product.image ? (
                       <img 
-                        src={fixImageUrl(product.thumbnail || product.image)} 
+                        src={resolveImageUrl(product.thumbnail || product.image)} 
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
                       />
                     ) : (

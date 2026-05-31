@@ -210,9 +210,17 @@ const dataSlice = createSlice({
       } else {
         state.home.wishlist.push(productId)
       }
+    },
+    invalidateHomeCache(state) {
+      state.home.productsCacheTimestamp = null
+      try {
+        localStorage.removeItem('bbhc_home_products_cache')
+      } catch {
+        // ignore
+      }
     }
   }
 })
 
-export const { setData, setLoading, setError, setHomeProducts, setHomeWishlist, setCategories, setRefreshing, updateProductInCache, toggleWishlist } = dataSlice.actions
+export const { setData, setLoading, setError, setHomeProducts, setHomeWishlist, setCategories, setRefreshing, updateProductInCache, toggleWishlist, invalidateHomeCache } = dataSlice.actions
 export default dataSlice.reducer

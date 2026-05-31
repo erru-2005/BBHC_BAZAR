@@ -60,6 +60,20 @@ const sellerSlice = createSlice({
     },
     clearSellerData(state) {
       return initialState
+    },
+    invalidateSellerCache(state, action) {
+      const fields = action.payload
+      if (!fields || fields.length === 0) {
+        Object.keys(state.lastFetched).forEach((key) => {
+          state.lastFetched[key] = null
+        })
+        return
+      }
+      fields.forEach((field) => {
+        if (state.lastFetched[field] !== undefined) {
+          state.lastFetched[field] = null
+        }
+      })
     }
   },
   extraReducers: (builder) => {
@@ -75,7 +89,8 @@ export const {
   setSellerError,
   updateSellerOrder,
   removeSellerProduct,
-  clearSellerData
+  clearSellerData,
+  invalidateSellerCache
 } = sellerSlice.actions
 
 export default sellerSlice.reducer

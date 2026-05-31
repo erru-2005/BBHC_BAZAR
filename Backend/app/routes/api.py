@@ -9,16 +9,16 @@ from flask import send_from_directory, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, verify_jwt_in_request
 from marshmallow import ValidationError
 from app.schemas.registration_schemas import MasterRegistrationSchema, SellerRegistrationSchema
-from app.schemas.product_service_schemas import ProductCreationSchema, ServiceCreationSchema
+from app.schemas.product_service_schemas import ProductCreationSchema
 from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
 from app.services.outlet_man_service import OutletManService
 from app.services.blacklist_service import BlacklistService
 from app.services.category_service import CategoryService
 from app.services.product_service import ProductService
-from app.services.service_service import ServiceService
 from app.services.wishlist_service import WishlistService
-from app.sockets.emitter import emit_product_event, emit_service_event
+from app import mongo
+from app.sockets.emitter import emit_product_event
 from app.utils.validators import validate_email
 from datetime import datetime, timezone
 
@@ -239,6 +239,14 @@ def update_seller(seller_id):
         # Support 'image' key from frontend as 'image_url'
         if 'image' in data and 'image_url' not in update_data:
             update_data['image_url'] = data['image']
+
+        from app.utils.image_handler import is_base64_image, is_stored_image_url
+        if 'image_url' in update_data:
+            img = update_data['image_url']
+            if is_base64_image(img):
+                return jsonify({'error': 'Base64 images are not supported. Use POST /api/images/upload.'}), 400
+            if img and not is_stored_image_url(img):
+                return jsonify({'error': 'Invalid image_url'}), 400
         
         # Validate email if provided
         if 'email' in update_data and not validate_email(update_data['email']):
@@ -266,43 +274,235 @@ def update_seller(seller_id):
         return jsonify({'error': f'Failed to update seller: {str(e)}'}), 500
 
 
-@api_bp.route('/sellers/<seller_id>/credits', methods=['POST'])
+@api_bp.route('/sellers/<seller_id>/credits/initiate', methods=['POST'])
 @jwt_required()
-def add_seller_credits(seller_id):
-    """Add credits to a seller (only masters can add)"""
+def initiate_seller_credit_otp(seller_id):
+    """Master: verify passkey, send OTP to acting master phone, return credit authorization token."""
     try:
-        # Get current user info from JWT token
-        current_user_id = get_jwt_identity()
+        from app.services.credit_security_service import CreditSecurityService
+
         claims = get_jwt()
-        current_user_type = claims.get('user_type')
-        
-        # Security check: Only masters OR the seller themselves can add credits
-        if current_user_type != 'master' and str(current_user_id) != str(seller_id):
-            return jsonify({'error': 'Unauthorized. Only masters or the account owner can add credits.'}), 403
-        
-        data = request.get_json()
-        if not data or 'amount' not in data:
-            return jsonify({'error': 'Amount is required'}), 400
-            
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Unauthorized. Only masters can add seller credits.'}), 403
+
+        data = request.get_json() or {}
+        if not data.get('passkey'):
+            return jsonify({'error': 'Credit passkey is required'}), 400
         amount = int(data.get('amount', 0))
         if amount <= 0:
             return jsonify({'error': 'Amount must be positive'}), 400
-            
-        # Add credits
+        if amount > 100000:
+            return jsonify({'error': 'Maximum credit grant per operation is 100000'}), 400
+
+        seller = SellerService.get_seller_by_id(seller_id)
+        if not seller:
+            return jsonify({'error': 'Seller not found'}), 404
+
+        master = MasterService.get_master_by_id(str(get_jwt_identity()))
+        if not master:
+            return jsonify({'error': 'Master account not found'}), 404
+
+        result = CreditSecurityService.initiate_master_credit_otp(
+            master, seller_id, amount, data['passkey']
+        )
+
+        payload = {
+            'message': 'OTP sent to your registered phone. Enter it to confirm credits.',
+            'otp_session_id': result['otp_session_id'],
+            'credit_authorization': result['credit_authorization'],
+            'phone_masked': result['phone_masked'],
+            'sms_sent': result['sms_sent'],
+        }
+        if current_app.config.get('DEBUG') and result.get('sms_error'):
+            payload['sms_error'] = result['sms_error']
+
+        return jsonify(payload), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to initiate credit OTP: {str(e)}'}), 500
+
+
+@api_bp.route('/sellers/<seller_id>/credits/confirm', methods=['POST'])
+@jwt_required()
+def confirm_seller_credits(seller_id):
+    """Master: verify OTP + RS256 token, then add credits and record wallet transaction."""
+    try:
+        from app.services.credit_security_service import CreditSecurityService
+        from app.services.wallet_transaction_service import WalletTransactionService
+
+        current_user_id = str(get_jwt_identity())
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Unauthorized. Only masters can add seller credits.'}), 403
+
+        data = request.get_json() or {}
+        amount = int(data.get('amount', 0))
+        otp_session_id = data.get('otp_session_id')
+        otp = data.get('otp')
+        credit_authorization = data.get('credit_authorization')
+
+        if amount <= 0:
+            return jsonify({'error': 'Amount must be positive'}), 400
+        if not otp_session_id or not otp:
+            return jsonify({'error': 'OTP session and OTP code are required'}), 400
+        if not credit_authorization:
+            return jsonify({'error': 'Credit authorization token is required'}), 400
+
+        seller = SellerService.get_seller_by_id(seller_id)
+        if not seller:
+            return jsonify({'error': 'Seller not found'}), 404
+
+        master = MasterService.get_master_by_id(current_user_id)
+        master_username = (
+            (master.username if master else None)
+            or claims.get('username')
+            or 'master'
+        )
+
+        CreditSecurityService.verify_master_credit_otp(
+            current_user_id,
+            seller_id,
+            amount,
+            otp_session_id,
+            str(otp).strip(),
+            credit_authorization,
+        )
+
+        balance_before = int(seller.credits or 0)
         updated_seller = SellerService.add_credits(seller_id, amount)
         if not updated_seller:
             return jsonify({'error': 'Seller not found'}), 404
-            
+
+        WalletTransactionService.record_transaction(
+            seller_id=seller_id,
+            seller_trade_id=seller.trade_id,
+            transaction_type='master_grant',
+            amount=amount,
+            balance_before=balance_before,
+            balance_after=updated_seller.credits,
+            master_id=current_user_id,
+            master_username=master_username,
+            notes=f'Master grant by {master_username}',
+            metadata={'otp_verified': True},
+            request=request,
+        )
+
+        CreditSecurityService.notify_masters_credit_alert_best_effort(
+            master_username=master_username,
+            seller_trade_id=seller.trade_id or str(seller_id),
+            amount=amount,
+        )
+
         return jsonify({
             'message': f'Successfully added {amount} credits',
             'credits': updated_seller.credits,
-            'seller': updated_seller.to_dict()
+            'seller': updated_seller.to_dict(),
         }), 200
-        
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f'Failed to add credits: {str(e)}'}), 500
+
+
+@api_bp.route('/sellers/<seller_id>/wallet-transactions', methods=['GET'])
+@jwt_required()
+def list_seller_wallet_transactions(seller_id):
+    """List wallet transactions for a seller (masters only)."""
+    try:
+        from app.services.wallet_transaction_service import WalletTransactionService
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        seller = SellerService.get_seller_by_id(seller_id)
+        if not seller:
+            return jsonify({'error': 'Seller not found'}), 404
+
+        skip = request.args.get('skip', 0, type=int)
+        limit = min(request.args.get('limit', 50, type=int), 100)
+        items, total = WalletTransactionService.list_for_seller(seller_id, skip=skip, limit=limit)
+
+        return jsonify({
+            'transactions': items,
+            'count': len(items),
+            'total': total,
+            'seller': {
+                'id': str(seller_id),
+                'trade_id': seller.trade_id,
+                'credits': seller.credits,
+            },
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/sellers/<seller_id>/wallet-overview', methods=['GET'])
+@jwt_required()
+def get_seller_wallet_overview(seller_id):
+    """Master-only: seller profile, wallet stats, and full transaction history."""
+    try:
+        from app.services.wallet_transaction_service import WalletTransactionService
+        from app.services.rating_service import RatingService
+        from bson import ObjectId
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Unauthorized. Master access only.'}), 403
+
+        seller = SellerService.get_seller_by_id(seller_id, include_blacklisted=True)
+        if not seller:
+            return jsonify({'error': 'Seller not found'}), 404
+
+        skip = request.args.get('skip', 0, type=int)
+        limit = min(request.args.get('limit', 100, type=int), 200)
+        transactions, tx_total = WalletTransactionService.list_for_seller(
+            seller_id, skip=skip, limit=limit
+        )
+        wallet_stats = WalletTransactionService.get_stats_for_seller(seller_id)
+
+        sid_oid = ObjectId(seller_id)
+        product_count = mongo.db.products.count_documents({'seller_trade_id': seller.trade_id})
+        service_count = mongo.db.services.count_documents({'seller_trade_id': seller.trade_id})
+        order_count = mongo.db.orders.count_documents({'seller_id': sid_oid})
+
+        try:
+            rating_stats = RatingService.get_seller_rating_stats(seller_id)
+        except Exception:
+            rating_stats = {'total_ratings': 0, 'average_rating': 0}
+
+        full_name = ' '.join(
+            p for p in [seller.first_name, seller.last_name] if p
+        ).strip() or None
+
+        return jsonify({
+            'seller': seller.to_dict(),
+            'profile': {
+                'full_name': full_name,
+                'trade_id': seller.trade_id,
+                'email': seller.email,
+                'phone_number': seller.phone_number,
+                'is_active': seller.is_active,
+                'created_at': seller.created_at.isoformat()
+                if hasattr(seller.created_at, 'isoformat')
+                else seller.created_at,
+                'created_by': seller.created_by,
+                'image_url': seller.image_url,
+            },
+            'wallet_stats': wallet_stats,
+            'marketplace_stats': {
+                'product_count': product_count,
+                'service_count': service_count,
+                'order_count': order_count,
+                'average_rating': rating_stats.get('average_rating', 0),
+                'total_ratings': rating_stats.get('total_ratings', 0),
+            },
+            'transactions': transactions,
+            'transactions_total': tx_total,
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @api_bp.route('/sellers/<seller_id>/blacklist', methods=['POST'])
@@ -750,8 +950,10 @@ def create_product():
             'created_at': datetime.now(timezone.utc),
             'updated_at': datetime.now(timezone.utc),
             'registration_ip': request.remote_addr,
-            'registration_user_agent': request.headers.get('User-Agent')
+            'registration_user_agent': request.headers.get('User-Agent'),
         }
+        if data.get('product_id'):
+            product_data['product_id'] = data['product_id']
 
         product = ProductService.create_product(product_data)
         product_dict = product.to_dict()
@@ -932,262 +1134,6 @@ def seller_create_product():
         return jsonify({'error': f'Failed to create product: {str(e)}'}), 500
 
 
-# --- SERVICE ENDPOINTS ---
-
-@api_bp.route('/services', methods=['POST'])
-@jwt_required()
-def create_service():
-    """Create a new service (masters only)"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Request body is required'}), 400
-
-        current_user_id = get_jwt_identity()
-        claims = get_jwt()
-        current_user_type = claims.get('user_type')
-        current_username = claims.get('username') or 'system'
-
-        if current_user_type != 'master':
-            return jsonify({'error': 'Only masters can create services'}), 403
-
-        try:
-            schema = ServiceCreationSchema()
-            data = schema.load(data)
-        except ValidationError as err:
-            first_err_field = list(err.messages.keys())[0]
-            first_err_msg = err.messages[first_err_field][0]
-            if isinstance(first_err_msg, dict):
-                first_err_msg = "Invalid format"
-            return jsonify({'error': f"{first_err_field}: {first_err_msg}"}), 400
-            
-        if not data.get('seller_trade_id'):
-            return jsonify({'error': 'seller_trade_id is required'}), 400
-
-        service_data = {
-            'service_name': data['service_name'],
-            'description': data['description'],
-            'points': data['points'],
-            'thumbnail': data['thumbnail'],
-            'service_charge': data['service_charge'],
-            'gallery': data.get('gallery', []),
-            'categories': data.get('categories', []),
-            'created_by': current_username,
-            'created_by_user_id': str(current_user_id),
-            'created_by_user_type': current_user_type,
-            'approval_status': 'approved',
-            'availability': data.get('availability', True),
-            'seller_trade_id': data.get('seller_trade_id'),
-            'seller_name': data.get('seller_name'),
-            'seller_email': data.get('seller_email'),
-            'seller_phone': data.get('seller_phone'),
-            'commission_rate': data.get('commission_rate'),
-            'registration_ip': request.remote_addr,
-            'registration_user_agent': request.headers.get('User-Agent')
-        }
-
-        service = ServiceService.create_service(service_data)
-        service_dict = service.to_dict()
-        emit_service_event('service_created', service_dict)
-
-        return jsonify({
-            'message': 'Service created successfully',
-            'service': service_dict
-        }), 201
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': f'Failed to create service: {str(e)}'}), 500
-
-
-@api_bp.route('/services', methods=['GET'])
-def get_services():
-    """Get all approved services (public)"""
-    try:
-        skip = request.args.get('skip', 0, type=int)
-        limit = request.args.get('limit', 100, type=int)
-        services = ServiceService.get_all_services(skip=skip, limit=limit)
-        return jsonify({
-            'services': [s.to_dict() for s in services],
-            'count': len(services)
-        }), 200
-    except Exception as e:
-        return jsonify({'error': f'Failed to get services: {str(e)}'}), 500
-
-
-@api_bp.route('/services/<service_id>', methods=['GET'])
-def get_service_detail(service_id):
-    """Get service details by ID"""
-    try:
-        service = ServiceService.get_service_by_id(service_id)
-        if not service:
-            return jsonify({'error': 'Service not found'}), 404
-            
-        service_dict = service.to_dict()
-        
-        # Add seller_id if available for ratings
-        if service.seller_trade_id:
-            seller = SellerService.get_seller_by_trade_id(service.seller_trade_id)
-            if seller:
-                service_dict['seller_id'] = str(seller._id)
-                
-        return jsonify({'service': service_dict}), 200
-    except Exception as e:
-        return jsonify({'error': f'Failed to get service: {str(e)}'}), 500
-
-
-@api_bp.route('/services/<service_id>', methods=['PUT'])
-@jwt_required()
-def update_service(service_id):
-    """Update service (masters only)"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Request body is required'}), 400
-
-        claims = get_jwt()
-        if claims.get('user_type') != 'master':
-            return jsonify({'error': 'Only masters can update services'}), 403
-
-        service = ServiceService.update_service(service_id, data)
-        if not service:
-            return jsonify({'error': 'Service not found'}), 404
-
-        service_dict = service.to_dict()
-        emit_service_event('service_updated', service_dict)
-        return jsonify({
-            'message': 'Service updated successfully',
-            'service': service_dict
-        }), 200
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': f'Failed to update service: {str(e)}'}), 500
-
-
-@api_bp.route('/services/<service_id>', methods=['DELETE'])
-@jwt_required()
-def delete_service(service_id):
-    """Delete service (masters only)"""
-    try:
-        claims = get_jwt()
-        if claims.get('user_type') != 'master':
-            return jsonify({'error': 'Only masters can delete services'}), 403
-
-        if ServiceService.delete_service(service_id):
-            emit_service_event('service_deleted', {'id': service_id})
-            return jsonify({'message': 'Service deleted successfully'}), 200
-        return jsonify({'error': 'Service not found'}), 404
-    except Exception as e:
-        return jsonify({'error': f'Failed to delete service: {str(e)}'}), 500
-
-
-@api_bp.route('/seller/services', methods=['POST'])
-@jwt_required()
-def seller_create_service():
-    """Seller creates a service for approval"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Request body is required'}), 400
-
-        try:
-            schema = ServiceCreationSchema()
-            data = schema.load(data)
-        except ValidationError as err:
-            first_err_field = list(err.messages.keys())[0]
-            first_err_msg = err.messages[first_err_field][0]
-            if isinstance(first_err_msg, dict):
-                first_err_msg = "Invalid format"
-            return jsonify({'error': f"{first_err_field}: {first_err_msg}"}), 400
-
-        claims = get_jwt()
-        if claims.get('user_type') != 'seller':
-            return jsonify({'error': 'Only sellers can access this endpoint'}), 403
-
-        seller_trade_id = claims.get('trade_id')
-        seller_user_id = str(get_jwt_identity())
-
-        data['seller_trade_id'] = seller_trade_id
-        data['created_by'] = seller_trade_id
-        data['created_by_user_id'] = seller_user_id
-        data['created_by_user_type'] = 'seller'
-        data['approval_status'] = 'pending'
-
-        service = ServiceService.create_service(data)
-        service_dict = service.to_dict()
-        emit_service_event('service_created', service_dict)
-
-        return jsonify({
-            'message': 'Service submitted for approval.',
-            'service': service_dict
-        }), 201
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': f'Failed to submit service: {str(e)}'}), 500
-
-
-@api_bp.route('/services/pending', methods=['GET'])
-@jwt_required()
-def get_pending_services():
-    """Get services pending approval (masters only)"""
-    try:
-        claims = get_jwt()
-        if claims.get('user_type') != 'master':
-            return jsonify({'error': 'Access denied'}), 403
-        
-        services = ServiceService.get_pending_services()
-        return jsonify({
-            'services': [s.to_dict() for s in services],
-            'count': len(services)
-        }), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@api_bp.route('/services/<service_id>/accept', methods=['POST'])
-@jwt_required()
-def accept_service(service_id):
-    """Approve a pending service (masters only)"""
-    try:
-        claims = get_jwt()
-        if claims.get('user_type') != 'master':
-            return jsonify({'error': 'Access denied'}), 403
-        
-        service, error = ServiceService.accept_service(service_id)
-        if error:
-            return jsonify({'error': error}), 400
-        
-        service_dict = service.to_dict()
-        emit_service_event('service_updated', service_dict)
-        return jsonify({'message': 'Service approved', 'service': service_dict}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@api_bp.route('/services/<service_id>/reject', methods=['POST'])
-@jwt_required()
-def reject_service(service_id):
-    """Reject a pending service (masters only)"""
-    try:
-        claims = get_jwt()
-        if claims.get('user_type') != 'master':
-            return jsonify({'error': 'Access denied'}), 403
-        
-        data = request.get_json() or {}
-        reason = data.get('reason', 'Rejected by master')
-        
-        success, error = ServiceService.reject_service(service_id, reason=reason)
-        if error:
-            return jsonify({'error': error}), 400
-        
-        emit_service_event('service_deleted', {'id': service_id, 'reason': reason})
-        return jsonify({'message': 'Service rejected and moved to bin'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
 @api_bp.route('/seller/products/<product_id>', methods=['PUT'])
 @jwt_required()
 def seller_update_product(product_id):
@@ -1351,13 +1297,17 @@ def delete_product(product_id):
 
 @api_bp.route('/categories', methods=['GET'])
 def get_categories():
-    """Public endpoint to get all product categories"""
+    """Public endpoint — product categories by default; ?type=service for service categories"""
     try:
-        categories = CategoryService.get_all_categories()
+        category_type = request.args.get('type', 'product')
+        categories = CategoryService.get_all_categories(category_type=category_type)
         return jsonify({
             'categories': [category.to_dict() for category in categories],
-            'count': len(categories)
+            'count': len(categories),
+            'type': category_type,
         }), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f'Failed to get categories: {str(e)}'}), 500
 
@@ -1365,7 +1315,7 @@ def get_categories():
 @api_bp.route('/categories', methods=['POST'])
 @jwt_required()
 def create_category():
-    """Create new category (masters only)"""
+    """Create new category (masters only). Body: { name, type?: 'product'|'service' }"""
     try:
         data = request.get_json()
         if not data or not data.get('name'):
@@ -1378,7 +1328,12 @@ def create_category():
         if current_user_type != 'master':
             return jsonify({'error': 'Only masters can create categories'}), 403
 
-        category = CategoryService.create_category(data['name'], created_by=current_username)
+        category_type = data.get('type') or data.get('category_type') or 'product'
+        category = CategoryService.create_category(
+            data['name'],
+            created_by=current_username,
+            category_type=category_type,
+        )
         return jsonify({
             'message': 'Category created successfully',
             'category': category.to_dict()
@@ -1491,6 +1446,159 @@ def get_category_commission_rates():
         }), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get category commissions: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/service/apply-all', methods=['POST'])
+@jwt_required()
+def apply_service_commission_to_all():
+    """Apply commission to all services (masters only)"""
+    try:
+        from app.services.service_service import ServiceService
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can apply commission'}), 403
+
+        data = request.get_json()
+        commission_rate = data.get('commission_rate')
+
+        if commission_rate is None or commission_rate < 0:
+            return jsonify({'error': 'Valid commission_rate (percentage) is required'}), 400
+
+        updated_count = ServiceService.apply_commission_to_all(float(commission_rate))
+
+        return jsonify({
+            'message': f'Commission applied to {updated_count} services',
+            'updated_count': updated_count,
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to apply service commission: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/service/apply-category', methods=['POST'])
+@jwt_required()
+def apply_service_commission_by_category():
+    """Apply commission to services by category (masters only)"""
+    try:
+        from app.services.service_service import ServiceService
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can apply commission'}), 403
+
+        data = request.get_json()
+        category = data.get('category')
+        commission_rate = data.get('commission_rate')
+
+        if not category:
+            return jsonify({'error': 'Category is required'}), 400
+        if commission_rate is None or commission_rate < 0:
+            return jsonify({'error': 'Valid commission_rate (percentage) is required'}), 400
+
+        updated_count = ServiceService.apply_commission_by_category(category, float(commission_rate))
+
+        return jsonify({
+            'message': f'Commission applied to {updated_count} services in category {category}',
+            'updated_count': updated_count,
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to apply service commission: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/service/apply-service', methods=['POST'])
+@jwt_required()
+def apply_commission_to_service():
+    """Apply commission to a specific service (masters only)"""
+    try:
+        from app.services.service_service import ServiceService
+        from app.sockets.emitter import emit_service_event
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can apply commission'}), 403
+
+        data = request.get_json()
+        service_id = data.get('service_id')
+        commission_rate = data.get('commission_rate')
+
+        if not service_id:
+            return jsonify({'error': 'service_id is required'}), 400
+        if commission_rate is None or commission_rate < 0:
+            return jsonify({'error': 'Valid commission_rate (percentage) is required'}), 400
+
+        updated_service = ServiceService.apply_commission_to_service(service_id, float(commission_rate))
+
+        if not updated_service:
+            return jsonify({'error': 'Service not found'}), 404
+
+        service_dict = updated_service.to_dict()
+        emit_service_event('service_updated', service_dict)
+
+        return jsonify({
+            'message': 'Commission applied successfully',
+            'service': service_dict,
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to apply service commission: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/service/category-rates', methods=['GET'])
+@jwt_required()
+def get_service_category_commission_rates():
+    """Get all service category commission rates (masters only)"""
+    try:
+        from app.services.service_service import ServiceService
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can view commission rates'}), 403
+
+        rates = ServiceService.get_all_category_commissions()
+        return jsonify({'category_commissions': rates}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get service category commissions: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/service-accept-credit', methods=['GET'])
+@jwt_required()
+def get_service_accept_credit():
+    """Get credits deducted when a seller accepts a service order"""
+    try:
+        from app.services.platform_settings_service import PlatformSettingsService
+
+        credit_count = PlatformSettingsService.get_service_accept_credit_cost()
+        return jsonify({'credit_count': credit_count}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get service accept credit: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/service-accept-credit', methods=['PUT'])
+@jwt_required()
+def set_service_accept_credit():
+    """Set credits deducted when a seller accepts a service order (masters only)"""
+    try:
+        from app.services.platform_settings_service import PlatformSettingsService
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can update service accept credit'}), 403
+
+        data = request.get_json() or {}
+        credit_count = data.get('credit_count')
+
+        if credit_count is None or int(credit_count) < 0:
+            return jsonify({'error': 'Valid credit_count (0 or greater) is required'}), 400
+
+        saved = PlatformSettingsService.set_service_accept_credit_cost(int(credit_count))
+
+        return jsonify({
+            'message': f'Service accept credit set to {saved}',
+            'credit_count': saved,
+        }), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to update service accept credit: {str(e)}'}), 500
 
 
 @api_bp.route('/wishlist', methods=['GET'])

@@ -46,7 +46,7 @@ function OrdersList() {
   const fetchOrders = async (page = 1) => {
     try {
       dispatch(setMastersLoading({ field: 'orders', loading: true }))
-      const response = await getOrders({ page, limit: ordersPerPage })
+      const response = await getOrders({ page, limit: ordersPerPage }, { forceRefresh: true })
       // getOrders returns { orders, total, page, limit, totalPages }
       const apiOrders = response.orders || []
       dispatch(setMastersData({ field: 'orders', data: apiOrders }))
@@ -699,51 +699,6 @@ function OrdersList() {
         )}
       </div>
 
-      {/* Workflow Explanation Card */}
-      <div className="mt-10 bg-slate-900 rounded-3xl p-8 text-white border border-white/5 shadow-2xl overflow-hidden relative group">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] -mr-32 -mt-32 rounded-full" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30">
-              <FaCheckCircle className="w-5 h-5" />
-            </div>
-            <h3 className="text-xl font-bold">Order Lifecycle Workflow</h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { status: 'Pending Seller', desc: 'Order created by user. Waiting for seller to accept or reject.', color: 'text-yellow-400' },
-              { status: 'Seller Accepted', desc: 'Seller accepted. QR codes generated for both user and seller.', color: 'text-indigo-400' },
-              { status: 'Handed Over', desc: 'Seller reached outlet and scanned their QR. Product is now at outlet.', color: 'text-purple-400' },
-              { status: 'Completed', desc: 'User reached outlet, paid, scanned their QR and collected the product.', color: 'text-emerald-400' }
-            ].map((step, idx) => (
-              <div key={idx} className="bg-white/5 rounded-2xl p-5 border border-white/5 hover:bg-white/10 transition-colors">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Step {idx + 1}</span>
-                  <div className={`w-2 h-2 rounded-full ${step.color.replace('text', 'bg')}`} />
-                </div>
-                <h4 className={`font-black mb-2 ${step.color}`}>{step.status}</h4>
-                <p className="text-xs text-slate-400 leading-relaxed font-medium">{step.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-white/5 flex items-center gap-4">
-             <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Exceptions:</div>
-             <div className="flex gap-4">
-                <div className="flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                   <span className="text-xs font-bold text-rose-400">Seller Rejected</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                   <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                   <span className="text-xs font-bold text-slate-400">User/Master Cancelled</span>
-                </div>
-             </div>
-          </div>
-        </div>
-      </div>
-
       {/* Order Detail Modal */}
       <AnimatePresence>
         {showDetailModal && selectedOrder && (
@@ -826,7 +781,7 @@ function OrderDetailModal({ order, onClose, onAccept, onReject, onCancel }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      className="master-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
     >
       <motion.div
@@ -834,7 +789,7 @@ function OrderDetailModal({ order, onClose, onAccept, onReject, onCancel }) {
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+        className="master-modal-panel master-modal-panel--wide bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto"
       >
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
           <h2 className="text-2xl font-bold text-gray-900">Order Details</h2>
@@ -952,7 +907,7 @@ function MasterCancelModal({ order, confirmationCode, inputCode, onInputChange, 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      className="master-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
     >
       <motion.div
@@ -960,7 +915,7 @@ function MasterCancelModal({ order, confirmationCode, inputCode, onInputChange, 
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+        className="master-modal-panel bg-white rounded-xl shadow-2xl p-6"
       >
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Force Cancel Order</h2>
         <p className="text-gray-600 mb-4">

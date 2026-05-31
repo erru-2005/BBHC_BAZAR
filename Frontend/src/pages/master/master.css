@@ -3,19 +3,17 @@
   color: #111827 !important; /* text-gray-900 */
 }
 
-/* Enforce black text on white bg for all common elements inside master */
-.master-dashboard h1, 
-.master-dashboard h2, 
-.master-dashboard h3, 
-.master-dashboard h4, 
-.master-dashboard h5, 
+/* Readable text on light surfaces */
+.master-dashboard h1,
+.master-dashboard h2,
+.master-dashboard h3,
+.master-dashboard h4,
+.master-dashboard h5,
 .master-dashboard h6,
-.master-dashboard p,
-.master-dashboard span,
+.master-dashboard p:not(.field-error-text),
 .master-dashboard label,
 .master-dashboard th,
-.master-dashboard td,
-.master-dashboard div:not([class*="bg-black"]):not([class*="bg-gray-900"]) {
+.master-dashboard td {
   color: inherit;
 }
 
@@ -33,12 +31,29 @@
   color: #000000 !important;
 }
 
-/* Active tab state should stay white text */
-.master-dashboard .bg-black,
-.master-dashboard .bg-gray-900,
-.master-dashboard .bg-black *,
-.master-dashboard .bg-gray-900 * {
+/*
+ * Dark content panels only — use .master-on-dark on solid dark cards.
+ * Do NOT match Tailwind bg-black/bg-slate-900 on modal backdrops (breaks white modals).
+ */
+.master-dashboard .master-on-dark {
   color: #ffffff !important;
+}
+
+.master-dashboard .master-on-dark h1,
+.master-dashboard .master-on-dark h2,
+.master-dashboard .master-on-dark h3,
+.master-dashboard .master-on-dark h4,
+.master-dashboard .master-on-dark h5,
+.master-dashboard .master-on-dark h6,
+.master-dashboard .master-on-dark p,
+.master-dashboard .master-on-dark span,
+.master-dashboard .master-on-dark label {
+  color: inherit !important;
+}
+
+/* Modal panels — enforce dark text on white (overrides any backdrop inheritance) */
+.master-modal-panel {
+  color: #111827 !important;
 }
 
 /* Hover states */
@@ -46,6 +61,32 @@
   background-color: #f3f4f6 !important;
 }
 
-.master-dashboard .bg-gray-100 {
-  background-color: #f3f4f6 !important;
+.master-dashboard p.field-error-text,
+.master-dashboard .field-error-text {
+  color: #dc2626 !important;
+}
+
+/* Responsive popups / modals (mobile → tablet → desktop) */
+.master-modal-backdrop {
+  padding: clamp(0.75rem, 3vw, 1.5rem);
+}
+
+.master-dashboard .master-modal-panel {
+  width: clamp(17.5rem, 92vw, 28rem) !important;
+  max-width: 100% !important;
+  min-width: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.master-dashboard .master-modal-panel--wide {
+  width: clamp(20rem, 94vw, 56rem) !important;
+}
+
+.master-dashboard .master-credit-input {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+  -webkit-text-fill-color: #111827 !important;
 }

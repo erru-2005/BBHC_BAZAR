@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import 'react-loading-skeleton/dist/skeleton.css'
 import { getOutletMen, updateOutletMan, blacklistOutletMan } from '../../../services/api'
+import { syncOutletBlacklisted } from '../../../services/cacheSync'
 import { FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi'
 
 function ListOutletMan() {
@@ -88,9 +89,13 @@ function ListOutletMan() {
     try {
       setSubmitting(true)
       await blacklistOutletMan(deletingOutletMan.id || deletingOutletMan._id)
+      syncOutletBlacklisted(deletingOutletMan.id || deletingOutletMan._id, {
+        ...deletingOutletMan,
+        blacklist: { reason: 'Blacklisted by master', blacklisted_at: new Date().toISOString() },
+      })
       setShowDeleteModal(false)
       setDeletingOutletMan(null)
-      await fetchOutletMen() // Refresh list
+      await fetchOutletMen()
     } catch (err) {
       setError(err.message || 'Failed to blacklist outlet man')
     } finally {
@@ -430,8 +435,8 @@ function ListOutletMan() {
 
       {/* Edit Modal */}
       {showEditModal && editingOutletMan && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="master-modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="master-modal-panel bg-white rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Edit Outlet Man</h3>
               <form onSubmit={handleEditSubmit} className="space-y-4">
@@ -538,8 +543,8 @@ function ListOutletMan() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && deletingOutletMan && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div className="master-modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="master-modal-panel bg-white rounded-xl shadow-xl">
             <div className="p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-2">Blacklist Outlet Man</h3>
               <p className="text-gray-600 mb-6">

@@ -5,8 +5,11 @@ import { useState } from 'react'
 import Skeleton from 'react-loading-skeleton'
 import 'react-loading-skeleton/dist/skeleton.css'
 import { registerSeller } from '../../../services/api'
+import { useDispatch } from 'react-redux'
+import { invalidateMasterCache } from '../../../store/masterSlice'
 
 function AddSeller({ onSuccess, onError }) {
+  const dispatch = useDispatch()
   const [form, setForm] = useState({
     trade_id: '',
     email: '',
@@ -44,6 +47,7 @@ function AddSeller({ onSuccess, onError }) {
       }
 
       const response = await registerSeller(form)
+      dispatch(invalidateMasterCache(['sellers']))
       setSuccess(response.message || 'Seller registered successfully!')
       
       // Reset form

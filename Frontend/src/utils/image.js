@@ -1,76 +1,97 @@
 import { API_BASE_URL } from '../config/api'
 
 /**
- * Image utility functions
- */
-
-/**
  * Dynamic URL Fixer: Replaces old IPs/hostnames with current VITE_BACKEND_URL
- * This is essential for local development where backend IP can change.
- * @param {string} url - The image URL to fix
- * @returns {string} - The fixed URL or the original if no fix needed
  */
 export const fixImageUrl = (url) => {
-    if (!url) return null
-    if (typeof url !== 'string') return url
-    if (url.startsWith('blob:') || url.startsWith('data:')) return url
-    
-    // Get backend URL from env
-    const backendUrl = import.meta.env.VITE_BACKEND_URL
-    if (!backendUrl) return url
+  if (!url) return null
+  if (typeof url !== 'string') return url
+  if (url.startsWith('blob:')) return url
+  if (url.startsWith('data:')) return null
 
-    try {
-        // Handle full URLs
-        if (url.startsWith('http')) {
-            const urlObj = new URL(url)
-            const currentBackendObj = new URL(backendUrl)
-            
-            // If it's a local address (IP) or localhost but doesn't match current backend host, update it
-            const isLocal = urlObj.hostname.includes('192.168.') || 
-                            urlObj.hostname === 'localhost' || 
-                            urlObj.hostname === '127.0.0.1'
-            
-            if (isLocal && urlObj.host !== currentBackendObj.host) {
-                // Find where the path starts after the host
-                // Typically: http://old-ip:5000/api/uploads/filename.jpg
-                // We want to replace everything before /api/ with the new backendUrl
-                const pathParts = url.split('/api/uploads/')
-                if (pathParts.length > 1) {
-                    return `${backendUrl}/api/uploads/${pathParts[1]}`
-                }
-            }
-        } else {
-            // Handle relative paths (e.g., /api/uploads/...)
-            if (url.startsWith('/api/')) {
-                return `${backendUrl}${url}`
-            }
+  const backendUrl = import.meta.env.VITE_BACKEND_URL
+  if (!backendUrl) return url
+
+  try {
+    if (url.startsWith('http')) {
+      const urlObj = new URL(url)
+      const currentBackendObj = new URL(backendUrl)
+
+      const isLocal =
+        urlObj.hostname.includes('192.168.') ||
+        urlObj.hostname === 'localhost' ||
+        urlObj.hostname === '127.0.0.1'
+
+      if (isLocal && urlObj.host !== currentBackendObj.host) {
+        const pathParts = url.split('/api/uploads/')
+        if (pathParts.length > 1) {
+          return `${backendUrl}/api/uploads/${pathParts[1]}`
         }
-    } catch (e) {
-        console.warn('Failed to fix image URL:', e)
+        const staticParts = url.split('/static/')
+        if (staticParts.length > 1) {
+          return `${backendUrl}/static/${staticParts[1]}`
+        }
+      }
+      return url
     }
-    
-    return url
+
+    if (url.startsWith('/api/') || url.startsWith('/static/')) {
+      const base = backendUrl.endsWith('/') ? backendUrl.slice(0, -1) : backendUrl
+      return `${base}${url}`
+    }
+  } catch (e) {
+    console.warn('Failed to fix image URL:', e)
+  }
+
+  return url
+}
+
+export const getImageUrl = (path) => {
+  if (!path) return ''
+  if (typeof path !== 'string') return ''
+  if (path.startsWith('data:')) return ''
+  if (path.startsWith('blob:')) return path
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return fixImageUrl(path) || path
+  }
+  if (path.startsWith('/static/') || path.startsWith('/api/')) {
+    return fixImageUrl(path) || path
+  }
+  return path
 }
 
 /**
- * Utility to get the correct URL for an image.
- * If the path starts with /static, it appends the backend base URL.
- * If it's already a full URL or a base64 string, it returns it as is.
+ * Preferred helper for <img src> and CSS backgrounds.
  */
-export const getImageUrl = (path) => {
-  if (!path) return ''
-  
-  // If it's a base64 string or already a full URL
-  if (path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
-    return path
+export const resolveImageUrl = (path) => {
+  if (!path) return null
+  if (typeof path !== 'string') return null
+  if (path.startsWith('data:')) return null
+  if (path.startsWith('blob:')) return path
+  return getImageUrl(path) || fixImageUrl(path)
+}
+
+/** Extract /static/... path from a full or relative URL */
+export const extractStaticPath = (url) => {
+  if (!url || typeof url !== 'string') return null
+  if (url.startsWith('/static/')) return url.split('?')[0]
+  const match = url.match(/\/static\/[^?#]+/)
+  return match ? match[0] : null
+}
+
+export const getOrderProductImage = (order) => {
+  if (!order) return null
+  const product = order.product || order.product_snapshot || {}
+  const current = order.product_current || {}
+  const candidates = [
+    product.thumbnail,
+    product.image,
+    current.thumbnail,
+    order.product_snapshot?.thumbnail,
+  ]
+  for (const c of candidates) {
+    const resolved = resolveImageUrl(c)
+    if (resolved) return resolved
   }
-  
-  // If it's a relative static path from our backend
-  if (path.startsWith('/static/')) {
-    // Ensure no double slashes
-    const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
-    return `${baseUrl}${path}`
-  }
-  
-  return path
+  return null
 }

@@ -148,3 +148,19 @@ def emit_seller_update(seller_id, seller_dict):
     if not seller_id or not seller_dict:
         return
     _emit_to_seller(seller_id, 'seller_updated', seller_dict)
+
+
+def emit_seller_credits_updated(seller_id, credits, trade_id=None):
+    """Push live credit balance to the seller and all connected masters."""
+    if seller_id is None or credits is None:
+        return
+    sid = str(seller_id)
+    payload = {
+        'id': sid,
+        'seller_id': sid,
+        'credits': credits,
+    }
+    if trade_id:
+        payload['trade_id'] = trade_id
+    _emit_to_seller(seller_id, 'seller_credits_updated', payload)
+    _emit_to_collection('master', {'socket_id': {'$ne': None}}, 'seller_credits_updated', payload)

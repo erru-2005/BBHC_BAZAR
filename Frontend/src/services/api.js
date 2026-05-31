@@ -4,8 +4,13 @@
 import axios from 'axios'
 import { API_ENDPOINTS } from '../config/api'
 import { setDeviceToken } from '../utils/device'
+import { getSocket, initSocket } from '../utils/socket'
 import { store } from '../store'
-import { setToken, logout } from '../store/authSlice'
+import { setToken, logout, updateUserInfo } from '../store/authSlice'
+import { updateProductInCache, invalidateHomeCache } from '../store/dataSlice'
+import { updateSellerOrder } from '../store/sellerSlice'
+import { updateOutletOrder } from '../store/outletSlice'
+import { setMastersData, updateMasterSeller } from '../store/masterSlice'
 
 // Create axios instance
 const getBackendUrl = () => {
@@ -33,9 +38,15 @@ const apiClient = axios.create({
 const apiCache = {
   products: { data: null, timestamp: 0 },
   orders: { data: null, timestamp: 0 },
-  sellerProducts: { data: null, timestamp: 0 }
+  sellerProducts: { data: null, timestamp: 0 },
+  services: { data: null, timestamp: 0 }
 }
 const CACHE_DURATION = 30000 // 30 seconds cache
+const SOCKET_RESYNC_COOLDOWN = 15000
+let cacheSocketBound = false
+let boundSocketRef = null
+let portalSyncSocketRef = null
+let lastResyncAt = 0
 
 // Role-specific token detection for isolation
 const getContextAwareToken = (requestUrl = '') => {
@@ -88,6 +99,271 @@ const setContextAwareToken = (token) => {
   
   localStorage.setItem(key, token)
   localStorage.setItem('token', token) // Legacy fallback
+}
+
+const nowTs = () => Date.now()
+
+const isFresh = (cacheEntry, ttlMs = CACHE_DURATION) => (
+  !!cacheEntry.data && (nowTs() - cacheEntry.timestamp < ttlMs)
+)
+
+const toEntityId = (item) => String(item?.id || item?._id || '')
+
+const upsertEntity = (list = [], incoming) => {
+  const incomingId = toEntityId(incoming)
+  if (!incomingId) return list
+  const idx = list.findIndex((item) => toEntityId(item) === incomingId)
+  if (idx === -1) return [incoming, ...list]
+  const next = [...list]
+  next[idx] = { ...next[idx], ...incoming }
+  return next
+}
+
+const removeEntity = (list = [], entity) => {
+  const entityId = toEntityId(entity)
+  if (!entityId) return list
+  return list.filter((item) => toEntityId(item) !== entityId)
+}
+
+const rebuildOrdersCache = (incomingOrder) => {
+  if (!apiCache.orders.data?.orders) return
+  const merged = upsertEntity(apiCache.orders.data.orders, incomingOrder)
+  apiCache.orders = {
+    data: { ...apiCache.orders.data, orders: merged, total: Math.max(apiCache.orders.data.total || 0, merged.length) },
+    timestamp: nowTs()
+  }
+}
+
+const invalidateMainCaches = () => {
+  apiCache.products.timestamp = 0
+  apiCache.services.timestamp = 0
+  apiCache.orders.timestamp = 0
+  apiCache.sellerProducts.timestamp = 0
+}
+
+/** Bust in-memory API cache (call after mutations). */
+export const invalidateApiCache = (keys = ['products', 'orders', 'services', 'sellerProducts']) => {
+  keys.forEach((key) => {
+    if (apiCache[key]) {
+      apiCache[key].timestamp = 0
+    }
+  })
+}
+
+const resyncCachedCollectionsOnReconnect = async () => {
+  const now = nowTs()
+  if (now - lastResyncAt < SOCKET_RESYNC_COOLDOWN) return
+  lastResyncAt = now
+
+  try {
+    if (apiCache.products.data) {
+      const response = await apiClient.get(API_ENDPOINTS.API.PRODUCTS)
+      apiCache.products = { data: response.products || [], timestamp: nowTs() }
+    }
+    if (apiCache.services.data) {
+      const response = await apiClient.get(API_ENDPOINTS.API.SERVICES)
+      apiCache.services = { data: response.services || [], timestamp: nowTs() }
+    }
+    if (apiCache.orders.data) {
+      const response = await apiClient.get(API_ENDPOINTS.API.ORDERS, { params: { page: 1, limit: 10, sort: '-created_at' } })
+      apiCache.orders = {
+        data: {
+          orders: response.orders || [],
+          total: response.total || response.orders?.length || 0,
+          page: response.page || 1,
+          limit: response.limit || 10,
+          totalPages: response.totalPages || 1
+        },
+        timestamp: nowTs()
+      }
+    }
+  } catch {
+    // Keep current cache on transient network failures.
+  }
+}
+
+const bindRealtimeCacheSync = () => {
+  const state = store.getState()
+  const role = state?.auth?.userType || 'user'
+  const token = getContextAwareToken()
+
+  let socket = getSocket()
+  if (!socket) {
+    socket = initSocket(token, role)
+  }
+  if (!socket) return
+
+  if (cacheSocketBound && boundSocketRef === socket) return
+
+  cacheSocketBound = true
+  boundSocketRef = socket
+
+  socket.on('connect', () => {
+    invalidateMainCaches()
+    resyncCachedCollectionsOnReconnect()
+  })
+
+  socket.on('product_created', (product) => {
+    if (!product) return
+    if (apiCache.products.data) {
+      apiCache.products = { data: upsertEntity(apiCache.products.data, product), timestamp: nowTs() }
+    }
+    if (apiCache.sellerProducts.data) {
+      apiCache.sellerProducts = { data: upsertEntity(apiCache.sellerProducts.data, product), timestamp: nowTs() }
+    }
+    store.dispatch(updateProductInCache(product))
+  })
+
+  socket.on('product_updated', (product) => {
+    if (!product) return
+    if (apiCache.products.data) {
+      apiCache.products = { data: upsertEntity(apiCache.products.data, product), timestamp: nowTs() }
+    }
+    if (apiCache.sellerProducts.data) {
+      apiCache.sellerProducts = { data: upsertEntity(apiCache.sellerProducts.data, product), timestamp: nowTs() }
+    }
+    store.dispatch(updateProductInCache(product))
+  })
+
+  socket.on('product_deleted', (product) => {
+    if (!product) return
+    if (apiCache.products.data) {
+      apiCache.products = { data: removeEntity(apiCache.products.data, product), timestamp: nowTs() }
+    }
+    if (apiCache.sellerProducts.data) {
+      apiCache.sellerProducts = { data: removeEntity(apiCache.sellerProducts.data, product), timestamp: nowTs() }
+    }
+    const pid = String(product?.id || product?._id || product?.product_id || '')
+    if (pid && apiCache.products.data) {
+      store.dispatch(invalidateHomeCache())
+    }
+  })
+
+  socket.on('service_created', (service) => {
+    if (!service || !apiCache.services.data) return
+    apiCache.services = { data: upsertEntity(apiCache.services.data, service), timestamp: nowTs() }
+  })
+
+  socket.on('service_updated', (service) => {
+    if (!service || !apiCache.services.data) return
+    apiCache.services = { data: upsertEntity(apiCache.services.data, service), timestamp: nowTs() }
+  })
+
+  socket.on('service_deleted', (service) => {
+    if (!service || !apiCache.services.data) return
+    apiCache.services = { data: removeEntity(apiCache.services.data, service), timestamp: nowTs() }
+  })
+
+  socket.on('new_order', (order) => {
+    rebuildOrdersCache(order)
+    if (!order) return
+    const role = store.getState()?.auth?.userType
+    if (role === 'seller') store.dispatch(updateSellerOrder(order))
+    else if (role === 'outlet_man') store.dispatch(updateOutletOrder(order))
+    else if (role === 'master') {
+      const orders = store.getState().master?.orders || []
+      store.dispatch(setMastersData({ field: 'orders', data: [order, ...orders.filter((o) => String(o.id) !== String(order.id))] }))
+    }
+  })
+  socket.on('order_updated', (order) => {
+    rebuildOrdersCache(order)
+    if (!order) return
+    const role = store.getState()?.auth?.userType
+    if (role === 'seller') store.dispatch(updateSellerOrder(order))
+    else if (role === 'outlet_man') store.dispatch(updateOutletOrder(order))
+    else if (role === 'master') {
+      const orders = store.getState().master?.orders || []
+      const merged = orders.map((o) => (String(o.id) === String(order.id) ? order : o))
+      store.dispatch(setMastersData({ field: 'orders', data: merged }))
+    }
+  })
+}
+
+const applySellerCreditsPayload = (data) => {
+  if (!data || data.credits == null) return
+  const auth = store.getState().auth
+  const incomingId = String(data.seller_id || data.id || '')
+
+  if (auth.userType === 'seller') {
+    const myId = String(auth.user?.id || '')
+    if (myId && incomingId && incomingId !== myId) return
+    store.dispatch(updateUserInfo({ credits: data.credits }))
+    return
+  }
+
+  if (auth.userType === 'master' && incomingId) {
+    store.dispatch(updateMasterSeller({ id: incomingId, credits: data.credits }))
+  }
+}
+
+const handleSellerProfileUpdated = (sellerData) => {
+  if (!sellerData || sellerData.credits == null) return
+  const auth = store.getState().auth
+  if (auth.userType !== 'seller') return
+  const myId = String(auth.user?.id || '')
+  const incomingId = String(sellerData.id || sellerData._id || '')
+  if (myId && incomingId && incomingId !== myId) return
+  store.dispatch(updateUserInfo({ credits: sellerData.credits }))
+}
+
+/**
+ * Bind portal-wide realtime sync (credits, cache invalidation on reconnect).
+ * Safe to call on every connect / auth change — listeners are refreshed.
+ */
+export const bindPortalRealtimeSync = () => {
+  const auth = store.getState()?.auth
+  const role = auth?.userType || 'user'
+  const token = getContextAwareToken()
+
+  let socket = getSocket()
+  if (!socket && token) {
+    socket = initSocket(token, role)
+  }
+  if (!socket) return
+
+  const attachListeners = () => {
+    socket.off('seller_credits_updated', applySellerCreditsPayload)
+    socket.off('seller_updated', handleSellerProfileUpdated)
+    socket.on('seller_credits_updated', applySellerCreditsPayload)
+    socket.on('seller_updated', handleSellerProfileUpdated)
+  }
+
+  if (portalSyncSocketRef && portalSyncSocketRef !== socket) {
+    portalSyncSocketRef.off('connect', attachListeners)
+  }
+
+  if (portalSyncSocketRef !== socket) {
+    portalSyncSocketRef = socket
+    socket.on('connect', attachListeners)
+  }
+
+  attachListeners()
+}
+
+/** @deprecated Use bindPortalRealtimeSync — kept for compatibility */
+export const bindSellerRealtimeSync = bindPortalRealtimeSync
+
+const SELLER_PROFILE_STALE_MS = 60000
+let lastSellerProfileSyncAt = 0
+
+/** Soft refresh of seller credits from /auth/me (bypasses redux-persist stale balance). */
+export const refreshSellerProfile = async (force = false) => {
+  const state = store.getState()
+  if (state?.auth?.userType !== 'seller' || !state.auth.isAuthenticated) return null
+
+  const now = Date.now()
+  if (!force && now - lastSellerProfileSyncAt < SELLER_PROFILE_STALE_MS) return null
+  lastSellerProfileSyncAt = now
+
+  try {
+    const data = await getCurrentUser()
+    if (data?.user?.credits != null) {
+      store.dispatch(updateUserInfo({ credits: data.user.credits }))
+    }
+    return data?.user ?? null
+  } catch {
+    return null
+  }
 }
 
 // Add request interceptor to include token
@@ -743,12 +1019,75 @@ export const getSellers = async (params = {}) => {
  * @param {number} amount
  * @returns {Promise} Update response
  */
-export const addSellerCredits = async (sellerId, amount) => {
+export const initiateSellerCreditOtp = async (sellerId, amount, passkey) => {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.API.ADD_CREDITS(sellerId), { amount })
-    return response
+    return await apiClient.post(API_ENDPOINTS.API.ADD_CREDITS_INITIATE(sellerId), {
+      amount,
+      passkey,
+    })
+  } catch (error) {
+    throw new Error(error.message || 'Failed to send credit OTP')
+  }
+}
+
+export const confirmSellerCredits = async (sellerId, payload) => {
+  try {
+    return await apiClient.post(API_ENDPOINTS.API.ADD_CREDITS_CONFIRM(sellerId), payload)
   } catch (error) {
     throw new Error(error.message || 'Failed to add credits')
+  }
+}
+
+export const getSellerWalletTransactions = async (sellerId, params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString()
+    const url = API_ENDPOINTS.API.SELLER_WALLET_TRANSACTIONS(sellerId)
+    return await apiClient.get(query ? `${url}?${query}` : url)
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load wallet transactions')
+  }
+}
+
+/** Master-only: seller wallet page data (profile, stats, transactions). */
+export const getSellerWalletOverview = async (sellerId, params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString()
+    const url = API_ENDPOINTS.API.SELLER_WALLET_OVERVIEW(sellerId)
+    return await apiClient.get(query ? `${url}?${query}` : url)
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load seller wallet overview')
+  }
+}
+
+export const getMyWalletTransactions = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString()
+    const url = API_ENDPOINTS.API.SELLER_OWN_WALLET_TRANSACTIONS
+    return await apiClient.get(query ? `${url}?${query}` : url)
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load wallet transactions')
+  }
+}
+
+/**
+ * Create Razorpay order for seller wallet recharge
+ */
+export const createRazorpayRechargeOrder = async (amount) => {
+  try {
+    return await apiClient.post(API_ENDPOINTS.API.RAZORPAY_CREATE_ORDER, { amount })
+  } catch (error) {
+    throw new Error(error.message || 'Failed to start payment')
+  }
+}
+
+/**
+ * Verify Razorpay payment and credit wallet
+ */
+export const verifyRazorpayRechargePayment = async (paymentData) => {
+  try {
+    return await apiClient.post(API_ENDPOINTS.API.RAZORPAY_VERIFY, paymentData)
+  } catch (error) {
+    throw new Error(error.message || 'Payment verification failed')
   }
 }
 
@@ -839,11 +1178,21 @@ export const createProduct = async (productData) => {
  * Get all products
  * @returns {Promise<Array>} List of products
  */
-export const getProducts = async () => {
+export const getProducts = async (_params = {}, options = {}) => {
+  bindRealtimeCacheSync()
+  if (!options.forceRefresh && isFresh(apiCache.products)) {
+    return apiCache.products.data
+  }
+
   try {
     const response = await apiClient.get(API_ENDPOINTS.API.PRODUCTS)
-    return response.products || []
+    const products = response.products || []
+    apiCache.products = { data: products, timestamp: nowTs() }
+    return products
   } catch (error) {
+    if (apiCache.products.data) {
+      return apiCache.products.data
+    }
     throw new Error(error.message || 'Failed to load products')
   }
 }
@@ -852,18 +1201,21 @@ export const getProducts = async () => {
  * Get products belonging to the current seller
  * @returns {Promise<Array>} List of seller's products
  */
-export const getSellerMyProducts = async () => {
-  const now = Date.now()
-  if (apiCache.sellerProducts.data && (now - apiCache.sellerProducts.timestamp < CACHE_DURATION)) {
+export const getSellerMyProducts = async (_params = {}, options = {}) => {
+  bindRealtimeCacheSync()
+  if (!options.forceRefresh && isFresh(apiCache.sellerProducts)) {
     return apiCache.sellerProducts.data
   }
 
   try {
     const response = await apiClient.get(API_ENDPOINTS.API.SELLER_MY_PRODUCTS)
     const products = response.products || []
-    apiCache.sellerProducts = { data: products, timestamp: now }
+    apiCache.sellerProducts = { data: products, timestamp: nowTs() }
     return products
   } catch (error) {
+    if (apiCache.sellerProducts.data) {
+      return apiCache.sellerProducts.data
+    }
     throw new Error(error.message || 'Failed to load your products')
   }
 }
@@ -947,18 +1299,18 @@ export const deleteProduct = async (productId) => {
 /**
  * Categories
  */
-export const getCategories = async () => {
+export const getCategories = async (type = 'product') => {
   try {
-    const response = await apiClient.get(API_ENDPOINTS.API.CATEGORIES)
+    const response = await apiClient.get(`${API_ENDPOINTS.API.CATEGORIES}?type=${encodeURIComponent(type)}`)
     return response.categories || []
   } catch (error) {
     throw new Error(error.message || 'Failed to load categories')
   }
 }
 
-export const createCategory = async (name) => {
+export const createCategory = async (name, type = 'product') => {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.API.CATEGORIES, { name })
+    const response = await apiClient.post(API_ENDPOINTS.API.CATEGORIES, { name, type })
     return response.category
   } catch (error) {
     throw new Error(error.message || 'Failed to create category')
@@ -1010,6 +1362,80 @@ export const getCategoryCommissionRates = async () => {
   } catch (error) {
     throw new Error(error.message || 'Failed to get category commission rates')
   }
+}
+
+export const applyServiceCommissionToAll = async (commissionRate) => {
+  try {
+    return await apiClient.post(API_ENDPOINTS.API.COMMISSION_SERVICE_APPLY_ALL, {
+      commission_rate: commissionRate,
+    })
+  } catch (error) {
+    throw new Error(error.message || 'Failed to apply service commission')
+  }
+}
+
+export const applyServiceCommissionByCategory = async (category, commissionRate) => {
+  try {
+    return await apiClient.post(API_ENDPOINTS.API.COMMISSION_SERVICE_APPLY_CATEGORY, {
+      category,
+      commission_rate: commissionRate,
+    })
+  } catch (error) {
+    throw new Error(error.message || 'Failed to apply service commission')
+  }
+}
+
+export const applyCommissionToService = async (serviceId, commissionRate) => {
+  try {
+    return await apiClient.post(API_ENDPOINTS.API.COMMISSION_SERVICE_APPLY_SERVICE, {
+      service_id: serviceId,
+      commission_rate: commissionRate,
+    })
+  } catch (error) {
+    throw new Error(error.message || 'Failed to apply service commission')
+  }
+}
+
+export const getServiceCategoryCommissionRates = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.COMMISSION_SERVICE_CATEGORY_RATES)
+    return response.category_commissions || {}
+  } catch (error) {
+    throw new Error(error.message || 'Failed to get service category commission rates')
+  }
+}
+
+let serviceAcceptCreditCache = { value: 25, timestamp: 0 }
+
+export const getServiceAcceptCredit = async (forceRefresh = false) => {
+  const now = Date.now()
+  if (!forceRefresh && now - serviceAcceptCreditCache.timestamp < 60000) {
+    return serviceAcceptCreditCache.value
+  }
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.COMMISSION_SERVICE_ACCEPT_CREDIT)
+    const value = Number(response.credit_count ?? 25)
+    serviceAcceptCreditCache = { value, timestamp: now }
+    return value
+  } catch {
+    return serviceAcceptCreditCache.value || 25
+  }
+}
+
+export const setServiceAcceptCredit = async (creditCount) => {
+  try {
+    const response = await apiClient.put(API_ENDPOINTS.API.COMMISSION_SERVICE_ACCEPT_CREDIT, {
+      credit_count: creditCount,
+    })
+    serviceAcceptCreditCache = { value: Number(response.credit_count), timestamp: Date.now() }
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to update service accept credit')
+  }
+}
+
+export const invalidateServiceAcceptCreditCache = () => {
+  serviceAcceptCreditCache.timestamp = 0
 }
 
 /**
@@ -1087,6 +1513,51 @@ export const uploadFile = async (file) => {
     return response
   } catch (error) {
     throw new Error(error.message || 'File upload failed')
+  }
+}
+
+/** Reserve folder id before uploading product/service images */
+export const reserveImageEntityId = async (entityType = 'products') => {
+  try {
+    const response = await apiClient.post(`${API_BASE_URL}/api/images/reserve-id`, { entity_type: entityType })
+    return response.entity_id
+  } catch (error) {
+    throw new Error(error.message || 'Failed to reserve image folder')
+  }
+}
+
+/** Upload image as WebP under /static/{entityType}/{entityId}/ */
+export const uploadEntityImage = async (file, { entityType = 'products', entityId, index = 0 }) => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('entity_type', entityType)
+    formData.append('entity_id', entityId)
+    formData.append('index', String(index))
+    const response = await apiClient.post(`${API_BASE_URL}/api/images/upload`, formData, {
+      timeout: 120000,
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Image upload failed')
+  }
+}
+
+/** Seller/user avatar → /static/avatars/{userId}/avatar.webp */
+export const uploadAvatar = async (file, userId) => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('entity_type', 'avatars')
+    formData.append('entity_id', userId)
+    const response = await apiClient.post(`${API_BASE_URL}/api/images/upload`, formData, {
+      timeout: 120000,
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Avatar upload failed')
   }
 }
 
@@ -1352,7 +1823,8 @@ export const createOrder = async (orderPayload) => {
   }
 }
 
-export const getOrders = async (params = {}) => {
+export const getOrders = async (params = {}, options = {}) => {
+  bindRealtimeCacheSync()
   try {
     // Support pagination: page, limit, sort
     const queryParams = {
@@ -1361,6 +1833,12 @@ export const getOrders = async (params = {}) => {
       sort: params.sort || '-created_at', // Default: newest first
       ...params
     }
+    // For default dashboard query, prefer warm cache first.
+    const isDefaultQuery = queryParams.page === 1 && queryParams.limit === 10 && queryParams.sort === '-created_at'
+    if (!options.forceRefresh && isDefaultQuery && isFresh(apiCache.orders)) {
+      return apiCache.orders.data
+    }
+
     const response = await apiClient.get(API_ENDPOINTS.API.ORDERS, { params: queryParams })
     const result = {
       orders: response.orders || [],
@@ -1372,11 +1850,14 @@ export const getOrders = async (params = {}) => {
     
     // Cache only the first page with default limit
     if (queryParams.page === 1 && queryParams.limit === 10) {
-      apiCache.orders = { data: result, timestamp: Date.now() }
+      apiCache.orders = { data: result, timestamp: nowTs() }
     }
     
     return result
   } catch (error) {
+    if (apiCache.orders.data && params.page === 1) {
+      return apiCache.orders.data
+    }
     throw new Error(error.message || 'Failed to fetch orders')
   }
 }
@@ -1412,11 +1893,24 @@ export const createService = async (serviceData) => {
 /**
  * Get all approved services (public)
  */
-export const getServices = async (params = {}) => {
+export const getServices = async (params = {}, options = {}) => {
+  bindRealtimeCacheSync()
   try {
+    const isDefaultServiceQuery = Object.keys(params).length === 0
+    if (!options.forceRefresh && isDefaultServiceQuery && isFresh(apiCache.services)) {
+      return apiCache.services.data
+    }
+
     const response = await apiClient.get(API_ENDPOINTS.API.SERVICES, { params })
-    return response.services || []
+    const services = response.services || []
+    if (isDefaultServiceQuery) {
+      apiCache.services = { data: services, timestamp: nowTs() }
+    }
+    return services
   } catch (error) {
+    if (apiCache.services.data) {
+      return apiCache.services.data
+    }
     throw new Error(error.message || 'Failed to load services')
   }
 }

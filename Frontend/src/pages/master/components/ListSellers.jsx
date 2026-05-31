@@ -1,14 +1,22 @@
 /**
  * List Sellers Component
  */
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import Skeleton from 'react-loading-skeleton'
 import 'react-loading-skeleton/dist/skeleton.css'
-import { getSellers, updateSeller, blacklistSeller } from '../../../services/api'
-import { FiEdit2, FiTrash2, FiSearch, FiPlusCircle } from 'react-icons/fi'
+import {
+  getSellers,
+  updateSeller,
+  blacklistSeller,
+  initiateSellerCreditOtp,
+  confirmSellerCredits,
+} from '../../../services/api'
+import { FiEdit2, FiTrash2, FiSearch, FiPlusCircle, FiList, FiCheckCircle } from 'react-icons/fi'
 import { useDispatch, useSelector } from 'react-redux'
 import { setMastersData, setMastersLoading, updateMasterSeller } from '../../../store/masterSlice'
-import { addSellerCredits } from '../../../services/api'
+import { syncSellerBlacklisted, isCacheStale, CACHE_TTL } from '../../../services/cacheSync'
 import Portal from '../../../components/Portal'
 
 const CreditCoin = ({ size = 20 }) => (
@@ -26,6 +34,7 @@ const CreditCoin = ({ size = 20 }) => (
 )
 
 function ListSellers() {
+  const navigate = useNavigate()
   const dispatch = useDispatch()
   const { sellers, loading: masterLoading, lastFetched } = useSelector(state => state.master)
   
@@ -40,6 +49,34 @@ function ListSellers() {
   const [showCreditModal, setShowCreditModal] = useState(false)
   const [creditTarget, setCreditTarget] = useState(null)
   const [creditAmount, setCreditAmount] = useState(50)
+  const [creditPasskey, setCreditPasskey] = useState('')
+  const [creditStep, setCreditStep] = useState('form')
+  const [creditOtp, setCreditOtp] = useState('')
+  const [otpSessionId, setOtpSessionId] = useState('')
+  const [creditAuthorization, setCreditAuthorization] = useState('')
+  const [otpPhoneMasked, setOtpPhoneMasked] = useState('')
+
+  const [creditSuccess, setCreditSuccess] = useState(null)
+  const creditSuccessTimerRef = useRef(null)
+
+  const dismissCreditSuccess = useCallback(() => {
+    if (creditSuccessTimerRef.current) {
+      clearTimeout(creditSuccessTimerRef.current)
+      creditSuccessTimerRef.current = null
+    }
+    setCreditSuccess(null)
+  }, [])
+
+  useEffect(() => {
+    if (!creditSuccess) return undefined
+    creditSuccessTimerRef.current = setTimeout(dismissCreditSuccess, 5000)
+    return () => {
+      if (creditSuccessTimerRef.current) {
+        clearTimeout(creditSuccessTimerRef.current)
+        creditSuccessTimerRef.current = null
+      }
+    }
+  }, [creditSuccess, dismissCreditSuccess])
 
   const [formData, setFormData] = useState({
     email: '',
@@ -51,11 +88,10 @@ function ListSellers() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    // Only fetch if not already loaded or if last fetched was long ago
-    if (!lastFetched.sellers || sellers.length === 0) {
+    if (isCacheStale(lastFetched.sellers, CACHE_TTL.master) || sellers.length === 0) {
       fetchSellers()
     }
-  }, [sellers.length, lastFetched.sellers])
+  }, [lastFetched.sellers])
 
   const fetchSellers = async () => {
     try {
@@ -117,14 +153,12 @@ function ListSellers() {
     try {
       setSubmitting(true)
       await blacklistSeller(deletingSeller.id || deletingSeller._id)
-      
-      // Update local Redux store
-      dispatch(updateMasterSeller({
-        ...(deletingSeller.id ? { id: deletingSeller.id } : { _id: deletingSeller._id }),
-        is_active: false // Blacklisting marks them as inactive or removes them? 
-        // Backend handles actual removal from active lists, but for UI we update status
-      }))
-      
+
+      syncSellerBlacklisted(deletingSeller.id || deletingSeller._id, {
+        ...deletingSeller,
+        blacklist: { reason: 'Blacklisted by master', blacklisted_at: new Date().toISOString() },
+      })
+
       setShowDeleteModal(false)
       setDeletingSeller(null)
     } catch (err) {
@@ -134,28 +168,83 @@ function ListSellers() {
     }
   }
 
-  const handleCreditSubmit = async (e) => {
+  const handleCreditSendOtp = async (e) => {
     e.preventDefault()
-    if (!creditTarget || creditAmount <= 0) return
+    if (submitting || !creditTarget || creditAmount <= 0) return
+    if (!creditPasskey.trim()) {
+      setError('Credit passkey is required')
+      return
+    }
 
     try {
       setSubmitting(true)
-      const response = await addSellerCredits(creditTarget.id || creditTarget._id, creditAmount)
-      
-      // Update local Redux store
+      setError(null)
+      const res = await initiateSellerCreditOtp(
+        creditTarget.id || creditTarget._id,
+        creditAmount,
+        creditPasskey.trim()
+      )
+      setOtpSessionId(res.otp_session_id)
+      setCreditAuthorization(res.credit_authorization)
+      setOtpPhoneMasked(res.phone_masked || '')
+      setCreditStep('otp')
+      setCreditOtp('')
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCreditConfirm = async (e) => {
+    e.preventDefault()
+    if (submitting || !creditTarget || !otpSessionId || !creditOtp.trim()) return
+
+    try {
+      setSubmitting(true)
+      setError(null)
+      const response = await confirmSellerCredits(creditTarget.id || creditTarget._id, {
+        amount: creditAmount,
+        otp_session_id: otpSessionId,
+        otp: creditOtp.trim(),
+        credit_authorization: creditAuthorization,
+      })
+
       dispatch(updateMasterSeller({
         ...(creditTarget.id ? { id: creditTarget.id } : { _id: creditTarget._id }),
-        credits: response.credits
+        credits: response.credits,
       }))
-      
-      setShowCreditModal(false)
-      setCreditTarget(null)
-      setCreditAmount(50)
+
+      setCreditSuccess({
+        tradeId: creditTarget.trade_id,
+        amount: creditAmount,
+        credits: response.credits,
+        message: response.message || `Successfully added ${creditAmount} credits`,
+      })
+      closeCreditModal()
     } catch (err) {
       setError(err.message || 'Failed to add credits')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const openSellerWalletPage = (seller) => {
+    const id = seller.id || seller._id
+    navigate(`/master/sellers/${id}/wallet`, { state: { seller } })
+  }
+
+  const closeCreditModal = () => {
+    if (submitting) return
+    setShowCreditModal(false)
+    setCreditTarget(null)
+    setCreditAmount(50)
+    setCreditPasskey('')
+    setCreditStep('form')
+    setCreditOtp('')
+    setOtpSessionId('')
+    setCreditAuthorization('')
+    setOtpPhoneMasked('')
   }
 
   const handleInputChange = (e) => {
@@ -408,8 +497,18 @@ function ListSellers() {
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
                         <button
+                          type="button"
+                          onClick={() => openSellerWalletPage(seller)}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="View wallet & transactions"
+                        >
+                          <FiList className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => {
                             setCreditTarget(seller)
+                            setCreditStep('form')
                             setShowCreditModal(true)
                           }}
                           className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -476,17 +575,27 @@ function ListSellers() {
                       </p>
                     )}
                   </div>
-                  <div className="pt-2 border-t border-gray-100 flex gap-2">
+                  <div className="pt-2 border-t border-gray-100 flex flex-wrap gap-2">
                     <button
+                      type="button"
+                      onClick={() => openSellerWalletPage(seller)}
+                      className="flex-1 min-w-[120px] px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 text-sm font-medium flex items-center justify-center gap-2"
+                    >
+                      <FiList className="w-4 h-4" />
+                      Wallet
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleEdit(seller)}
-                      className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                      className="flex-1 min-w-[100px] px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-medium flex items-center justify-center gap-2"
                     >
                       <FiEdit2 className="w-4 h-4" />
                       Edit
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleDelete(seller)}
-                      className="flex-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                      className="flex-1 min-w-[100px] px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm font-medium flex items-center justify-center gap-2"
                     >
                       <FiTrash2 className="w-4 h-4" />
                       Delete
@@ -501,8 +610,8 @@ function ListSellers() {
 
       {/* Edit Modal */}
       {showEditModal && editingSeller && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="master-modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="master-modal-panel bg-white rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Edit Seller</h3>
               <form onSubmit={handleEditSubmit} className="space-y-4">
@@ -609,8 +718,8 @@ function ListSellers() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && deletingSeller && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div className="master-modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="master-modal-panel bg-white rounded-xl shadow-xl">
             <div className="p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-2">Blacklist Seller</h3>
               <p className="text-gray-600 mb-6">
@@ -646,12 +755,12 @@ function ListSellers() {
       <AnimatePresence>
         {showCreditModal && creditTarget && (
           <Portal>
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+            <div className="master-modal-backdrop fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white rounded-2xl shadow-2xl max-w-[400px] w-full overflow-hidden"
+                className="master-modal-panel bg-white rounded-2xl shadow-2xl overflow-hidden"
               >
                 <div className="p-6">
                   <div className="flex items-center gap-3 mb-4">
@@ -661,7 +770,10 @@ function ListSellers() {
                   <p className="text-gray-600 mb-6 text-sm">
                     Add credits to <strong>{creditTarget.trade_id}</strong>. Current balance: <strong>{creditTarget.credits ?? 30}</strong>
                   </p>
-                  <form onSubmit={handleCreditSubmit} className="space-y-4">
+                  <form
+                    onSubmit={creditStep === 'form' ? handleCreditSendOtp : handleCreditConfirm}
+                    className="space-y-4"
+                  >
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Credit Amount
@@ -672,9 +784,10 @@ function ListSellers() {
                             type="button"
                             key={amt}
                             onClick={() => setCreditAmount(amt)}
+                            disabled={submitting || creditStep === 'otp'}
                             className={`py-2 rounded-lg text-xs font-bold transition-all ${
-                              creditAmount === amt 
-                                ? 'bg-amber-500 text-white shadow-md' 
+                              creditAmount === amt
+                                ? 'bg-amber-500 text-white shadow-md'
                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}
                           >
@@ -688,27 +801,95 @@ function ListSellers() {
                         onChange={(e) => setCreditAmount(Number(e.target.value))}
                         min="1"
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent font-bold"
+                        disabled={submitting || creditStep === 'otp'}
+                        className="master-credit-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent font-bold text-gray-900"
                       />
                     </div>
+
+                    {creditStep === 'form' ? (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Credit passkey <span className="text-red-600">*</span>
+                        </label>
+                        <input
+                          type="password"
+                          value={creditPasskey}
+                          onChange={(e) => setCreditPasskey(e.target.value)}
+                          required
+                          autoComplete="off"
+                          disabled={submitting}
+                          placeholder="Enter master credit passkey"
+                          className="master-credit-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent font-bold text-gray-900"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          After passkey verification, a 6-digit OTP is sent to your master phone only.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          OTP <span className="text-red-600">*</span>
+                        </label>
+                        <p className="text-xs text-amber-700 mb-2 font-medium">
+                          Code sent to {otpPhoneMasked || 'your phone'}. Enter it to add credits.
+                        </p>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={creditOtp}
+                          onChange={(e) => setCreditOtp(e.target.value.replace(/\D/g, ''))}
+                          required
+                          autoComplete="one-time-code"
+                          disabled={submitting}
+                          placeholder="6-digit OTP"
+                          className="master-credit-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent font-bold text-gray-900 tracking-widest text-center"
+                        />
+                        <button
+                          type="button"
+                          disabled={submitting}
+                          onClick={() => {
+                            setCreditStep('form')
+                            setCreditOtp('')
+                            setOtpSessionId('')
+                            setCreditAuthorization('')
+                          }}
+                          className="text-xs text-indigo-600 font-semibold mt-2 hover:underline"
+                        >
+                          ← Change amount or resend OTP
+                        </button>
+                      </div>
+                    )}
+
                     <div className="flex gap-3 pt-4">
                       <button
                         type="button"
-                        onClick={() => {
-                          setShowCreditModal(false)
-                          setCreditTarget(null)
-                        }}
-                        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        onClick={closeCreditModal}
+                        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={submitting}
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shadow-lg shadow-amber-100 disabled:opacity-50"
-                        disabled={submitting || creditAmount <= 0}
+                        className="flex-1 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors shadow-lg shadow-amber-100 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        disabled={
+                          submitting ||
+                          creditAmount <= 0 ||
+                          (creditStep === 'form' && !creditPasskey.trim()) ||
+                          (creditStep === 'otp' && creditOtp.length < 6)
+                        }
                       >
-                        {submitting ? 'Adding...' : 'Confirm Credits'}
+                        {submitting ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+                            {creditStep === 'form' ? 'Sending OTP...' : 'Adding...'}
+                          </>
+                        ) : creditStep === 'form' ? (
+                          'Send OTP'
+                        ) : (
+                          'Confirm Credits'
+                        )}
                       </button>
                     </div>
                   </form>
@@ -718,6 +899,45 @@ function ListSellers() {
           </Portal>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {creditSuccess && (
+          <Portal>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+              onClick={dismissCreditSuccess}
+              role="presentation"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 12 }}
+                transition={{ type: 'spring', damping: 22, stiffness: 320 }}
+                className="master-modal-panel bg-white rounded-2xl shadow-2xl p-8 text-center cursor-pointer"
+                role="alertdialog"
+                aria-live="polite"
+              >
+                <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+                  <FiCheckCircle className="w-8 h-8 text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Credits added</h3>
+                <p className="text-gray-600 text-sm mb-1">{creditSuccess.message}</p>
+                <p className="text-gray-800 font-semibold text-sm">
+                  <strong>{creditSuccess.tradeId}</strong> · +{creditSuccess.amount} credits
+                </p>
+                <p className="text-emerald-700 font-bold mt-2">
+                  New balance: {creditSuccess.credits}
+                </p>
+                <p className="text-xs text-gray-400 mt-4">Tap anywhere to close · auto-closes in 5s</p>
+              </motion.div>
+            </motion.div>
+          </Portal>
+        )}
+      </AnimatePresence>
+
     </div>
   )
 }

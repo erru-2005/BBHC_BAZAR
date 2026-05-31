@@ -22,8 +22,7 @@ function ServiceBooking() {
   const [loading, setLoading] = useState(!service)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   
-  // Booking state
-  const [bookingType, setBookingType] = useState('single') // 'single' or 'range'
+  const [bookingType, setBookingType] = useState('single')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [bookingLoading, setBookingLoading] = useState(false)
@@ -31,6 +30,8 @@ function ServiceBooking() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [error, setError] = useState(null)
   const [step, setStep] = useState(1)
+
+  const requiresBookingDate = service?.requires_booking_date === true
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -57,12 +58,18 @@ function ServiceBooking() {
   }, [serviceId, service])
 
   const isValid = useMemo(() => {
-    // Dates are now optional. If not selected, we assume "Flexible Timing"
+    if (!requiresBookingDate) return true
+    if (!startDate) return false
+    if (bookingType === 'range' && !endDate) return false
     return true
-  }, [])
+  }, [requiresBookingDate, startDate, endDate, bookingType])
 
   const handleProceed = () => {
-    if (!isValid) return
+    if (!isValid) {
+      setError('Please select a booking date to continue.')
+      return
+    }
+    setError(null)
     setStep(2)
     window.scrollTo(0, 0)
   }
@@ -72,16 +79,25 @@ function ServiceBooking() {
       setError('Only customers can book services. Please login with a user account.')
       return
     }
+    if (requiresBookingDate && !startDate) {
+      setError('Booking date is required for this service.')
+      return
+    }
+    if (requiresBookingDate && bookingType === 'range' && !endDate) {
+      setError('Booking end date is required for this service.')
+      return
+    }
+
     setBookingLoading(true)
     setError(null)
 
     try {
       const bookingData = {
         service_id: service.id || service._id,
-        type: bookingType,
-        startDate: startDate || null,
-        endDate: (bookingType === 'range' && endDate) ? endDate : null,
-        flexible: !startDate
+        type: requiresBookingDate ? bookingType : 'flexible',
+        startDate: requiresBookingDate ? startDate : null,
+        endDate: requiresBookingDate && bookingType === 'range' ? endDate : null,
+        flexible: !requiresBookingDate,
       }
 
       const payload = {
@@ -131,7 +147,6 @@ function ServiceBooking() {
       <MobileMenu open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
       <main className="max-w-4xl mx-auto px-4 py-8 lg:py-16 pb-32">
-        {/* Progress Header */}
         <div className="flex items-center gap-4 mb-12">
           <button 
             onClick={() => step === 2 ? setStep(1) : navigate(-1)}
@@ -141,12 +156,13 @@ function ServiceBooking() {
           </button>
           <div>
             <h1 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">Configure Booking</h1>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Step {step} of 2: {step === 1 ? 'Schedule Details' : 'Final Confirmation'}</p>
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+              Step {step} of 2: {step === 1 ? (requiresBookingDate ? 'Schedule Details' : 'Booking Overview') : 'Final Confirmation'}
+            </p>
           </div>
         </div>
 
         <div className="grid lg:grid-cols-12 gap-8">
-          {/* Left: Configuration/Confirmation */}
           <div className="lg:col-span-7 space-y-6">
             <AnimatePresence mode="wait">
               {step === 1 ? (
@@ -157,85 +173,102 @@ function ServiceBooking() {
                   exit={{ opacity: 0, x: 20 }}
                   className="bg-white rounded-[40px] p-8 lg:p-10 shadow-xl shadow-slate-200/50 border border-white"
                 >
-                  <div className="flex items-center gap-4 mb-10">
-                    <div className="w-16 h-16 rounded-3xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                      <FiCalendar className="w-8 h-8" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-black text-slate-900">Timing Preference</h3>
-                      <p className="text-sm font-bold text-slate-400">When should we deliver the service?</p>
-                    </div>
-                  </div>
-
-                  {/* Toggle */}
-                  <div className="grid grid-cols-2 gap-3 mb-10 bg-slate-50 p-2 rounded-3xl">
-                    <button 
-                      onClick={() => setBookingType('single')}
-                      className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
-                        bookingType === 'single' ? 'bg-white text-indigo-600 shadow-xl shadow-indigo-100' : 'text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      Specific Day
-                    </button>
-                    <button 
-                      onClick={() => setBookingType('range')}
-                      className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
-                        bookingType === 'range' ? 'bg-white text-indigo-600 shadow-xl shadow-indigo-100' : 'text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      Custom Range
-                    </button>
-                  </div>
-
-                  {/* Date Inputs */}
-                  <div className="space-y-8">
-                    <div className="group">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2 transition-colors group-focus-within:text-indigo-600">
-                        {bookingType === 'single' ? 'Pick a Date' : 'Delivery Starts'}
-                      </label>
-                      <div className="relative">
-                        <input 
-                          type="date" 
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                          min={new Date().toISOString().split('T')[0]}
-                          className="w-full h-18 bg-slate-50 border-2 border-transparent rounded-[2rem] px-8 font-black text-slate-900 outline-none focus:bg-white focus:border-indigo-600 transition-all text-lg"
-                        />
-                        <FiCalendar className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 w-6 h-6 pointer-events-none" />
+                  {requiresBookingDate ? (
+                    <>
+                      <div className="flex items-center gap-4 mb-10">
+                        <div className="w-16 h-16 rounded-3xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                          <FiCalendar className="w-8 h-8" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black text-slate-900">Timing Preference</h3>
+                          <p className="text-sm font-bold text-slate-400">Select when you need this service</p>
+                        </div>
                       </div>
-                    </div>
 
-                    <AnimatePresence>
-                      {bookingType === 'range' && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0, y: -10 }}
-                          animate={{ opacity: 1, height: 'auto', y: 0 }}
-                          exit={{ opacity: 0, height: 0, y: -10 }}
-                          className="group overflow-hidden"
+                      <div className="grid grid-cols-2 gap-3 mb-10 bg-slate-50 p-2 rounded-3xl">
+                        <button 
+                          type="button"
+                          onClick={() => setBookingType('single')}
+                          className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                            bookingType === 'single' ? 'bg-white text-indigo-600 shadow-xl shadow-indigo-100' : 'text-slate-400 hover:text-slate-600'
+                          }`}
                         >
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2 transition-colors group-focus-within:text-indigo-600">Delivery Ends</label>
+                          Specific Day
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setBookingType('range')}
+                          className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                            bookingType === 'range' ? 'bg-white text-indigo-600 shadow-xl shadow-indigo-100' : 'text-slate-400 hover:text-slate-600'
+                          }`}
+                        >
+                          Custom Range
+                        </button>
+                      </div>
+
+                      <div className="space-y-8">
+                        <div className="group">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">
+                            {bookingType === 'single' ? 'Pick a Date *' : 'Delivery Starts *'}
+                          </label>
                           <div className="relative">
                             <input 
                               type="date" 
-                              value={endDate}
-                              onChange={(e) => setEndDate(e.target.value)}
-                              min={startDate || new Date().toISOString().split('T')[0]}
+                              value={startDate}
+                              onChange={(e) => setStartDate(e.target.value)}
+                              min={new Date().toISOString().split('T')[0]}
+                              required
                               className="w-full h-18 bg-slate-50 border-2 border-transparent rounded-[2rem] px-8 font-black text-slate-900 outline-none focus:bg-white focus:border-indigo-600 transition-all text-lg"
                             />
                             <FiCalendar className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 w-6 h-6 pointer-events-none" />
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                        </div>
 
-                  {/* Info Note */}
-                  <div className="mt-10 p-5 bg-blue-50/50 rounded-3xl border border-blue-100/50 flex gap-4">
-                    <FiClock className="w-5 h-5 text-blue-500 mt-0.5" />
-                    <p className="text-[11px] font-bold text-blue-600/80 leading-relaxed uppercase tracking-tight">
-                      Pro-Tip: Choosing a range allows our professionals to find the most efficient window for your service.
-                    </p>
-                  </div>
+                        <AnimatePresence>
+                          {bookingType === 'range' && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0, y: -10 }}
+                              animate={{ opacity: 1, height: 'auto', y: 0 }}
+                              exit={{ opacity: 0, height: 0, y: -10 }}
+                              className="group overflow-hidden"
+                            >
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Delivery Ends *</label>
+                              <div className="relative">
+                                <input 
+                                  type="date" 
+                                  value={endDate}
+                                  onChange={(e) => setEndDate(e.target.value)}
+                                  min={startDate || new Date().toISOString().split('T')[0]}
+                                  required
+                                  className="w-full h-18 bg-slate-50 border-2 border-transparent rounded-[2rem] px-8 font-black text-slate-900 outline-none focus:bg-white focus:border-indigo-600 transition-all text-lg"
+                                />
+                                <FiCalendar className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-300 w-6 h-6 pointer-events-none" />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 rounded-3xl bg-emerald-50 flex items-center justify-center text-emerald-600 mx-auto mb-6">
+                        <FiCheckCircle className="w-8 h-8" />
+                      </div>
+                      <h3 className="text-xl font-black text-slate-900 mb-3">Flexible Booking</h3>
+                      <p className="text-sm font-bold text-slate-500 max-w-md mx-auto leading-relaxed">
+                        No date is required for this service. After you confirm, the professional will contact you to schedule at a convenient time.
+                      </p>
+                    </div>
+                  )}
+
+                  {!requiresBookingDate && (
+                    <div className="mt-10 p-5 bg-blue-50/50 rounded-3xl border border-blue-100/50 flex gap-4">
+                      <FiClock className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-[11px] font-bold text-blue-600/80 leading-relaxed uppercase tracking-tight">
+                        The seller will coordinate timing with you after accepting your request.
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
               ) : (
                 <motion.div 
@@ -264,15 +297,17 @@ function ServiceBooking() {
                         </div>
                         <div>
                           <p className="text-lg font-black text-slate-900">
-                            {bookingType === 'single' ? 'Specific Day' : 'Custom Range'}
+                            {requiresBookingDate
+                              ? (bookingType === 'single' ? 'Specific Day' : 'Custom Range')
+                              : 'Flexible Timing'}
                           </p>
                           <p className="text-sm font-bold text-indigo-600">
-                            {!startDate ? (
-                              'Flexible Timing (Professional will coordinate)'
+                            {!requiresBookingDate ? (
+                              'Professional will coordinate with you'
                             ) : bookingType === 'single' ? (
                               new Date(startDate).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
                             ) : (
-                              `${new Date(startDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} - ${endDate ? new Date(endDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Flexible'}`
+                              `${new Date(startDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} - ${new Date(endDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}`
                             )}
                           </p>
                         </div>
@@ -306,7 +341,6 @@ function ServiceBooking() {
             </AnimatePresence>
           </div>
 
-          {/* Right: Summary */}
           <div className="lg:col-span-5">
             <div className="lg:sticky lg:top-24 space-y-6">
               <motion.div 
@@ -391,7 +425,6 @@ function ServiceBooking() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               className="relative w-[clamp(320px,95vw,480px)] bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-slate-50"
             >
-              {/* Header Accent */}
               <div className="h-2 w-full bg-gradient-to-r from-emerald-400 to-teal-500" />
               
               <div className="p-8 text-center">

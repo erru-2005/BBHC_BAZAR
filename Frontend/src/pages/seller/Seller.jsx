@@ -8,14 +8,14 @@ import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiM
 import { FaQrcode } from 'react-icons/fa6'
 
 import { getSocket } from '../../utils/socket'
-import { getOrders, getSellerMyProducts, sellerAcceptOrder, sellerRejectOrder, updateOrderStatus } from '../../services/api'
+import { getOrders, getSellerMyProducts, sellerAcceptOrder, sellerRejectOrder, updateOrderStatus, getServiceAcceptCredit } from '../../services/api'
 import SellerOrders from './components/SellerOrders'
 import SellerNotifications from './components/SellerNotifications'
 import SellerAnalytics from './components/SellerAnalytics'
 import SellerWallet from './components/SellerWallet'
 import QRCode from 'react-qr-code'
 import { motion, AnimatePresence } from 'framer-motion'
-import { fixImageUrl } from '../../utils/image'
+import { fixImageUrl, getOrderProductImage, resolveImageUrl } from '../../utils/image'
 import { setSellerProducts, setSellerOrders, updateSellerOrder, setSellerLoading } from '../../store/sellerSlice'
 import { updateUserInfo } from '../../store/authSlice'
 import { useOutletContext } from 'react-router-dom'
@@ -47,6 +47,11 @@ function Seller() {
   const [successMessage, setSuccessMessage] = useState(null)
   const [dashboardTypeFilter, setDashboardTypeFilter] = useState('product') // 'product', 'service'
   const [serviceConfirmation, setServiceConfirmation] = useState(null)
+  const [serviceAcceptCredit, setServiceAcceptCredit] = useState(25)
+
+  useEffect(() => {
+    getServiceAcceptCredit().then(setServiceAcceptCredit).catch(() => {})
+  }, [])
 
   const { setIsAddingProduct } = useOutletContext()
 
@@ -80,20 +85,12 @@ function Seller() {
       }
     }
 
-    const handleSellerUpdated = (sellerData) => {
-      if (String(sellerData?.id || sellerData?._id) === String(user.id)) {
-        dispatch(updateUserInfo({ credits: sellerData.credits }))
-      }
-    }
-
     socket.on('new_order', handleNewOrder)
     socket.on('order_updated', handleOrderUpdated)
-    socket.on('seller_updated', handleSellerUpdated)
 
     return () => {
       socket.off('new_order', handleNewOrder)
       socket.off('order_updated', handleOrderUpdated)
-      socket.off('seller_updated', handleSellerUpdated)
     }
   }, [user?.id, dispatch])
 
@@ -285,7 +282,7 @@ function Seller() {
 
     // OPTIMISTIC UPDATE: Subtract 25 credits immediately for services to feel "live"
     if (isService) {
-      dispatch(updateUserInfo({ credits: Math.max(0, (user?.credits || 0) - 25) }))
+      dispatch(updateUserInfo({ credits: Math.max(0, (user?.credits || 0) - serviceAcceptCredit) }))
     }
 
     try {
@@ -581,7 +578,7 @@ function Seller() {
             const isAccepted = status === 'seller_accepted'
             const isPending = status === 'pending_seller'
             const productName = order.product_snapshot?.name || order.product?.name || 'PRODUCT NOT FOUND'
-            const productImg = order.product_snapshot?.thumbnail || order.product?.thumbnail
+            const productImg = getOrderProductImage(order)
 
             return (
               <motion.div
@@ -689,7 +686,7 @@ function Seller() {
                 const isAccepted = status === 'seller_accepted'
                 const isPending = status === 'pending_seller'
                 const productName = order.product_snapshot?.name || order.product?.name || 'PRODUCT NOT FOUND'
-                const productImg = order.product_snapshot?.thumbnail || order.product?.thumbnail
+                const productImg = getOrderProductImage(order)
 
                 return (
                   <tr key={order.id} className="group hover:bg-slate-50/50 transition-all">
@@ -873,16 +870,16 @@ function Seller() {
               <p className="text-xs text-slate-400 font-medium mb-4 leading-relaxed">
                 Confirm your availability to fulfill this service request.
                 <span className="block mt-2 font-black text-blue-600 uppercase tracking-widest bg-blue-50 py-2 rounded-lg border border-blue-100">
-                  25 credits will be deducted
+                  {serviceAcceptCredit} credits will be deducted
                 </span>
               </p>
 
-              {user?.credits < 25 && (
+              {user?.credits < serviceAcceptCredit && (
                 <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-100 flex flex-col items-center gap-2">
                   <div className="flex items-center gap-2 text-rose-600 font-bold text-[10px] uppercase tracking-widest">
                     <FiAlertCircle className="w-4 h-4" /> Insufficient Credits
                   </div>
-                  <p className="text-[10px] text-rose-500 font-medium">You need at least 25 credits to accept this service.</p>
+                  <p className="text-[10px] text-rose-500 font-medium">You need at least {serviceAcceptCredit} credits to accept this service.</p>
                   <button
                     onClick={() => {
                       setActiveView('wallet')
@@ -897,11 +894,11 @@ function Seller() {
 
               <div className="flex flex-col gap-3">
                 <motion.button
-                  whileHover={user?.credits >= 25 ? { scale: 1.02 } : {}}
-                  whileTap={user?.credits >= 25 ? { scale: 0.98 } : {}}
-                  disabled={actionProcessingId === serviceConfirmation.id || user?.credits < 25}
+                  whileHover={user?.credits >= serviceAcceptCredit ? { scale: 1.02 } : {}}
+                  whileTap={user?.credits >= serviceAcceptCredit ? { scale: 0.98 } : {}}
+                  disabled={actionProcessingId === serviceConfirmation.id || user?.credits < serviceAcceptCredit}
                   onClick={() => handleLocalAccept(serviceConfirmation.id)}
-                  className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-3 ${user?.credits >= 25
+                  className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-3 ${user?.credits >= serviceAcceptCredit
                     ? 'bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-700'
                     : 'bg-slate-100 text-slate-400 cursor-not-allowed grayscale'
                     }`}

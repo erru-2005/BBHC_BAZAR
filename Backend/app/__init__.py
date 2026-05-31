@@ -31,8 +31,10 @@ def create_app(config_class=Config):
     static_root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static')
     products_dir = os.path.join(static_root, 'products')
     services_dir = os.path.join(static_root, 'services')
+    avatars_dir = os.path.join(static_root, 'avatars')
     os.makedirs(products_dir, exist_ok=True)
     os.makedirs(services_dir, exist_ok=True)
+    os.makedirs(avatars_dir, exist_ok=True)
     
     # Initialize MongoDB connection
     # Flask-PyMongo expects MONGO_URI, construct it from config
@@ -144,14 +146,20 @@ def create_app(config_class=Config):
     from app.routes.bag import bag_bp
     from app.routes.analytics import analytics_bp
     from app.routes.debug import debug_bp
+    from app.routes.service_route import service_bp
+    from app.routes.payment_route import payment_bp
+    from app.routes.image_route import image_bp
     
     app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(image_bp, url_prefix='/api')
     app.register_blueprint(auth_bp)
     app.register_blueprint(ratings_bp, url_prefix='/api')
     app.register_blueprint(orders_bp, url_prefix='/api')
     app.register_blueprint(bag_bp, url_prefix='/api')
     app.register_blueprint(analytics_bp)
     app.register_blueprint(debug_bp, url_prefix='/api/debug')
+    app.register_blueprint(service_bp, url_prefix='/api')
+    app.register_blueprint(payment_bp, url_prefix='/api')
     
     # Simple root route for connectivity testing
     @app.route('/', methods=['GET'])
@@ -218,8 +226,19 @@ def create_indexes():
         mongo.db.products.create_index([('seller_id', ASCENDING)])
         mongo.db.products.create_index([('approval_status', ASCENDING), ('created_at', -1)])
         
-        # Create indexes for categories collection
-        mongo.db.categories.create_index([('name', ASCENDING)], unique=True)
+        # Categories: product vs service (separate lists, same collection)
+        mongo.db.categories.update_many(
+            {'category_type': {'$exists': False}},
+            {'$set': {'category_type': 'product'}}
+        )
+        try:
+            mongo.db.categories.drop_index('name_1')
+        except Exception:
+            pass
+        mongo.db.categories.create_index(
+            [('name', ASCENDING), ('category_type', ASCENDING)],
+            unique=True
+        )
         
         # Create indexes for ratings collection
         mongo.db.ratings.create_index([('product_id', ASCENDING), ('user_id', ASCENDING)], unique=True)
@@ -259,6 +278,23 @@ def create_indexes():
 
         # Create indexes for wishlist collection via service
         WishlistService.ensure_indexes()
+
+        # Credit payment records (Razorpay wallet recharge)
+        try:
+            mongo.db.credit_payments.create_index([('razorpay_order_id', ASCENDING)], unique=True)
+            mongo.db.credit_payments.create_index([('razorpay_payment_id', ASCENDING)], sparse=True)
+            mongo.db.credit_payments.create_index([('seller_id', ASCENDING), ('created_at', -1)])
+        except Exception:
+            pass
+
+        try:
+            mongo.db.seller_wallet_transactions.create_index(
+                [('seller_id', ASCENDING), ('created_at', -1)]
+            )
+            mongo.db.seller_wallet_transactions.create_index([('type', ASCENDING)])
+            mongo.db.seller_wallet_transactions.create_index([('razorpay_order_id', ASCENDING)], sparse=True)
+        except Exception:
+            pass
         
         print("Database indexes created successfully")
     except Exception as e:

@@ -21,6 +21,7 @@ class Service:
         created_by_user_id=None,
         created_by_user_type=None,
         availability=True,
+        requires_booking_date=False,
         seller_trade_id=None,
         seller_name=None,
         seller_email=None,
@@ -48,6 +49,7 @@ class Service:
         self.created_by_user_id = created_by_user_id
         self.created_by_user_type = created_by_user_type
         self.availability = availability
+        self.requires_booking_date = bool(requires_booking_date)
         self.seller_trade_id = seller_trade_id
         self.seller_name = seller_name
         self.seller_email = seller_email
@@ -76,6 +78,7 @@ class Service:
             'created_by_user_id': self.created_by_user_id,
             'created_by_user_type': self.created_by_user_type,
             'availability': self.availability,
+            'requires_booking_date': self.requires_booking_date,
             'seller_trade_id': self.seller_trade_id,
             'seller_name': self.seller_name,
             'seller_email': self.seller_email,
@@ -105,6 +108,7 @@ class Service:
             'created_by_user_id': self.created_by_user_id,
             'created_by_user_type': self.created_by_user_type,
             'availability': self.availability,
+            'requires_booking_date': self.requires_booking_date,
             'seller_trade_id': self.seller_trade_id,
             'seller_name': self.seller_name,
             'seller_email': self.seller_email,
@@ -138,6 +142,7 @@ class Service:
             created_by_user_id=bson_doc.get('created_by_user_id'),
             created_by_user_type=bson_doc.get('created_by_user_type'),
             availability=bson_doc.get('availability', True),
+            requires_booking_date=bson_doc.get('requires_booking_date', False),
             seller_trade_id=bson_doc.get('seller_trade_id'),
             seller_name=bson_doc.get('seller_name'),
             seller_email=bson_doc.get('seller_email'),

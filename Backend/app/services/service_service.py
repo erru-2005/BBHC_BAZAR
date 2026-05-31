@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from app import mongo
 from app.models.service import Service
-from app.utils.image_handler import save_base64_image, delete_entity_images
+from app.utils.image_handler import save_stored_image_reference, delete_entity_images, is_base64_image
 
 
 class ServiceService:
@@ -58,16 +58,21 @@ class ServiceService:
                 else:
                     approval_status = 'approved'
 
-            # Generate ID beforehand to use it for folder naming
-            service_id = ObjectId()
-            
-            # Save images to filesystem
-            thumbnail_url = save_base64_image(service_data['thumbnail'], str(service_id), 0, 'services')
+            service_id = ObjectId(service_data['service_id']) if service_data.get('service_id') else ObjectId()
+
+            thumbnail_url = save_stored_image_reference(
+                service_data['thumbnail'], str(service_id), 0, 'services'
+            )
+            if not thumbnail_url:
+                raise ValueError('Service thumbnail is required. Upload an image first.')
+
             gallery_urls = []
             if 'gallery' in service_data and isinstance(service_data['gallery'], list):
-                for i, img_b64 in enumerate(service_data['gallery']):
-                    url = save_base64_image(img_b64, str(service_id), i + 1, 'services')
-                    gallery_urls.append(url)
+                for i, img_ref in enumerate(service_data['gallery']):
+                    if is_base64_image(img_ref):
+                        raise ValueError('Base64 gallery images are not supported.')
+                    if img_ref and str(img_ref).startswith('/static/'):
+                        gallery_urls.append(str(img_ref))
 
             service = Service(
                 service_name=service_data['service_name'],
@@ -80,7 +85,8 @@ class ServiceService:
                 created_by=service_data.get('created_by', 'system'),
                 created_by_user_id=service_data.get('created_by_user_id'),
                 created_by_user_type=service_data.get('created_by_user_type'),
-                availability=service_data.get('availability', True),
+                availability=True,
+                requires_booking_date=service_data.get('requires_booking_date', False),
                 seller_trade_id=service_data.get('seller_trade_id'),
                 seller_name=service_data.get('seller_name'),
                 seller_email=service_data.get('seller_email'),
@@ -145,16 +151,18 @@ class ServiceService:
 
             allowed_fields = [
                 'service_name', 'description', 'thumbnail', 'service_charge', 
-                'availability', 'seller_trade_id', 'seller_name', 
+                'requires_booking_date', 'seller_trade_id', 'seller_name', 
                 'seller_email', 'seller_phone', 'commission_rate'
             ]
             
             for field in allowed_fields:
+                if field == 'requires_booking_date':
+                    if field in service_data:
+                        update_fields[field] = bool(service_data[field])
+                    continue
                 if field in service_data and service_data[field] not in (None, ''):
                     if field in ['service_charge', 'commission_rate']:
                         update_fields[field] = float(service_data[field])
-                    elif field == 'availability':
-                        update_fields[field] = bool(service_data[field])
                     else:
                         update_fields[field] = service_data[field]
             
@@ -188,14 +196,19 @@ class ServiceService:
                 update_fields['categories'] = [str(cat).strip() for cat in categories if str(cat).strip()]
 
             if 'thumbnail' in service_data:
-                update_fields['thumbnail'] = save_base64_image(service_data['thumbnail'], str(service_id), 0, 'services')
+                update_fields['thumbnail'] = save_stored_image_reference(
+                    service_data['thumbnail'], str(service_id), 0, 'services'
+                )
 
             if 'gallery' in service_data:
                 gallery_urls = []
                 if isinstance(service_data['gallery'], list):
-                    for i, img_b64 in enumerate(service_data['gallery']):
-                        url = save_base64_image(img_b64, str(service_id), i + 1, 'services')
-                        gallery_urls.append(url)
+                    for i, img_ref in enumerate(service_data['gallery']):
+                        url = save_stored_image_reference(
+                            img_ref, str(service_id), i + 1, 'services'
+                        )
+                        if url:
+                            gallery_urls.append(url)
                 update_fields['gallery'] = gallery_urls
 
             if not update_fields:
@@ -236,6 +249,131 @@ class ServiceService:
             return service_charge
         commission_amount = (service_charge * commission_rate) / 100
         return round(service_charge + commission_amount, 2)
+
+    @staticmethod
+    def set_category_commission_rate(category, commission_rate):
+        try:
+            mongo.db.service_category_commissions.update_one(
+                {'category': category},
+                {
+                    '$set': {
+                        'category': category,
+                        'commission_rate': float(commission_rate),
+                        'updated_at': datetime.now(timezone.utc),
+                    }
+                },
+                upsert=True,
+            )
+            return True
+        except Exception as e:
+            raise Exception(f'Error setting service category commission: {str(e)}')
+
+    @staticmethod
+    def get_category_commission_rate(category):
+        try:
+            doc = mongo.db.service_category_commissions.find_one({'category': category})
+            if doc:
+                return doc.get('commission_rate')
+            return None
+        except Exception:
+            return None
+
+    @staticmethod
+    def get_all_category_commissions():
+        try:
+            docs = mongo.db.service_category_commissions.find()
+            return {doc['category']: doc.get('commission_rate') for doc in docs}
+        except Exception:
+            return {}
+
+    @staticmethod
+    def apply_commission_to_service(service_id, commission_rate):
+        try:
+            service = ServiceService.get_service_by_id(service_id)
+            if not service:
+                return None
+            service_charge = service.service_charge
+            if not service_charge or service_charge <= 0:
+                raise ValueError('Service charge must be greater than zero')
+            total_service_charge = ServiceService.calculate_total_service_charge(
+                service_charge, commission_rate
+            )
+            mongo.db.services.update_one(
+                {'_id': ObjectId(service_id)},
+                {
+                    '$set': {
+                        'commission_rate': float(commission_rate),
+                        'total_service_charge': total_service_charge,
+                        'updated_at': datetime.now(timezone.utc),
+                    }
+                },
+            )
+            return ServiceService.get_service_by_id(service_id)
+        except ValueError:
+            raise
+        except Exception as e:
+            raise Exception(f'Error applying service commission: {str(e)}')
+
+    @staticmethod
+    def apply_commission_by_category(category, commission_rate):
+        try:
+            ServiceService.set_category_commission_rate(category, commission_rate)
+            services = mongo.db.services.find({'categories': category})
+            updated_count = 0
+            for service_doc in services:
+                service_charge = service_doc.get('service_charge')
+                if service_charge and service_charge > 0 and not service_doc.get('commission_rate'):
+                    total_service_charge = ServiceService.calculate_total_service_charge(
+                        service_charge, commission_rate
+                    )
+                    mongo.db.services.update_one(
+                        {'_id': service_doc['_id']},
+                        {
+                            '$set': {
+                                'commission_rate': float(commission_rate),
+                                'total_service_charge': total_service_charge,
+                                'updated_at': datetime.now(timezone.utc),
+                            }
+                        },
+                    )
+                    updated_count += 1
+            return updated_count
+        except Exception as e:
+            raise Exception(f'Error applying service commission by category: {str(e)}')
+
+    @staticmethod
+    def apply_commission_to_all(commission_rate):
+        try:
+            category_commissions = ServiceService.get_all_category_commissions()
+            services = mongo.db.services.find({'service_charge': {'$gt': 0}})
+            updated_count = 0
+            for service_doc in services:
+                service_charge = service_doc.get('service_charge')
+                if not service_charge or service_charge <= 0:
+                    continue
+                if service_doc.get('commission_rate'):
+                    continue
+                categories = service_doc.get('categories') or []
+                has_category_commission = any(cat in category_commissions for cat in categories)
+                if has_category_commission:
+                    continue
+                total_service_charge = ServiceService.calculate_total_service_charge(
+                    service_charge, commission_rate
+                )
+                mongo.db.services.update_one(
+                    {'_id': service_doc['_id']},
+                    {
+                        '$set': {
+                            'commission_rate': float(commission_rate),
+                            'total_service_charge': total_service_charge,
+                            'updated_at': datetime.now(timezone.utc),
+                        }
+                    },
+                )
+                updated_count += 1
+            return updated_count
+        except Exception as e:
+            raise Exception(f'Error applying commission to all services: {str(e)}')
 
     @staticmethod
     def get_pending_services():

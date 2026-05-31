@@ -7,8 +7,11 @@ import {
   createSellerProduct,
   updateSellerProduct,
   getCategories,
-  getCategoryCommissionRates
+  getCategoryCommissionRates,
+  reserveImageEntityId,
+  uploadEntityImage,
 } from '../../../services/api'
+import { resolveImageUrl, extractStaticPath } from '../../../utils/image'
 
 function CategoryDropdown({ categories, selected, onSelect, commissionRates }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -76,14 +79,6 @@ function CategoryDropdown({ categories, selected, onSelect, commissionRates }) {
 
 const INITIAL_POINTS = ['', '', '']
 
-const convertFileToDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-
 function SellerProductForm({ initialProduct = null }) {
   const navigate = useNavigate()
   const { user, userType } = useSelector((state) => state.auth)
@@ -108,7 +103,7 @@ function SellerProductForm({ initialProduct = null }) {
   useEffect(() => {
     const loadCategories = async () => {
       try {
-        const data = await getCategories()
+        const data = await getCategories('product')
         const categoriesList = Array.isArray(data) ? data : (data?.categories || [])
         setCategories(categoriesList)
 
@@ -144,15 +139,15 @@ function SellerProductForm({ initialProduct = null }) {
       )
       setThumbnail(
         initialProduct.thumbnail
-          ? typeof initialProduct.thumbnail === 'string'
-            ? { preview: initialProduct.thumbnail }
-            : initialProduct.thumbnail
+          ? { preview: resolveImageUrl(initialProduct.thumbnail) || initialProduct.thumbnail }
           : null
       )
       setGallery(
         Array.isArray(initialProduct.gallery)
           ? initialProduct.gallery.map((item) =>
-            typeof item === 'string' ? { preview: item } : item
+            typeof item === 'string'
+              ? { preview: resolveImageUrl(item) || item }
+              : item
           )
           : []
       )
@@ -202,17 +197,13 @@ function SellerProductForm({ initialProduct = null }) {
       setThumbnail(null)
       return
     }
-    try {
-      const dataUrl = await convertFileToDataUrl(file)
-      setThumbnail({
-        name: file.name,
-        size: file.size,
-        preview: dataUrl
-      })
-      setStatus({ type: null, message: '' })
-    } catch (error) {
-      setStatus({ type: 'error', message: 'Failed to read thumbnail image. Please try again.' })
-    }
+    setThumbnail({
+      file,
+      name: file.name,
+      size: file.size,
+      preview: URL.createObjectURL(file),
+    })
+    setStatus({ type: null, message: '' })
   }
 
   const handleGalleryChange = async (event) => {
@@ -221,19 +212,14 @@ function SellerProductForm({ initialProduct = null }) {
       setGallery([])
       return
     }
-    try {
-      const items = await Promise.all(
-        files.map(async (file) => ({
-          name: file.name,
-          size: file.size,
-          preview: await convertFileToDataUrl(file)
-        }))
-      )
-      setGallery(items)
-      setStatus({ type: null, message: '' })
-    } catch (error) {
-      setStatus({ type: 'error', message: 'Failed to read gallery images. Please try again.' })
-    }
+    const items = files.map((file) => ({
+      file,
+      name: file.name,
+      size: file.size,
+      preview: URL.createObjectURL(file),
+    }))
+    setGallery(items)
+    setStatus({ type: null, message: '' })
   }
 
   const handleSubmit = async (event) => {
@@ -271,19 +257,58 @@ function SellerProductForm({ initialProduct = null }) {
       return
     }
 
-    const payload = {
-      product_name: form.productName.trim(),
-      specification: form.specification.trim(),
-      points: cleanedPoints,
-      thumbnail: thumbnail.preview,
-      gallery: gallery.map((item) => item.preview),
-      selling_price: selling,
-      max_price: max,
-      categories: form.category ? [form.category] : []
-    }
-
     setSubmitting(true)
     try {
+      let entityId = initialProduct?.id || initialProduct?._id
+      if (!entityId) {
+        entityId = await reserveImageEntityId('products')
+      }
+
+      let thumbnailUrl = null
+      if (thumbnail?.file) {
+        const uploaded = await uploadEntityImage(thumbnail.file, {
+          entityType: 'products',
+          entityId,
+          index: 0,
+        })
+        thumbnailUrl = uploaded.url
+      } else {
+        thumbnailUrl = extractStaticPath(thumbnail?.preview)
+      }
+      if (!thumbnailUrl) {
+        setStatus({ type: 'error', message: 'Please upload a thumbnail image.' })
+        setSubmitting(false)
+        return
+      }
+
+      const galleryUrls = []
+      for (let i = 0; i < gallery.length; i++) {
+        const item = gallery[i]
+        if (item.file) {
+          const uploaded = await uploadEntityImage(item.file, {
+            entityType: 'products',
+            entityId,
+            index: i + 1,
+          })
+          galleryUrls.push(uploaded.url)
+        } else {
+          const path = extractStaticPath(item.preview)
+          if (path) galleryUrls.push(path)
+        }
+      }
+
+      const payload = {
+        product_name: form.productName.trim(),
+        specification: form.specification.trim(),
+        points: cleanedPoints,
+        thumbnail: thumbnailUrl,
+        gallery: galleryUrls,
+        selling_price: selling,
+        max_price: max,
+        categories: form.category ? [form.category] : [],
+        product_id: entityId,
+      }
+
       if (isEditing && initialProduct?.id) {
         await updateSellerProduct(initialProduct.id || initialProduct._id, payload)
       } else {

@@ -2,7 +2,17 @@
  * Add Product Component
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { createCategory, createProduct, getCategories, getSellers, updateProduct, getCategoryCommissionRates } from '../../../services/api'
+import {
+  createCategory,
+  createProduct,
+  getCategories,
+  getSellers,
+  updateProduct,
+  getCategoryCommissionRates,
+  reserveImageEntityId,
+  uploadEntityImage,
+} from '../../../services/api'
+import { extractStaticPath, resolveImageUrl } from '../../../utils/image'
 
 const INITIAL_POINTS = ['', '', '']
 
@@ -137,14 +147,6 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     setStatus({ type: null, message: '' })
   }
 
-  const convertFileToDataUrl = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-
   const handleThumbnailChange = async (event) => {
     const file = event.target.files?.[0]
     if (!file) {
@@ -152,20 +154,16 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       return
     }
 
-    try {
-      const dataUrl = await convertFileToDataUrl(file)
-      setMedia((prev) => ({
-        ...prev,
-        thumbnail: {
-          name: file.name,
-          size: file.size,
-          preview: dataUrl
-        }
-      }))
-      setStatus({ type: null, message: '' })
-    } catch (error) {
-      setStatus({ type: 'error', message: 'Failed to read thumbnail image. Please try again.' })
-    }
+    setMedia((prev) => ({
+      ...prev,
+      thumbnail: {
+        file,
+        name: file.name,
+        size: file.size,
+        preview: URL.createObjectURL(file),
+      },
+    }))
+    setStatus({ type: null, message: '' })
   }
 
   const handleGalleryChange = async (event) => {
@@ -175,19 +173,14 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       return
     }
 
-    try {
-      const galleryItems = await Promise.all(
-        files.map(async (file) => ({
-          name: file.name,
-          size: file.size,
-          preview: await convertFileToDataUrl(file)
-        }))
-      )
-      setMedia((prev) => ({ ...prev, gallery: galleryItems }))
-      setStatus({ type: null, message: '' })
-    } catch (error) {
-      setStatus({ type: 'error', message: 'Failed to read gallery images. Please try again.' })
-    }
+    const galleryItems = files.map((file) => ({
+      file,
+      name: file.name,
+      size: file.size,
+      preview: URL.createObjectURL(file),
+    }))
+    setMedia((prev) => ({ ...prev, gallery: galleryItems }))
+    setStatus({ type: null, message: '' })
   }
 
   const [isEditing, setIsEditing] = useState(false)
@@ -196,23 +189,9 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   const normalizeImagePayload = (image) => {
     if (!image) return null
     if (typeof image === 'string') {
-      return { preview: image }
+      return { preview: resolveImageUrl(image) || image }
     }
     return image
-  }
-
-  const serializeImageForPayload = (image) => {
-    if (!image) return null
-    if (typeof image === 'string') return image
-    if (image.preview) return image.preview
-    return image
-  }
-
-  const serializeGalleryForPayload = (galleryItems) => {
-    if (!Array.isArray(galleryItems)) return []
-    return galleryItems
-      .map((item) => serializeImageForPayload(item))
-      .filter(Boolean)
   }
 
   useEffect(() => {
@@ -220,7 +199,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       try {
         setIsLoadingSellers(true)
         const [categories, sellersData, commissionRates] = await Promise.all([
-          getCategories(),
+          getCategories('product'),
           getSellers({ limit: 500 }),
           getCategoryCommissionRates().catch(() => ({}))
         ])
@@ -310,18 +289,34 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     }
   }, [editingProduct, sellerList])
 
+  const focusFirstField = (ref) => {
+    if (!ref?.current) return
+    requestAnimationFrame(() => {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      ref.current.focus()
+    })
+  }
+
   const validateForm = () => {
     const newErrors = {}
     let firstErrorRef = null
 
-    if (!form.productName.trim()) {
-      newErrors.productName = 'Product name is required'
-      if (!firstErrorRef) firstErrorRef = nameRef
-    }
-
     if (!selectedSellerId) {
       newErrors.selectedSellerId = 'Please assign a seller'
       if (!firstErrorRef) firstErrorRef = sellerRef
+    } else if (!selectedSeller) {
+      newErrors.selectedSellerId = 'Selected seller is no longer available. Please refresh and try again.'
+      if (!firstErrorRef) firstErrorRef = sellerRef
+    }
+
+    if (!media.thumbnail) {
+      newErrors.thumbnail = 'Thumbnail image is required'
+      if (!firstErrorRef) firstErrorRef = thumbnailRef
+    }
+
+    if (!form.productName.trim()) {
+      newErrors.productName = 'Product name is required'
+      if (!firstErrorRef) firstErrorRef = nameRef
     }
 
     const selling = Number(form.sellingPrice)
@@ -336,13 +331,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       newErrors.maxPrice = 'Valid MRP is required'
       if (!firstErrorRef) firstErrorRef = maxPriceRef
     } else if (max < selling) {
-      newErrors.maxPrice = 'MRP must be >= selling price'
+      newErrors.maxPrice = 'MRP must be greater than or equal to selling price'
       if (!firstErrorRef) firstErrorRef = maxPriceRef
-    }
-
-    if (!media.thumbnail) {
-      newErrors.thumbnail = 'Thumbnail image is required'
-      if (!firstErrorRef) firstErrorRef = thumbnailRef
     }
 
     if (!form.specification.trim()) {
@@ -358,14 +348,12 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
 
     setErrors(newErrors)
     if (Object.keys(newErrors).length > 0) {
-      if (firstErrorRef && firstErrorRef.current) {
-        firstErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        firstErrorRef.current.focus()
-      }
-      setStatus({ type: 'error', message: 'Please correct the highlighted errors.' })
+      setStatus({ type: null, message: '' })
+      focusFirstField(firstErrorRef)
       return false
     }
 
+    setErrors({})
     return true
   }
 
@@ -378,48 +366,58 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   const handleSubmit = async (e) => {
     e.preventDefault()
 
+    if (!validateForm()) return
+
     const cleanedPoints = points.map((p) => p.trim()).filter(Boolean)
 
-    if (!form.productName.trim() || !form.specification.trim() || cleanedPoints.length === 0) {
-      setStatus({
-        type: 'error',
-        message: 'Please fill in product name, specification, and at least one bullet point.'
-      })
-      return
-    }
+    setIsSubmitting(true)
+    try {
+      let entityId = editingId
+      if (!entityId) {
+        entityId = await reserveImageEntityId('products')
+      }
 
-    if (!media.thumbnail) {
-      setStatus({ type: 'error', message: 'Please upload a thumbnail image.' })
-      return
-    }
+      let thumbnailUrl = null
+      if (media.thumbnail?.file) {
+        const uploaded = await uploadEntityImage(media.thumbnail.file, {
+          entityType: 'products',
+          entityId,
+          index: 0,
+        })
+        thumbnailUrl = uploaded.url
+      } else {
+        thumbnailUrl = extractStaticPath(media.thumbnail?.preview)
+      }
+      if (!thumbnailUrl) {
+        setErrors({ thumbnail: 'Please upload a thumbnail image.' })
+        setStatus({ type: null, message: '' })
+        focusFirstField(thumbnailRef)
+        setIsSubmitting(false)
+        return
+      }
 
-    if (!selectedSellerId) {
-      setStatus({ type: 'error', message: 'Please select a seller for this product.' })
-      return
-    }
+      const galleryUrls = []
+      for (let i = 0; i < (media.gallery || []).length; i++) {
+        const item = media.gallery[i]
+        if (item.file) {
+          const uploaded = await uploadEntityImage(item.file, {
+            entityType: 'products',
+            entityId,
+            index: i + 1,
+          })
+          galleryUrls.push(uploaded.url)
+        } else {
+          const path = extractStaticPath(item.preview)
+          if (path) galleryUrls.push(path)
+        }
+      }
 
-    if (!selectedSeller) {
-      setStatus({ type: 'error', message: 'Selected seller is no longer available. Please refresh and try again.' })
-      return
-    }
-
-    const selling = Number(form.sellingPrice)
-    const max = Number(form.maxPrice)
-    if (selling <= 0 || max <= 0) {
-      setStatus({ type: 'error', message: 'Price values must be greater than zero.' })
-      return
-    }
-    if (max < selling) {
-      setStatus({ type: 'error', message: 'MRP must be greater than or equal to selling price.' })
-      return
-    }
-
-    const payload = {
+      const payload = {
       product_name: form.productName.trim(),
       specification: form.specification.trim(),
       points: cleanedPoints,
-      thumbnail: serializeImageForPayload(media.thumbnail),
-      gallery: serializeGalleryForPayload(media.gallery),
+      thumbnail: thumbnailUrl,
+      gallery: galleryUrls,
       selling_price: selling,
       max_price: max,
       commission_rate: form.commissionRate ? parseFloat(form.commissionRate) : null,
@@ -430,11 +428,10 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       seller_trade_id: selectedSeller.trade_id,
       seller_name: `${selectedSeller.first_name || ''} ${selectedSeller.last_name || ''}`.trim() || selectedSeller.trade_id,
       seller_email: selectedSeller.email || '',
-      seller_phone: selectedSeller.phone_number || ''
+      seller_phone: selectedSeller.phone_number || '',
+      product_id: entityId,
     }
 
-    setIsSubmitting(true)
-    try {
       if (isEditing && editingId) {
         await updateProduct(editingId, payload)
         setStatus({ type: 'success', message: 'Product updated successfully.' })
@@ -464,14 +461,18 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       <div className="w-full max-w-3xl">
         <h2 className="text-3xl font-bold text-gray-900 mb-6">Add Product</h2>
 
-        {status.type && status.message && (
+        {status.type === 'success' && status.message && (
           <div
             ref={statusRef}
-            className={`mb-6 p-4 rounded-lg border ${
-              status.type === 'success'
-                ? 'bg-green-50 border-green-200 text-green-800'
-                : 'bg-red-50 border-red-200 text-red-800'
-            }`}
+            className="mb-6 p-4 rounded-lg border bg-green-50 border-green-200 text-green-800"
+          >
+            {status.message}
+          </div>
+        )}
+        {status.type === 'error' && status.message && (
+          <div
+            ref={statusRef}
+            className="mb-6 p-4 rounded-lg border bg-red-50 border-red-200 text-red-800"
           >
             {status.message}
           </div>
@@ -522,7 +523,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 })}
               </select>
             )}
-            {errors.selectedSellerId && <p className="text-red-500 text-xs mt-1 font-bold">{errors.selectedSellerId}</p>}
+            {errors.selectedSellerId && <p className="field-error-text text-xs mt-1 font-bold">{errors.selectedSellerId}</p>}
             {selectedSeller && (
               <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                 <div className="font-semibold text-gray-900">
@@ -561,7 +562,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                     className="w-full text-sm text-gray-700 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-900 focus:outline-none"
                   />
                 </div>
-                {errors.thumbnail && <p className="text-red-500 text-xs mt-1 font-bold">{errors.thumbnail}</p>}
+                {errors.thumbnail && <p className="field-error-text text-xs mt-1 font-bold">{errors.thumbnail}</p>}
                 <p className="mt-1 text-xs text-gray-500">Displayed on product cards and listings.</p>
                 {media.thumbnail && (
                   <div className="mt-3 relative">
@@ -640,7 +641,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               className={`w-full px-4 py-2.5 border ${errors.productName ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium`}
               placeholder="Enter product name"
             />
-            {errors.productName && <p className="text-red-500 text-xs mt-1 font-bold">{errors.productName}</p>}
+            {errors.productName && <p className="field-error-text text-xs mt-1 font-bold">{errors.productName}</p>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -659,7 +660,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 className={`w-full px-4 py-2.5 border ${errors.sellingPrice ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium`}
                 placeholder="Enter current selling price"
               />
-              {errors.sellingPrice && <p className="text-red-500 text-xs mt-1 font-bold">{errors.sellingPrice}</p>}
+              {errors.sellingPrice && <p className="field-error-text text-xs mt-1 font-bold">{errors.sellingPrice}</p>}
             </div>
 
             <div>
@@ -677,7 +678,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                 className={`w-full px-4 py-2.5 border ${errors.maxPrice ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium`}
                 placeholder="Enter MRP (maximum price)"
               />
-              {errors.maxPrice && <p className="text-red-500 text-xs mt-1 font-bold">{errors.maxPrice}</p>}
+              {errors.maxPrice && <p className="field-error-text text-xs mt-1 font-bold">{errors.maxPrice}</p>}
             </div>
 
           </div>
@@ -744,7 +745,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               className={`w-full px-4 py-2.5 border ${errors.specification ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition resize-none text-black font-bold`}
               placeholder="Describe the specification"
             />
-            {errors.specification && <p className="text-red-500 text-xs mt-1 font-bold">{errors.specification}</p>}
+            {errors.specification && <p className="field-error-text text-xs mt-1 font-bold">{errors.specification}</p>}
           </div>
 
           <div>
@@ -822,7 +823,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               >
                 + Add another point
               </button>
-              {errors.points && <p className="text-red-500 text-xs mt-1 font-bold">{errors.points}</p>}
+              {errors.points && <p className="field-error-text text-xs mt-1 font-bold">{errors.points}</p>}
               <p className="mt-1 text-xs text-gray-500">
                 Each input is treated as one bullet point. Leave unused rows empty.
               </p>
@@ -851,8 +852,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
 
       {/* Confirmation Modals */}
       {showConfirmReset && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="master-modal-backdrop fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="master-modal-panel bg-white rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Are you sure?</h3>
             <p className="text-gray-500 mb-8 font-medium">This will clear all the information you've entered so far. This action cannot be undone.</p>
             <div className="flex gap-3">
@@ -872,8 +873,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       )}
 
       {showConfirmSubmit && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="master-modal-backdrop fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="master-modal-panel bg-white rounded-3xl p-8 shadow-2xl animate-in fade-in zoom-in duration-200">
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Confirm {isEditing ? 'Update' : 'Creation'}</h3>
             <p className="text-gray-500 mb-8 font-medium">Ready to {isEditing ? 'update this product' : 'list this new product'} on the marketplace? Make sure all details are accurate.</p>
             <div className="flex gap-3">
@@ -891,8 +892,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
 
 
       {showCategoryModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-md">
+        <div className="master-modal-backdrop fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="master-modal-panel bg-white rounded-2xl shadow-lg p-6">
             <h3 className="text-xl font-semibold text-gray-900 mb-3">Add Category</h3>
             {categoryStatus.type && (
               <p className={`text-sm mb-3 ${categoryStatus.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>
@@ -925,7 +926,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
                     return
                   }
                   try {
-                    const newCategory = await createCategory(newCategoryName.trim())
+                    const newCategory = await createCategory(newCategoryName.trim(), 'product')
                     setAvailableCategories((prev) => [...prev, newCategory])
                     setSelectedCategory(newCategory.name)
                     setCategoryStatus({ type: 'success', message: 'Category added successfully.' })

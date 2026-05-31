@@ -13,6 +13,7 @@ import {
   Seller,
   Master,
   MasterProductDetail,
+  MasterSellerWalletDetail,
   SellerLogin,
   MasterLogin,
   OutletLogin,
@@ -53,8 +54,18 @@ import {
   getSellers,
   getMasters,
   getOutletMen,
-  getCurrentUser
+  getCurrentUser,
+  bindPortalRealtimeSync,
+  refreshSellerProfile
 } from './services/api'
+import {
+  isCacheStale,
+  CACHE_TTL,
+  refreshStaleMasterData,
+  refreshStaleSellerData,
+  refreshStaleOutletData,
+  refreshStaleUserHome,
+} from './services/cacheSync'
 import { restoreUser } from './store/authSlice'
 import { initSocket, disconnectSocket } from './utils/socket'
 
@@ -119,10 +130,47 @@ function SplashWrapper() {
         } catch (err) {
           console.error('[Session] Restoration failed:', err)
         }
+      } else if (storedToken && isAuthenticated && targetRole === 'seller' && userType === 'seller') {
+        // Already restored from redux-persist — still soft-sync credits from server
+        refreshSellerProfile(true).catch(() => {})
       }
     }
     restoreSession()
-  }, [dispatch, isAuthenticated, location.pathname])
+  }, [dispatch, isAuthenticated, userType, location.pathname])
+
+  // Seller: live credit updates via socket + soft profile sync on tab focus
+  useEffect(() => {
+    if (!isAuthenticated || userType !== 'seller' || !token) return
+
+    bindPortalRealtimeSync()
+    refreshSellerProfile(true)
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshSellerProfile(false)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [isAuthenticated, userType, token])
+
+  // Soft re-sync stale portal data when user returns to the tab
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (userType === 'master') refreshStaleMasterData(dispatch)
+      else if (userType === 'seller') {
+        refreshSellerProfile(false)
+        refreshStaleSellerData(dispatch)
+      } else if (userType === 'outlet_man') refreshStaleOutletData(dispatch)
+      else if (userType === 'user') refreshStaleUserHome(dispatch)
+    }
+
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [isAuthenticated, userType, dispatch])
 
   // 1. Initial data loading - handles all roles
   useEffect(() => {
@@ -161,15 +209,14 @@ function SplashWrapper() {
           }
         } 
         else if (userType === 'seller') {
-          // Seller products and orders
           const token = localStorage.getItem('token')
-          const needsProducts = !sellerState.lastFetched.products
-          const needsOrders = !sellerState.lastFetched.orders
+          const needsProducts = isCacheStale(sellerState.lastFetched.products, CACHE_TTL.seller)
+          const needsOrders = isCacheStale(sellerState.lastFetched.orders, CACHE_TTL.seller)
           
           if (token && (needsProducts || needsOrders)) {
             const [products, ordersData] = await Promise.all([
-              needsProducts ? getSellerMyProducts() : Promise.resolve(sellerState.products),
-              needsOrders ? getOrders() : Promise.resolve(sellerState.orders)
+              needsProducts ? getSellerMyProducts({}, { forceRefresh: needsProducts }) : Promise.resolve(sellerState.products),
+              needsOrders ? getOrders({ page: 1, limit: 50 }, { forceRefresh: needsOrders }) : Promise.resolve({ orders: sellerState.orders })
             ])
             if (needsProducts) dispatch(setSellerProducts(products))
             if (needsOrders) {
@@ -179,11 +226,10 @@ function SplashWrapper() {
           }
         }
         else if (userType === 'master') {
-          // Master essential lists
           const token = localStorage.getItem('token')
-          const needsSellers = !masterState.lastFetched.sellers
-          const needsMasters = !masterState.lastFetched.masters
-          const needsOutlets = !masterState.lastFetched.outlets
+          const needsSellers = isCacheStale(masterState.lastFetched.sellers, CACHE_TTL.master)
+          const needsMasters = isCacheStale(masterState.lastFetched.masters, CACHE_TTL.master)
+          const needsOutlets = isCacheStale(masterState.lastFetched.outlets, CACHE_TTL.master)
           
           if (token && (needsSellers || needsMasters || needsOutlets)) {
             const [sellersData, masters, outletsData] = await Promise.all([
@@ -198,10 +244,9 @@ function SplashWrapper() {
           }
         }
         else if (userType === 'outlet_man') {
-          // Outlet orders
           const token = localStorage.getItem('token')
-          if (token && !outletState.lastFetched) {
-            const ordersData = await getOrders()
+          if (token && isCacheStale(outletState.lastFetched, CACHE_TTL.outlet)) {
+            const ordersData = await getOrders({ page: 1, limit: 50 }, { forceRefresh: true })
             const orders = Array.isArray(ordersData?.orders) ? ordersData.orders : (Array.isArray(ordersData) ? ordersData : [])
             dispatch(setOutletOrders(orders))
           }
@@ -215,15 +260,23 @@ function SplashWrapper() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, userType])
 
-  // 3. Global Singleton Socket Management
+  // 3. Global Singleton Socket Management + realtime portal sync
   useEffect(() => {
+    let socket
+    const onConnect = () => bindPortalRealtimeSync()
+
     if (isAuthenticated && token) {
       console.log(`[App] Initializing global socket for authenticated ${userType}`)
-      initSocket(token, userType)
+      socket = initSocket(token, userType)
+      bindPortalRealtimeSync()
+      socket.on('connect', onConnect)
     } else {
       console.log('[App] Initializing global socket as guest')
-      // Guest connection - allows real-time updates for public data (active counts, etc.)
-      initSocket(null, 'user')
+      socket = initSocket(null, 'user')
+    }
+
+    return () => {
+      socket?.off('connect', onConnect)
     }
   }, [isAuthenticated, token, userType])
 
@@ -337,6 +390,14 @@ function SplashWrapper() {
                 element={
                   <ProtectedRoute requiredUserType="master">
                     <MasterProductDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/master/sellers/:sellerId/wallet"
+                element={
+                  <ProtectedRoute requiredUserType="master">
+                    <MasterSellerWalletDetail />
                   </ProtectedRoute>
                 }
               />

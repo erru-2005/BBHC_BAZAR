@@ -6,9 +6,9 @@ import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
 import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
-import { getServiceById, getProductRatingStats, getSellerRatingStats } from '../../services/api'
+import { getServiceById, getProductRatingStats } from '../../services/api'
 import { getImageUrl } from '../../utils/image'
-import { FiArrowLeft, FiCheckCircle, FiShield, FiClock, FiStar, FiChevronRight, FiChevronLeft } from 'react-icons/fi'
+import { FiArrowLeft, FiCheckCircle, FiChevronRight, FiChevronLeft } from 'react-icons/fi'
 import { motion, AnimatePresence } from 'framer-motion'
 import RatingBadge from '../../components/RatingBadge'
 import DetailSkeleton from './components/DetailSkeleton'
@@ -23,7 +23,6 @@ function ServiceDetail() {
   const [loading, setLoading] = useState(!location.state?.service)
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [ratingStats, setRatingStats] = useState(null)
-  const [sellerRatingStats, setSellerRatingStats] = useState(null)
   const { home } = useSelector((state) => state.data)
 
   // Combine thumbnail and gallery into a single list
@@ -45,11 +44,6 @@ function ServiceDetail() {
           const stats = await getProductRatingStats(serviceId)
           setRatingStats(stats)
           
-          // Load seller rating stats if seller_id is available
-          if (data.seller_id) {
-            const sStats = await getSellerRatingStats(data.seller_id)
-            setSellerRatingStats(sStats)
-          }
         } else {
           setService(null)
         }
@@ -91,6 +85,7 @@ function ServiceDetail() {
   }
 
   const displayPrice = service.total_service_charge || service.service_charge
+  const hasHighlights = Array.isArray(service.points) && service.points.length > 0
 
   const nextImage = () => setActiveImageIndex((prev) => (prev + 1) % allImages.length)
   const prevImage = () => setActiveImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length)
@@ -208,29 +203,16 @@ function ServiceDetail() {
                 <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-50 rounded-full blur-3xl opacity-50" />
 
                 <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-4">
-                    {ratingStats && ratingStats.total_ratings > 0 ? (
-                      <div className="flex items-center gap-2">
-                        <RatingBadge 
-                          value={Number(ratingStats.average_rating)} 
-                          displayValue={Number(ratingStats.average_rating).toFixed(1)}
-                          size="sm"
-                        />
-                        <span className="text-[10px] font-black text-slate-400">({ratingStats.total_ratings} Reviews)</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <div className="flex text-amber-400">
-                          <FiStar className="fill-current w-3.5 h-3.5" />
-                          <FiStar className="fill-current w-3.5 h-3.5" />
-                          <FiStar className="fill-current w-3.5 h-3.5" />
-                          <FiStar className="fill-current w-3.5 h-3.5" />
-                          <FiStar className="fill-current w-3.5 h-3.5 text-slate-200" />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400">New Service</span>
-                      </div>
-                    )}
-                  </div>
+                  {ratingStats && ratingStats.total_ratings > 0 && (
+                    <div className="flex items-center gap-2 mb-4">
+                      <RatingBadge 
+                        value={Number(ratingStats.average_rating)} 
+                        displayValue={Number(ratingStats.average_rating).toFixed(1)}
+                        size="sm"
+                      />
+                      <span className="text-[10px] font-black text-slate-400">({ratingStats.total_ratings} Reviews)</span>
+                    </div>
+                  )}
 
                   <h1 className="text-3xl lg:text-4xl font-black text-slate-900 leading-tight mb-4">
                     {service.service_name}
@@ -243,29 +225,8 @@ function ServiceDetail() {
                     </p>
                   </div>
 
-                  <div className="space-y-4 mb-10">
-                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-3xl">
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm">
-                        <FiClock className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Timing</p>
-                        <p className="text-sm font-bold text-slate-700">Usually takes 2-4 Hours</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 p-4 bg-emerald-50 rounded-3xl border border-emerald-100/50">
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm">
-                        <FiShield className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Service Check</p>
-                        <p className="text-sm font-bold text-emerald-700">Verified Professional</p>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Highlights */}
+                  {hasHighlights && (
                   <div className="mb-10">
                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Key Highlights</h3>
                     <div className="space-y-3">
@@ -277,6 +238,7 @@ function ServiceDetail() {
                       ))}
                     </div>
                   </div>
+                  )}
 
                   {/* Action Buttons */}
                   <div className="space-y-4">
@@ -285,9 +247,6 @@ function ServiceDetail() {
                       className="w-full h-18 bg-indigo-600 text-white font-black rounded-3xl shadow-xl shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
                     >
                       Book Now <FiChevronRight className="w-6 h-6" />
-                    </button>
-                    <button className="w-full h-18 bg-white border-2 border-slate-100 text-slate-600 font-bold rounded-3xl hover:bg-slate-50 transition-colors">
-                      Inquiry & Questions
                     </button>
                   </div>
                 </div>

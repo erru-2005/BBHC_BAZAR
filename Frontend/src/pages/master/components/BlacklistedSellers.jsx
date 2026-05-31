@@ -1,54 +1,77 @@
 import { useEffect, useState } from 'react'
-import { getBlacklistedSellers, unblacklistSeller, getBlacklistedOutletMen, unblacklistOutletMan } from '../../../services/api'
+import { useDispatch, useSelector } from 'react-redux'
+import {
+  getBlacklistedSellers,
+  unblacklistSeller,
+  getBlacklistedOutletMen,
+  unblacklistOutletMan,
+} from '../../../services/api'
+import { setMastersData, setMastersLoading } from '../../../store/masterSlice'
+import {
+  syncSellerUnblacklisted,
+  syncOutletUnblacklisted,
+  isCacheStale,
+  CACHE_TTL,
+} from '../../../services/cacheSync'
 
 function BlacklistedSellers() {
+  const dispatch = useDispatch()
+  const {
+    blacklistedSellers: sellers,
+    blacklistedOutlets: outletMen,
+    loading: masterLoading,
+    lastFetched,
+  } = useSelector((state) => state.master)
+
   const [activeSubTab, setActiveSubTab] = useState('sellers')
-  const [sellers, setSellers] = useState([])
-  const [outletMen, setOutletMen] = useState([])
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [actionId, setActionId] = useState(null)
 
+  const loading =
+    activeSubTab === 'sellers' ? masterLoading.blacklistedSellers : masterLoading.blacklistedOutlets
+
   const fetchSellers = async () => {
-    setLoading(true)
-    setError(null)
     try {
+      dispatch(setMastersLoading({ field: 'blacklistedSellers', loading: true }))
+      setError(null)
       const data = await getBlacklistedSellers()
-      setSellers(data)
+      dispatch(setMastersData({ field: 'blacklistedSellers', data: data || [] }))
     } catch (err) {
       setError(err.message || 'Failed to load blacklisted sellers')
     } finally {
-      setLoading(false)
+      dispatch(setMastersLoading({ field: 'blacklistedSellers', loading: false }))
     }
   }
 
   const fetchOutletMen = async () => {
-    setLoading(true)
-    setError(null)
     try {
+      dispatch(setMastersLoading({ field: 'blacklistedOutlets', loading: true }))
+      setError(null)
       const data = await getBlacklistedOutletMen()
-      setOutletMen(data)
+      dispatch(setMastersData({ field: 'blacklistedOutlets', data: data || [] }))
     } catch (err) {
       setError(err.message || 'Failed to load blacklisted outlet men')
     } finally {
-      setLoading(false)
+      dispatch(setMastersLoading({ field: 'blacklistedOutlets', loading: false }))
     }
   }
 
   useEffect(() => {
     if (activeSubTab === 'sellers') {
-      fetchSellers()
-    } else {
+      if (isCacheStale(lastFetched.blacklistedSellers, CACHE_TTL.master)) {
+        fetchSellers()
+      }
+    } else if (isCacheStale(lastFetched.blacklistedOutlets, CACHE_TTL.master)) {
       fetchOutletMen()
     }
-  }, [activeSubTab])
+  }, [activeSubTab, lastFetched.blacklistedSellers, lastFetched.blacklistedOutlets])
 
   const handleUnblacklistSeller = async (sellerId) => {
     setActionId(sellerId)
     setError(null)
     try {
       await unblacklistSeller(sellerId)
-      await fetchSellers()
+      syncSellerUnblacklisted(sellerId)
     } catch (err) {
       setError(err.message || 'Failed to remove seller from blacklist')
     } finally {
@@ -61,7 +84,7 @@ function BlacklistedSellers() {
     setError(null)
     try {
       await unblacklistOutletMan(outletManId)
-      await fetchOutletMen()
+      syncOutletUnblacklisted(outletManId)
     } catch (err) {
       setError(err.message || 'Failed to remove outlet man from blacklist')
     } finally {
@@ -77,7 +100,7 @@ function BlacklistedSellers() {
           <p className="text-sm text-gray-500">Manage blacklisted sellers and outlet men.</p>
         </div>
         <button
-          onClick={() => activeSubTab === 'sellers' ? fetchSellers() : fetchOutletMen()}
+          onClick={() => (activeSubTab === 'sellers' ? fetchSellers() : fetchOutletMen())}
           disabled={loading}
           className="px-4 py-2 text-sm font-semibold border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
         >
@@ -267,5 +290,3 @@ function BlacklistedSellers() {
 }
 
 export default BlacklistedSellers
-
-

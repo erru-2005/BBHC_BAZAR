@@ -32,6 +32,9 @@ const outletSlice = createSlice({
     },
     clearOutletData(state) {
       return initialState
+    },
+    invalidateOutletCache(state) {
+      state.lastFetched = null
     }
   },
   extraReducers: (builder) => {
@@ -44,7 +47,8 @@ export const {
   setOutletLoading,
   setOutletError,
   updateOutletOrder,
-  clearOutletData
+  clearOutletData,
+  invalidateOutletCache
 } = outletSlice.actions
 
 export default outletSlice.reducer

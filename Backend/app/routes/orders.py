@@ -14,8 +14,44 @@ from app.utils.sms import SMSService
 from app import mongo
 from app.models.service import Service
 from bson import ObjectId
+from app.utils.image_handler import normalize_image_reference
 
 orders_bp = Blueprint('orders', __name__)
+
+
+def _validate_service_booking(service_dict, booking):
+    """Return error message if booking fails validation for this service."""
+    if not service_dict.get('requires_booking_date'):
+        return None
+    booking = booking or {}
+    start = (booking.get('startDate') or '').strip() if booking.get('startDate') else ''
+    if not start:
+        return 'Booking date is required for this service'
+    booking_type = booking.get('type') or 'single'
+    if booking_type == 'range':
+        end = (booking.get('endDate') or '').strip() if booking.get('endDate') else ''
+        if not end:
+            return 'Booking end date is required for this service'
+        if end < start:
+            return 'Booking end date must be on or after the start date'
+    return None
+
+
+def _patch_order_product_images(order_dict, products_map):
+    """Ensure order.product uses a loadable thumbnail (not base64)."""
+    pid = order_dict.get('product_id') or (order_dict.get('product') or {}).get('id')
+    live = products_map.get(str(pid)) if pid else None
+    live_thumb = live.get('thumbnail') if live else None
+
+    product = dict(order_dict.get('product') or {})
+    thumb = normalize_image_reference(product.get('thumbnail'), live_thumb)
+    if thumb:
+        product['thumbnail'] = thumb
+        product['image'] = thumb
+    order_dict['product'] = product
+
+    if live and live_thumb:
+        order_dict['product_current'] = live
 
 
 def _serialize_orders(order_list):
@@ -91,6 +127,8 @@ def _serialize_orders(order_list):
         pid = str(order.product_id) if order.product_id else None
         if pid in products_map:
             order_dict['product_current'] = products_map[pid]
+
+        _patch_order_product_images(order_dict, products_map)
             
         uid = str(order.user_id) if order.user_id else None
         if uid in users_map:
@@ -145,6 +183,9 @@ def create_order():
         if is_service_booking:
             product_dict['product_name'] = product_dict.get('service_name') or product_dict.get('name')
             unit_price = product_dict.get('total_service_charge') or product_dict.get('service_charge') or 0
+            booking_error = _validate_service_booking(product_dict, payload.get('booking'))
+            if booking_error:
+                return jsonify({'error': booking_error}), 400
         else:
             unit_price = product_dict.get('selling_price') or product_dict.get('max_price') or 0
         
