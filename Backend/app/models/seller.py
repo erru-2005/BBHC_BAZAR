@@ -90,7 +90,7 @@ class Seller:
             return None
         return cls(
             _id=bson_doc.get('_id'),
-            trade_id=bson_doc.get('trade_id'),
+            trade_id=bson_doc.get('trade_id') or bson_doc.get('tradeId'),
             email=bson_doc.get('email'),
             password_hash=bson_doc.get('password_hash'),
             phone_number=bson_doc.get('phone_number'),

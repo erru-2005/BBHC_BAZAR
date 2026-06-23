@@ -259,7 +259,7 @@ class OrderService:
             from app.services.seller_service import SellerService
             from app.services.platform_settings_service import PlatformSettingsService
 
-            credit_cost = PlatformSettingsService.get_service_accept_credit_cost()
+            credit_cost = PlatformSettingsService.resolve_service_accept_credit_from_order(order)
 
             seller = SellerService.get_seller_by_id(seller_id)
             if not seller or seller.credits < credit_cost:

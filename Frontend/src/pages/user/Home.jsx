@@ -4,7 +4,6 @@ import { useLocation } from 'react-router-dom'
 import MainHeader from './components/MainHeader'
 import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
-import CircleCategoryScroller from './components/CircleCategoryScroller'
 import SpotlightSlider from './components/SpotlightSlider'
 import CategoryGrid from './components/CategoryGrid'
 import CuratedCollectionsGrid from './components/CuratedCollectionsGrid'
@@ -277,7 +276,6 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
       />
 
       <main className="max-w-7xl mx-auto px-4 lg:px-8 pb-24 lg:pb-0">
-        <CircleCategoryScroller />
         <SpotlightSlider slides={spotlightProducts} />
         {recommendationRows.map((row) => (
           <RecommendationRow key={row.id} title={row.title} products={row.products} />

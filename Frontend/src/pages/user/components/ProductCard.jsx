@@ -16,7 +16,7 @@ function ProductCard({ id, name, price, image, product }) {
   return (
     <div
       onClick={() => id && navigate(`/product/public/${id}`, { state: { product } })}
-      className="min-w-[160px] max-w-[200px] bg-white rounded-2xl border border-gray-100 p-2.5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+      className="min-w-[160px] max-w-[200px] bg-white rounded-2xl border border-gray-200/80 p-2.5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
     >
       <div className="aspect-[4/3] w-full mb-2 overflow-hidden rounded-xl bg-gray-50 flex items-center justify-center">
         {image && <img src={getImageUrl(image)} alt={name} className="w-full h-full object-cover" />}

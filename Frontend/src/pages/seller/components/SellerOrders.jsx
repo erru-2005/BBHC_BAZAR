@@ -6,6 +6,11 @@ import { getOrders, sellerAcceptOrder, sellerRejectOrder, getServiceAcceptCredit
 import { initSocket } from '../../../utils/socket'
 import { fixImageUrl, getOrderProductImage } from '../../../utils/image'
 import { updateUserInfo } from '../../../store/authSlice'
+import {
+  AcceptServiceCreditBadge,
+  AcceptServiceCreditDeduction,
+  getServiceCategoryFromOrder,
+} from './AcceptServiceCreditNotice'
 
 function SellerOrders() {
   const dispatch = useDispatch()
@@ -21,10 +26,21 @@ function SellerOrders() {
   const [processingId, setProcessingId] = useState(null)
   const [serviceConfirmOrder, setServiceConfirmOrder] = useState(null)
   const [serviceAcceptCredit, setServiceAcceptCredit] = useState(25)
+  const [creditLoading, setCreditLoading] = useState(false)
 
   useEffect(() => {
     getServiceAcceptCredit().then(setServiceAcceptCredit).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!serviceConfirmOrder) return
+    const category = getServiceCategoryFromOrder(serviceConfirmOrder)
+    setCreditLoading(true)
+    getServiceAcceptCredit(true, category)
+      .then(setServiceAcceptCredit)
+      .catch(() => {})
+      .finally(() => setCreditLoading(false))
+  }, [serviceConfirmOrder])
 
 
   const fetchOrders = async () => {
@@ -56,7 +72,11 @@ function SellerOrders() {
 
     // OPTIMISTIC UPDATE: Instant visual deduction
     if (isService) {
-      dispatch(updateUserInfo({ credits: Math.max(0, (user?.credits || 0) - serviceAcceptCredit) }))
+      const category = getServiceCategoryFromOrder(order)
+      const deductAmount = category
+        ? await getServiceAcceptCredit(true, category).catch(() => serviceAcceptCredit)
+        : serviceAcceptCredit
+      dispatch(updateUserInfo({ credits: Math.max(0, (user?.credits || 0) - deductAmount) }))
     }
 
     try {
@@ -467,15 +487,11 @@ function SellerOrders() {
 
               <h3 className="text-xl font-bold text-slate-900 mb-2">Accept Service?</h3>
               <div className="flex items-center justify-center gap-2 mb-6">
-                <div className="px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-[11px] font-black uppercase tracking-widest flex items-center gap-2 border border-blue-100 shadow-sm">
-                  Available Balance: {user?.credits || 0}
-                </div>
+                <AcceptServiceCreditBadge balance={user?.credits || 0} />
               </div>
               <p className="text-xs text-slate-400 font-medium mb-4 leading-relaxed px-2">
                 Confirm your availability to fulfill this service request.
-                <span className="block mt-2 font-black text-blue-600 uppercase tracking-widest bg-blue-50 py-2 rounded-lg border border-blue-100">
-                  {serviceAcceptCredit} credits will be deducted
-                </span>
+                <AcceptServiceCreditDeduction amount={serviceAcceptCredit} loading={creditLoading} />
               </p>
 
               {user?.credits < serviceAcceptCredit && (
@@ -491,7 +507,7 @@ function SellerOrders() {
                 <motion.button
                   whileHover={user?.credits >= serviceAcceptCredit ? { scale: 1.02 } : {}}
                   whileTap={user?.credits >= serviceAcceptCredit ? { scale: 0.98 } : {}}
-                  disabled={processingId === serviceConfirmOrder.id || user?.credits < serviceAcceptCredit}
+                  disabled={processingId === serviceConfirmOrder.id || creditLoading || user?.credits < serviceAcceptCredit}
                   onClick={() => handleAccept(serviceConfirmOrder.id)}
                   className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${user?.credits >= serviceAcceptCredit
                       ? 'bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-700'

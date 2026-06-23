@@ -9,7 +9,7 @@ import { getServiceById, createOrder } from '../../services/api'
 import { getImageUrl } from '../../utils/image'
 import { FiArrowLeft, FiCalendar, FiClock, FiCheckCircle, FiChevronRight, FiAlertCircle } from 'react-icons/fi'
 import { motion, AnimatePresence } from 'framer-motion'
-import SuccessAnimation from '../../components/SuccessAnimation'
+import OrderSuccessDialog from '../../components/OrderSuccessDialog'
 
 function ServiceBooking() {
   const { serviceId } = useParams()
@@ -63,6 +63,22 @@ function ServiceBooking() {
     if (bookingType === 'range' && !endDate) return false
     return true
   }, [requiresBookingDate, startDate, endDate, bookingType])
+
+  const scheduleLabel = useMemo(() => {
+    if (!requiresBookingDate) return 'Flexible — professional will coordinate'
+    if (bookingType === 'single' && startDate) {
+      return new Date(startDate).toLocaleDateString('en-IN', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    }
+    if (bookingType === 'range' && startDate && endDate) {
+      return `${new Date(startDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} – ${new Date(endDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    }
+    return null
+  }, [requiresBookingDate, bookingType, startDate, endDate])
 
   const handleProceed = () => {
     if (!isValid) {
@@ -410,58 +426,18 @@ function ServiceBooking() {
 
       <MobileBottomNav items={home?.bottomNavItems} />
 
-      <AnimatePresence>
-        {showSuccess && successOrder && (
-          <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-md"
-              onClick={() => setShowSuccess(false)}
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="relative w-[clamp(320px,95vw,480px)] bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-slate-50"
-            >
-              <div className="h-2 w-full bg-gradient-to-r from-emerald-400 to-teal-500" />
-              
-              <div className="p-8 text-center">
-                <SuccessAnimation />
-                
-                <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Request Sent!</h2>
-                <p className="text-[13px] font-medium text-slate-500 mb-10 leading-relaxed px-4">
-                  Your booking request was successfully transmitted. Our professional partner will review it and notify you shortly.
-                </p>
-
-                <div className="space-y-3 px-2">
-                  <button 
-                    onClick={() => navigate('/user/orders')}
-                    className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] shadow-lg shadow-slate-200 hover:bg-black transition-all active:scale-95"
-                  >
-                    Manage My Requests
-                  </button>
-                  <button 
-                    onClick={() => navigate('/')}
-                    className="w-full py-4 bg-white border border-slate-200 text-slate-400 font-black rounded-2xl uppercase tracking-widest text-[10px] hover:bg-slate-50 transition-all active:scale-95"
-                  >
-                    Return Home
-                  </button>
-                </div>
-
-                <div className="mt-10 pt-6 border-t border-slate-50">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-full">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Ref: {successOrder.orderNumber || successOrder.id}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <OrderSuccessDialog
+        open={showSuccess && !!successOrder}
+        isService
+        productName={service.service_name}
+        amount={Number(service.total_service_charge || service.service_charge)}
+        orderNumber={successOrder?.orderNumber || successOrder?.id}
+        status={successOrder?.status}
+        scheduleLabel={scheduleLabel}
+        onViewOrders={() => navigate('/user/orders')}
+        onContinueShopping={() => navigate('/')}
+        onClose={() => setShowSuccess(false)}
+      />
     </div>
   )
 }

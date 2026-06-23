@@ -30,6 +30,13 @@ body {
 }
 
 :root {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --border: #3f3f46;
+  --accent: #27272a;
+  --ring: #52525b;
   --seller-bg: #F0F2F5;
   --seller-sidebar: rgba(255, 255, 255, 0.85);
   --seller-card: #FFFFFF;
@@ -368,4 +375,128 @@ img {
 /* Hide scrollbar for webkit browsers */
 .overflow-x-auto::-webkit-scrollbar {
   display: none;
+}
+
+/* Dialog design tokens */
+.bg-background {
+  background-color: var(--background);
+}
+
+.text-foreground {
+  color: var(--foreground);
+}
+
+.text-muted-foreground {
+  color: var(--muted-foreground);
+}
+
+.bg-muted\/30 {
+  background-color: color-mix(in srgb, var(--muted) 30%, transparent);
+}
+
+.bg-muted\/40 {
+  background-color: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+
+.bg-muted\/60 {
+  background-color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+
+.border-border {
+  border-color: var(--border);
+}
+
+.text-background {
+  color: var(--background);
+}
+
+.bg-foreground {
+  background-color: var(--foreground);
+}
+
+.ring-offset-background {
+  --tw-ring-offset-color: var(--background);
+}
+
+.focus\:ring-ring:focus {
+  --tw-ring-color: var(--ring);
+}
+
+.font-heading {
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@keyframes dialog-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialog-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes dialog-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes dialog-zoom-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+[data-slot='dialog-overlay'][data-state='open'],
+.animate-in {
+  animation: dialog-fade-in 200ms ease-out forwards;
+}
+
+[data-slot='dialog-overlay'][data-state='closed'],
+.animate-out {
+  animation: dialog-fade-out 200ms ease-in forwards;
+}
+
+[data-slot='dialog-content'][data-state='open'] {
+  animation: dialog-zoom-in 200ms ease-out forwards;
+}
+
+[data-slot='dialog-content'][data-state='closed'] {
+  animation: dialog-zoom-out 200ms ease-in forwards;
+}
+
+.fade-in-0 {
+  --dialog-fade-from: 0;
+}
+
+.fade-out-0 {
+  --dialog-fade-to: 0;
+}
+
+.zoom-in-95,
+.zoom-out-95 {
+  transform-origin: center;
 }

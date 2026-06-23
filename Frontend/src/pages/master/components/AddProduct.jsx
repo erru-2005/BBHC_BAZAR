@@ -16,7 +16,7 @@ import { extractStaticPath, resolveImageUrl } from '../../../utils/image'
 
 const INITIAL_POINTS = ['', '', '']
 
-function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancelEdit = () => {} }) {
+function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCancelEdit = () => { } }) {
   const [form, setForm] = useState({ productName: '', specification: '', sellingPrice: '', maxPrice: '', commissionRate: '' })
   const [media, setMedia] = useState({ thumbnail: null, gallery: [] })
   const [points, setPoints] = useState(INITIAL_POINTS)
@@ -35,7 +35,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   const [showConfirmReset, setShowConfirmReset] = useState(false)
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
   const [errors, setErrors] = useState({})
-  
+
   const nameRef = useRef(null)
   const sellerRef = useRef(null)
   const sellingPriceRef = useRef(null)
@@ -47,9 +47,12 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
 
   const selectedSeller = useMemo(() => {
     if (!selectedSellerId) return null
+    const key = String(selectedSellerId)
     return (
       (Array.isArray(availableSellers) ? availableSellers : []).find(
-        (seller) => String(seller.id || seller._id || seller.trade_id) === String(selectedSellerId)
+        (seller) =>
+          String(seller.trade_id || '') === key ||
+          String(seller.id || seller._id || '') === key
       ) || null
     )
   }, [selectedSellerId, availableSellers])
@@ -80,15 +83,15 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
   const calculateTotalSellingPrice = () => {
     const sellingPrice = parseFloat(form.sellingPrice) || 0
     if (sellingPrice <= 0) return ''
-    
+
     // Priority 1: Product-specific commission
     let commissionRate = parseFloat(form.commissionRate) || 0
-    
+
     // Priority 2: Category commission (only if no product-specific commission)
     if (commissionRate === 0 && selectedCategory && categoryCommissionRates[selectedCategory]) {
       commissionRate = parseFloat(categoryCommissionRates[selectedCategory]) || 0
     }
-    
+
     if (commissionRate > 0) {
       const commissionAmount = (sellingPrice * commissionRate) / 100
       return (sellingPrice + commissionAmount).toFixed(2)
@@ -109,7 +112,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     const { name, value } = e.target
     setForm((prev) => ({ ...prev, [name]: value }))
     setStatus({ type: null, message: '' })
-    
+
     // Clear field-specific error
     if (errors[name]) {
       setErrors(prev => {
@@ -118,7 +121,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
         return newErrs
       })
     }
-    
+
     // If product-specific commission is entered, clear category commission indicator
     if (name === 'commissionRate' && value) {
       setAppliedCategoryCommission(null)
@@ -235,8 +238,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       const existingCategories = Array.isArray(editingProduct.categories)
         ? editingProduct.categories
         : editingProduct.categories
-        ? [editingProduct.categories]
-        : []
+          ? [editingProduct.categories]
+          : []
       setSelectedCategory(existingCategories[0] || '')
       setMedia({
         thumbnail: normalizeImagePayload(editingProduct.thumbnail),
@@ -246,10 +249,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       })
       setStatus({ type: null, message: '' })
       const sellerIdFromProduct =
-        editingProduct.created_by_user_id ||
-        editingProduct.seller_id ||
-        editingProduct.created_by ||
         editingProduct.seller_trade_id ||
+        editingProduct.seller_id ||
         ''
       setSelectedSellerId(sellerIdFromProduct ? String(sellerIdFromProduct) : '')
     } else {
@@ -269,10 +270,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     if (!editingProduct || !sellerList.length) return
 
     const sellerIdFromProduct =
-      editingProduct.created_by_user_id ||
-      editingProduct.seller_id ||
-      editingProduct.created_by ||
       editingProduct.seller_trade_id ||
+      editingProduct.seller_id ||
       ''
 
     if (!sellerIdFromProduct) return
@@ -280,12 +279,12 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
     const matchingSeller =
       sellerList.find(
         (seller) =>
-          String(seller.id || seller._id || seller.trade_id) === String(sellerIdFromProduct) ||
-          seller.trade_id === sellerIdFromProduct
+          seller.trade_id === sellerIdFromProduct ||
+          String(seller.id || seller._id || '') === String(sellerIdFromProduct)
       ) || null
 
     if (matchingSeller) {
-      setSelectedSellerId(String(matchingSeller.id || matchingSeller._id || matchingSeller.trade_id))
+      setSelectedSellerId(String(matchingSeller.trade_id || matchingSeller.id || matchingSeller._id))
     }
   }, [editingProduct, sellerList])
 
@@ -413,24 +412,22 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
       }
 
       const payload = {
-      product_name: form.productName.trim(),
-      specification: form.specification.trim(),
-      points: cleanedPoints,
-      thumbnail: thumbnailUrl,
-      gallery: galleryUrls,
-      selling_price: selling,
-      max_price: max,
-      commission_rate: form.commissionRate ? parseFloat(form.commissionRate) : null,
-      categories: selectedCategory ? [selectedCategory] : [],
-      created_by: selectedSeller.trade_id || `${selectedSeller.first_name || ''} ${selectedSeller.last_name || ''}`.trim() || selectedSeller.email,
-      created_by_user_id: selectedSeller.id || selectedSeller._id || selectedSeller.trade_id,
-      created_by_user_type: 'seller',
-      seller_trade_id: selectedSeller.trade_id,
-      seller_name: `${selectedSeller.first_name || ''} ${selectedSeller.last_name || ''}`.trim() || selectedSeller.trade_id,
-      seller_email: selectedSeller.email || '',
-      seller_phone: selectedSeller.phone_number || '',
-      product_id: entityId,
-    }
+        product_name: form.productName.trim(),
+        specification: form.specification.trim(),
+        points: cleanedPoints,
+        thumbnail: thumbnailUrl,
+        gallery: galleryUrls,
+        selling_price: selling,
+        max_price: max,
+        commission_rate: form.commissionRate ? parseFloat(form.commissionRate) : null,
+        categories: selectedCategory ? [selectedCategory] : [],
+        seller_id: selectedSeller ? (selectedSeller.id || selectedSeller._id || null) : null,
+        seller_trade_id: selectedSeller ? selectedSeller.trade_id || selectedSellerId : selectedSellerId,
+        seller_name: selectedSeller ? `${selectedSeller.first_name || ''} ${selectedSeller.last_name || ''}`.trim() || selectedSeller.trade_id : selectedSellerId,
+        seller_email: selectedSeller ? selectedSeller.email || null : null,
+        seller_phone: selectedSeller ? selectedSeller.phone_number || null : null,
+        product_id: entityId,
+      }
 
       if (isEditing && editingId) {
         await updateProduct(editingId, payload)
@@ -513,11 +510,11 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
               >
                 <option value="">Select seller</option>
                 {sellerList.map((seller) => {
-                  const sellerId = String(seller.id || seller._id || seller.trade_id)
+                  const optionValue = String(seller.trade_id || seller.id || seller._id)
                   const sellerName = `${seller.first_name || ''} ${seller.last_name || ''}`.trim()
                   return (
-                    <option key={sellerId} value={sellerId}>
-                      {seller.trade_id}{sellerName ? ` — ${sellerName}` : ''}
+                    <option key={optionValue} value={optionValue}>
+                      {seller.trade_id || optionValue}{sellerName ? ` — ${sellerName}` : ''}
                     </option>
                   )
                 })}
@@ -550,7 +547,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
             </p>
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               <div>
-                <div 
+                <div
                   ref={thumbnailRef}
                   tabIndex="0"
                   className={`mt-1 border border-dashed ${errors.thumbnail ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-black`}
@@ -858,11 +855,11 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
             <p className="text-gray-500 mb-8 font-medium">This will clear all the information you've entered so far. This action cannot be undone.</p>
             <div className="flex gap-3">
               <button onClick={() => setShowConfirmReset(false)} className="flex-1 py-4 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50">No, stay</button>
-              <button 
+              <button
                 onClick={() => {
                   isEditing ? onCancelEdit() : resetForm();
                   setShowConfirmReset(false);
-                }} 
+                }}
                 className="flex-1 py-4 rounded-2xl bg-red-600 text-white font-bold hover:bg-red-700"
               >
                 Yes, reset
@@ -879,8 +876,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => {}, onCancel
             <p className="text-gray-500 mb-8 font-medium">Ready to {isEditing ? 'update this product' : 'list this new product'} on the marketplace? Make sure all details are accurate.</p>
             <div className="flex gap-3">
               <button onClick={() => setShowConfirmSubmit(false)} className="flex-1 py-4 rounded-2xl border border-gray-200 font-bold text-gray-600 hover:bg-gray-50">Review</button>
-              <button 
-                onClick={(e) => handleSubmit(e)} 
+              <button
+                onClick={(e) => handleSubmit(e)}
                 className="flex-1 py-4 rounded-2xl bg-black text-white font-bold hover:bg-gray-800"
               >
                 Confirm

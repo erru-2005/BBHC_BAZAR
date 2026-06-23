@@ -11,8 +11,9 @@ import { disconnectSocket } from '../../utils/socket'
 import { HiHome } from 'react-icons/hi'
 import { FaShoppingBag, FaBars, FaSignOutAlt, FaSearch, FaQrcode, FaTimes, FaCheck, FaUser, FaBox, FaStore } from 'react-icons/fa'
 import OrdersList from '../master/components/OrdersList'
-import { scanOrderToken, getOrders } from '../../services/api'
+import { scanOrderToken, getOrders, refreshSellerProfile } from '../../services/api'
 import { setOutletOrders, setOutletLoading, updateOutletOrder } from '../../store/outletSlice'
+import { updateUserInfo } from '../../store/authSlice'
 
 function Outlet() {
   const dispatch = useDispatch()
@@ -39,16 +40,27 @@ function Outlet() {
   const [confirming, setConfirming] = useState(false)
   
   const { orders, loading: loadingOrders, lastFetched } = useSelector(state => state.outlet)
+
+  const isToday = (dateString) => {
+    if (!dateString) return false
+    const date = new Date(dateString)
+    const now = new Date()
+    return (
+      date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
+    )
+  }
   
-  // Derived state for completed orders
+  // Today's completed orders only, newest first
   const completedOrders = orders
     .filter(order => order?.status === 'completed')
+    .filter(order => isToday(order.updatedAt || order.updated_at || order.createdAt || order.created_at))
     .sort((a, b) => {
-      const dateA = new Date(a?.updatedAt || a?.createdAt || 0)
-      const dateB = new Date(b?.updatedAt || b?.createdAt || 0)
+      const dateA = new Date(a?.updatedAt || a?.updated_at || a?.createdAt || a?.created_at || 0)
+      const dateB = new Date(b?.updatedAt || b?.updated_at || b?.createdAt || b?.created_at || 0)
       return dateB - dateA
     })
-    .slice(0, 10)
 
   // Auto-logout if different user type tries to access
   useEffect(() => {
@@ -56,6 +68,30 @@ function Outlet() {
       handleLogout()
     }
   }, [userType])
+
+  // Auto-refresh profile to keep session alive for both sellers and outlet men
+  useEffect(() => {
+    if (!user?.id) return
+    
+    const refreshProfile = async () => {
+      try {
+        const data = await refreshSellerProfile()
+        if (data?.credits !== undefined) {
+          dispatch(updateUserInfo({ credits: data.credits }))
+        }
+      } catch (error) {
+        console.warn('Failed to auto-refresh profile:', error.message)
+      }
+    }
+    
+    // Refresh every 15 minutes (900000ms) to keep session alive
+    const intervalId = setInterval(refreshProfile, 900000)
+    
+    // Also refresh immediately on mount
+    refreshProfile()
+    
+    return () => clearInterval(intervalId)
+  }, [user?.id, dispatch])
 
   // Load completed orders if missing or on tab change
   useEffect(() => {
@@ -67,7 +103,7 @@ function Outlet() {
   const loadCompletedOrders = async () => {
     try {
       dispatch(setOutletLoading(true))
-      const fetchedData = await getOrders()
+      const fetchedData = await getOrders({ page: 1, limit: 100 }, { forceRefresh: true })
       const orderList = Array.isArray(fetchedData?.orders) ? fetchedData.orders : (Array.isArray(fetchedData) ? fetchedData : [])
       dispatch(setOutletOrders(orderList))
     } catch (err) {
@@ -342,7 +378,7 @@ function Outlet() {
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-xl font-bold text-gray-900 tracking-tight">Recent Completions</h3>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">Live Updates Active</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">Today Only</span>
               </div>
 
               {loadingOrders ? (
@@ -352,7 +388,7 @@ function Outlet() {
                 </div>
               ) : completedOrders.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed border-gray-100 rounded-2xl">
-                  <p className="text-gray-400 font-medium">No completed orders found in recent history</p>
+                  <p className="text-gray-400 font-medium">No completed orders found for today</p>
                 </div>
               ) : (
                 <>

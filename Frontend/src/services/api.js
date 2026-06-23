@@ -49,17 +49,23 @@ let portalSyncSocketRef = null
 let lastResyncAt = 0
 
 // Role-specific token detection for isolation
-const getContextAwareToken = (requestUrl = '') => {
+const getContextAwareToken = (requestUrl = '', method = '') => {
   const currentPath = window.location.pathname
+  const httpMethod = String(method || '').toLowerCase()
   
   // 1. Check API URL first (direct intent - most reliable)
   
   // Master-specific endpoints & actions
   const isMasterEndpoint = ['/api/register_master', '/api/sellers', '/api/analytics', '/api/products/pending', '/api/services/pending', '/api/masters', '/api/auth/master', '/cancel-master'].some(ep => requestUrl.includes(ep))
+  const isMasterProductWrite =
+    ['post', 'put', 'delete', 'patch'].includes(httpMethod) &&
+    requestUrl.includes('/api/products') &&
+    !requestUrl.includes('/api/products/pending') &&
+    !requestUrl.includes('/ratings')
   const isMasterAction = (requestUrl.includes('/api/products/') || requestUrl.includes('/api/services/')) && 
                          (requestUrl.includes('/approve') || requestUrl.includes('/accept') || requestUrl.includes('/reject'))
   
-  if (isMasterEndpoint || isMasterAction) return localStorage.getItem('bbhc_master_token')
+  if (isMasterEndpoint || isMasterAction || isMasterProductWrite) return localStorage.getItem('bbhc_master_token')
   
   // Seller-specific endpoints & actions
   const isSellerEndpoint = requestUrl.includes('/api/seller')
@@ -373,7 +379,7 @@ apiClient.interceptors.request.use(
     if (config.skipAuthRefresh) {
       return config
     }
-    const token = getContextAwareToken(config.url)
+    const token = getContextAwareToken(config.url, config.method)
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -1405,20 +1411,55 @@ export const getServiceCategoryCommissionRates = async () => {
   }
 }
 
-let serviceAcceptCreditCache = { value: 25, timestamp: 0 }
+let serviceAcceptCreditCache = { value: 25, timestamp: 0, key: 'default' }
 
-export const getServiceAcceptCredit = async (forceRefresh = false) => {
+export const getServiceAcceptCredit = async (forceRefresh = false, category = null) => {
+  const cacheKey = category ? `cat:${category}` : 'default'
   const now = Date.now()
-  if (!forceRefresh && now - serviceAcceptCreditCache.timestamp < 60000) {
+  if (
+    !forceRefresh &&
+    serviceAcceptCreditCache.key === cacheKey &&
+    now - serviceAcceptCreditCache.timestamp < 60000
+  ) {
     return serviceAcceptCreditCache.value
   }
   try {
-    const response = await apiClient.get(API_ENDPOINTS.API.COMMISSION_SERVICE_ACCEPT_CREDIT)
+    const params = category ? `?category=${encodeURIComponent(category)}` : ''
+    const response = await apiClient.get(
+      `${API_ENDPOINTS.API.COMMISSION_SERVICE_ACCEPT_CREDIT}${params}`
+    )
     const value = Number(response.credit_count ?? 25)
-    serviceAcceptCreditCache = { value, timestamp: now }
+    serviceAcceptCreditCache = { value, timestamp: now, key: cacheKey }
     return value
   } catch {
     return serviceAcceptCreditCache.value || 25
+  }
+}
+
+export const getServiceCategoryAcceptCredits = async () => {
+  try {
+    const response = await apiClient.get(
+      API_ENDPOINTS.API.COMMISSION_SERVICE_CATEGORY_ACCEPT_CREDITS
+    )
+    return {
+      categoryCredits: response.category_credits || {},
+      defaultCredit: Number(response.default_credit ?? 25),
+    }
+  } catch (error) {
+    throw new Error(error.message || 'Failed to load service category credits')
+  }
+}
+
+export const saveServiceCategoryAcceptCredits = async (categoryCredits) => {
+  try {
+    const response = await apiClient.put(
+      API_ENDPOINTS.API.COMMISSION_SERVICE_CATEGORY_ACCEPT_CREDITS,
+      { category_credits: categoryCredits }
+    )
+    invalidateServiceAcceptCreditCache()
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to save service category credits')
   }
 }
 
@@ -1436,6 +1477,7 @@ export const setServiceAcceptCredit = async (creditCount) => {
 
 export const invalidateServiceAcceptCreditCache = () => {
   serviceAcceptCreditCache.timestamp = 0
+  serviceAcceptCreditCache.key = ''
 }
 
 /**

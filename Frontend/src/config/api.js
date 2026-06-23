@@ -72,6 +72,7 @@ export const API_ENDPOINTS = {
     COMMISSION_SERVICE_APPLY_SERVICE: `${API_BASE_URL}/api/commission/service/apply-service`,
     COMMISSION_SERVICE_CATEGORY_RATES: `${API_BASE_URL}/api/commission/service/category-rates`,
     COMMISSION_SERVICE_ACCEPT_CREDIT: `${API_BASE_URL}/api/commission/service-accept-credit`,
+    COMMISSION_SERVICE_CATEGORY_ACCEPT_CREDITS: `${API_BASE_URL}/api/commission/service-category-accept-credits`,
     PENDING_PRODUCTS: `${API_BASE_URL}/api/products/pending`,
     APPROVE_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/approve`,
     REJECT_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/reject`,

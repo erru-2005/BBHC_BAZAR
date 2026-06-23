@@ -8,6 +8,7 @@ import {
   UserRegistration,
   UserProfile,
   UserOrders,
+  UserOrderHistory,
   BuyNow,
   Bag,
   Seller,
@@ -343,6 +344,14 @@ function SplashWrapper() {
                 element={
                   <ProtectedRoute requiredUserType="user">
                     <UserOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/user/orders/history"
+                element={
+                  <ProtectedRoute requiredUserType="user">
+                    <UserOrderHistory />
                   </ProtectedRoute>
                 }
               />

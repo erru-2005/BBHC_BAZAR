@@ -8,7 +8,7 @@ import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiM
 import { FaQrcode } from 'react-icons/fa6'
 
 import { getSocket } from '../../utils/socket'
-import { getOrders, getSellerMyProducts, sellerAcceptOrder, sellerRejectOrder, updateOrderStatus, getServiceAcceptCredit } from '../../services/api'
+import { getOrders, getSellerMyProducts, sellerAcceptOrder, sellerRejectOrder, updateOrderStatus, getServiceAcceptCredit, refreshSellerProfile } from '../../services/api'
 import SellerOrders from './components/SellerOrders'
 import SellerNotifications from './components/SellerNotifications'
 import SellerAnalytics from './components/SellerAnalytics'
@@ -18,6 +18,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { fixImageUrl, getOrderProductImage, resolveImageUrl } from '../../utils/image'
 import { setSellerProducts, setSellerOrders, updateSellerOrder, setSellerLoading } from '../../store/sellerSlice'
 import { updateUserInfo } from '../../store/authSlice'
+import {
+  AcceptServiceCreditBadge,
+  AcceptServiceCreditDeduction,
+  getServiceCategoryFromOrder,
+} from './components/AcceptServiceCreditNotice'
 import { useOutletContext } from 'react-router-dom'
 
 function Seller() {
@@ -48,10 +53,21 @@ function Seller() {
   const [dashboardTypeFilter, setDashboardTypeFilter] = useState('product') // 'product', 'service'
   const [serviceConfirmation, setServiceConfirmation] = useState(null)
   const [serviceAcceptCredit, setServiceAcceptCredit] = useState(25)
+  const [creditLoading, setCreditLoading] = useState(false)
 
   useEffect(() => {
     getServiceAcceptCredit().then(setServiceAcceptCredit).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!serviceConfirmation) return
+    const category = getServiceCategoryFromOrder(serviceConfirmation)
+    setCreditLoading(true)
+    getServiceAcceptCredit(true, category)
+      .then(setServiceAcceptCredit)
+      .catch(() => {})
+      .finally(() => setCreditLoading(false))
+  }, [serviceConfirmation])
 
   const { setIsAddingProduct } = useOutletContext()
 
@@ -118,6 +134,30 @@ function Seller() {
 
     syncServiceCompletion()
   }, [orders])
+
+  // Auto-refresh seller profile to keep session alive
+  useEffect(() => {
+    if (!user?.id) return
+    
+    const refreshProfile = async () => {
+      try {
+        const data = await refreshSellerProfile()
+        if (data?.credits !== undefined) {
+          dispatch(updateUserInfo({ credits: data.credits }))
+        }
+      } catch (error) {
+        console.warn('Failed to auto-refresh seller profile:', error.message)
+      }
+    }
+    
+    // Refresh every 15 minutes (900000ms) to keep session alive
+    const intervalId = setInterval(refreshProfile, 900000)
+    
+    // Also refresh immediately on mount
+    refreshProfile()
+    
+    return () => clearInterval(intervalId)
+  }, [user?.id, dispatch])
 
   // Load orders and products if missing
   useEffect(() => {
@@ -280,9 +320,13 @@ function Seller() {
 
     const isService = isOrderService(order)
 
-    // OPTIMISTIC UPDATE: Subtract 25 credits immediately for services to feel "live"
+    // OPTIMISTIC UPDATE: subtract category credit immediately for services
     if (isService) {
-      dispatch(updateUserInfo({ credits: Math.max(0, (user?.credits || 0) - serviceAcceptCredit) }))
+      const category = getServiceCategoryFromOrder(order)
+      const deductAmount = category
+        ? await getServiceAcceptCredit(true, category).catch(() => serviceAcceptCredit)
+        : serviceAcceptCredit
+      dispatch(updateUserInfo({ credits: Math.max(0, (user?.credits || 0) - deductAmount) }))
     }
 
     try {
@@ -863,15 +907,11 @@ function Seller() {
 
               <h3 className="text-xl font-bold text-slate-900 mb-2">Accept Service?</h3>
               <div className="flex items-center justify-center gap-2 mb-6">
-                <div className="px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-[11px] font-black uppercase tracking-widest flex items-center gap-2 border border-blue-100 shadow-sm">
-                  Available Balance: {user?.credits || 0}
-                </div>
+                <AcceptServiceCreditBadge balance={user?.credits || 0} />
               </div>
               <p className="text-xs text-slate-400 font-medium mb-4 leading-relaxed">
                 Confirm your availability to fulfill this service request.
-                <span className="block mt-2 font-black text-blue-600 uppercase tracking-widest bg-blue-50 py-2 rounded-lg border border-blue-100">
-                  {serviceAcceptCredit} credits will be deducted
-                </span>
+                <AcceptServiceCreditDeduction amount={serviceAcceptCredit} loading={creditLoading} />
               </p>
 
               {user?.credits < serviceAcceptCredit && (
@@ -896,7 +936,7 @@ function Seller() {
                 <motion.button
                   whileHover={user?.credits >= serviceAcceptCredit ? { scale: 1.02 } : {}}
                   whileTap={user?.credits >= serviceAcceptCredit ? { scale: 0.98 } : {}}
-                  disabled={actionProcessingId === serviceConfirmation.id || user?.credits < serviceAcceptCredit}
+                  disabled={actionProcessingId === serviceConfirmation.id || creditLoading || user?.credits < serviceAcceptCredit}
                   onClick={() => handleLocalAccept(serviceConfirmation.id)}
                   className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-3 ${user?.credits >= serviceAcceptCredit
                     ? 'bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-700'

@@ -105,15 +105,13 @@ def emit_order_event(event_name, order_dict, target_user_id=None, target_seller_
     - Broadcasts to all masters
     - Targets specific user if target_user_id provided
     - Targets specific seller if target_seller_id provided
+    - Only sends to outlet men for specific events (new_order, order_status_update)
     """
     if not order_dict:
         return
     
     # Broadcast to all masters
     _emit_to_collection('master', {'socket_id': {'$ne': None}}, event_name, order_dict)
-    
-    # Broadcast to all outlet men
-    _emit_to_collection('outlet_men', {'socket_id': {'$ne': None}}, event_name, order_dict)
     
     # Target specific user
     if target_user_id:
@@ -123,8 +121,9 @@ def emit_order_event(event_name, order_dict, target_user_id=None, target_seller_
     if target_seller_id:
         _emit_to_seller(target_seller_id, event_name, order_dict)
     
-    # Also broadcast generally (for any other listeners)
-    socketio.emit(event_name, order_dict)
+    # Broadcast to outlet men only for specific events
+    if event_name in ['new_order', 'order_status_update']:
+        _emit_to_collection('outlet_men', {'socket_id': {'$ne': None}}, event_name, order_dict)
 
 
 def emit_rating_update(product_id, rating_stats):

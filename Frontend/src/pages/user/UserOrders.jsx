@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { FaArrowLeft, FaBox, FaClock, FaTruck, FaDownload, FaCopy, FaQrcode, FaCircleInfo } from 'react-icons/fa6'
+import { FaArrowLeft, FaBox, FaClock, FaTruck, FaDownload, FaCopy, FaQrcode, FaCircleInfo, FaClockRotateLeft } from 'react-icons/fa6'
 import { AnimatePresence, motion } from 'framer-motion'
 import QRCode from 'react-qr-code'
 import MainHeader from './components/MainHeader'
@@ -10,16 +10,7 @@ import MobileSearchBar from './components/MobileSearchBar'
 import MobileBottomNav from './components/MobileBottomNav'
 import { getOrders, cancelOrder } from '../../services/api'
 import { getSocket } from '../../utils/socket'
-
-const STATUS_STYLES = {
-  pending_seller: { label: 'New Order', className: 'bg-amber-100 text-amber-800 border border-amber-200' },
-  seller_accepted: { label: 'Accepted', className: 'bg-sky-100 text-sky-800 border border-sky-200' },
-  seller_rejected: { label: 'Rejected', className: 'bg-rose-100 text-rose-800 border border-rose-200' },
-  handed_over: { label: 'Handed Over', className: 'bg-violet-100 text-violet-800 border border-violet-200' },
-  completed: { label: 'Completed', className: 'bg-emerald-100 text-emerald-800 border border-emerald-200' },
-  cancelled: { label: 'Cancelled', className: 'bg-gray-100 text-gray-700 border border-gray-200' },
-  cancelled_master: { label: 'Master Cancelled', className: 'bg-gray-100 text-gray-700 border border-gray-200' }
-}
+import { STATUS_STYLES, isHistoryOrder, isOrderService } from './utils/orderHelpers'
 
 const TablerXCircle = ({ className = 'w-4 h-4' }) => (
   <svg
@@ -53,28 +44,14 @@ function UserOrders() {
   const [copiedToken, setCopiedToken] = useState(null)
   const [dashboardTypeFilter, setDashboardTypeFilter] = useState('product') // 'product', 'service'
 
-  // Helper to check if an order is a service based on broadened logic
-  const isOrderService = (order) => {
-    if (!order) return false
-    const productData = order.product || order.product_snapshot || {}
-    const productName = (productData.name || productData.product_name || '').toLowerCase()
-    const productCategories = (productData.categories || []).map(c => c.toLowerCase())
-    
-    return order.type === 'service' || 
-           (order.booking && (order.booking.type || order.booking.startDate || order.booking.endDate || order.booking.flexible)) || 
-           productName.includes('creativework') ||
-           productName.includes('creative') ||
-           productName.includes('work') ||
-           productName.includes('service') ||
-           productCategories.some(cat => cat.includes('service') || cat.includes('creative') || cat.includes('work'))
-  }
+  const activeOrders = useMemo(() => orders.filter((order) => !isHistoryOrder(order)), [orders])
 
   const filteredOrders = useMemo(() => {
-    return orders.filter(o => {
+    return activeOrders.filter((o) => {
       const isService = isOrderService(o)
       return dashboardTypeFilter === 'product' ? !isService : !!isService
     })
-  }, [orders, dashboardTypeFilter])
+  }, [activeOrders, dashboardTypeFilter])
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -393,7 +370,7 @@ function UserOrders() {
     )
   }
 
-  const showEmptyState = !loading && orders.length === 0
+  const showEmptyState = !loading && activeOrders.length === 0
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-sky-50 pb-24 lg:pb-6">
@@ -416,7 +393,15 @@ function UserOrders() {
               Hi {user?.first_name || 'there'}, track your purchases and pickup instructions here.
             </p>
 
-            {/* Innovative Filter Section */}
+            <button
+              type="button"
+              onClick={() => navigate('/user/orders/history')}
+              className="mt-4 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-semibold hover:bg-indigo-100 transition"
+            >
+              <FaClockRotateLeft className="w-4 h-4" />
+              View Order History
+            </button>
+
             <div className="relative flex bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200 shadow-inner w-full max-w-[400px] mx-auto h-14 overflow-hidden mt-6">
               {/* Animated Background Slider */}
               <motion.div 

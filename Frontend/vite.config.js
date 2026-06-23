@@ -45,6 +45,7 @@ export default defineConfig({
   ,
   resolve: {
     alias: {
+      '@': path.resolve(__dirname, 'src'),
       // Polyfill for stream module used by xlsx-js-style
       stream: path.resolve(__dirname, 'src/utils/stream-polyfill.js'),
     },

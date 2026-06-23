@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { FaMagnifyingGlass, FaXmark, FaHeart } from 'react-icons/fa6'
@@ -16,7 +16,8 @@ function SearchOverlay({ isOpen, onClose, initialQuery = '' }) {
   const [suggestions, setSuggestions] = useState([])
   const [recommendedProducts, setRecommendedProducts] = useState([])
   const [loading, setLoading] = useState(false)
-  const inputRef = useRef(null)
+  const mobileInputRef = useRef(null)
+  const desktopInputRef = useRef(null)
   const dispatch = useDispatch()
   const { home } = useSelector((state) => state.data)
   const { isAuthenticated, userType } = useSelector((state) => state.auth)
@@ -24,14 +25,20 @@ function SearchOverlay({ isOpen, onClose, initialQuery = '' }) {
 
   const allProducts = home?.products || []
 
-  useEffect(() => {
-    if (isOpen) {
-      setSearchQuery(initialQuery || '')
-      if (inputRef.current) {
-        inputRef.current.focus()
-      }
-    }
-  }, [isOpen, initialQuery])
+  const focusSearchInput = useCallback(() => {
+    const isMobile = window.matchMedia('(max-width: 767px)').matches
+    const input = isMobile ? mobileInputRef.current : desktopInputRef.current
+    if (!input) return
+    input.focus({ preventScroll: true })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!isOpen) return
+    setSearchQuery(initialQuery || '')
+    focusSearchInput()
+    const timer = window.setTimeout(focusSearchInput, 50)
+    return () => window.clearTimeout(timer)
+  }, [isOpen, initialQuery, focusSearchInput])
 
   useEffect(() => {
     if (!isOpen) {
@@ -109,8 +116,13 @@ function SearchOverlay({ isOpen, onClose, initialQuery = '' }) {
         <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-2 bg-white rounded-full px-3 py-2">
           <FaMagnifyingGlass className="text-gray-400 w-4 h-4 flex-shrink-0" />
           <input
-            ref={inputRef}
-            type="text"
+            ref={mobileInputRef}
+            type="search"
+            enterKeyHint="search"
+            inputMode="search"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search BBHCBazaar"
@@ -140,8 +152,13 @@ function SearchOverlay({ isOpen, onClose, initialQuery = '' }) {
           <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-2 bg-white rounded-full px-4 py-3">
             <FaMagnifyingGlass className="text-gray-400 w-5 h-5 flex-shrink-0" />
             <input
-              ref={inputRef}
-              type="text"
+              ref={desktopInputRef}
+              type="search"
+              enterKeyHint="search"
+              inputMode="search"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search BBHCBazaar"

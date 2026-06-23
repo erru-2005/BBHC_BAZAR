@@ -23,7 +23,7 @@ const ServiceCard = ({ service, index }) => {
   
   return (
     <motion.div
-      className="relative col-span-2 sm:col-span-2 lg:col-span-2 xl:col-span-2 rounded-2xl border border-gray-100 bg-white p-2.5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+      className="relative col-span-2 rounded-2xl border border-gray-200/80 bg-white p-2.5 lg:p-3 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
       initial={motionVariants.fadeIn.initial}
       whileInView={motionVariants.fadeIn.animate}
       viewport={{ once: true }}
@@ -285,9 +285,9 @@ function ProductShowcase({ products = [], services = [], loading, error }) {
 
   if (loading) {
     return (
-      <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
         {[...Array(8)].map((_, index) => (
-          <div key={`product-skeleton-${index}`} className="rounded-2xl border border-gray-100 bg-white p-2.5 space-y-3 animate-pulse">
+          <div key={`product-skeleton-${index}`} className="rounded-2xl border border-gray-200/80 bg-white p-2.5 space-y-3 animate-pulse">
             <div className="aspect-[4/3] rounded-xl bg-gray-100" />
             <div className="h-3 w-3/4 bg-gray-100 rounded-full" />
             <div className="h-4 w-1/2 bg-gray-100 rounded-full" />
@@ -309,7 +309,7 @@ function ProductShowcase({ products = [], services = [], loading, error }) {
         <h2 className="text-3xl font-black text-gray-900">Trending products</h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 lg:gap-6">
         {products.map((product, index) => {
           const thumbnail = product.thumbnail || product.media?.thumbnail
           // Use total_selling_price (with commission) if available, otherwise fall back to selling_price
@@ -361,7 +361,7 @@ function ProductShowcase({ products = [], services = [], loading, error }) {
             <div key={productIdStr} className="contents">
               <motion.article
                 key={productId}
-                className="group relative rounded-2xl border border-gray-100 bg-white p-2.5 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
+                className="group relative rounded-2xl border border-gray-200/80 bg-white p-2.5 lg:p-3 flex flex-col hover:shadow-md transition-shadow cursor-pointer"
                 initial={motionVariants.fadeIn.initial}
                 whileInView={motionVariants.fadeIn.animate}
                 viewport={{ once: true }}
@@ -376,7 +376,7 @@ function ProductShowcase({ products = [], services = [], loading, error }) {
                   }
                 }}
               >
-                <div className="relative rounded-xl overflow-hidden aspect-[4/3] mb-2 bg-gray-50 flex items-center justify-center">
+                <div className="relative rounded-xl overflow-hidden aspect-[4/3] lg:aspect-[5/4] mb-2 bg-gray-50 flex items-center justify-center">
                   {getImageSrc(thumbnail) ? (
                     <img
                       src={getImageSrc(thumbnail)}

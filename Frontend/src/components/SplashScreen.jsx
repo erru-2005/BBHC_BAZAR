@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 
 const SplashScreen = ({ onComplete, headerLogoRef }) => {
@@ -42,17 +42,6 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
         return;
       }
 
-      const headerLogo = headerLogoRef.current;
-
-      // Get initial positions (center of screen)
-      const initialRect = logoElement.getBoundingClientRect();
-
-      // Get target positions (header logo position)
-      const headerRect = headerLogo.getBoundingClientRect();
-      const targetX = headerRect.left + headerRect.width / 2;
-      const targetY = headerRect.top + headerRect.height / 2;
-      const targetScale = Math.min(headerRect.width / initialRect.width, 1);
-
       // Set initial position (center of screen)
       gsap.set(containerRef.current, {
         position: 'fixed',
@@ -74,8 +63,6 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
       // Create premium visible silver shimmer effect from bottom-left to top-right
       const loadingOverlay = document.createElement('div');
       loadingOverlay.className = 'premium-loading-effect';
-      const logoWidth = initialRect.width || 250;
-      const logoHeight = initialRect.height || 70;
 
       // Premium visible silver shimmer overlay - diagonal from bottom-left to top-right
       loadingOverlay.style.cssText = `
@@ -124,7 +111,7 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
           backgroundPosition: '100% 100%' // Start at bottom-left
         },
         {
-          duration: 2.0,
+          duration: 1.5,
           backgroundPosition: '0% 0%', // End at top-right
           ease: 'power1.inOut',
           repeat: 1 // Shimmer effect repeats once (2 total passes)
@@ -132,37 +119,26 @@ const SplashScreen = ({ onComplete, headerLogoRef }) => {
       );
 
       // Step 2: Hold logo in middle for visible duration
-      const holdTime = 0.3; // Brief hold after loading effect
+      const holdTime = 0.5; // Brief hold after loading effect
       tl.to({}, { duration: holdTime });
 
       // Step 3: Fade out loading overlay smoothly
       tl.to(loadingOverlay, {
-        duration: 0.5,
+        duration: 0.3,
         opacity: 0,
         ease: 'power2.out'
       });
 
-      // Step 4: Move very slowly to header position while keeping splash fully opaque
-      const movementDuration = 3.0; // Very slow movement
+      // Step 4: Fade out logo and remove splash screen
+      tl.to(logoElement, {
+        duration: 0.3,
+        opacity: 0,
+        ease: 'power2.in'
+      });
 
-      // Animate logo to header position - starts after skeleton animation and hold complete
-      tl.to(containerRef.current, {
-        duration: movementDuration,
-        x: targetX - window.innerWidth / 2,
-        y: targetY - window.innerHeight / 2,
-        scale: targetScale,
-        ease: 'power1.inOut', // Very smooth easing
-        // Use will-change for better performance
-        onStart: () => {
-          if (containerRef.current) {
-            containerRef.current.style.willChange = 'transform'
-          }
-        }
-      }); // Starts after previous step completes
-
-      // Step 5: Complete animation - logo stays visible
+      // Step 5: Complete animation
       tl.call(() => {
-        // Clean up will-change for performance
+        // Clean up
         if (containerRef.current) {
           containerRef.current.style.willChange = 'auto'
         }

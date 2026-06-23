@@ -3,55 +3,39 @@ import React from 'react'
 const DetailSkeleton = () => {
   return (
     <div className="min-h-screen bg-[#fafbff] text-slate-900 animate-pulse">
-      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-6 lg:py-12">
-        {/* Back button skeleton */}
-        <div className="h-4 bg-slate-200 rounded-full w-32 mb-8" />
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-5 lg:px-8 py-3 sm:py-5 lg:py-10">
+        <div className="h-3.5 bg-slate-200 rounded-full w-28 mb-3 sm:mb-5" />
 
-        <div className="grid lg:grid-cols-12 gap-8 lg:gap-16">
-          {/* Left Column */}
-          <div className="lg:col-span-7 space-y-8">
-            <div className="aspect-[16/10] rounded-[40px] bg-slate-200" />
-            
-            <div className="grid grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="aspect-square rounded-3xl bg-slate-100" />
+        <div className="flex flex-col gap-3 sm:gap-4 lg:grid lg:grid-cols-12 lg:gap-6">
+          <div className="order-1 lg:col-span-7">
+            <div className="aspect-[4/3] sm:aspect-[16/10] rounded-2xl bg-slate-200" />
+            <div className="flex gap-2 mt-3 overflow-hidden">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="w-14 h-14 rounded-xl bg-slate-100 shrink-0" />
               ))}
-            </div>
-
-            <div className="bg-white rounded-[40px] p-8 lg:p-10 border border-slate-100 space-y-4">
-              <div className="h-8 bg-slate-200 rounded-full w-48" />
-              <div className="space-y-2">
-                <div className="h-3 bg-slate-100 rounded-full w-full" />
-                <div className="h-3 bg-slate-100 rounded-full w-full" />
-                <div className="h-3 bg-slate-100 rounded-full w-3/4" />
-              </div>
             </div>
           </div>
 
-          {/* Right Column */}
-          <div className="lg:col-span-5">
-            <div className="bg-white rounded-[40px] p-8 lg:p-10 border border-slate-100 space-y-6">
-              <div className="h-4 bg-slate-100 rounded-full w-24" />
-              <div className="h-10 bg-slate-200 rounded-full w-full" />
-              <div className="h-8 bg-slate-200 rounded-full w-32" />
-              
-              <div className="space-y-4 pt-4">
-                <div className="h-16 bg-slate-50 rounded-3xl w-full" />
-                <div className="h-16 bg-slate-50 rounded-3xl w-full" />
+          <div className="order-2 lg:col-span-5">
+            <div className="bg-white rounded-2xl lg:rounded-[32px] p-4 sm:p-5 border border-slate-100 space-y-3">
+              <div className="h-3 bg-slate-100 rounded-full w-20" />
+              <div className="h-6 bg-slate-200 rounded-lg w-full" />
+              <div className="h-7 bg-slate-200 rounded-lg w-28" />
+              <div className="space-y-2 pt-1">
+                <div className="h-3 bg-slate-100 rounded-full w-full" />
+                <div className="h-3 bg-slate-100 rounded-full w-4/5" />
               </div>
+              <div className="h-11 bg-slate-200 rounded-xl w-full mt-2" />
+            </div>
+          </div>
 
-              <div className="pt-6 space-y-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="flex gap-3">
-                    <div className="w-5 h-5 bg-slate-200 rounded-full flex-shrink-0" />
-                    <div className="h-4 bg-slate-100 rounded-full w-full" />
-                  </div>
-                ))}
-              </div>
-
-              <div className="pt-8 space-y-4">
-                <div className="h-16 bg-slate-200 rounded-3xl w-full" />
-                <div className="h-16 bg-slate-100 rounded-3xl w-full" />
+          <div className="order-3 lg:col-span-7">
+            <div className="bg-white rounded-2xl lg:rounded-[32px] p-4 sm:p-5 border border-slate-100 space-y-3">
+              <div className="h-5 bg-slate-200 rounded-lg w-40" />
+              <div className="space-y-2">
+                <div className="h-3 bg-slate-100 rounded-full w-full" />
+                <div className="h-3 bg-slate-100 rounded-full w-full" />
+                <div className="h-3 bg-slate-100 rounded-full w-2/3" />
               </div>
             </div>
           </div>

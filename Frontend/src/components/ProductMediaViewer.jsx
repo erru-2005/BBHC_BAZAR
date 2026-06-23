@@ -95,7 +95,7 @@ function ProductMediaViewer({ thumbnail, gallery = [], productName }) {
         {/* Main Image Area */}
         <div className="relative flex-1 order-1 lg:order-2 z-10 w-full max-w-full min-w-0">
           <div
-            className="group relative w-full aspect-square sm:aspect-[4/3] lg:aspect-[3/4] max-h-[500px] lg:max-h-[600px] bg-white rounded-xl sm:rounded-2xl overflow-hidden border border-gray-200 shadow-sm cursor-zoom-in touch-pan-y mx-auto"
+            className="group relative w-full aspect-[4/3] sm:aspect-[5/4] lg:aspect-[3/4] max-h-[min(52vw,280px)] sm:max-h-[360px] lg:max-h-[600px] bg-white rounded-xl sm:rounded-2xl overflow-hidden border border-gray-200 shadow-sm cursor-zoom-in touch-pan-y mx-auto"
             onMouseEnter={() => setShowZoom(true)}
             onMouseLeave={() => setShowZoom(false)}
             onMouseMove={handleMouseMove}

@@ -1,9 +1,6 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import QRCode from 'react-qr-code'
-import { FaDownload } from 'react-icons/fa6'
 import MainHeader from './components/MainHeader'
 import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
@@ -12,7 +9,8 @@ import MobileBottomNav from './components/MobileBottomNav'
 import { createOrder, getProducts } from '../../services/api'
 import { setHomeProducts } from '../../store/dataSlice'
 import { FaArrowLeft, FaMinus, FaPlus } from 'react-icons/fa6'
-import SuccessAnimation from '../../components/SuccessAnimation'
+import SlideToUnlock from '../../components/SlideToUnlock'
+import OrderSuccessDialog from '../../components/OrderSuccessDialog'
 
 function BuyNow() {
   const { productId } = useParams()
@@ -34,27 +32,10 @@ function BuyNow() {
   const [error, setError] = useState(null)
   const [successOrder, setSuccessOrder] = useState(null)
   const [showSuccess, setShowSuccess] = useState(false)
-  const successQrRef = useRef(null)
+  const [slideTriggered, setSlideTriggered] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const bookingData = location.state?.booking || null
   const isService = !!bookingData
-
-  const downloadSvgFromRef = (node, filename) => {
-    if (!node) return
-    const svg = node.querySelector('svg')
-    if (!svg) return
-    const serializer = new XMLSerializer()
-    const svgString = serializer.serializeToString(svg)
-    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename || 'bbhc-order-qr.svg'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
 
   useEffect(() => {
     if (!isAuthenticated || userType !== 'user') {
@@ -119,10 +100,12 @@ function BuyNow() {
   const handleConfirm = async () => {
     if (!product) {
       setError('Product details are missing.')
+      setSlideTriggered(false)
       return
     }
     if (userType !== 'user') {
       setError('Only customers can place orders. Please login with a user account.')
+      setSlideTriggered(false)
       return
     }
     setLoading(true)
@@ -140,10 +123,25 @@ function BuyNow() {
       setShowSuccess(true)
     } catch (err) {
       setError(err.message)
+      setSlideTriggered(false)
     } finally {
       setLoading(false)
     }
   }
+
+  const handleSlideUnlock = () => {
+    if (loading || slideTriggered) return
+    setSlideTriggered(true)
+    handleConfirm()
+  }
+
+  const scheduleLabel = useMemo(() => {
+    if (!isService || !bookingData) return null
+    if (bookingData.type === 'single') {
+      return `On ${new Date(bookingData.startDate).toLocaleDateString()}`
+    }
+    return `${new Date(bookingData.startDate).toLocaleDateString()} - ${new Date(bookingData.endDate).toLocaleDateString()}`
+  }, [isService, bookingData])
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -271,13 +269,24 @@ function BuyNow() {
                 </div>
               )}
 
-              <button
-                onClick={handleConfirm}
-                disabled={loading}
-                className="w-full rounded-xl bg-emerald-700 text-white font-semibold py-3.5 text-sm uppercase tracking-widest hover:bg-emerald-800 transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-sm"
-              >
-                {loading ? 'Processing...' : 'Confirm purchase'}
-              </button>
+              <SlideToUnlock
+                bare
+                shimmer
+                sliderText="Swipe to confirm purchase"
+                onUnlock={handleSlideUnlock}
+                unlocked={slideTriggered}
+                resetKey={error}
+                disabled={loading && !slideTriggered}
+                unlockedContent={
+                  loading ? (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-6 text-center">
+                      <p className="text-sm font-semibold text-emerald-800 animate-pulse">
+                        Processing your order...
+                      </p>
+                    </div>
+                  ) : null
+                }
+              />
             </div>
           </div>
         </div>
@@ -285,78 +294,19 @@ function BuyNow() {
 
       <MobileBottomNav />
 
-      <AnimatePresence>
-        {showSuccess && successOrder && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center px-4"
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-white rounded-3xl p-8 w-[clamp(320px,95vw,480px)] text-center shadow-2xl space-y-6"
-            >
-              <SuccessAnimation />
-              <div>
-                <h2 className="text-2xl font-semibold text-gray-900">Order placed successfully!</h2>
-                <p className="text-sm text-gray-500 mt-2">
-                  Your order is waiting for seller confirmation. You'll receive a QR code once the seller accepts your order.
-                </p>
-                {successOrder.status === 'pending_seller' && (
-                  <p className="text-xs text-amber-600 mt-2 font-medium">
-                    Status: Waiting for seller confirmation
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-col items-center gap-3">
-                {successOrder.status === 'seller_accepted' && successOrder.secureTokenUser && (
-                  <>
-                    <div
-                      className="bg-gray-50 p-4 rounded-2xl border border-gray-200 inline-block"
-                      ref={successQrRef}
-                    >
-                      <QRCode value={successOrder.secureTokenUser || successOrder.qrCodeData || ''} size={160} />
-                    </div>
-                    <p className="text-xs text-gray-500 font-mono">
-                      Token: {successOrder.secureTokenUser}
-                    </p>
-                    <button
-                      onClick={() => downloadSvgFromRef(successQrRef.current, `bbhc-order-${successOrder.orderNumber}.svg`)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-900 text-white text-sm font-semibold hover:bg-black transition"
-                    >
-                      <FaDownload className="w-4 h-4" />
-                      Download QR
-                    </button>
-                  </>
-                )}
-                <p className="text-xs text-gray-500 uppercase tracking-widest">
-                  Order #{successOrder.orderNumber}
-                </p>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <button
-                  onClick={() => navigate('/user/orders')}
-                  className="w-full rounded-full border border-gray-900 text-gray-900 font-semibold py-3"
-                >
-                  View my orders
-                </button>
-                <button
-                  onClick={() => {
-                    setShowSuccess(false)
-                    navigate('/')
-                  }}
-                  className="w-full rounded-full bg-gray-900 text-white font-semibold py-3"
-                >
-                  Done
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <OrderSuccessDialog
+        open={showSuccess && !!successOrder}
+        productName={product.product_name}
+        quantity={quantity}
+        amount={total}
+        orderNumber={successOrder?.orderNumber}
+        status={successOrder?.status}
+        isService={isService}
+        scheduleLabel={scheduleLabel}
+        onViewOrders={() => navigate('/user/orders')}
+        onContinueShopping={() => navigate('/')}
+        onClose={() => setShowSuccess(false)}
+      />
     </div>
   )
 }

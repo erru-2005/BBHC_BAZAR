@@ -132,7 +132,7 @@ const initialState = {
       { label: 'Bag', icon: 'bag' }
     ],
     bottomNavItems: [
-      { label: 'Product', icon: 'product' },
+      { label: 'Orders', icon: 'orders' },
       { label: 'Service', icon: 'service' },
       { label: 'Home', icon: 'home', isActive: true },
       { label: 'Bag', icon: 'bag' },

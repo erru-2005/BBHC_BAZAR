@@ -44,6 +44,43 @@ def _sanitize_product_seller_fields(product_dict):
     return product_dict
 
 
+def _resolve_seller_for_master_product(data):
+    """
+    Resolve seller from trade id and/or Mongo id sent by master add-product form.
+    Masters may assign products to blacklisted sellers for administrative fixes.
+    """
+    identifiers = []
+    for key in ('seller_trade_id', 'seller_id', 'created_by_user_id'):
+        value = data.get(key)
+        if value is not None and str(value).strip():
+            identifiers.append(str(value).strip())
+
+    seen = set()
+    for identifier in identifiers:
+        if identifier in seen:
+            continue
+        seen.add(identifier)
+        seller = SellerService.resolve_seller(identifier, include_blacklisted=True)
+        if seller:
+            return seller
+    return None
+
+
+def _seller_profile_fields(seller):
+    """Build seller_* fields for product payloads from a Seller model."""
+    full_name = ' '.join(
+        part for part in [seller.first_name, seller.last_name] if part
+    ).strip()
+    return {
+        'seller_trade_id': seller.trade_id,
+        'seller_name': full_name or seller.trade_id,
+        'seller_email': seller.email,
+        'seller_phone': seller.phone_number,
+        'created_by_user_id': str(seller._id),
+        'created_by_user_type': 'seller',
+    }
+
+
 @api_bp.route('/', methods=['GET'])
 def welcome():
     """Welcome endpoint"""
@@ -927,9 +964,13 @@ def create_product():
                 first_err_msg = "Invalid format"
             return jsonify({'error': f"{first_err_field}: {first_err_msg}"}), 400
 
-        if not data.get('seller_trade_id'):
-            return jsonify({'error': 'seller_trade_id is required'}), 400
-        
+        seller = _resolve_seller_for_master_product(data)
+        if not seller:
+            return jsonify({'error': 'Seller not found'}), 404
+        if not seller.trade_id:
+            return jsonify({'error': 'Seller account is missing a trade ID'}), 400
+
+        seller_fields = _seller_profile_fields(seller)
         product_data = {
             'product_name': data['product_name'],
             'specification': data['specification'],
@@ -939,19 +980,16 @@ def create_product():
             'categories': data.get('categories', []),
             'selling_price': data['selling_price'],
             'max_price': data['max_price'],
-            'seller_trade_id': data.get('seller_trade_id'),
-            'seller_name': data.get('seller_name'),
-            'seller_email': data.get('seller_email'),
-            'seller_phone': data.get('seller_phone'),
+            **seller_fields,
             'created_by': current_username,
-            'created_by_user_id': str(current_user_id),
-            'created_by_user_type': current_user_type,
             'approval_status': 'approved',
             'created_at': datetime.now(timezone.utc),
             'updated_at': datetime.now(timezone.utc),
             'registration_ip': request.remote_addr,
             'registration_user_agent': request.headers.get('User-Agent'),
         }
+        if data.get('commission_rate') is not None:
+            product_data['commission_rate'] = data['commission_rate']
         if data.get('product_id'):
             product_data['product_id'] = data['product_id']
 
@@ -1070,6 +1108,14 @@ def update_product(product_id):
         data['updated_by'] = current_username
         data['updated_by_user_id'] = str(current_user_id)
         data['updated_by_user_type'] = current_user_type
+
+        if any(data.get(key) for key in ('seller_trade_id', 'seller_id', 'created_by_user_id')):
+            seller = _resolve_seller_for_master_product(data)
+            if not seller:
+                return jsonify({'error': 'Seller not found'}), 404
+            if not seller.trade_id:
+                return jsonify({'error': 'Seller account is missing a trade ID'}), 400
+            data.update(_seller_profile_fields(seller))
 
         product = ProductService.update_product(product_id, data)
         if not product:
@@ -1566,10 +1612,63 @@ def get_service_accept_credit():
     try:
         from app.services.platform_settings_service import PlatformSettingsService
 
-        credit_count = PlatformSettingsService.get_service_accept_credit_cost()
-        return jsonify({'credit_count': credit_count}), 200
+        category = (request.args.get('category') or '').strip() or None
+        credit_count = PlatformSettingsService.get_service_accept_credit_cost(category)
+        return jsonify({'credit_count': credit_count, 'category': category}), 200
     except Exception as e:
         return jsonify({'error': f'Failed to get service accept credit: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/service-category-accept-credits', methods=['GET'])
+@jwt_required()
+def get_service_category_accept_credits():
+    """Get per-category service accept credit costs (masters only)"""
+    try:
+        from app.services.platform_settings_service import PlatformSettingsService
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can view service category credits'}), 403
+
+        category_credits = PlatformSettingsService.get_all_service_category_accept_credits()
+        default_credit = PlatformSettingsService.get_service_accept_credit_cost()
+        return jsonify({
+            'category_credits': category_credits,
+            'default_credit': default_credit,
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to get service category credits: {str(e)}'}), 500
+
+
+@api_bp.route('/commission/service-category-accept-credits', methods=['PUT'])
+@jwt_required()
+def set_service_category_accept_credits():
+    """Set per-category service accept credit costs (masters only)"""
+    try:
+        from app.services.platform_settings_service import PlatformSettingsService
+
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can update service category credits'}), 403
+
+        data = request.get_json() or {}
+        category_credits = data.get('category_credits')
+        if not isinstance(category_credits, dict) or not category_credits:
+            return jsonify({'error': 'category_credits object is required'}), 400
+
+        for category, count in category_credits.items():
+            if int(count) < 0:
+                return jsonify({'error': f'Invalid credit count for category {category}'}), 400
+
+        saved = PlatformSettingsService.bulk_set_service_category_accept_credits(category_credits)
+        return jsonify({
+            'message': f'Saved accept credits for {len(saved)} service categories',
+            'category_credits': saved,
+        }), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Failed to update service category credits: {str(e)}'}), 500
 
 
 @api_bp.route('/commission/service-accept-credit', methods=['PUT'])

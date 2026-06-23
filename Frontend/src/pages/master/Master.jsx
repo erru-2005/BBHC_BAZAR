@@ -12,7 +12,7 @@ import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent } from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins } from 'react-icons/fa'
 import PasswordResetDialog from '../../components/PasswordResetDialog'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
@@ -27,11 +27,12 @@ import ListServices from './components/ListServices'
 import AddService from './components/AddService'
 import OrdersList from './components/OrdersList'
 import CommissionManagement from './components/CommissionManagement'
+import ServiceCreditManagement from './components/ServiceCreditManagement'
 import Analysis from './components/analysis/Analysis'
 import ActiveCounters from './components/ActiveCounters'
 import './master.css'
 
-const TAB_ORDER_VERSION = '3'
+const TAB_ORDER_VERSION = '4'
 
 function Master() {
   const dispatch = useDispatch()
@@ -59,6 +60,7 @@ function Master() {
     { id: 'list-products', label: 'List Products', icon: FaThList },
     { id: 'list-services', label: 'List Services', icon: FaThList },
     { id: 'commission', label: 'Commission', icon: FaPercent },
+    { id: 'service-credits', label: 'Service Credits', icon: FaCoins },
     { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
     { id: 'list-sellers', label: 'List Sellers', icon: MdList },
     { id: 'add-outlet-man', label: 'Add Outlet Man', icon: IoMdPersonAdd },
@@ -632,6 +634,8 @@ function Master() {
         {activeTab === 'orders' && <OrdersList />}
 
         {activeTab === 'commission' && <CommissionManagement />}
+
+        {activeTab === 'service-credits' && <ServiceCreditManagement />}
       </div>
 
       {/* Right-side Menu */}

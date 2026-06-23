@@ -13,16 +13,25 @@ class SellerService:
     
     @staticmethod
     def get_seller_by_id(seller_id, include_blacklisted=False):
-        """Get seller by ID (excludes blacklisted by default)"""
+        """Get seller by MongoDB id or trade_id (excludes blacklisted by default)."""
+        if not seller_id:
+            return None
+        seller_id = str(seller_id).strip()
         try:
-            seller_doc = mongo.db.sellers.find_one({'_id': ObjectId(seller_id)})
+            seller_doc = None
+            try:
+                seller_doc = mongo.db.sellers.find_one({'_id': ObjectId(seller_id)})
+            except Exception:
+                seller_doc = None
+            if not seller_doc:
+                seller_doc = mongo.db.sellers.find_one({'trade_id': seller_id})
             if not seller_doc:
                 return None
-            
-            # Check if blacklisted (unless explicitly including blacklisted)
-            if not include_blacklisted and BlacklistService.is_blacklisted(seller_id):
+
+            resolved_id = str(seller_doc.get('_id'))
+            if not include_blacklisted and BlacklistService.is_blacklisted(resolved_id):
                 return None
-            
+
             return Seller.from_bson(seller_doc)
         except Exception:
             return None
@@ -45,10 +54,26 @@ class SellerService:
             return None
     
     @staticmethod
+    def resolve_seller(identifier, include_blacklisted=False):
+        """Resolve a seller from either MongoDB id or trade_id."""
+        if identifier is None or str(identifier).strip() == '':
+            return None
+        identifier = str(identifier).strip()
+        seller = SellerService.get_seller_by_id(identifier, include_blacklisted=include_blacklisted)
+        if seller:
+            return seller
+        return SellerService.get_seller_by_trade_id(identifier, include_blacklisted=include_blacklisted)
+
+    @staticmethod
     def get_seller_by_trade_id(trade_id, include_blacklisted=False):
         """Get seller by trade ID (excludes blacklisted by default)"""
+        if not trade_id:
+            return None
+        trade_id = str(trade_id).strip()
         try:
             seller_doc = mongo.db.sellers.find_one({'trade_id': trade_id})
+            if not seller_doc:
+                seller_doc = mongo.db.sellers.find_one({'tradeId': trade_id})
             if not seller_doc:
                 return None
             

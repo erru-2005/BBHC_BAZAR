@@ -232,7 +232,8 @@ def create_order():
                 'thumbnail': product_dict.get('thumbnail'),
                 'price': unit_price,
                 'sellerTradeId': seller_trade_id,
-                'availableQuantity': product_dict.get('quantity')
+                'availableQuantity': product_dict.get('quantity'),
+                'categories': product_dict.get('categories') or [],
             },
             'user_snapshot': {
                 'id': user_snapshot.get('id'),
@@ -619,6 +620,21 @@ def cancel_order(order_id):
     order_dict = updated_order.to_dict()
     emit_order_event('order_updated', order_dict, target_user_id=str(updated_order.user_id), target_seller_id=str(updated_order.seller_id))
 
+    # Send SMS notification to seller
+    try:
+        seller = SellerService.get_seller_by_id(str(updated_order.seller_id))
+        if seller and seller.phone_number:
+            product_snapshot = updated_order.product_snapshot or {}
+            product_name = product_snapshot.get('name') or 'Product'
+            order_number = updated_order.order_number or order_id
+            quantity = updated_order.quantity or 1
+            rejection_reason = updated_order.rejection_reason or reason
+            message = f"Order #{order_number} cancelled by user: {product_name} (Qty: {quantity}). Reason: {rejection_reason}. Contact user for details."
+            SMSService.send_message(seller.phone_number, message)
+    except Exception as e:
+        # Don't fail the request if SMS fails
+        print(f"Failed to send SMS notification to seller: {str(e)}")
+
     return jsonify({
         'message': 'Order cancelled successfully',
         'order': order_dict
@@ -647,6 +663,33 @@ def update_order_status(order_id):
 
     order_dict = updated_order.to_dict()
     emit_order_event('order_updated', order_dict, target_user_id=str(updated_order.user_id), target_seller_id=str(updated_order.seller_id))
+
+    # Send SMS notifications for order status changes that affect sellers/users
+    try:
+        product_snapshot = updated_order.product_snapshot or {}
+        product_name = product_snapshot.get('name') or 'Product'
+        order_number = updated_order.order_number or order_id
+        quantity = updated_order.quantity or 1
+        rejection_reason = data.get('rejection_reason', '').strip() if data.get('rejection_reason') else None
+        note_text = rejection_reason or note or 'No reason provided'
+
+        # Notify user when order is rejected
+        if status in ['rejected', 'seller_rejected'] and user_type == 'master':
+            user = UserService.get_user_by_id(str(updated_order.user_id))
+            if user and user.phone_number:
+                message = f"Order #{order_number} rejected by admin: {product_name} (Qty: {quantity}). Reason: {note_text}."
+                SMSService.send_message(user.phone_number, message)
+
+        # Notify seller when order is rejected or cancelled
+        if status in ['rejected', 'seller_rejected', 'cancelled'] and user_type == 'master':
+            seller = SellerService.get_seller_by_id(str(updated_order.seller_id))
+            if seller and seller.phone_number:
+                message = f"Order #{order_number} rejected/cancelled by admin: {product_name} (Qty: {quantity}). Reason: {note_text}."
+                SMSService.send_message(seller.phone_number, message)
+
+    except Exception as e:
+        # Don't fail the request if SMS fails
+        print(f"Failed to send SMS notification: {str(e)}")
 
     return jsonify({
         'message': 'Order status updated',
