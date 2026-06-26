@@ -776,14 +776,15 @@ def refresh():
     Refresh access token using an Opaque Refresh Token stored in HttpOnly cookies or Authorization header.
     """
     try:
-        # Get token from cookie (primary)
-        refresh_token = request.cookies.get('refresh_token')
+        # Get token from Authorization header FIRST (frontend always sends this)
+        refresh_token = None
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            refresh_token = auth_header[7:]
         
-        # If no cookie, try Authorization header (for frontend localStorage fallback)
+        # If no header, fall back to cookie (for browser-native requests without JS)
         if not refresh_token:
-            auth_header = request.headers.get('Authorization')
-            if auth_header and auth_header.startswith('Bearer '):
-                refresh_token = auth_header[7:]
+            refresh_token = request.cookies.get('refresh_token')
         
         device_id = request.json.get('device_id') if request.is_json else None
         
@@ -832,7 +833,6 @@ def refresh():
         }))
         
         # Update cookie only if token was originally from cookie
-        # If token was from Authorization header, don't set cookie to avoid overwriting
         original_from_cookie = bool(request.cookies.get('refresh_token'))
         if original_from_cookie:
             set_access_cookies(resp, new_access_token)

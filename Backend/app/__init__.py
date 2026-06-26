@@ -134,6 +134,13 @@ def create_app(config_class=Config):
         transports=['polling', 'websocket']
     )
     
+    # Suppress 500 errors from engineio websocket disconnections during upgrade
+    @app.errorhandler(500)
+    def handle_socketio_500(error):
+        if request.path.startswith('/socket.io'):
+            return '', 200
+        return jsonify({'error': 'Internal server error'}), 500
+    
     # Create indexes on startup
     with app.app_context():
         create_indexes()

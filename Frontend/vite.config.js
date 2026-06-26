@@ -34,7 +34,20 @@ export default defineConfig({
       },
       '/socket.io': {
         target: 'http://127.0.0.1:5001',
-        ws: true
+        ws: true,
+        configure: (proxy) => {
+          proxy.on('error', (err) => {
+            // Suppress ECONNABORTED errors from client disconnects
+            if (err.code === 'ECONNABORTED') return
+            console.error('[vite] ws proxy error:', err)
+          })
+          proxy.on('proxyReqWs', (proxyReq, req, socket) => {
+            socket.on('error', (err) => {
+              if (err.code === 'ECONNABORTED') return
+              console.error('[vite] ws proxy socket error:', err)
+            })
+          })
+        }
       },
       '/static': {
         target: 'http://127.0.0.1:5001',
