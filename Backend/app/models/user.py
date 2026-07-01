@@ -12,7 +12,7 @@ class User:
     def __init__(self, username, email, password_hash, first_name=None, 
                  last_name=None, phone_number=None, address=None, 
                  date_of_birth=None, is_active=True, is_admin=False, 
-                 created_at=None, updated_at=None, _id=None):
+                 notifications_enabled=False, created_at=None, updated_at=None, _id=None):
         self._id = _id or ObjectId()
         self.username = username
         self.email = email
@@ -24,6 +24,7 @@ class User:
         self.date_of_birth = date_of_birth
         self.is_active = is_active
         self.is_admin = is_admin
+        self.notifications_enabled = notifications_enabled
         self.created_at = created_at or datetime.now(timezone.utc)
         self.updated_at = updated_at or datetime.now(timezone.utc)
     
@@ -55,6 +56,7 @@ class User:
             'date_of_birth': self.date_of_birth.isoformat() if isinstance(self.date_of_birth, datetime) else self.date_of_birth,
             'is_active': self.is_active,
             'is_admin': self.is_admin,
+            'notifications_enabled': self.notifications_enabled,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at
         }
@@ -76,6 +78,7 @@ class User:
             'date_of_birth': self.date_of_birth,
             'is_active': self.is_active,
             'is_admin': self.is_admin,
+            'notifications_enabled': self.notifications_enabled,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
@@ -104,6 +107,7 @@ class User:
             date_of_birth=bson_doc.get('date_of_birth'),
             is_active=bson_doc.get('is_active', True),
             is_admin=bson_doc.get('is_admin', False),
+            notifications_enabled=bson_doc.get('notifications_enabled', False),
             created_at=bson_doc.get('created_at'),
             updated_at=bson_doc.get('updated_at')
         )

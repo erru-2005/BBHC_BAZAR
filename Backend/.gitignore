@@ -64,3 +64,8 @@ media/
 .DS_Store
 Thumbs.db
 
+# Firebase / Service Account Credentials
+*firebase-adminsdk*.json
+*.pem
+private.pem
+public.pem

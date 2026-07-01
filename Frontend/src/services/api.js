@@ -2274,9 +2274,34 @@ export const getActiveCounts = async () => {
     const response = await apiClient.get(API_ENDPOINTS.API.ANALYTICS.ACTIVE_COUNTS)
     return response.data || response || { activeUsers: 0, activeSellers: 0 }
   } catch (error) {
-    // If endpoint doesn't exist (404) or CORS/network error, return default values
-    // Browser will log CORS errors - we silently handle them
     return { activeUsers: 0, activeSellers: 0 }
+  }
+}
+
+export const getWebContainerUrl = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.WEB_CONTAINER.GET_URL)
+    return response || { url: '' }
+  } catch (error) {
+    return { url: '' }
+  }
+}
+
+export const setWebContainerUrl = async (url) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.WEB_CONTAINER.SET_URL, { url })
+    return response.data || response
+  } catch (error) {
+    throw new Error(error.response?.data?.error || error.message || 'Failed to save URL')
+  }
+}
+
+export const enableNotifications = async (fcmToken = null) => {
+  try {
+    const response = await apiClient.post('/api/auth/enable-notifications', { fcm_token: fcmToken })
+    return response.data || response
+  } catch (error) {
+    throw new Error(error.response?.data?.error || error.message || 'Failed to enable notifications')
   }
 }
 

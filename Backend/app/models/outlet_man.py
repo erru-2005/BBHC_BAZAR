@@ -11,7 +11,7 @@ class OutletMan:
     
     def __init__(self, outlet_access_code, email, password_hash, phone_number=None,
                  first_name=None, last_name=None, is_active=False, created_by="system",
-                 created_at=None, _id=None):
+                 notifications_enabled=False, created_at=None, _id=None):
         self._id = _id or ObjectId()
         self.outlet_access_code = outlet_access_code
         self.email = email
@@ -21,6 +21,7 @@ class OutletMan:
         self.last_name = last_name
         self.is_active = is_active
         self.created_by = created_by
+        self.notifications_enabled = notifications_enabled
         self.created_at = created_at or datetime.now(timezone.utc)
     
     @staticmethod
@@ -49,6 +50,7 @@ class OutletMan:
             'last_name': self.last_name,
             'is_active': self.is_active,
             'created_by': self.created_by,
+            'notifications_enabled': self.notifications_enabled,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at
         }
         if include_password:
@@ -67,6 +69,7 @@ class OutletMan:
             'last_name': self.last_name,
             'is_active': self.is_active,
             'created_by': self.created_by,
+            'notifications_enabled': self.notifications_enabled,
             'created_at': self.created_at
         }
     
@@ -92,6 +95,7 @@ class OutletMan:
             last_name=bson_doc.get('last_name'),
             is_active=bson_doc.get('is_active', False),
             created_by=bson_doc.get('created_by', 'system'),
+            notifications_enabled=bson_doc.get('notifications_enabled', False),
             created_at=bson_doc.get('created_at')
         )
     

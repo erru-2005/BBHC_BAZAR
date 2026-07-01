@@ -80,6 +80,24 @@ def create_app(config_class=Config):
     # Initialize JWT
     jwt.init_app(app)
     
+    # Initialize Firebase Admin SDK
+    try:
+        import firebase_admin
+        from firebase_admin import credentials
+        
+        firebase_json_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'notification-bbhcbazaar-firebase-adminsdk-fbsvc-abead36959.json'
+        )
+        if os.path.exists(firebase_json_path):
+            cred = credentials.Certificate(firebase_json_path)
+            firebase_admin.initialize_app(cred)
+            print("[Firebase] Firebase Admin SDK initialized successfully.")
+        else:
+            print(f"[Firebase] Service account JSON not found at: {firebase_json_path}")
+    except Exception as e:
+        print(f"[Firebase] Failed to initialize Firebase Admin SDK: {str(e)}")
+    
     # JWT error handlers for better error messages
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
@@ -156,9 +174,11 @@ def create_app(config_class=Config):
     from app.routes.service_route import service_bp
     from app.routes.payment_route import payment_bp
     from app.routes.image_route import image_bp
+    from app.routes.web_container import web_container_bp
     
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(image_bp, url_prefix='/api')
+    app.register_blueprint(web_container_bp, url_prefix='/api')
     app.register_blueprint(auth_bp)
     app.register_blueprint(ratings_bp, url_prefix='/api')
     app.register_blueprint(orders_bp, url_prefix='/api')

@@ -11,7 +11,7 @@ class Seller:
     
     def __init__(self, trade_id, email, password_hash, phone_number=None,
                  first_name=None, last_name=None, image_url=None, is_active=False, 
-                 credits=30, created_by="system", created_at=None, _id=None):
+                 credits=30, created_by="system", notifications_enabled=False, created_at=None, _id=None):
         self._id = _id or ObjectId()
         self.trade_id = trade_id
         self.email = email
@@ -23,6 +23,7 @@ class Seller:
         self.is_active = is_active
         self.credits = credits
         self.created_by = created_by
+        self.notifications_enabled = notifications_enabled
         self.created_at = created_at or datetime.now(timezone.utc)
     
     @staticmethod
@@ -53,6 +54,7 @@ class Seller:
             'is_active': self.is_active,
             'credits': self.credits,
             'created_by': self.created_by,
+            'notifications_enabled': self.notifications_enabled,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at
         }
         if include_password:
@@ -73,6 +75,7 @@ class Seller:
             'is_active': self.is_active,
             'credits': self.credits,
             'created_by': self.created_by,
+            'notifications_enabled': self.notifications_enabled,
             'created_at': self.created_at
         }
     
@@ -100,6 +103,7 @@ class Seller:
             is_active=bson_doc.get('is_active', False),
             credits=bson_doc.get('credits', 30),
             created_by=bson_doc.get('created_by', 'system'),
+            notifications_enabled=bson_doc.get('notifications_enabled', False),
             created_at=bson_doc.get('created_at')
         )
     

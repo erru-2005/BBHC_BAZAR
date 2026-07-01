@@ -38,9 +38,9 @@ import {
 } from './pages'
 import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
-import SplashScreen from './components/SplashScreen'
 import Footer from './components/Footer'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef } from 'react'
+import NotificationPrompt from './components/NotificationPrompt'
 import { useDispatch, useSelector } from 'react-redux'
 import { setHomeProducts, setHomeWishlist, setCategories, setLoading } from './store/dataSlice'
 import { setSellerProducts, setSellerOrders } from './store/sellerSlice'
@@ -57,7 +57,8 @@ import {
   getOutletMen,
   getCurrentUser,
   bindPortalRealtimeSync,
-  refreshSellerProfile
+  refreshSellerProfile,
+  enableNotifications
 } from './services/api'
 import {
   isCacheStale,
@@ -80,12 +81,6 @@ function SplashWrapper() {
   const masterState = useSelector((state) => state.master)
   const outletState = useSelector((state) => state.outlet)
 
-  const [showSplash, setShowSplash] = useState(() => {
-    // Only show splash on initial load to home page
-    const hasSeenSplash = sessionStorage.getItem('hasSeenSplash')
-    return location.pathname === '/' && !hasSeenSplash
-  })
-  const [showContent, setShowContent] = useState(!showSplash)
   const headerLogoRef = useRef(null)
 
   useEffect(() => {
@@ -266,63 +261,48 @@ function SplashWrapper() {
     let socket
     const onConnect = () => bindPortalRealtimeSync()
 
+    const onAppNotification = (data) => {
+      console.log('[Socket] App notification received:', data)
+      if (window.AppNotifications) {
+        window.AppNotifications.postMessage(JSON.stringify(data))
+      }
+    }
+
     if (isAuthenticated && token) {
       console.log(`[App] Initializing global socket for authenticated ${userType}`)
       socket = initSocket(token, userType)
       bindPortalRealtimeSync()
       socket.on('connect', onConnect)
+      socket.on('app_notification', onAppNotification)
+
+      // Automatically sync FCM token if running inside Flutter app shell
+      if (window.flutterFCMToken) {
+        enableNotifications(window.flutterFCMToken).catch(err => {
+          console.error('[App] Failed to auto-sync FCM token:', err)
+        })
+      }
     } else {
       console.log('[App] Initializing global socket as guest')
       socket = initSocket(null, 'user')
+      socket.on('app_notification', onAppNotification)
     }
 
     return () => {
       socket?.off('connect', onConnect)
+      socket?.off('app_notification', onAppNotification)
     }
   }, [isAuthenticated, token, userType])
 
-  useEffect(() => {
-    if (location.pathname === '/') {
-      const hasSeenSplash = sessionStorage.getItem('hasSeenSplash')
-      if (!hasSeenSplash) {
-        setShowSplash(true)
-        setShowContent(true) // Render content but keep it hidden
-      } else {
-        setShowSplash(false)
-        setShowContent(true)
-      }
-    } else {
-      setShowSplash(false)
-      setShowContent(true)
-    }
-  }, [location.pathname])
-
-  const handleSplashComplete = () => {
-    sessionStorage.setItem('hasSeenSplash', 'true')
-    setShowSplash(false)
-  }
-
   return (
     <>
-      {showSplash && (
-        <SplashScreen
-          onComplete={handleSplashComplete}
-          headerLogoRef={headerLogoRef}
-        />
-      )}
-      {showContent && (
-        <div style={{ 
-          opacity: showSplash ? 0 : 1, 
-          transition: 'opacity 0.3s', 
-          pointerEvents: showSplash ? 'none' : 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: '100vh'
-        }}>
-          <main style={{ flex: 1 }}>
-            <Routes>
-              {/* ... existing routes ... */}
-              <Route path="/" element={<Home headerLogoRef={headerLogoRef} />} />
+      <div style={{ 
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh'
+      }}>
+        <main style={{ flex: 1 }}>
+          <Routes>
+            <Route path="/" element={<Home headerLogoRef={headerLogoRef} />} />
               <Route path="/category/:categoryId" element={<CategoryProducts headerLogoRef={headerLogoRef} />} />
               <Route path="/products" element={<AllProducts headerLogoRef={headerLogoRef} />} />
               <Route path="/services" element={<Services headerLogoRef={headerLogoRef} />} />
@@ -422,7 +402,7 @@ function SplashWrapper() {
             </Routes>
           </main>
         </div>
-      )}
+        <NotificationPrompt />
     </>
   )
 }

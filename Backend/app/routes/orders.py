@@ -271,7 +271,7 @@ def create_order():
                     f"New order #{order_no}: {product_name} (Qty: {qty}, ₹{total_amount_val:.2f}). "
                     "Visit BBHCBazaar seller dashboard to accept/reject."
                 )
-                SMSService.send_message(seller_phone, message_body)
+                SMSService.send_message(seller_phone, message_body, product_thumbnail=product_dict.get('thumbnail'))
         except Exception as e:
             # Don't block order creation on SMS failure
             print(f"Failed to send SMS notification to seller: {str(e)}")
@@ -407,7 +407,7 @@ def seller_accept_order(order_id):
             order_number = updated_order.order_number or order_id
             quantity = updated_order.quantity or 1
             message = f"Order #{order_number} accepted! {product_name} (Qty: {quantity}). Visit BBHCBazaar site for details."
-            SMSService.send_message(user.phone_number, message)
+            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification to user: {str(e)}")
@@ -460,7 +460,7 @@ def seller_reject_order(order_id):
             quantity = updated_order.quantity or 1
             rejection_reason = updated_order.rejection_reason or reason
             message = f"Order #{order_number} rejected: {product_name} (Qty: {quantity}). Reason: {rejection_reason}. Visit BBHCBazaar site for details."
-            SMSService.send_message(user.phone_number, message)
+            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification to user: {str(e)}")
@@ -523,14 +523,14 @@ def scan_order_token():
             if user and user.phone_number:
                 pickup_location = updated_order.pickup_location or 'BBHCBazaar Experience Outlet'
                 message = f"Order #{order_number}: {product_name} (Qty: {quantity}) ready for pickup at {pickup_location}. Visit BBHCBazaar outlet with your QR code to collect."
-                SMSService.send_message(user.phone_number, message)
+                SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
 
         elif order_status == 'completed':
             # User collected product - notify seller
             seller = SellerService.get_seller_by_id(str(updated_order.seller_id))
             if seller and seller.phone_number:
                 message = f"Order #{order_number} completed! {product_name} (Qty: {quantity}) collected. Total: ₹{total_amount:.2f}. Thanks!"
-                SMSService.send_message(seller.phone_number, message)
+                SMSService.send_message(seller.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification: {str(e)}")

@@ -115,8 +115,8 @@ def register_events(socketio):
                 # Decrement counter for active counter connections
                 counts = decrement_counter(role)
                 print(f"[Socket Events] {role.capitalize()} disconnected (active counter). Socket ID: {socket_id}. Counts: {counts}")
-                # Broadcast updated counts - use room=None to broadcast to all
-                socketio.emit('active_counts', counts, namespace='/', room=None)
+                # Broadcast updated counts - use to=None to broadcast to all
+                socketio.emit('active_counts', counts, namespace='/', to=None)
             
             # Find user by socket_id and update status
             # Check masters collection

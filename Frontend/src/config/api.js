@@ -96,6 +96,10 @@ export const API_ENDPOINTS = {
       TOP_PRODUCTS: `${API_BASE_URL}/api/analytics/top-products`,
       SALES_BY_SELLER: `${API_BASE_URL}/api/analytics/sales-by-seller`,
       ACTIVE_COUNTS: `${API_BASE_URL}/api/analytics/active-counts`
+    },
+    WEB_CONTAINER: {
+      GET_URL: `${API_BASE_URL}/api/web-container/url`,
+      SET_URL: `${API_BASE_URL}/api/web-container/url`
     }
   }
 }

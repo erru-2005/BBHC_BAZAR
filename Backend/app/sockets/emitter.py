@@ -15,7 +15,7 @@ def _emit_to_collection(collection_name, filter_query, event_name, payload):
         for doc in cursor:
             socket_id = doc.get('socket_id')
             if socket_id:
-                socketio.emit(event_name, payload, room=socket_id)
+                socketio.emit(event_name, payload, to=socket_id)
     except Exception as exc:
         # We intentionally swallow errors here to avoid breaking the main request flow.
         print(f"[SocketEmitter] Failed to emit to {collection_name}: {exc}")
@@ -26,7 +26,7 @@ def _emit_to_user(user_id, event_name, payload):
     try:
         user_doc = mongo.db.users.find_one({'_id': ObjectId(user_id)}, {'socket_id': 1})
         if user_doc and user_doc.get('socket_id'):
-            socketio.emit(event_name, payload, room=user_doc['socket_id'])
+            socketio.emit(event_name, payload, to=user_doc['socket_id'])
     except Exception as exc:
         print(f"[SocketEmitter] Failed to emit to user {user_id}: {exc}")
 
@@ -36,7 +36,7 @@ def _emit_to_seller(seller_id, event_name, payload):
     try:
         seller_doc = mongo.db.sellers.find_one({'_id': ObjectId(seller_id)}, {'socket_id': 1})
         if seller_doc and seller_doc.get('socket_id'):
-            socketio.emit(event_name, payload, room=seller_doc['socket_id'])
+            socketio.emit(event_name, payload, to=seller_doc['socket_id'])
     except Exception as exc:
         print(f"[SocketEmitter] Failed to emit to seller {seller_id}: {exc}")
 

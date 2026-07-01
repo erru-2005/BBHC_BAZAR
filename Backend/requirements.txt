@@ -19,6 +19,7 @@ Flask-Marshmallow==0.15.0
 # Real-time Communication
 python-socketio==5.11.0
 flask-socketio==5.3.6
+firebase-admin==6.5.0
 # eventlet removed - not compatible with Python 3.13, using threading mode instead
 
 # Utilities
@@ -26,8 +27,6 @@ python-dateutil==2.8.2
 requests==2.31.0
 # Note: bson is included with pymongo, no need to install separately
 
-# SMS Service
-twilio==9.0.0
 
 # Payments
 razorpay==1.4.2

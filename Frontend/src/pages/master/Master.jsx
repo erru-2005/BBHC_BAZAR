@@ -12,7 +12,7 @@ import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins } from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins ,FaGlobe} from 'react-icons/fa'
 import PasswordResetDialog from '../../components/PasswordResetDialog'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
@@ -30,6 +30,7 @@ import CommissionManagement from './components/CommissionManagement'
 import ServiceCreditManagement from './components/ServiceCreditManagement'
 import Analysis from './components/analysis/Analysis'
 import ActiveCounters from './components/ActiveCounters'
+import WebContainerSettings from './components/WebContainerSettings'
 import './master.css'
 
 const TAB_ORDER_VERSION = '4'
@@ -61,6 +62,7 @@ function Master() {
     { id: 'list-services', label: 'List Services', icon: FaThList },
     { id: 'commission', label: 'Commission', icon: FaPercent },
     { id: 'service-credits', label: 'Service Credits', icon: FaCoins },
+    { id: 'web-container', label: 'Web Container', icon: FaGlobe },
     { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
     { id: 'list-sellers', label: 'List Sellers', icon: MdList },
     { id: 'add-outlet-man', label: 'Add Outlet Man', icon: IoMdPersonAdd },
@@ -572,6 +574,8 @@ function Master() {
             <Analysis />
           </div>
         )}
+        
+        {activeTab === 'web-container' && <WebContainerSettings />}
         
         {activeTab === 'add-seller' && <AddSeller />}
         

@@ -1169,3 +1169,48 @@ def user_profile():
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f'Failed to process request: {str(e)}'}), 500
+
+
+@auth_bp.route('/enable-notifications', methods=['POST'])
+@jwt_required()
+def enable_notifications():
+    """Enable in-app notifications and optionally register FCM token for the current user/seller/master/outlet_man"""
+    try:
+        from bson import ObjectId
+        from app import mongo
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        user_type = claims.get('user_type')
+        
+        if not current_user_id or not user_type:
+            return jsonify({'error': 'Invalid token'}), 401
+            
+        user_obj_id = ObjectId(current_user_id)
+        
+        # Get optional FCM token from payload
+        data = request.get_json(silent=True) or {}
+        fcm_token = data.get('fcm_token')
+        
+        update_fields = {'notifications_enabled': True}
+        if fcm_token:
+            update_fields['fcm_token'] = fcm_token
+            
+        if user_type == 'master':
+            mongo.db.master.update_one({'_id': user_obj_id}, {'$set': update_fields})
+        elif user_type == 'seller':
+            mongo.db.sellers.update_one({'_id': user_obj_id}, {'$set': update_fields})
+        elif user_type == 'user':
+            mongo.db.users.update_one({'_id': user_obj_id}, {'$set': update_fields})
+        elif user_type == 'outlet_man':
+            mongo.db.outlet_men.update_one({'_id': user_obj_id}, {'$set': update_fields})
+        else:
+            return jsonify({'error': 'Invalid user type'}), 400
+            
+        return jsonify({
+            'message': 'Notifications enabled successfully',
+            'notifications_enabled': True,
+            'fcm_token_registered': bool(fcm_token)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to enable notifications: {str(e)}'}), 500

@@ -11,7 +11,7 @@ class Master:
     
     def __init__(self, name, username, email, password_hash, phone_number, 
                  address=None, image_url=None, status="active", created_by="bazar@bbhc",
-                 created_at=None, _id=None):
+                 notifications_enabled=False, created_at=None, _id=None):
         self._id = _id or ObjectId()
         self.name = name
         self.username = username
@@ -22,6 +22,7 @@ class Master:
         self.image_url = image_url
         self.status = status
         self.created_by = created_by
+        self.notifications_enabled = notifications_enabled
         self.created_at = created_at or datetime.now(timezone.utc)
     
     @staticmethod
@@ -51,6 +52,7 @@ class Master:
             'image_url': self.image_url,
             'status': self.status,
             'created_by': self.created_by,
+            'notifications_enabled': self.notifications_enabled,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at
         }
         if include_password:
@@ -70,6 +72,7 @@ class Master:
             'image_url': self.image_url,
             'status': self.status,
             'created_by': self.created_by,
+            'notifications_enabled': self.notifications_enabled,
             'created_at': self.created_at
         }
     
@@ -96,6 +99,7 @@ class Master:
             image_url=bson_doc.get('image_url'),
             status=bson_doc.get('status', 'active'),
             created_by=bson_doc.get('created_by', 'bazar@bbhc'),
+            notifications_enabled=bson_doc.get('notifications_enabled', False),
             created_at=bson_doc.get('created_at')
         )
     

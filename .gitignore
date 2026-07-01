@@ -1,3 +1,10 @@
 .env
 frontend/.env
 backend/.env
+
+# Firebase / Service Account Credentials
+Backend/*firebase-adminsdk*.json
+Backend/*.pem
+bazar_user/android/app/google-services.json
+bazar_user/ios/Runner/GoogleService-Info.plist
+bazar_user/lib/firebase_options.dart
