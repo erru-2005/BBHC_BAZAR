@@ -80,7 +80,7 @@ class SMSService:
             return outlet, 'outlet_man'
             
         # Check master collection
-        master = mongo.db.master.find_one({
+        master = mongo.db.masters.find_one({
             '$or': [
                 {'phone_number': phone_number},
                 {'phone_number': normalized}

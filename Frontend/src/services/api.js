@@ -2087,7 +2087,8 @@ export const sellerRejectOrder = async (orderId, reason = null) => {
 export const scanOrderToken = async (token, preview = false) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.API.ORDER_SCAN, { token, preview })
-    return response.order
+    // Return full response so callers can access slot_number alongside order
+    return response
   } catch (error) {
     throw new Error(error.message || 'Failed to scan token')
   }
@@ -2307,3 +2308,20 @@ export const enableNotifications = async (fcmToken = null) => {
   }
 }
 
+export const getOutletSlots = async () => {
+  try {
+    const response = await apiClient.get('/api/outlet/slots')
+    return response.data || response
+  } catch (error) {
+    throw new Error(error.response?.data?.error || error.message || 'Failed to get slots')
+  }
+}
+
+export const resizeOutletSlots = async (size) => {
+  try {
+    const response = await apiClient.post('/api/outlet/slots/resize', { size })
+    return response.data || response
+  } catch (error) {
+    throw new Error(error.response?.data?.error || error.message || 'Failed to resize slots')
+  }
+}
