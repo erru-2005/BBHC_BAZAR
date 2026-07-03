@@ -230,7 +230,7 @@ class OrderService:
         return updated_order
 
     @staticmethod
-    def seller_accept_order(order_id, seller_id):
+    def seller_accept_order(order_id, seller_id, delivery_promise=None):
         """Seller accepts order, generates tokens and QR codes."""
         try:
             order_obj_id = ObjectId(order_id)
@@ -291,21 +291,27 @@ class OrderService:
             seller_token = OrderService.generate_secure_token(str(order._id), str(order.seller_id), str(order.user_id), 'seller')
             qr_data_user = f"BBHC|ORDER:{order.order_number}|TOKEN:{user_token}"
 
+            set_fields = {
+                'status': 'seller_accepted',
+                'secure_token_user': user_token,
+                'secure_token_seller': seller_token,
+                'qr_code_data': qr_data_user,
+                'updated_at': datetime.now(timezone.utc)
+            }
+            note = 'Seller accepted the order'
+            if delivery_promise:
+                set_fields['delivery_promise'] = delivery_promise
+                note += f" (Expected delivery: {delivery_promise.replace('_', ' ')})"
+
             result = collection.update_one(
                 {'_id': order_obj_id},
                 {
-                    '$set': {
-                        'status': 'seller_accepted',
-                        'secure_token_user': user_token,
-                        'secure_token_seller': seller_token,
-                        'qr_code_data': qr_data_user,
-                        'updated_at': datetime.now(timezone.utc)
-                    },
+                    '$set': set_fields,
                     '$push': {
                         'status_history': {
                             'status': 'seller_accepted',
                             'timestamp': datetime.now(timezone.utc),
-                            'note': 'Seller accepted the order',
+                            'note': note,
                             'updated_by': f'seller:{seller_id}'
                         }
                     }

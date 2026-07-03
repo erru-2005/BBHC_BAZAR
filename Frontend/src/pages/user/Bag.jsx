@@ -10,6 +10,7 @@ import MobileSearchBar from './components/MobileSearchBar'
 import { getBag, updateBagItem, removeFromBag, createOrder, clearBag } from '../../services/api'
 import { FaTrash } from 'react-icons/fa6'
 import { FaMinus, FaPlus } from 'react-icons/fa'
+import { getExpectedDeliveryDate, formatDate } from '../../utils/delivery'
 
 const formatCurrency = (value) => {
   if (value === undefined || value === null) return '₹0'
@@ -286,6 +287,7 @@ function Bag() {
                 const price = Number(product.total_selling_price || product.selling_price || product.max_price || 0)
                 const maxPrice = Number(product.max_price || product.total_selling_price || product.selling_price || 0)
                 const itemTotal = price * item.quantity
+                const expectedDelivery = product.delivery_promise ? getExpectedDeliveryDate(product.delivery_promise) : null
 
                 return (
                   <div
@@ -322,6 +324,13 @@ function Bag() {
                             <span className="text-sm text-gray-500 line-through">{formatCurrency(maxPrice)}</span>
                           )}
                         </div>
+
+                        {expectedDelivery && (
+                          <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold mb-3">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse shrink-0" />
+                            <span>The order will be delivered on or before {formatDate(expectedDelivery)}</span>
+                          </div>
+                        )}
 
                         {/* Quantity Controls */}
                         <div className="flex items-center gap-4">
@@ -534,6 +543,7 @@ function CheckoutConfirmModal({ bagItems, subtotal, deliveryFee, total, onConfir
             // Use total_selling_price (with commission) if available, otherwise fall back to selling_price
             const price = Number(product.total_selling_price || product.selling_price || product.max_price || 0)
             const itemTotal = price * item.quantity
+            const expectedDelivery = product.delivery_promise ? getExpectedDeliveryDate(product.delivery_promise) : null
             return (
               <div key={item.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-3">
                 <img
@@ -548,6 +558,12 @@ function CheckoutConfirmModal({ bagItems, subtotal, deliveryFee, total, onConfir
                   <p className="text-xs text-gray-500">
                     Qty: {item.quantity} × {formatCurrency(price)}
                   </p>
+                  {expectedDelivery && (
+                    <p className="text-[10px] text-emerald-700 font-bold mt-0.5 flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-emerald-600 animate-pulse shrink-0" />
+                      <span>The order will be delivered on or before {formatDate(expectedDelivery)}</span>
+                    </p>
+                  )}
                 </div>
                 <p className="text-sm font-semibold text-gray-900">
                   {formatCurrency(itemTotal)}

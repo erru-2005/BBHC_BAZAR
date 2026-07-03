@@ -2062,9 +2062,11 @@ export const getOrder = async (orderId) => {
   }
 }
 
-export const sellerAcceptOrder = async (orderId) => {
+export const sellerAcceptOrder = async (orderId, deliveryPromise = null) => {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_ACCEPT(orderId), {})
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_ACCEPT(orderId), {
+      delivery_promise: deliveryPromise
+    })
     return response.order
   } catch (error) {
     throw new Error(error.message || 'Failed to accept order')

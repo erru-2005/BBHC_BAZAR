@@ -107,7 +107,7 @@ function OTPVerification() {
         setPhoneNumberMasked(response.phone_number)
       }
       setResendTimer(60)
-      setInfoMessage('A new code has been sent to your phone.')
+      setInfoMessage('A new code has been sent to your email address.')
     } catch (err) {
       setError(err.message || 'Failed to resend OTP. Please try again.')
     } finally {
@@ -120,7 +120,7 @@ function OTPVerification() {
       state: {
         prefillPhone: phoneNumber,
         returnTo,
-        message: 'Update your phone number'
+        message: 'Update your email address'
       }
     })
   }
@@ -142,14 +142,14 @@ function OTPVerification() {
             <p className="text-xs tracking-[0.3em] text-gray-500 uppercase mb-3">Two Step Security</p>
             <h1 className="text-3xl font-semibold text-gray-900 mb-3">Enter Verification Code</h1>
             <p className="text-base text-gray-500 mb-4">
-              We sent a code to <span className="font-semibold text-gray-900">{phoneNumberMasked || phoneNumber}</span>
+              We sent a code to your registered email address <span className="font-semibold text-gray-900">{phoneNumberMasked || phoneNumber}</span>. You will get the OTP in email.
             </p>
             <button
               onClick={handleEditPhone}
               className="inline-flex items-center gap-2 text-gray-900 font-medium text-sm border border-gray-900/20 rounded-full px-4 py-1.5 hover:bg-gray-900 hover:text-white transition"
             >
               <FaEdit className="w-3.5 h-3.5" />
-              <span>Edit phone number</span>
+              <span>Edit email address</span>
             </button>
           </div>
 

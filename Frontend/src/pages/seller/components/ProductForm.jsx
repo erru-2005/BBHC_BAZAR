@@ -77,6 +77,26 @@ function CategoryDropdown({ categories, selected, onSelect, commissionRates }) {
   )
 }
 
+const parseDeliveryPromiseToDays = (dp) => {
+  if (!dp) return 1
+  const normalized = String(dp).toLowerCase().trim()
+  if (normalized === 'today') return 0
+  if (normalized === 'tomorrow') return 1
+  const match = normalized.match(/^(\d+)/)
+  if (match) {
+    return parseInt(match[1], 10)
+  }
+  return 1
+}
+
+const convertDaysToDeliveryPromise = (days) => {
+  const d = parseInt(days, 10)
+  if (isNaN(d) || d < 0) return 'tomorrow'
+  if (d === 0) return 'today'
+  if (d === 1) return 'tomorrow'
+  return `${d}_days`
+}
+
 const INITIAL_POINTS = ['', '', '']
 
 function SellerProductForm({ initialProduct = null }) {
@@ -88,7 +108,8 @@ function SellerProductForm({ initialProduct = null }) {
     specification: '',
     sellingPrice: '',
     maxPrice: '',
-    category: ''
+    category: '',
+    deliveryDays: '1'
   })
   const [points, setPoints] = useState(INITIAL_POINTS)
   const [thumbnail, setThumbnail] = useState(null)
@@ -99,6 +120,8 @@ function SellerProductForm({ initialProduct = null }) {
   const [submitting, setSubmitting] = useState(false)
 
   const isEditing = useMemo(() => !!initialProduct, [initialProduct])
+
+
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -125,12 +148,15 @@ function SellerProductForm({ initialProduct = null }) {
 
   useEffect(() => {
     if (initialProduct) {
+      const dp = initialProduct.delivery_promise || 'tomorrow'
+      const isCustom = !['today', 'tomorrow', '3_days', '4_days', '5_days', '6_days', '7_days'].includes(dp)
       setForm({
         productName: initialProduct.product_name || '',
         specification: initialProduct.specification || '',
         sellingPrice: initialProduct.selling_price || '',
         maxPrice: initialProduct.max_price || '',
-        category: Array.isArray(initialProduct.categories) ? initialProduct.categories[0] : initialProduct.categories || ''
+        category: Array.isArray(initialProduct.categories) ? initialProduct.categories[0] : initialProduct.categories || '',
+        deliveryDays: String(parseDeliveryPromiseToDays(initialProduct.delivery_promise))
       })
       setPoints(
         Array.isArray(initialProduct.points) && initialProduct.points.length
@@ -240,6 +266,11 @@ function SellerProductForm({ initialProduct = null }) {
       setStatus({ type: 'error', message: 'Please fill in product name, specification, and at least one highlight.' })
       return
     }
+ 
+    if (form.deliveryDays === undefined || form.deliveryDays === '' || isNaN(parseInt(form.deliveryDays, 10)) || parseInt(form.deliveryDays, 10) < 0) {
+      setStatus({ type: 'error', message: 'Please specify a valid number of days for delivery.' })
+      return
+    }
 
     if (!thumbnail) {
       setStatus({ type: 'error', message: 'Please upload a thumbnail image.' })
@@ -307,6 +338,7 @@ function SellerProductForm({ initialProduct = null }) {
         max_price: max,
         categories: form.category ? [form.category] : [],
         product_id: entityId,
+        delivery_promise: convertDaysToDeliveryPromise(form.deliveryDays),
       }
 
       if (isEditing && initialProduct?.id) {
@@ -434,6 +466,27 @@ function SellerProductForm({ initialProduct = null }) {
               onSelect={(val) => setForm(prev => ({ ...prev, category: val }))}
               commissionRates={categoryCommissionRates}
             />
+          </div>
+        </div>
+ 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-3">
+            <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+              Delivery Promise (Number of Days) <span className="text-rose-600 font-semibold">*</span>
+            </label>
+            <input
+              type="number"
+              name="deliveryDays"
+              min="0"
+              value={form.deliveryDays}
+              onChange={handleChange}
+              className="w-full px-6 py-4 bg-white border border-slate-300 rounded-2xl text-slate-900 font-semibold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm group hover:border-blue-600"
+              placeholder="e.g. 0 for today, 1 for tomorrow, 3 for 3 days"
+              required
+            />
+            <p className="text-[10px] text-slate-500 font-medium ml-1">
+              Specify the number of days it will take to deliver. For example: 0 for today, 1 for tomorrow, 3 for 3 days, etc.
+            </p>
           </div>
         </div>
 

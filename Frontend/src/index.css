@@ -47,8 +47,8 @@ body {
   --seller-primary-soft: #EFF6FF;
   --seller-accent: #3A81F1;
   --seller-border: #E2E8F0;
-  --seller-radius-lg: 2rem;
-  --seller-radius-md: 1.25rem;
+  --seller-radius-lg: 4px;
+  --seller-radius-md: 2px;
   --seller-shadow-premium: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
   --seller-glass: rgba(255, 255, 255, 0.7);
 }

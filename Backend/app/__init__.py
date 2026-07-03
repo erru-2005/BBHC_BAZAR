@@ -60,8 +60,27 @@ def create_app(config_class=Config):
         # Fallback for connection strings without @ (local MongoDB)
         if not mongodb_uri.endswith('/'):
             mongodb_uri += '/'
-        app.config['MONGO_URI'] = f"{mongodb_uri}{mongodb_db}"
     mongo.init_app(app)
+ 
+    with app.app_context():
+        try:
+            # Migration: Update existing products missing delivery_promise to 'tomorrow'
+            result = mongo.db.products.update_many(
+                {
+                    '$or': [
+                        {'delivery_promise': {'$exists': False}},
+                        {'delivery_promise': None},
+                        {'delivery_promise': ''}
+                    ]
+                },
+                {
+                    '$set': {'delivery_promise': 'tomorrow'}
+                }
+            )
+            if result.modified_count > 0:
+                print(f"[Migration] Successfully updated {result.modified_count} existing products to have delivery_promise='tomorrow'")
+        except Exception as e:
+            print(f"[Migration] Error running delivery_promise migration: {str(e)}")
     
     # Initialize CORS with proper OPTIONS handling
     # We use a robust configuration that allows the browser to handle credentials correctly

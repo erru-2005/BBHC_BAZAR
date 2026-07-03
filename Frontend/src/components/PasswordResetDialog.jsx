@@ -230,7 +230,7 @@ function PasswordResetDialog({
                 <div>
                   <p className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-600 mb-1">Verification Required</p>
                   <p className="text-xs font-bold text-slate-500">
-                    {maskedPhone ? `Transmitted to ${maskedPhone}` : 'Authorize via mobile verification'}
+                    {maskedPhone ? `The OTP has been sent to your email address ${maskedPhone}. You will get the OTP in email.` : 'Authorize via email verification'}
                   </p>
                 </div>
                 <button

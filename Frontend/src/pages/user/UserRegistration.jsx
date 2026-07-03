@@ -24,14 +24,23 @@ function UserRegistration() {
   const [showSuccess, setShowSuccess] = useState(false)
 
   useEffect(() => {
-    // Get phone number from navigation state
-    if (location.state?.phoneNumber) {
-      setFormData(prev => ({
-        ...prev,
-        phone_number: location.state.phoneNumber
-      }))
+    // Get phone number or email from navigation state
+    const inputVal = location.state?.phoneNumber || ''
+    if (inputVal) {
+      if (inputVal.includes('@')) {
+        setFormData(prev => ({
+          ...prev,
+          email: inputVal,
+          phone_number: ''
+        }))
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          phone_number: inputVal
+        }))
+      }
     } else {
-      // If no phone number, redirect back
+      // If no identifier, redirect back
       navigate('/user/phone-entry')
     }
   }, [location, navigate])
@@ -46,6 +55,10 @@ function UserRegistration() {
   }
 
   const validateForm = () => {
+    if (!formData.phone_number.trim() || formData.phone_number.trim().length < 10) {
+      setError('Please enter a valid phone number (at least 10 digits)')
+      return false
+    }
     if (!formData.first_name.trim()) {
       setError('First name is required')
       return false
@@ -173,6 +186,23 @@ function UserRegistration() {
               />
             </div>
 
+             <div>
+              <label htmlFor="phone_number" className="block text-sm font-medium text-gray-800 mb-2">
+                <span className="inline-block mr-2">📞</span>
+                Phone Number *
+              </label>
+              <input
+                type="tel"
+                id="phone_number"
+                name="phone_number"
+                value={formData.phone_number}
+                onChange={handleChange}
+                placeholder="Enter your phone number"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm"
+                required
+              />
+            </div>
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-800 mb-2">
                 <FaEnvelope className="inline w-4 h-4 mr-2" />
@@ -184,8 +214,9 @@ function UserRegistration() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm disabled:bg-gray-100 disabled:text-gray-500"
                 required
+                disabled={location.state?.phoneNumber?.includes('@')}
               />
             </div>
 

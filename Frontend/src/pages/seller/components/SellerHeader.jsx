@@ -48,11 +48,11 @@ function AddCreditsModal({ isOpen, onClose, onNavigateWallet }) {
           initial={{ opacity: 0, scale: 0.9, y: 40 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 40 }}
-          className="relative w-full max-w-[420px] bg-white rounded-[32px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-100 my-auto"
+          className="relative w-full max-w-[420px] bg-white rounded-[4px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-100 my-auto"
         >
           <div className="p-8">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-[2px] bg-amber-50 flex items-center justify-center">
                 <CreditCoin />
               </div>
               <div>
@@ -66,7 +66,7 @@ function AddCreditsModal({ isOpen, onClose, onNavigateWallet }) {
             <button
               type="button"
               onClick={handleGoWallet}
-              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black shadow-xl shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-2"
+              className="w-full py-4 bg-slate-900 text-white rounded-[4px] font-black shadow-xl shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-2"
             >
               <FiPlus className="w-5 h-5" />
               Open Wallet
@@ -157,10 +157,10 @@ export default function SellerHeader({ onOpenProfile }) {
           </motion.div>
 
           {/* Desktop Insights */}
-          <div className="hidden lg:flex items-center gap-4 bg-slate-50/80 border border-slate-200/60 rounded-2xl px-4 py-2 flex-1 max-w-2xl ml-6 group hover:bg-white hover:border-blue-200 transition-all duration-300">
+          <div className="hidden lg:flex items-center gap-4 bg-slate-50/80 border border-slate-200/60 rounded-[4px] px-4 py-2 flex-1 max-w-2xl ml-6 group hover:bg-white hover:border-blue-200 transition-all duration-300">
             <div className="flex items-center gap-3 border-r border-slate-200/60 pr-4">
                <div className="relative">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center text-amber-400 shadow-lg">
+                  <div className="w-9 h-9 rounded-[2px] bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center text-amber-400 shadow-lg">
                     <FiAward className="w-5 h-5" />
                   </div>
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white" />
@@ -211,7 +211,7 @@ export default function SellerHeader({ onOpenProfile }) {
           {/* Desktop Credits (Hidden on Mobile) */}
           <div 
             onClick={() => navigate('/seller/dashboard', { state: { view: 'wallet' } })}
-            className="hidden md:flex items-center gap-2 bg-amber-50 border border-amber-200/50 rounded-2xl px-3 py-1.5 shadow-sm group/credit transition-all hover:bg-white hover:border-amber-300 cursor-pointer"
+            className="hidden md:flex items-center gap-2 bg-amber-50 border border-amber-200/50 rounded-[4px] px-3 py-1.5 shadow-sm group/credit transition-all hover:bg-white hover:border-amber-300 cursor-pointer"
           >
             <CreditCoin />
             <div className="flex flex-col leading-none">
@@ -231,7 +231,7 @@ export default function SellerHeader({ onOpenProfile }) {
                 e.stopPropagation()
                 setIsCreditModalOpen(true)
               }}
-              className="ml-1 w-6 h-6 bg-amber-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-amber-200/50 hover:bg-amber-600 transition-all active:scale-90"
+              className="ml-1 w-6 h-6 bg-amber-500 rounded-[2px] flex items-center justify-center text-white shadow-lg shadow-amber-200/50 hover:bg-amber-600 transition-all active:scale-90"
             >
               <FiPlus className="w-3.5 h-3.5 stroke-[3]" />
             </button>
@@ -239,7 +239,7 @@ export default function SellerHeader({ onOpenProfile }) {
 
           <button 
             onClick={() => navigate('/seller/dashboard', { state: { view: 'notifications' } })}
-            className="relative p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+            className="relative p-2.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-[2px] transition-all"
           >
             <FiBell className="w-5 h-5" />
             <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white shadow-sm"></span>
@@ -249,14 +249,14 @@ export default function SellerHeader({ onOpenProfile }) {
 
           <div 
             onClick={onOpenProfile}
-            className="flex items-center gap-3 cursor-pointer group px-1.5 py-1 rounded-xl hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-3 cursor-pointer group px-1.5 py-1 rounded-[2px] hover:bg-slate-50 transition-colors"
           >
             <div className="text-right flex flex-col hidden lg:flex">
               <span className="text-sm font-bold text-slate-900 transition-colors capitalize">
                 {user?.first_name ? `${user.first_name}` : (user?.name?.split(' ')[0] || 'Account')}
               </span>
             </div>
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm transition-all group-hover:border-blue-400">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-[2px] overflow-hidden bg-slate-100 border border-slate-200 shadow-sm transition-all group-hover:border-blue-400">
               {user?.image_url || user?.image ? (
                   <div 
                     className="w-full h-full scale-[1.2]" 
@@ -294,7 +294,7 @@ export default function SellerHeader({ onOpenProfile }) {
                   onClick={() => navigate(item.path, { state: item.state })}
                   className={`flex flex-col items-center gap-1 min-w-[64px] transition-all ${isActive ? 'text-slate-900' : 'text-slate-400'}`}
                 >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'bg-slate-50 text-slate-400'}`}>
+                  <div className={`w-10 h-10 rounded-[2px] flex items-center justify-center transition-all ${isActive ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' : 'bg-slate-50 text-slate-400'}`}>
                     <item.icon className="w-4.5 h-4.5" />
                   </div>
                   <span className={`text-[9px] font-black uppercase tracking-tight ${isActive ? 'opacity-100' : 'opacity-60'}`}>{item.label}</span>
@@ -308,7 +308,7 @@ export default function SellerHeader({ onOpenProfile }) {
           {/* Mobile Credits */}
           <div 
             onClick={() => navigate('/seller/dashboard', { state: { view: 'wallet' } })}
-            className="flex items-center gap-2 bg-amber-50 border border-amber-200/50 rounded-xl px-2.5 py-1.5 shadow-sm shrink-0"
+            className="flex items-center gap-2 bg-amber-50 border border-amber-200/50 rounded-[2px] px-2.5 py-1.5 shadow-sm shrink-0"
           >
             <div className="flex flex-col leading-none">
               <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">Credits</span>
@@ -327,7 +327,7 @@ export default function SellerHeader({ onOpenProfile }) {
                 e.stopPropagation()
                 setIsCreditModalOpen(true)
               }}
-              className="w-5 h-5 bg-amber-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-amber-200/50"
+              className="w-5 h-5 bg-amber-500 rounded-[2px] flex items-center justify-center text-white shadow-lg shadow-amber-200/50"
             >
               <FiPlus className="w-3 h-3 stroke-[3]" />
             </button>

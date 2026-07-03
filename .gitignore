@@ -8,3 +8,8 @@ Backend/*.pem
 bazar_user/android/app/google-services.json
 bazar_user/ios/Runner/GoogleService-Info.plist
 bazar_user/lib/firebase_options.dart
+
+# Play Store Keys and Release configs
+bazar_user/android/key.properties
+bazar_user/play_store_release/
+

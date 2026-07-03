@@ -856,7 +856,14 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
       
       final title = data['title'] ?? 'Notification';
       final body = data['message'] ?? '';
-      final thumbnail = data['thumbnail'];
+      String? thumbnail = data['thumbnail'];
+      
+      // Resolve relative thumbnail paths
+      if (thumbnail != null && thumbnail.isNotEmpty) {
+        if (!thumbnail.startsWith('http://') && !thumbnail.startsWith('https://')) {
+          thumbnail = "${ApiService.baseUrl}${thumbnail.startsWith('/') ? '' : '/'}$thumbnail";
+        }
+      }
       
       _showOverlayNotification(title: title, body: body, thumbnailUrl: thumbnail);
     } catch (e) {

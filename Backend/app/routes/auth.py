@@ -164,15 +164,19 @@ def master_login():
         otp = OTPManager.generate_otp()
         session_id = OTPManager.store_otp(user_id, 'master', otp)
         
-        # Get masked phone number (last 4 digits)
-        masked_phone = mask_phone_number(master.phone_number) if master.phone_number else None
+        # Get email or phone number
+        email = getattr(master, 'email', None)
+        if not email:
+            return jsonify({'error': 'Email address not found for this master account'}), 400
+            
+        masked_id = email[:3] + "..." + email[email.find('@'):] if '@' in email else mask_phone_number(email)
         
-        # Send OTP via SMS if phone number is available
+        # Send OTP via Email
         sms_sent = False
         sms_error = None
-        if master.phone_number:
+        if email:
             try:
-                success, message = SMSService.send_otp(master.phone_number, otp)
+                success, message = SMSService.send_otp(email, otp)
                 if success:
                     sms_sent = True
                 else:
@@ -185,7 +189,7 @@ def master_login():
             'message': 'OTP sent successfully',
             'otp_session_id': session_id,
             'user': user_data,
-            'phone_number': masked_phone,  # Masked phone number (last 4 digits)
+            'phone_number': masked_id,  # Returning masked email
             'skip_otp': False
         }
         
@@ -218,21 +222,22 @@ def master_forgot_password():
         if not master:
             return jsonify({'error': 'Invalid username or account not found'}), 404
         
-        if not master.phone_number:
-            return jsonify({'error': 'Phone number not found for this account. Please contact support.'}), 400
+        email = getattr(master, 'email', None)
+        if not email:
+            return jsonify({'error': 'Email address not found for this account. Please contact support.'}), 400
         
         user_id = str(master._id)
         user_data = master.to_dict(include_password=False)
         
         otp = OTPManager.generate_otp()
-        session_id = OTPManager.store_otp(user_id, 'master', otp)
+        session_id = OTPManager.store_otp(user_id, 'master', otp, phone_number=email)
         
-        masked_phone = mask_phone_number(master.phone_number)
+        masked_id = email[:3] + "..." + email[email.find('@'):] if '@' in email else mask_phone_number(email)
         
         sms_sent = False
         sms_error = None
         try:
-            success, message = SMSService.send_otp(master.phone_number, otp)
+            success, message = SMSService.send_otp(email, otp)
             if success:
                 sms_sent = True
             else:
@@ -244,7 +249,7 @@ def master_forgot_password():
             'message': 'OTP sent successfully',
             'otp_session_id': session_id,
             'user': user_data,
-            'phone_number': masked_phone,
+            'phone_number': masked_id,
             'skip_otp': False
         }
         
@@ -432,22 +437,22 @@ def seller_login():
         otp = OTPManager.generate_otp()
         session_id = OTPManager.store_otp(user_id, 'seller', otp)
         
-        # Check if seller has phone_number (required for OTP)
-        phone_number = seller.phone_number if hasattr(seller, 'phone_number') and seller.phone_number else None
+        # Check if seller has email (required for OTP)
+        email = seller.email if hasattr(seller, 'email') and seller.email else None
         
-        if not phone_number:
+        if not email:
             return jsonify({
-                'error': 'Phone number is required for seller login. Please contact administrator to add phone number to your account.'
+                'error': 'Email is required for seller login. Please contact administrator to add email to your account.'
             }), 400
         
-        # Get masked phone number
-        masked_phone = mask_phone_number(phone_number)
+        # Get masked email
+        masked_id = email[:3] + "..." + email[email.find('@'):] if '@' in email else mask_phone_number(email)
         
-        # Send OTP via SMS
+        # Send OTP via Email
         sms_sent = False
         sms_error = None
         try:
-            success, message = SMSService.send_otp(phone_number, otp)
+            success, message = SMSService.send_otp(email, otp)
             if success:
                 sms_sent = True
             else:
@@ -460,7 +465,7 @@ def seller_login():
             'message': 'OTP sent successfully',
             'otp_session_id': session_id,
             'user': user_data,
-            'phone_number': masked_phone,  # Masked phone number (last 4 digits)
+            'phone_number': masked_id,  # Returning masked email
             'skip_otp': False
         }
         
@@ -497,8 +502,9 @@ def seller_forgot_password():
         if BlacklistService.is_blacklisted(str(seller._id)):
             return jsonify({'error': 'This account has been blacklisted. Please contact support.'}), 403
         
-        if not getattr(seller, 'phone_number', None):
-            return jsonify({'error': 'Phone number is required for seller login. Please contact administrator to add phone number to your account.'}), 400
+        email = getattr(seller, 'email', None)
+        if not email:
+            return jsonify({'error': 'Email is required for seller login. Please contact administrator to add email to your account.'}), 400
         
         user_id = str(seller._id)
         user_data = seller.to_dict(include_password=False)
@@ -509,34 +515,34 @@ def seller_forgot_password():
         )
         
         otp = OTPManager.generate_otp()
-        session_id = OTPManager.store_otp(user_id, 'seller', otp)
+        session_id = OTPManager.store_otp(user_id, 'seller', otp, phone_number=email)
         print(
             f"[OTP DEBUG] generated seller forgot-password OTP trade_id={trade_id} session_id={session_id} otp={otp}",
             flush=True
         )
         
-        masked_phone = mask_phone_number(seller.phone_number)
+        masked_id = email[:3] + "..." + email[email.find('@'):] if '@' in email else mask_phone_number(email)
         
         sms_sent = False
         sms_error = None
         try:
-            success, message = SMSService.send_otp(seller.phone_number, otp)
+            success, message = SMSService.send_otp(email, otp)
             if success:
                 sms_sent = True
                 print(
-                    f"[OTP DEBUG] OTP SMS sent trade_id={trade_id} phone={masked_phone} session_id={session_id}",
+                    f"[OTP DEBUG] OTP Email sent trade_id={trade_id} email={masked_id} session_id={session_id}",
                     flush=True
                 )
             else:
                 sms_error = message
                 print(
-                    f"[OTP DEBUG] OTP SMS send failed trade_id={trade_id} phone={masked_phone} session_id={session_id} error={sms_error}",
+                    f"[OTP DEBUG] OTP Email send failed trade_id={trade_id} email={masked_id} session_id={session_id} error={sms_error}",
                     flush=True
                 )
         except Exception as e:
             sms_error = str(e)
             print(
-                f"[OTP DEBUG] OTP SMS exception trade_id={trade_id} phone={masked_phone} session_id={session_id} error={sms_error}",
+                f"[OTP DEBUG] OTP Email exception trade_id={trade_id} email={masked_id} session_id={session_id} error={sms_error}",
                 flush=True
             )
         
@@ -544,7 +550,7 @@ def seller_forgot_password():
             'message': 'OTP sent successfully',
             'otp_session_id': session_id,
             'user': user_data,
-            'phone_number': masked_phone,
+            'phone_number': masked_id,
             'skip_otp': False
         }
         
@@ -921,35 +927,44 @@ def user_send_otp():
         if not data:
             return jsonify({'error': 'Request body is required'}), 400
         
-        phone_number = data.get('phone_number')
+        phone_or_email = data.get('phone_number')
         
-        if not phone_number:
-            return jsonify({'error': 'Phone number is required'}), 400
+        if not phone_or_email:
+            return jsonify({'error': 'Phone number or Email is required'}), 400
         
-        # Clean phone number (remove spaces, dashes, etc.)
-        phone_number = ''.join(filter(str.isdigit, phone_number))
+        is_email = '@' in str(phone_or_email)
         
-        if len(phone_number) < 10:
-            return jsonify({'error': 'Invalid phone number'}), 400
-        
-        # Check if user exists
-        user = UserService.get_user_by_phone_number(phone_number)
-        
+        if is_email:
+            email = phone_or_email.strip().lower()
+            user = UserService.get_user_by_email(email)
+            identifier = email
+            masked_id = email[:3] + "..." + email[email.find('@'):]
+        else:
+            # Clean phone number (remove spaces, dashes, etc.)
+            phone_number = ''.join(filter(str.isdigit, phone_or_email))
+            if len(phone_number) < 10:
+                return jsonify({'error': 'Invalid phone number'}), 400
+            user = UserService.get_user_by_phone_number(phone_number)
+            email = user.email if user else None
+            identifier = phone_number
+            masked_id = mask_phone_number(phone_number)
+            
+        if not email and not is_email:
+            # If we don't have a registered email for this phone number, we can't send email OTP
+            return jsonify({'error': 'No registered email found for this phone number. Please enter email directly.'}), 400
+            
         # Generate OTP
         otp = OTPManager.generate_otp()
         
         # Store OTP with user_type 'user' and user_id (if user exists) or None (for new registration)
         user_id = str(user._id) if user else None
-        session_id = OTPManager.store_otp(user_id, 'user', otp, phone_number=phone_number)
+        session_id = OTPManager.store_otp(user_id, 'user', otp, phone_number=email or identifier)
         
-        # Get masked phone number
-        masked_phone = mask_phone_number(phone_number)
-        
-        # Send OTP via SMS
+        # Send OTP via Email
         sms_sent = False
         sms_error = None
         try:
-            success, message = SMSService.send_otp(phone_number, otp)
+            success, message = SMSService.send_otp(email or identifier, otp)
             if success:
                 sms_sent = True
             else:
@@ -960,7 +975,7 @@ def user_send_otp():
         response_data = {
             'message': 'OTP sent successfully',
             'otp_session_id': session_id,
-            'phone_number': masked_phone,
+            'phone_number': masked_id,
             'user_exists': user is not None
         }
         
@@ -1004,13 +1019,18 @@ def user_verify_otp():
         if error:
             return jsonify({'error': error}), 400
         
-        # Get phone number from session
+        # Get identifier from session
         phone_number = user_info.get('phone_number')
         if not phone_number:
-            return jsonify({'error': 'Phone number not found in session'}), 400
+            return jsonify({'error': 'Verification identifier not found in session'}), 400
+        
+        is_email = '@' in str(phone_number)
         
         # Check if user exists
-        user = UserService.get_user_by_phone_number(phone_number)
+        if is_email:
+            user = UserService.get_user_by_email(phone_number)
+        else:
+            user = UserService.get_user_by_phone_number(phone_number)
         
         if user:
             # User exists - login
@@ -1031,15 +1051,15 @@ def user_verify_otp():
                 extra_resp_data={'message': 'Login successful', 'user_exists': True}
             )
         else:
-            # User doesn't exist - return phone number for registration
-            masked_phone = mask_phone_number(phone_number)
+            # User doesn't exist - return email/phone for registration
+            masked_phone = phone_number[:3] + "..." + phone_number[phone_number.find('@'):] if is_email else mask_phone_number(phone_number)
             return jsonify({
                 'message': 'OTP verified. Please complete registration.',
                 'user_exists': False,
-                'phone_number': phone_number,  # Return full phone for registration
+                'phone_number': phone_number,  # Return full identifier for registration
                 'phone_number_masked': masked_phone
             }), 200
-        
+            
     except Exception as e:
         return jsonify({'error': f'OTP verification failed: {str(e)}'}), 500
 

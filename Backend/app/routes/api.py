@@ -980,6 +980,7 @@ def create_product():
             'categories': data.get('categories', []),
             'selling_price': data['selling_price'],
             'max_price': data['max_price'],
+            'delivery_promise': data.get('delivery_promise'),
             **seller_fields,
             'created_by': current_username,
             'approval_status': 'approved',
@@ -1221,6 +1222,7 @@ def seller_update_product(product_id):
         data['max_price'] = data.get('max_price', existing_product.max_price)
         data['quantity'] = data.get('quantity', existing_product.quantity)
         data['categories'] = data.get('categories', existing_product.categories)
+        data['delivery_promise'] = data.get('delivery_promise', getattr(existing_product, 'delivery_promise', 'tomorrow'))
 
         # Create pending edit request
         edit_request = ProductService.create_product(data)
@@ -1258,7 +1260,6 @@ def get_pending_products():
     except Exception as e:
         return jsonify({'error': f'Failed to get pending products: {str(e)}'}), 500
 
-
 @api_bp.route('/products/<product_id>/approve', methods=['POST'])
 @jwt_required()
 def approve_product(product_id):
@@ -1278,6 +1279,20 @@ def approve_product(product_id):
 
         product_dict = product.to_dict()
         emit_product_event('product_approved', product_dict)
+
+        # Notify seller
+        if product.seller_phone:
+            try:
+                from app.utils.sms import SMSService
+                message = f"Your product '{product.product_name}' has been approved and is now active on the store."
+                SMSService.send_message(
+                    product.seller_phone,
+                    message,
+                    product_thumbnail=product.thumbnail,
+                    title="Product Approved"
+                )
+            except Exception as ns_err:
+                print(f"[Notification] Failed to send product approval push: {str(ns_err)}")
 
         return jsonify({
             'message': 'Product approved successfully',
@@ -1306,11 +1321,29 @@ def reject_product(product_id):
         if not reason:
             return jsonify({'error': 'Rejection reason is required'}), 400
 
+        product = ProductService.get_product_by_id(product_id)
+        if not product:
+            return jsonify({'error': 'Product not found'}), 404
+
         success, error = ProductService.reject_product(product_id, move_to_bin, reason, recommendation)
         if error:
             return jsonify({'error': error}), 400
         if not success:
             return jsonify({'error': 'Failed to reject product'}), 400
+
+        # Notify seller
+        if product.seller_phone:
+            try:
+                from app.utils.sms import SMSService
+                message = f"Your product '{product.product_name}' has been rejected. Reason: {reason}."
+                SMSService.send_message(
+                    product.seller_phone,
+                    message,
+                    product_thumbnail=product.thumbnail,
+                    title="Product Rejected"
+                )
+            except Exception as ns_err:
+                print(f"[Notification] Failed to send product rejection push: {str(ns_err)}")
 
         return jsonify({
             'message': 'Product rejected successfully',
@@ -1319,6 +1352,7 @@ def reject_product(product_id):
         }), 200
     except Exception as e:
         return jsonify({'error': f'Failed to reject product: {str(e)}'}), 500
+
 
 
 @api_bp.route('/products/<product_id>', methods=['DELETE'])

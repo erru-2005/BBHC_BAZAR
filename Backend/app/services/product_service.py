@@ -102,7 +102,8 @@ class ProductService:
                 created_at=product_data.get('created_at') or datetime.now(timezone.utc),
                 updated_at=product_data.get('updated_at') or datetime.now(timezone.utc),
                 registration_ip=product_data.get('registration_ip'),
-                registration_user_agent=product_data.get('registration_user_agent')
+                registration_user_agent=product_data.get('registration_user_agent'),
+                delivery_promise=product_data.get('delivery_promise')
             )
             product._id = product_id
 
@@ -267,7 +268,7 @@ class ProductService:
         try:
             update_fields = {}
 
-            for field in ['product_name', 'specification', 'thumbnail', 'selling_price', 'max_price', 'seller_trade_id', 'seller_name', 'seller_email', 'seller_phone', 'commission_rate']:
+            for field in ['product_name', 'specification', 'thumbnail', 'selling_price', 'max_price', 'seller_trade_id', 'seller_name', 'seller_email', 'seller_phone', 'commission_rate', 'delivery_promise']:
                 if field in product_data and product_data[field] not in (None, ''):
                     if field in ['selling_price', 'max_price', 'commission_rate']:
                         update_fields[field] = float(product_data[field])

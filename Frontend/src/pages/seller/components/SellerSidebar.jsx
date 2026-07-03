@@ -46,9 +46,9 @@ export default function SellerSidebar({ onOpenAddProduct }) {
             className="relative group cursor-pointer"
           >
             {/* High-end Glow Effect */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-600 rounded-[2rem] blur-xl opacity-20 group-hover:opacity-40 transition-all duration-1000 group-hover:duration-300 animate-pulse" />
+            <div className="absolute -inset-1 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-600 rounded-[4px] blur-xl opacity-20 group-hover:opacity-40 transition-all duration-1000 group-hover:duration-300 animate-pulse" />
             
-            <div className="relative flex items-center justify-center bg-white/90 backdrop-blur-md rounded-[1.75rem] py-4 px-6 border border-white shadow-2xl overflow-hidden">
+            <div className="relative flex items-center justify-center bg-white/90 backdrop-blur-md rounded-[4px] py-4 px-6 border border-white shadow-2xl overflow-hidden">
                {/* Shine Animation */}
                <motion.div 
                  animate={{ left: ['-100%', '200%'] }}
@@ -72,7 +72,7 @@ export default function SellerSidebar({ onOpenAddProduct }) {
                 key={item.label}
                 to={item.path}
                 state={item.state}
-                className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-[2px] transition-all duration-300 group ${
                   active 
                     ? 'text-blue-600 bg-blue-50/50' 
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
@@ -88,7 +88,7 @@ export default function SellerSidebar({ onOpenAddProduct }) {
                 {active && (
                   <motion.div 
                     layoutId="sidebar-active-indicator"
-                    className="absolute left-0 w-1.5 h-6 bg-blue-600 rounded-r-full shadow-[2px_0_10px_rgba(37,99,235,0.4)]" 
+                    className="absolute left-0 w-1.5 h-6 bg-blue-600 rounded-r-[2px] shadow-[2px_0_10px_rgba(37,99,235,0.4)]" 
                   />
                 )}
               </Link>
@@ -102,10 +102,10 @@ export default function SellerSidebar({ onOpenAddProduct }) {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => navigate('/seller/profile')}
-          className="bg-white border border-slate-200 rounded-[2rem] p-5 relative overflow-hidden group mb-4 cursor-pointer hover:border-blue-400 transition-all"
+          className="bg-white border border-slate-200 rounded-[4px] p-5 relative overflow-hidden group mb-4 cursor-pointer hover:border-blue-400 transition-all"
         >
           <div className="flex items-center gap-4 relative z-10">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 flex-shrink-0 shadow-inner">
+            <div className="w-12 h-12 rounded-[2px] overflow-hidden bg-slate-100 border border-slate-100 flex-shrink-0 shadow-inner">
                {user?.image_url || user?.image ? (
                   <div 
                     className="w-full h-full scale-[1.2]" 
@@ -133,7 +133,7 @@ export default function SellerSidebar({ onOpenAddProduct }) {
           whileHover={{ scale: 1.02, boxShadow: "0 10px 20px -10px rgba(37, 99, 235, 0.4)" }}
           whileTap={{ scale: 0.98 }}
           onClick={onOpenAddProduct}
-          className="w-full relative group h-14 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center gap-3 text-white shadow-lg transition-all overflow-hidden"
+          className="w-full relative group h-14 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[4px] flex items-center justify-center gap-3 text-white shadow-lg transition-all overflow-hidden"
         >
            <FiPlus className="w-4 h-4" strokeWidth={3} />
            <span className="font-black text-[10px] tracking-[0.2em] uppercase">Add Listing</span>

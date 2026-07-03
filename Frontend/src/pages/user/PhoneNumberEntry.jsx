@@ -31,8 +31,8 @@ function PhoneNumberEntry() {
     e.preventDefault()
     setError(null)
 
-    if (!phoneNumber || phoneNumber.trim().length < 10) {
-      setError('Please enter a valid phone number')
+    if (!phoneNumber || !phoneNumber.includes('@')) {
+      setError('Please enter a valid email address')
       return
     }
 
@@ -56,9 +56,7 @@ function PhoneNumberEntry() {
   }
 
   const handlePhoneChange = (e) => {
-    // Only allow digits
-    const value = e.target.value.replace(/\D/g, '')
-    setPhoneNumber(value)
+    setPhoneNumber(e.target.value)
   }
 
   return (
@@ -79,8 +77,8 @@ function PhoneNumberEntry() {
               <FaPhone className="w-7 h-7" />
             </div>
             <p className="text-xs tracking-[0.3em] text-gray-500 uppercase mb-2">Secure Sign In</p>
-            <h1 className="text-3xl font-semibold text-gray-900 mb-2">Enter Your Phone Number</h1>
-            <p className="text-base text-gray-500">We'll send you a verification code</p>
+            <h1 className="text-3xl font-semibold text-gray-900 mb-2">Enter Your Email Address</h1>
+            <p className="text-base text-gray-500">We will send you a verification code to your email address. You will get the OTP in email.</p>
             {message && (
               <p className="text-gray-900 font-medium mt-4 text-sm bg-gray-100 px-3 py-2 inline-flex rounded-full">
                 {message}
@@ -91,16 +89,15 @@ function PhoneNumberEntry() {
           <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
             <div>
               <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2 uppercase tracking-wide">
-                Phone Number
+                Email Address
               </label>
               <input
-                type="tel"
+                type="email"
                 id="phone"
                 value={phoneNumber}
                 onChange={handlePhoneChange}
-                placeholder="Enter your phone number"
+                placeholder="Enter your email address"
                 className="w-full px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/10 focus:border-gray-900 transition"
-                maxLength={15}
                 required
               />
             </div>
@@ -113,7 +110,7 @@ function PhoneNumberEntry() {
 
             <button
               type="submit"
-              disabled={loading || !phoneNumber || phoneNumber.length < 10}
+              disabled={loading || !phoneNumber || !phoneNumber.includes('@')}
               className="w-full bg-gray-900 hover:bg-black disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3.5 px-4 rounded-xl transition-colors duration-200 tracking-wide uppercase"
             >
               {loading ? 'Sending OTP...' : 'Continue'}

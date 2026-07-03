@@ -252,6 +252,21 @@ def accept_service(service_id):
 
         service_dict = _service_response(service)
         emit_service_event('service_updated', service_dict)
+
+        # Notify seller
+        if service and service.seller_phone:
+            try:
+                from app.utils.sms import SMSService
+                message = f"Your service '{service.service_name}' has been approved and is now active on the store."
+                SMSService.send_message(
+                    service.seller_phone,
+                    message,
+                    product_thumbnail=service.thumbnail,
+                    title="Service Approved"
+                )
+            except Exception as ns_err:
+                print(f"[Notification] Failed to send service approval push: {str(ns_err)}")
+
         return jsonify({'message': 'Service approved', 'service': service_dict}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -269,11 +284,30 @@ def reject_service(service_id):
         data = request.get_json() or {}
         reason = data.get('reason', 'Rejected by master')
 
+        service = ServiceService.get_service_by_id(service_id)
+        if not service:
+            return jsonify({'error': 'Service not found'}), 404
+
         success, error = ServiceService.reject_service(service_id, reason=reason)
         if error:
             return jsonify({'error': error}), 400
 
         emit_service_event('service_deleted', {'id': service_id, 'reason': reason})
+
+        # Notify seller
+        if service.seller_phone:
+            try:
+                from app.utils.sms import SMSService
+                message = f"Your service '{service.service_name}' has been rejected. Reason: {reason}."
+                SMSService.send_message(
+                    service.seller_phone,
+                    message,
+                    product_thumbnail=service.thumbnail,
+                    title="Service Rejected"
+                )
+            except Exception as ns_err:
+                print(f"[Notification] Failed to send service rejection push: {str(ns_err)}")
+
         return jsonify({'message': 'Service rejected and moved to bin'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500

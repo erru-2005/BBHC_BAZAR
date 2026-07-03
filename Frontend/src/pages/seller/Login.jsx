@@ -353,9 +353,9 @@ function SellerLogin() {
               {/* Success Message */}
               <div className="mb-6 p-3 rounded-lg bg-green-50 text-green-600 text-sm text-center">
                 {phoneNumber ? (
-                  <>OTP sent successfully to {phoneNumber}! Please enter the 6-digit code below.</>
+                  <>The OTP has been sent to your email address {phoneNumber}. You will get the OTP in email. Please enter the 6-digit code below.</>
                 ) : (
-                  <>OTP sent successfully! Please enter the 6-digit code below.</>
+                  <>The OTP has been sent to your email address. You will get the OTP in email. Please enter the 6-digit code below.</>
                 )}
               </div>
 

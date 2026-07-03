@@ -100,7 +100,7 @@ export default function SellerNotifications() {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => navigate('/seller/dashboard', { state: { view: 'dashboard' } })}
-            className="w-10 h-10 rounded-full bg-white shadow-sm border border-slate-200 flex items-center justify-center text-slate-600 hover:text-blue-600 transition-colors"
+            className="w-10 h-10 rounded-[2px] bg-white shadow-sm border border-slate-200 flex items-center justify-center text-slate-600 hover:text-blue-600 transition-colors"
           >
             <FiArrowLeft className="w-5 h-5" />
           </motion.button>
@@ -109,7 +109,7 @@ export default function SellerNotifications() {
             <p className="text-xs md:text-sm text-slate-500 font-medium">Keep track of your business alerts and updates</p>
           </div>
         </div>
-        <div className="bg-blue-50 text-blue-600 text-[10px] md:text-xs font-black px-4 py-2 rounded-full uppercase tracking-widest shadow-sm">
+        <div className="bg-blue-50 text-blue-600 text-[10px] md:text-xs font-black px-4 py-2 rounded-[2px] uppercase tracking-widest shadow-sm">
           {notifications.filter(n => n.unread).length} New Messages
         </div>
       </div>
@@ -130,9 +130,9 @@ export default function SellerNotifications() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
-              className={`bg-white p-6 rounded-[2rem] border border-slate-100 flex flex-col md:flex-row gap-6 items-start md:items-center relative overflow-hidden group shadow-sm transition-all ${notif.unread ? 'border-l-4 border-l-blue-600 shadow-md' : ''}`}
+              className={`bg-white p-6 rounded-[4px] border border-slate-100 flex flex-col md:flex-row gap-6 items-start md:items-center relative overflow-hidden group shadow-sm transition-all ${notif.unread ? 'border-l-4 border-l-blue-600 shadow-md' : ''}`}
             >
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${getColorClasses(notif.color)}`}>
+              <div className={`w-14 h-14 rounded-[2px] flex items-center justify-center shrink-0 shadow-sm ${getColorClasses(notif.color)}`}>
                  <notif.icon className="w-7 h-7" />
               </div>
 

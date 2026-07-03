@@ -17,7 +17,7 @@ export default function AddProductOverlay({ isOpen, onClose }) {
     }, [isOpen])
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none">
             {/* Backdrop Blur */}
             <motion.div
                 initial={{ opacity: 0 }}
@@ -27,28 +27,25 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                 className="absolute inset-0 bg-black/60 backdrop-blur-xl pointer-events-auto"
             />
 
-            {/* The Blooming Card */}
+            {/* Bottom Drawer Container */}
             <motion.div
                 initial={{ 
-                    scale: 0.95, 
-                    opacity: 0, 
-                    y: 20 
+                    y: "100%", 
+                    opacity: 0.8 
                 }}
                 animate={{ 
-                    scale: 1, 
-                    opacity: 1, 
-                    y: 0 
+                    y: 0, 
+                    opacity: 1 
                 }}
                 exit={{ 
-                    scale: 0.95, 
-                    opacity: 0, 
-                    y: 20 
+                    y: "100%", 
+                    opacity: 0.8 
                 }}
-                className="relative w-[clamp(280px,88vw,1000px)] h-[clamp(440px,82vh,850px)] md:w-[clamp(320px,95vw,1000px)] md:h-[clamp(500px,90vh,850px)] bg-white rounded-[2.5rem] md:rounded-[3.5rem] shadow-[0_80px_120px_-30px_rgba(15,23,42,0.5)] border border-slate-100 overflow-hidden pointer-events-auto flex flex-col"
+                className="relative w-full max-w-5xl h-[85vh] bg-white rounded-t-[4px] shadow-[0_-20px_50px_rgba(15,23,42,0.25)] border-t border-x border-slate-100 overflow-hidden pointer-events-auto flex flex-col"
                 transition={{
                     type: "spring",
-                    stiffness: 300,
-                    damping: 30
+                    stiffness: 280,
+                    damping: 28
                 }}
             >
                 {/* Header */}
@@ -63,16 +60,16 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                             <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
                                 {mode === 'product' ? 'New Product' : 'New Service'}
                             </h2>
-                            <div className="flex gap-2 p-2 bg-slate-100 rounded-[1.5rem] border border-slate-200 shadow-sm transition-all hover:border-slate-300">
+                            <div className="flex gap-2 p-2 bg-slate-100 rounded-[4px] border border-slate-200 shadow-sm transition-all hover:border-slate-300">
                                 <button 
                                     onClick={() => setMode('product')}
-                                    className={`px-6 py-2.5 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all duration-300 ${mode === 'product' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:text-slate-900'}`}
+                                    className={`px-6 py-2.5 rounded-[2px] text-[11px] font-bold tracking-widest uppercase transition-all duration-300 ${mode === 'product' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:text-slate-900'}`}
                                 >
                                     Products
                                 </button>
                                 <button 
                                     onClick={() => setMode('service')}
-                                    className={`px-6 py-2.5 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all duration-300 ${mode === 'service' ? 'bg-blue-700 text-white shadow-lg' : 'text-slate-600 hover:text-blue-700'}`}
+                                    className={`px-6 py-2.5 rounded-[2px] text-[11px] font-bold tracking-widest uppercase transition-all duration-300 ${mode === 'service' ? 'bg-blue-700 text-white shadow-lg' : 'text-slate-600 hover:text-blue-700'}`}
                                 >
                                     Services
                                 </button>
@@ -86,7 +83,7 @@ export default function AddProductOverlay({ isOpen, onClose }) {
                         whileHover={{ rotate: 180, scale: 1.1, backgroundColor: "#F1F5F9" }}
                         whileTap={{ scale: 0.9 }}
                         onClick={onClose}
-                        className="p-3.5 rounded-2xl bg-white border border-slate-100 text-slate-400 hover:text-slate-900 transition-all shadow-sm self-end sm:self-center"
+                        className="p-3.5 rounded-[2px] bg-white border border-slate-100 text-slate-400 hover:text-slate-900 transition-all shadow-sm self-end sm:self-center"
                     >
                         <FiX className="w-5 h-5" strokeWidth={3} />
                     </motion.button>
@@ -117,7 +114,7 @@ export default function AddProductOverlay({ isOpen, onClose }) {
 
                 {/* Bottom Handle (Mobile) */}
                 <div className="h-6 w-full flex justify-center items-center bg-white border-t border-slate-50 sm:hidden">
-                    <div className="w-16 h-1.5 rounded-full bg-slate-200" />
+                    <div className="w-16 h-1 rounded-[1px] bg-slate-200" />
                 </div>
             </motion.div>
         </div>

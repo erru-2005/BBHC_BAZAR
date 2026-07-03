@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ServerNotReachableException implements Exception {
   final String message;
@@ -12,7 +13,7 @@ class ServerNotReachableException implements Exception {
 }
 
 class ApiService {
-  static const String _baseUrl = 'http://192.168.1.4:5001';
+  static String get baseUrl => dotenv.env['BASE_URL'] ?? 'http://192.168.1.4:5001';
   static const String _cacheKey = 'cached_web_url';
 
   static Future<String> getWebContainerUrl() async {
@@ -20,7 +21,7 @@ class ApiService {
 
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/web-container/url'),
+        Uri.parse('$baseUrl/api/web-container/url'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(
         const Duration(seconds: 10),

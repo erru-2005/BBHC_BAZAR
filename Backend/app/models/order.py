@@ -40,6 +40,7 @@ class Order:
         booking=None,
         metadata=None,
         type='product',
+        delivery_promise=None,
         created_at=None,
         updated_at=None,
         _id=None
@@ -78,6 +79,7 @@ class Order:
         self.booking = booking
         self.metadata = metadata or {}
         self.type = type
+        self.delivery_promise = delivery_promise
         self.created_at = created_at or datetime.now(timezone.utc)
         self.updated_at = updated_at or datetime.now(timezone.utc)
 
@@ -115,6 +117,7 @@ class Order:
             'booking': self.booking,
             'metadata': self.metadata,
             'type': self.type,
+            'delivery_promise': self.delivery_promise,
             'createdAt': self._format_datetime(self.created_at),
             'updatedAt': self._format_datetime(self.updated_at)
         }
@@ -153,6 +156,7 @@ class Order:
             'booking': self.booking,
             'metadata': self.metadata,
             'type': self.type,
+            'delivery_promise': self.delivery_promise,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
@@ -193,6 +197,7 @@ class Order:
             booking=bson_doc.get('booking'),
             metadata=bson_doc.get('metadata', {}),
             type=bson_doc.get('type', 'product'),
+            delivery_promise=bson_doc.get('delivery_promise'),
             created_at=bson_doc.get('created_at'),
             updated_at=bson_doc.get('updated_at')
         )
