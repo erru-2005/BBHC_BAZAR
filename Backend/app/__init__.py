@@ -64,6 +64,12 @@ def create_app(config_class=Config):
  
     with app.app_context():
         try:
+            from app.services.slot_service import SlotService
+            SlotService.initialize_slots()
+        except Exception as e:
+            print(f"[Initialization] Error initializing slots: {str(e)}")
+
+        try:
             # Migration: Update existing products missing delivery_promise to 'tomorrow'
             result = mongo.db.products.update_many(
                 {

@@ -10,6 +10,7 @@ from bson import ObjectId
 from app import mongo
 from app.models.order import Order
 from app.services.product_service import ProductService
+from app.services.slot_service import SlotService
 from app.services.statistics_service import StatisticsService
 from app.sockets.emitter import emit_product_event
 
@@ -38,10 +39,10 @@ class OrderService:
     @staticmethod
     def generate_secure_token(order_id, seller_id, user_id, role='user'):
         """Generate a secure token for QR code scanning."""
-        # Create a unique token based on order, seller, user, and role
-        token_data = f"{order_id}|{seller_id}|{user_id}|{role}|{secrets.token_urlsafe(16)}"
-        token_hash = hashlib.sha256(token_data.encode()).hexdigest()[:32]
-        return f"BBHC-{token_hash.upper()}"
+        import string
+        letters = ''.join(random.choices(string.ascii_uppercase, k=3))
+        numbers = ''.join(random.choices(string.digits, k=2))
+        return f"BBHC-{letters}{numbers}"
 
     @staticmethod
     def _ensure_object_id(value):
@@ -457,6 +458,12 @@ class OrderService:
                 # Outlet can scan either token
                 if order.status == 'seller_accepted' and order.secure_token_seller == token:
                     # Outlet scanning seller token = seller handed over
+                    
+                    # Try assigning a slot first
+                    slot, error_msg = SlotService.assign_item_to_slot(order.user_id)
+                    if error_msg:
+                        return None, error_msg
+                        
                     updates['status'] = 'handed_over'
                     updates['token_used_seller'] = True
                     updates['$push'] = {
@@ -469,6 +476,8 @@ class OrderService:
                     }
                 elif order.status == 'handed_over' and order.secure_token_user == token:
                     # Outlet scanning user token = user completed
+                    SlotService.remove_item_from_slot(order.user_id)
+                    
                     updates['status'] = 'completed'
                     updates['token_used_user'] = True
                     updates['$push'] = {

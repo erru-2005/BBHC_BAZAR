@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiMoreHorizontal, FiEye, FiPackage, FiSearch, FiCheckCircle, FiAlertCircle, FiPlus, FiXCircle, FiFilter } from 'react-icons/fi'
+import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiMoreHorizontal, FiEye, FiPackage, FiSearch, FiCheckCircle, FiAlertCircle, FiPlus, FiXCircle, FiFilter, FiCopy } from 'react-icons/fi'
 import { FaQrcode } from 'react-icons/fa6'
 
 import { getSocket } from '../../utils/socket'
@@ -877,13 +877,27 @@ function Seller() {
             >
               <h3 className="text-lg font-black text-slate-900 mb-6 uppercase tracking-tighter">Handover Code</h3>
 
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block mb-8">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-flex flex-col items-center mb-8 w-full">
                 <QRCode
                   value={qrOrder.secureTokenSeller || qrOrder.id}
                   size={120}
                   level="M"
-                  style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                  style={{ height: "auto", maxWidth: "120px", width: "100%" }}
                 />
+                <div className="mt-4 flex items-center justify-between bg-white rounded-lg border border-slate-200 px-3 py-2 w-full">
+                  <span className="text-sm font-bold text-slate-700 tracking-widest mr-2 truncate">
+                    {qrOrder.secureTokenSeller || qrOrder.id}
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(qrOrder.secureTokenSeller || qrOrder.id)
+                    }}
+                    title="Copy code"
+                    className="text-slate-400 hover:text-blue-600 transition-colors p-1"
+                  >
+                    <FiCopy size={16} />
+                  </button>
+                </div>
               </div>
 
               <button

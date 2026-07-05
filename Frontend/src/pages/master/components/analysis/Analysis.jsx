@@ -478,23 +478,6 @@ const Analysis = () => {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Sales by Category */}
-        <div className="relative">
-          <IndependentDateFilters 
-            title="Category" 
-            onFilterChange={handleCategoryFilterChange} 
-          />
-          <SalesByCategoryChart data={salesByCategory} isLoading={categoryLoading || isLoading} />
-        </div>
-
-        {/* Orders by Status */}
-        <div className="relative">
-          <IndependentDateFilters 
-            title="Orders" 
-            onFilterChange={handleOrdersFilterChange} 
-          />
-          <OrdersByStatusChart data={ordersByStatus} isLoading={ordersLoading || isLoading} />
-        </div>
 
         {/* Top Products */}
         <TopProductsChart data={topProducts} isLoading={isLoading} />
