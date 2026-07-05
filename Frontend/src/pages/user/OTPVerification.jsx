@@ -18,6 +18,8 @@ function OTPVerification() {
   const [otpSessionId, setOtpSessionId] = useState(null)
   const [phoneNumber, setPhoneNumber] = useState('')
   const [phoneNumberMasked, setPhoneNumberMasked] = useState('')
+  const [email, setEmail] = useState('')
+  const [emailMasked, setEmailMasked] = useState('')
   const [returnTo, setReturnTo] = useState('/')
   const [resendTimer, setResendTimer] = useState(60)
   const [resendLoading, setResendLoading] = useState(false)
@@ -33,8 +35,10 @@ function OTPVerification() {
     // Get data from navigation state
     if (location.state) {
       setOtpSessionId(location.state.otpSessionId)
-      setPhoneNumber(location.state.phoneNumber)
-      setPhoneNumberMasked(location.state.phoneNumberMasked)
+      setPhoneNumber(location.state.phoneNumber || '')
+      setPhoneNumberMasked(location.state.phoneNumberMasked || '')
+      setEmail(location.state.email || '')
+      setEmailMasked(location.state.emailMasked || '')
       setReturnTo(location.state.returnTo || '/')
     } else {
       // If no state, redirect back to phone entry
@@ -80,7 +84,8 @@ function OTPVerification() {
         // User doesn't exist - navigate to registration
         navigate('/user/register', {
           state: {
-            phoneNumber: response.phone_number,
+            email: response.email || email,
+            phoneNumber: response.phone_number || phoneNumber,
             returnTo: returnTo
           }
         })
@@ -99,15 +104,15 @@ function OTPVerification() {
     setError(null)
 
     try {
-      const response = await sendUserOTP(phoneNumber)
+      const response = await sendUserOTP(email)
       if (response?.otp_session_id) {
         setOtpSessionId(response.otp_session_id)
       }
-      if (response?.phone_number) {
-        setPhoneNumberMasked(response.phone_number)
+      if (response?.email_masked) {
+        setEmailMasked(response.email_masked)
       }
       setResendTimer(60)
-      setInfoMessage('A new code has been sent to your phone.')
+      setInfoMessage('A new verification code has been sent to your email inbox.')
     } catch (err) {
       setError(err.message || 'Failed to resend OTP. Please try again.')
     } finally {
@@ -115,12 +120,12 @@ function OTPVerification() {
     }
   }
 
-  const handleEditPhone = () => {
+  const handleEditEmail = () => {
     navigate('/user/phone-entry', {
       state: {
-        prefillPhone: phoneNumber,
+        prefillEmail: email,
         returnTo,
-        message: 'Update your phone number'
+        message: 'Update your email address'
       }
     })
   }
@@ -142,14 +147,17 @@ function OTPVerification() {
             <p className="text-xs tracking-[0.3em] text-gray-500 uppercase mb-3">Two Step Security</p>
             <h1 className="text-3xl font-semibold text-gray-900 mb-3">Enter Verification Code</h1>
             <p className="text-base text-gray-500 mb-4">
-              We sent a code to <span className="font-semibold text-gray-900">{phoneNumberMasked || phoneNumber}</span>
+              The verification OTP has been sent to the registered email ID: <span className="font-semibold text-gray-900">{emailMasked || email}</span>.
+            </p>
+            <p className="text-sm text-yellow-800 bg-yellow-50 rounded-xl p-3 border border-yellow-200 mb-4">
+              <strong>Check your email inbox (and spam/junk folder)</strong> for the 6-digit code.
             </p>
             <button
-              onClick={handleEditPhone}
+              onClick={handleEditEmail}
               className="inline-flex items-center gap-2 text-gray-900 font-medium text-sm border border-gray-900/20 rounded-full px-4 py-1.5 hover:bg-gray-900 hover:text-white transition"
             >
               <FaEdit className="w-3.5 h-3.5" />
-              <span>Edit phone number</span>
+              <span>Edit email address</span>
             </button>
           </div>
 

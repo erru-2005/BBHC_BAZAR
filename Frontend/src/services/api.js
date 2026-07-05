@@ -539,6 +539,7 @@ export const masterLogin = async (username, password, deviceId = null, deviceTok
       otp: response.otp, // Only for development (if present)
       message: response.message,
       phone_number: response.phone_number, // Masked phone number (last 4 digits)
+      email_masked: response.email_masked,
       user: response.user, // User data
       skip_otp: skipOtp, // True if device token was valid or access_token is present
       access_token: response.access_token, // JWT token if skip_otp is true
@@ -563,6 +564,7 @@ export const requestMasterForgotPasswordOtp = async (username) => {
       otp_session_id: response.otp_session_id,
       message: response.message,
       phone_number: response.phone_number,
+      email_masked: response.email_masked,
       user: response.user,
       skip_otp: false,
     }
@@ -685,6 +687,7 @@ export const sellerLogin = async (trade_id, password, deviceId = null, deviceTok
       otp: response.otp, // Only for development (if present)
       message: response.message,
       phone_number: response.phone_number, // Masked phone number (last 4 digits) or null
+      email_masked: response.email_masked,
       user: response.user, // User data
       skip_otp: skipOtp, // True if device token was valid or access_token is present
       access_token: response.access_token, // JWT token if skip_otp is true
@@ -709,6 +712,7 @@ export const requestSellerForgotPasswordOtp = async (trade_id) => {
       otp_session_id: response.otp_session_id,
       message: response.message,
       phone_number: response.phone_number,
+      email_masked: response.email_masked,
       user: response.user,
       skip_otp: false,
     }
@@ -885,15 +889,15 @@ export const getCurrentUser = async () => {
  * @param {string} phoneNumber - Phone number
  * @returns {Promise} Response with OTP session ID
  */
-export const sendUserOTP = async (phoneNumber) => {
+export const sendUserOTP = async (email) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.AUTH.USER_SEND_OTP, {
-      phone_number: phoneNumber
+      email: email
     })
 
     return {
       otp_session_id: response.otp_session_id,
-      phone_number: response.phone_number,
+      email_masked: response.email_masked,
       user_exists: response.user_exists,
       message: response.message,
       otp: response.otp // Only in debug mode
@@ -923,7 +927,8 @@ export const verifyUserOTP = async (otpSessionId, otp) => {
       refreshToken: response.refresh_token,
       userType: response.userType || 'user',
       phone_number: response.phone_number,
-      phone_number_masked: response.phone_number_masked,
+      email: response.email,
+      email_masked: response.email_masked,
       message: response.message
     }
   } catch (error) {

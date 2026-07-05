@@ -92,35 +92,37 @@ class SMSService:
         return None, None
 
     @staticmethod
-    def send_otp(phone_number, otp):
+    def send_otp(phone_number, otp, email=None):
         """
-        Send OTP via WebSocket
+        Send OTP via SMTP Email (and fallback to WebSocket/FCM)
         
         Args:
             phone_number (str): Recipient phone number (format: +1234567890)
             otp (str): 6-digit OTP code
+            email (str, optional): Recipient email address
             
         Returns:
             tuple: (success: bool, message: str)
         """
         message_body = f"Your BBHCBazaar OTP code is: {otp}. This code will expire in 10 minutes. Do not share this code with anyone."
-        return SMSService.send_message(phone_number, message_body)
+        return SMSService.send_message(phone_number, message_body, email=email)
 
     @staticmethod
-    def send_message(phone_number, message_body, product_thumbnail=None):
+    def send_message(phone_number, message_body, product_thumbnail=None, email=None):
         """
-        Send a notification to the app via Socket.IO.
+        Send a notification via Email (using SMTP) and Socket.IO/FCM.
         
         Args:
             phone_number (str): Recipient phone number
             message_body (str): Text message body
             product_thumbnail (str, optional): Product thumbnail URL
+            email (str, optional): Direct recipient email
             
         Returns:
             tuple: (success: bool, message: str)
         """
         try:
-            print(f"[SMSService] Processing notification for {phone_number}: {message_body}")
+            print(f"[SMSService] Processing notification/email for {phone_number}: {message_body}")
             user_doc, role = SMSService._find_user_or_seller_by_phone(phone_number)
             
             # If it is not a security verification code or OTP, check if the recipient has notifications enabled
@@ -139,7 +141,59 @@ class SMSService:
                 'thumbnail': product_thumbnail,
                 'timestamp': datetime.now(timezone.utc).isoformat() + 'Z'
             }
+
+            # Send via Email SMTP
+            recipient_email = email
+            if not recipient_email and user_doc:
+                recipient_email = user_doc.get('email')
+                
+            email_sent = False
+            email_error = None
+            if recipient_email:
+                try:
+                    # Print OTP to terminal for debug
+                    if is_otp:
+                        print(f"\n[DEBUG OTP SENDING] Target Email: {recipient_email} | Message: {message_body}\n", flush=True)
+
+                    from app.utils.email import EmailService
+                    subject = "BBHCBazaar - Security Verification Code" if is_otp else "BBHCBazaar - Order Update"
+                    
+                    # Simple, clean HTML body to prevent spam detection
+                    html_body = f"""
+                    <html>
+                    <body style="font-family: sans-serif; line-height: 1.5; color: #111111; max-width: 500px; margin: 20px auto; padding: 10px;">
+                        <p>Hello,</p>
+                        <p>{message_body}</p>
+                        <p>Best regards,<br>BBHCBazaar Team</p>
+                    </body>
+                    </html>
+                    """
+                    
+                    ok, err = EmailService.send_email(
+                        to_email=recipient_email,
+                        subject=subject,
+                        body_text=message_body,
+                        body_html=html_body
+                    )
+                    if ok:
+                        email_sent = True
+                    else:
+                        email_error = err
+                except Exception as e:
+                    email_error = str(e)
+                    print(f"[SMSService] SMTP sending error: {str(e)}")
+            else:
+                print(f"[SMSService] No email found for {phone_number}. Cannot send SMTP email.")
+                email_error = "No email address found"
             
+            # Short-circuit: OTPs must only be delivered via email. No push notification, no WebSocket broadcast.
+            if is_otp:
+                if not email_sent:
+                    print(f"[SMSService] Aborting OTP delivery: email failed ({email_error})")
+                    return False, email_error or "Failed to send OTP email"
+                print(f"[SMSService] OTP email delivered successfully. Bypassing push/WS.")
+                return True, "OTP email sent successfully"
+
             # If user has an FCM token, send a push notification
             fcm_token = user_doc.get('fcm_token') if user_doc else None
             if fcm_token:
@@ -173,12 +227,15 @@ class SMSService:
             if socket_id:
                 print(f"[SMSService] Emitting app_notification to socket: {socket_id}")
                 socketio.emit('app_notification', payload, to=socket_id)
+                if email_sent:
+                    return True, "Email and WebSocket notification sent"
                 return True, "Notification sent via websocket"
             else:
-                # If recipient is offline, broadcast it to let any session capture it, and log
-                print(f"[SMSService] Recipient {phone_number} is offline. Broadcasting notification.")
-                socketio.emit('app_notification', payload)
-                return True, "Broadcasted notification since recipient is offline"
+                # If recipient is offline, do NOT broadcast to all connected clients. Just log it.
+                print(f"[SMSService] Recipient {phone_number} is offline. Skipping WebSocket notification to avoid broadcasting.")
+                if email_sent:
+                    return True, "Email sent (Recipient offline for WebSocket)"
+                return False, "Recipient offline and email not sent"
                 
         except Exception as e:
             print(f"[SMSService] Error sending notification: {str(e)}")
@@ -188,3 +245,5 @@ class SMSService:
     def is_configured():
         """Always returns True to ensure notification routing bypasses configuration checks"""
         return True
+
+

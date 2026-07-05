@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { registerUserPhone } from '../../services/api'
 import { useDispatch } from 'react-redux'
 import { loginSuccess } from '../../store/authSlice'
-import { FaUser, FaEnvelope } from 'react-icons/fa6'
+import { FaUser, FaEnvelope, FaPhone } from 'react-icons/fa6'
 import { FaMapMarkerAlt, FaCalendarAlt } from 'react-icons/fa'
 
 function UserRegistration() {
@@ -24,14 +24,14 @@ function UserRegistration() {
   const [showSuccess, setShowSuccess] = useState(false)
 
   useEffect(() => {
-    // Get phone number from navigation state
-    if (location.state?.phoneNumber) {
+    // Get email from navigation state
+    if (location.state?.email) {
       setFormData(prev => ({
         ...prev,
-        phone_number: location.state.phoneNumber
+        email: location.state.email
       }))
     } else {
-      // If no phone number, redirect back
+      // If no email, redirect back
       navigate('/user/phone-entry')
     }
   }, [location, navigate])
@@ -48,6 +48,10 @@ function UserRegistration() {
   const validateForm = () => {
     if (!formData.first_name.trim()) {
       setError('First name is required')
+      return false
+    }
+    if (!formData.phone_number.trim() || formData.phone_number.trim().length < 10) {
+      setError('A valid phone number (at least 10 digits) is required')
       return false
     }
     if (!formData.email.trim()) {
@@ -75,6 +79,18 @@ function UserRegistration() {
     const date = new Date(year, month - 1, day)
     if (date.getDate() !== day || date.getMonth() !== month - 1 || date.getFullYear() !== year) {
       setError('Please enter a valid date')
+      return false
+    }
+
+    // Calculate if user is 15+ years old internally
+    const today = new Date()
+    let age = today.getFullYear() - date.getFullYear()
+    const m = today.getMonth() - date.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
+      age--
+    }
+    if (age < 15) {
+      setError('Invalid DOB. Please enter your correct DOB.')
       return false
     }
 
@@ -183,9 +199,30 @@ function UserRegistration() {
                 id="email"
                 name="email"
                 value={formData.email}
-                onChange={handleChange}
+                className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-500 cursor-not-allowed shadow-sm"
+                required
+                disabled
+              />
+            </div>
+
+            <div>
+              <label htmlFor="phone_number" className="block text-sm font-medium text-gray-800 mb-2">
+                <FaPhone className="inline w-4 h-4 mr-2" />
+                Mobile Number *
+              </label>
+              <input
+                type="tel"
+                id="phone_number"
+                name="phone_number"
+                value={formData.phone_number}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '')
+                  setFormData(prev => ({ ...prev, phone_number: val }))
+                }}
+                placeholder="Enter your mobile number"
                 className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm"
                 required
+                maxLength={15}
               />
             </div>
 

@@ -486,6 +486,7 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
           _extractHeaderColor();
           if (_fcmToken != null) {
             _controller.runJavaScript("window.flutterFCMToken = '$_fcmToken';");
+            _controller.runJavaScript("if (typeof window.onFlutterFCMTokenReceived === 'function') { window.onFlutterFCMTokenReceived('$_fcmToken'); }");
           }
         },
         onWebResourceError: (error) {
@@ -887,6 +888,7 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
           });
           if (_fcmToken != null) {
             _controller.runJavaScript("window.flutterFCMToken = '$_fcmToken';");
+            _controller.runJavaScript("if (typeof window.onFlutterFCMTokenReceived === 'function') { window.onFlutterFCMTokenReceived('$_fcmToken'); }");
           }
         }
       }

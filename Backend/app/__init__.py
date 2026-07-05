@@ -297,7 +297,13 @@ def create_indexes():
 
         # Create indexes for users collection
         try:
-            mongo.db.users.create_index([('phone_number', ASCENDING)], unique=True)
+            # Drop legacy unique index on phone_number if it exists
+            try:
+                mongo.db.users.drop_index("phone_number_1")
+            except Exception:
+                pass
+            mongo.db.users.create_index([('email', ASCENDING)], unique=True)
+            mongo.db.users.create_index([('phone_number', ASCENDING)]) # Non-unique
             mongo.db.users.create_index([('socket_id', ASCENDING)])
             mongo.db.users.create_index([('created_at', ASCENDING)])
         except Exception:

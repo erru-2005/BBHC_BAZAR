@@ -41,6 +41,7 @@ function MasterLogin() {
   const [otp, setOtp] = useState('')
   const [otpSessionId, setOtpSessionId] = useState(null)
   const [phoneNumber, setPhoneNumber] = useState(null)
+  const [emailMasked, setEmailMasked] = useState(null)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendMessage, setResendMessage] = useState(null)
 
@@ -56,6 +57,7 @@ function MasterLogin() {
     setOtp('')
     setOtpSessionId(null)
     setPhoneNumber(null)
+    setEmailMasked(null)
     setResendMessage(null)
     dispatch(loginFailure(null)) // Reset loading and error states
   }
@@ -85,6 +87,7 @@ function MasterLogin() {
       const response = await requestMasterForgotPasswordOtp(formData.username)
       setOtpSessionId(response.otp_session_id)
       setPhoneNumber(response.phone_number || null)
+      setEmailMasked(response.email_masked || null)
       setShowOTP(true)
       setOtp('')
       setResendMessage(null)
@@ -149,6 +152,7 @@ function MasterLogin() {
       
       setOtpSessionId(response.otp_session_id)
       setPhoneNumber(response.phone_number || null)
+      setEmailMasked(response.email_masked || null)
       setShowOTP(true)
       dispatch(loginFailure(null)) // Clear any previous errors
       
@@ -203,8 +207,9 @@ function MasterLogin() {
         const response = await requestMasterForgotPasswordOtp(formData.username)
         setOtpSessionId(response.otp_session_id)
         setPhoneNumber(response.phone_number || phoneNumber)
+        setEmailMasked(response.email_masked || null)
         setOtp('')
-        setResendMessage('A new OTP has been sent. Please check your phone.')
+        setResendMessage('A new OTP has been sent. Please check your email inbox and spam folder.')
         dispatch(loginFailure(null))
         return
       }
@@ -233,8 +238,9 @@ function MasterLogin() {
 
       setOtpSessionId(response.otp_session_id)
       setPhoneNumber(response.phone_number || phoneNumber)
+      setEmailMasked(response.email_masked || null)
       setOtp('')
-      setResendMessage('A new OTP has been sent. Please check your phone.')
+      setResendMessage('A new OTP has been sent. Please check your email inbox and spam folder.')
       dispatch(loginFailure(null))
     } catch (error) {
       dispatch(loginFailure(error.message || 'Failed to resend OTP. Please try again.'))
@@ -358,12 +364,13 @@ function MasterLogin() {
           ) : (
             <form onSubmit={handleOTPSubmit}>
               {/* Success Message */}
-              <div className="mb-6 p-3 rounded-lg bg-green-50 text-green-600 text-sm text-center">
-                {phoneNumber ? (
-                  <>OTP sent successfully to {phoneNumber}! Please enter the 6-digit code below.</>
-                ) : (
-                  <>OTP sent successfully! Please enter the 6-digit code below.</>
-                )}
+              <div className="mb-6 p-4 rounded-xl bg-green-50 text-green-800 text-sm text-center border border-green-200">
+                <p className="font-semibold">
+                  OTP verification code has been sent to your registered email ID{emailMasked ? ` (${emailMasked})` : ''}.
+                </p>
+                <p className="text-xs text-yellow-800 bg-yellow-50 p-2 rounded-lg border border-yellow-200 mt-2">
+                  If you do not see it in your inbox, please check your <strong>spam or junk folder</strong>.
+                </p>
               </div>
 
               {/* OTP Field */}

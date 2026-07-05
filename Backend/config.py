@@ -106,6 +106,16 @@ class Config:
     else:
         print("[WARN] Razorpay credentials missing (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET)")
 
+    # SMTP Configuration
+    SMTP_SERVER = os.environ.get('SMTP_SERVER') or 'smtp.gmail.com'
+    SMTP_PORT = int(os.environ.get('SMTP_PORT') or 587)
+    SMTP_EMAIL = os.environ.get('SMTP_EMAIL')
+    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
+    if SMTP_SERVER and SMTP_EMAIL and SMTP_PASSWORD:
+        print(f"[OK] SMTP credentials loaded successfully ({SMTP_EMAIL})")
+    else:
+        print("[WARN] SMTP credentials not fully configured in environment")
+
 
 class DevelopmentConfig(Config):
     """Development configuration"""
