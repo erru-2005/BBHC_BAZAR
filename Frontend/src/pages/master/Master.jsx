@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { logout, loginSuccess } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
-import { bindPortalRealtimeSync } from '../../services/api'
+import { bindPortalRealtimeSync, logoutUser } from '../../services/api'
 import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
@@ -164,7 +164,12 @@ function Master() {
     }
   }, [isDragging])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutUser()
+    } catch (e) {
+      console.error(e)
+    }
     // Notify server about logout via socket
     const socket = getSocket()
     if (socket && socket.connected && user) {

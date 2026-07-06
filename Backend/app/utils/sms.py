@@ -92,6 +92,36 @@ class SMSService:
         return None, None
 
     @staticmethod
+    def _find_user_or_seller_by_email(email):
+        """Find user, seller, outlet_man, or master by email and return their document and role"""
+        if not email:
+            return None, None
+            
+        email_clean = str(email).strip().lower()
+        
+        # Check users collection
+        user = mongo.db.users.find_one({'email': email_clean})
+        if user:
+            return user, 'user'
+            
+        # Check sellers collection
+        seller = mongo.db.sellers.find_one({'email': email_clean})
+        if seller:
+            return seller, 'seller'
+            
+        # Check outlet_men collection
+        outlet = mongo.db.outlet_men.find_one({'email': email_clean})
+        if outlet:
+            return outlet, 'outlet_man'
+            
+        # Check master collection
+        master = mongo.db.master.find_one({'email': email_clean})
+        if master:
+            return master, 'master'
+            
+        return None, None
+
+    @staticmethod
     def send_otp(phone_number, otp, email=None):
         """
         Send OTP via SMTP Email (and fallback to WebSocket/FCM)
@@ -122,8 +152,17 @@ class SMSService:
             tuple: (success: bool, message: str)
         """
         try:
-            print(f"[SMSService] Processing notification/email for {phone_number}: {message_body}")
-            user_doc, role = SMSService._find_user_or_seller_by_phone(phone_number)
+            print(f"[SMSService] Processing notification/email for {phone_number} (email: {email}): {message_body}")
+            
+            # Lookup by email first if available (emails are unique in DB)
+            user_doc = None
+            role = None
+            if email:
+                user_doc, role = SMSService._find_user_or_seller_by_email(email)
+                
+            # Fallback to phone lookup if email lookup returned nothing
+            if not user_doc:
+                user_doc, role = SMSService._find_user_or_seller_by_phone(phone_number)
             
             # If it is not a security verification code or OTP, check if the recipient has notifications enabled
             is_otp = 'OTP' in message_body or 'Verification' in message_body or 'security code' in message_body.lower()
@@ -186,6 +225,31 @@ class SMSService:
                 print(f"[SMSService] No email found for {phone_number}. Cannot send SMTP email.")
                 email_error = "No email address found"
             
+            # Resolve absolute URL for product thumbnail
+            absolute_thumbnail = None
+            if product_thumbnail:
+                thumb_str = str(product_thumbnail).strip()
+                if thumb_str.startswith('http://') or thumb_str.startswith('https://'):
+                    absolute_thumbnail = thumb_str
+                else:
+                    if thumb_str.startswith('/'):
+                        thumb_str = thumb_str[1:]
+                    
+                    base_url = None
+                    try:
+                        from flask import request
+                        if request and request.url_root:
+                            base_url = request.url_root
+                    except Exception:
+                        pass
+                        
+                    if not base_url:
+                        base_url = 'http://192.168.1.2:5001/'
+                        
+                    if not base_url.endswith('/'):
+                        base_url += '/'
+                    absolute_thumbnail = f"{base_url}{thumb_str}"
+
             # Short-circuit: OTPs must only be delivered via email. No push notification, no WebSocket broadcast.
             if is_otp:
                 if not email_sent:
@@ -194,15 +258,20 @@ class SMSService:
                 print(f"[SMSService] OTP email delivered successfully. Bypassing push/WS.")
                 return True, "OTP email sent successfully"
 
+            # Update payload with absolute thumbnail path
+            if absolute_thumbnail:
+                payload['thumbnail'] = absolute_thumbnail
+
             # If user has an FCM token, send a push notification
             fcm_token = user_doc.get('fcm_token') if user_doc else None
-            if fcm_token:
+            if fcm_token and role == 'user':
                 try:
                     from firebase_admin import messaging
                     
                     fcm_notification = messaging.Notification(
                         title='Security Verification Code' if is_otp else 'New Order Notification',
                         body=message_body,
+                        image=absolute_thumbnail
                     )
                     
                     fcm_data = {
@@ -210,8 +279,8 @@ class SMSService:
                         'message': message_body,
                         'timestamp': datetime.now(timezone.utc).isoformat() + 'Z'
                     }
-                    if product_thumbnail:
-                        fcm_data['thumbnail'] = str(product_thumbnail)
+                    if absolute_thumbnail:
+                        fcm_data['thumbnail'] = absolute_thumbnail
                         
                     message = messaging.Message(
                         notification=fcm_notification,

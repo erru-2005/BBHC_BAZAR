@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { FaLocationDot, FaCalendarDays, FaBoxOpen, FaArrowLeft } from 'react-icons/fa6'
 import { FaUserCircle, FaPhone, FaEnvelope, FaRegSave, FaSignOutAlt } from 'react-icons/fa'
-import { getUserProfile, updateUserProfile } from '../../services/api'
+import { getUserProfile, updateUserProfile, logoutUser } from '../../services/api'
 import { setUser, logout } from '../../store/authSlice'
 import MainHeader from './components/MainHeader'
 import MobileMenu from './components/MobileMenu'
@@ -63,9 +63,15 @@ function UserProfile() {
     fetchProfile()
   }, [dispatch])
 
-  const handleLogout = () => {
-    dispatch(logout())
-    navigate('/')
+  const handleLogout = async () => {
+    try {
+      await logoutUser()
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      dispatch(logout())
+      navigate('/')
+    }
   }
 
   const startEditing = (field) => {

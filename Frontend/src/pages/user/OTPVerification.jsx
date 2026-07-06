@@ -11,7 +11,7 @@ function OTPVerification() {
   const location = useLocation()
   const dispatch = useDispatch()
   const { isAuthenticated, userType } = useSelector((state) => state.auth)
-  
+
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -69,7 +69,7 @@ function OTPVerification() {
 
     try {
       const response = await verifyUserOTP(otpSessionId, otp)
-      
+
       if (response.user_exists) {
         // User exists - login successful
         dispatch(loginSuccess({

@@ -1201,8 +1201,12 @@ def enable_notifications():
         fcm_token = data.get('fcm_token')
         
         update_fields = {'notifications_enabled': True}
-        if fcm_token:
-            update_fields['fcm_token'] = fcm_token
+        if 'fcm_token' in data:
+            fcm_token = data.get('fcm_token')
+            if user_type == 'user':
+                update_fields['fcm_token'] = fcm_token if (fcm_token and fcm_token != "") else None
+            else:
+                update_fields['fcm_token'] = None
             
         if user_type == 'master':
             mongo.db.master.update_one({'_id': user_obj_id}, {'$set': update_fields})

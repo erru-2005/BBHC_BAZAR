@@ -260,6 +260,8 @@ def create_order():
         # Notify seller via SMS (best-effort)
         try:
             if seller_id and seller_phone and SMSService.is_configured():
+                seller = SellerService.get_seller_by_id(seller_id)
+                seller_email = seller.email if seller else None
                 # Use product_dict directly for accurate data
                 product_name = product_dict.get('product_name') or 'Product'
                 qty = quantity
@@ -271,7 +273,7 @@ def create_order():
                     f"New order #{order_no}: {product_name} (Qty: {qty}, ₹{total_amount_val:.2f}). "
                     "Visit BBHCBazaar seller dashboard to accept/reject."
                 )
-                SMSService.send_message(seller_phone, message_body, product_thumbnail=product_dict.get('thumbnail'))
+                SMSService.send_message(seller_phone, message_body, product_thumbnail=product_dict.get('thumbnail'), email=seller_email)
         except Exception as e:
             # Don't block order creation on SMS failure
             print(f"Failed to send SMS notification to seller: {str(e)}")
@@ -407,13 +409,12 @@ def seller_accept_order(order_id):
             order_number = updated_order.order_number or order_id
             quantity = updated_order.quantity or 1
             message = f"Order #{order_number} accepted! {product_name} (Qty: {quantity}). Visit BBHCBazaar site for details."
-            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'), email=user.email)
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification to user: {str(e)}")
 
     # Get updated seller info for live credit sync
-    from app.services.seller_service import SellerService
     seller = SellerService.get_seller_by_id(seller_id)
     updated_credits = seller.credits if seller else 0
 
@@ -460,7 +461,7 @@ def seller_reject_order(order_id):
             quantity = updated_order.quantity or 1
             rejection_reason = updated_order.rejection_reason or reason
             message = f"Order #{order_number} rejected: {product_name} (Qty: {quantity}). Reason: {rejection_reason}. Visit BBHCBazaar site for details."
-            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'), email=user.email)
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification to user: {str(e)}")
@@ -523,14 +524,14 @@ def scan_order_token():
             if user and user.phone_number:
                 pickup_location = updated_order.pickup_location or 'BBHCBazaar Experience Outlet'
                 message = f"Order #{order_number}: {product_name} (Qty: {quantity}) ready for pickup at {pickup_location}. Visit BBHCBazaar outlet with your QR code to collect."
-                SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+                SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'), email=user.email)
 
         elif order_status == 'completed':
             # User collected product - notify seller
             seller = SellerService.get_seller_by_id(str(updated_order.seller_id))
             if seller and seller.phone_number:
                 message = f"Order #{order_number} completed! {product_name} (Qty: {quantity}) collected. Total: ₹{total_amount:.2f}. Thanks!"
-                SMSService.send_message(seller.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+                SMSService.send_message(seller.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'), email=seller.email)
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification: {str(e)}")
@@ -582,14 +583,14 @@ def master_cancel_order(order_id):
         user = UserService.get_user_by_id(str(updated_order.user_id))
         if user and user.phone_number:
             message = f"Order #{order_number} cancelled: {product_name} (Qty: {quantity}). Reason: {rejection_reason}. Visit BBHCBazaar site for details."
-            SMSService.send_message(user.phone_number, message)
+            SMSService.send_message(user.phone_number, message, email=user.email)
 
         # Notify seller
         if updated_order.seller_id:
             seller = SellerService.get_seller_by_id(str(updated_order.seller_id))
             if seller and seller.phone_number:
                 message = f"Order #{order_number} cancelled by admin: {product_name} (Qty: {quantity}). Reason: {rejection_reason}."
-                SMSService.send_message(seller.phone_number, message)
+                SMSService.send_message(seller.phone_number, message, email=seller.email)
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification: {str(e)}")
@@ -630,7 +631,7 @@ def cancel_order(order_id):
             quantity = updated_order.quantity or 1
             rejection_reason = updated_order.rejection_reason or reason
             message = f"Order #{order_number} cancelled by user: {product_name} (Qty: {quantity}). Reason: {rejection_reason}. Contact user for details."
-            SMSService.send_message(seller.phone_number, message)
+            SMSService.send_message(seller.phone_number, message, email=seller.email)
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification to seller: {str(e)}")
@@ -678,14 +679,14 @@ def update_order_status(order_id):
             user = UserService.get_user_by_id(str(updated_order.user_id))
             if user and user.phone_number:
                 message = f"Order #{order_number} rejected by admin: {product_name} (Qty: {quantity}). Reason: {note_text}."
-                SMSService.send_message(user.phone_number, message)
+                SMSService.send_message(user.phone_number, message, email=user.email)
 
         # Notify seller when order is rejected or cancelled
         if status in ['rejected', 'seller_rejected', 'cancelled'] and user_type == 'master':
             seller = SellerService.get_seller_by_id(str(updated_order.seller_id))
             if seller and seller.phone_number:
                 message = f"Order #{order_number} rejected/cancelled by admin: {product_name} (Qty: {quantity}). Reason: {note_text}."
-                SMSService.send_message(seller.phone_number, message)
+                SMSService.send_message(seller.phone_number, message, email=seller.email)
 
     except Exception as e:
         # Don't fail the request if SMS fails

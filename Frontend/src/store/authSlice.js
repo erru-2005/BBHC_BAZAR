@@ -48,6 +48,20 @@ const authSlice = createSlice({
         localStorage.setItem(getRefreshKey(userType), refresh_token)
         localStorage.setItem('refresh_token', refresh_token)
       }
+
+      // Notify the mobile app container to aggressively cache this session natively
+      if (window.AppNotifications && userType === 'user') {
+        try {
+          window.AppNotifications.postMessage(JSON.stringify({
+            type: 'session_sync',
+            token: token,
+            refresh_token: refresh_token,
+            user: user
+          }))
+        } catch (e) {
+          console.error("Failed to post session sync message to mobile container:", e)
+        }
+      }
     },
     loginFailure(state, action) {
       state.loading = false
@@ -58,26 +72,30 @@ const authSlice = createSlice({
       state.userType = null
     },
     logout(state, action) {
-      // action.payload can optionally specify WHICH role to logout
-      // if not specified, we logout the CURRENT session role
-      const targetRole = action.payload || state.userType
+      state.isAuthenticated = false
+      state.user = null
+      state.token = null
+      state.userType = null
+      state.error = null
       
-      if (targetRole === state.userType || !targetRole) {
-        state.isAuthenticated = false
-        state.user = null
-        state.token = null
-        state.userType = null
-        state.error = null
-      }
+      // Clear all role-specific tokens
+      const roles = ['user', 'seller', 'master', 'outlet_man']
+      roles.forEach(role => {
+        localStorage.removeItem(getRoleKey(role))
+        localStorage.removeItem(getRefreshKey(role))
+      })
       
-      // Clear role-specific storage
-      localStorage.removeItem(getRoleKey(targetRole))
-      localStorage.removeItem(getRefreshKey(targetRole))
-      
-      // If we just logged out the "main" token, clear it too
-      if (localStorage.getItem('token') === localStorage.getItem(getRoleKey(targetRole))) {
-         localStorage.removeItem('token')
-         localStorage.removeItem('refresh_token')
+      // Clear generic fallback tokens
+      localStorage.removeItem('token')
+      localStorage.removeItem('refresh_token')
+
+      // Notify the mobile app container if running in a WebView
+      if (window.AppNotifications) {
+        try {
+          window.AppNotifications.postMessage(JSON.stringify({ type: 'logout' }))
+        } catch (e) {
+          console.error("Failed to post logout message to mobile container:", e)
+        }
       }
     },
     checkAuth(state) {
@@ -99,6 +117,21 @@ const authSlice = createSlice({
       } else if (localStorage.getItem('token')) {
         state.token = localStorage.getItem('token')
         state.isAuthenticated = true
+      }
+
+      // Notify mobile container of restored session
+      if (window.AppNotifications && state.userType === 'user' && state.token) {
+        try {
+          const refreshToken = localStorage.getItem(getRefreshKey('user')) || localStorage.getItem('refresh_token')
+          window.AppNotifications.postMessage(JSON.stringify({
+            type: 'session_sync',
+            token: state.token,
+            refresh_token: refreshToken,
+            user: state.user
+          }))
+        } catch (e) {
+          console.error("Failed to post session sync message to mobile container:", e)
+        }
       }
     },
     setUser(state, action) {

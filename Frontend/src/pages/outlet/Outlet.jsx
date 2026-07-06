@@ -11,7 +11,7 @@ import { disconnectSocket } from '../../utils/socket'
 import { HiHome } from 'react-icons/hi'
 import { FaShoppingBag, FaBars, FaSignOutAlt, FaSearch, FaQrcode, FaTimes, FaCheck, FaUser, FaBox, FaStore } from 'react-icons/fa'
 import OrdersList from '../master/components/OrdersList'
-import { scanOrderToken, getOrders, refreshSellerProfile } from '../../services/api'
+import { scanOrderToken, getOrders, refreshSellerProfile, logoutUser } from '../../services/api'
 import { setOutletOrders, setOutletLoading, updateOutletOrder } from '../../store/outletSlice'
 import { updateUserInfo } from '../../store/authSlice'
 
@@ -113,7 +113,12 @@ function Outlet() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutUser()
+    } catch (e) {
+      console.error(e)
+    }
     dispatch(logout())
     clearDeviceToken()
     disconnectSocket()

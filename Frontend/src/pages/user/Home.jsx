@@ -275,7 +275,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
         onClose={() => setMobileMenuOpen(false)}
       />
 
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 pb-24 lg:pb-0">
+      <main className="max-w-7xl mx-auto px-4 lg:px-8 pb-4 lg:pb-0">
         <SpotlightSlider slides={spotlightProducts} />
         {recommendationRows.map((row) => (
           <RecommendationRow key={row.id} title={row.title} products={row.products} />

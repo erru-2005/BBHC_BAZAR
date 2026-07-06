@@ -12,7 +12,7 @@ function PhoneNumberEntry() {
   const [email, setEmail] = useState(prefillEmail)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  
+
   // Get returnTo URL from location state
   const returnTo = location.state?.returnTo || '/'
   const message = location.state?.message

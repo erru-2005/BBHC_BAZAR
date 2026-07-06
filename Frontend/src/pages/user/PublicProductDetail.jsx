@@ -9,7 +9,7 @@ import MobileBottomNav from './components/MobileBottomNav'
 import ProductMediaViewer from '../../components/ProductMediaViewer'
 import { setHomeProducts } from '../../store/dataSlice'
 import { getProducts, addToBag } from '../../services/api'
-import { FaHeart, FaShoppingBag, FaMinus, FaPlus } from 'react-icons/fa'
+import { FaHeart, FaShoppingBag, FaMinus, FaPlus, FaCheck } from 'react-icons/fa'
 import StarRating from '../../components/StarRating'
 import RatingBadge from '../../components/RatingBadge'
 import { addToWishlist, removeFromWishlist, getProductRatingStats } from '../../services/api'
@@ -84,6 +84,7 @@ function PublicProductDetail() {
   const [product, setProduct] = useState(location.state?.product || productFromStore)
   const [userRating, setUserRating] = useState(0)
   const [addingToBag, setAddingToBag] = useState(false)
+  const [isAdded, setIsAdded] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const wishlistIds = home.wishlist || []
   const isWishlisted = product ? wishlistIds.includes(String(product.id || product._id)) : false
@@ -441,8 +442,12 @@ function PublicProductDetail() {
                   try {
                     setAddingToBag(true)
                     await addToBag(product.id || product._id, quantity)
+                    setIsAdded(true)
                     showToast('Item added to bag successfully!', 'success')
                     setQuantity(1) // Reset quantity after adding
+                    setTimeout(() => {
+                      setIsAdded(false)
+                    }, 2000)
                   } catch (error) {
                     showToast(error.message || 'Failed to add to bag', 'error')
                   } finally {
@@ -450,10 +455,18 @@ function PublicProductDetail() {
                   }
                 }}
                 disabled={!product || addingToBag}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 rounded-full border border-gray-300 text-sm sm:text-base font-semibold text-gray-800 hover:bg-gray-50 transition disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 rounded-full border text-sm sm:text-base font-semibold transition disabled:cursor-not-allowed ${
+                  isAdded
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 font-bold'
+                    : 'border-gray-300 text-gray-800 hover:bg-gray-50 disabled:bg-gray-100'
+                }`}
               >
-                <FaShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
-                {addingToBag ? 'Adding...' : 'Add to bag'}
+                {isAdded ? (
+                  <FaCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 animate-bounce" />
+                ) : (
+                  <FaShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+                )}
+                {addingToBag ? 'Adding...' : isAdded ? 'Added to Bag!' : 'Add to bag'}
               </button>
 
               {/* Star Rating Panel */}

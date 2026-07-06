@@ -12,8 +12,10 @@ class ServerNotReachableException implements Exception {
 }
 
 class ApiService {
-  static const String _baseUrl = 'http://192.168.1.4:5001';
+  static const String _baseUrl = 'http://192.168.1.2:5001';
   static const String _cacheKey = 'cached_web_url';
+
+  static String get baseUrl => _baseUrl;
 
   static Future<String> getWebContainerUrl() async {
     final prefs = await SharedPreferences.getInstance();

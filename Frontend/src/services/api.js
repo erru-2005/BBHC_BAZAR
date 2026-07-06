@@ -2310,3 +2310,11 @@ export const enableNotifications = async (fcmToken = null) => {
   }
 }
 
+export const logoutUser = async () => {
+  try {
+    await apiClient.post('/api/auth/enable-notifications', { fcm_token: "" })
+  } catch (e) {
+    console.warn("Failed to clear FCM token on backend during logout:", e)
+  }
+}
+
