@@ -108,7 +108,12 @@ function Bag() {
     return sum + (price * item.quantity)
   }, 0)
 
-  const deliveryFee = subtotal > 500 ? 0 : 15 // Free delivery over ₹500
+  const deliveryFee = bagItems.reduce((sum, item) => {
+    const charge = item.product?.delivery_charge !== undefined && item.product?.delivery_charge !== null
+      ? Number(item.product.delivery_charge)
+      : 0;
+    return sum + charge;
+  }, 0)
   const total = subtotal + deliveryFee
 
   // Handle checkout - create orders for all bag items
@@ -390,7 +395,7 @@ function Bag() {
                   <span>Delivery Fee</span>
                   <span className="font-medium">
                     {deliveryFee === 0 ? (
-                      <span className="text-green-600">Free</span>
+                      <span className="text-green-600 font-bold">FREE</span>
                     ) : (
                       formatCurrency(deliveryFee)
                     )}
@@ -522,7 +527,7 @@ function CheckoutConfirmModal({ bagItems, subtotal, deliveryFee, total, onConfir
             <span>Delivery Fee</span>
             <span className="font-medium">
               {deliveryFee === 0 ? (
-                <span className="text-green-600">Free</span>
+                <span className="text-green-600 font-bold">FREE</span>
               ) : (
                 formatCurrency(deliveryFee)
               )}

@@ -194,9 +194,10 @@ def create_order():
         if not product:
             # Check if it's a service
             try:
-                service_doc = mongo.db.services.find_one({'_id': ObjectId(product_id)})
-                if service_doc:
-                    product = Service.from_bson(service_doc)
+                from app.services.service_service import ServiceService
+                service = ServiceService.get_service_by_id(product_id)
+                if service:
+                    product = service
                     is_service_booking = True
             except Exception:
                 pass
@@ -216,7 +217,8 @@ def create_order():
         else:
             unit_price = product_dict.get('selling_price') or product_dict.get('max_price') or 0
         
-        total_amount = float(unit_price or 0) * quantity
+        delivery_charge = float(product_dict.get('delivery_charge') or 0.0)
+        total_amount = float(unit_price or 0) * quantity + delivery_charge
 
         user_id = get_jwt_identity()
         user = UserService.get_user_by_id(user_id)
@@ -249,6 +251,7 @@ def create_order():
             'quantity': quantity,
             'unit_price': unit_price,
             'total_amount': total_amount,
+            'delivery_charge': delivery_charge,
             'status': 'pending_seller',
             'delivery_address': delivery_address or user_snapshot.get('address'),
             'pickup_location': pickup_location,

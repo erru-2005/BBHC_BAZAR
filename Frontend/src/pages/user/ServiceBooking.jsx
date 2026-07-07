@@ -32,6 +32,9 @@ function ServiceBooking() {
 
   const requiresBookingDate = service?.requires_booking_date === true
 
+  const deliveryCharge = useMemo(() => Number(service?.delivery_charge || 0), [service])
+  const totalValuation = useMemo(() => Number(service?.total_service_charge || service?.service_charge || 0) + deliveryCharge, [service, deliveryCharge])
+
   useEffect(() => {
     if (!isAuthenticated || userType !== 'user') {
       navigate('/user/phone-entry', {
@@ -308,10 +311,20 @@ function ServiceBooking() {
                     <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Base Charge</span>
                     <span className="font-bold text-sm text-slate-900">₹{Number(service.total_service_charge || service.service_charge).toLocaleString('en-IN')}</span>
                   </div>
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Delivery Fee</span>
+                    <span className="font-bold text-sm text-slate-900">
+                      {deliveryCharge === 0 ? (
+                        <span className="text-green-600 font-bold">FREE</span>
+                      ) : (
+                        `₹${deliveryCharge.toLocaleString('en-IN')}`
+                      )}
+                    </span>
+                  </div>
                   <div className="h-px bg-slate-200/60" />
                   <div className="flex justify-between items-center px-1">
                     <span className="text-[10px] font-bold text-slate-900 uppercase tracking-wider">Total Valuation</span>
-                    <span className="text-lg font-black text-indigo-600">₹{Number(service.total_service_charge || service.service_charge).toLocaleString('en-IN')}</span>
+                    <span className="text-lg font-black text-indigo-600">₹{totalValuation.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
 
@@ -351,7 +364,7 @@ function ServiceBooking() {
         open={showSuccess && !!successOrder}
         isService
         productName={service.service_name}
-        amount={Number(service.total_service_charge || service.service_charge)}
+        amount={totalValuation}
         orderNumber={successOrder?.orderNumber || successOrder?.id}
         status={successOrder?.status}
         scheduleLabel={scheduleLabel}

@@ -1034,6 +1034,54 @@ def user_verify_otp():
         return jsonify({'error': f'OTP verification failed: {str(e)}'}), 500
 
 
+@auth_bp.route('/register', methods=['POST'])
+def register():
+    """Traditional user registration (legacy/testing support)"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+            
+        username = data.get('username')
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not username or not email or not password:
+            return jsonify({'error': 'Username, email and password are required'}), 400
+            
+        # Check duplicate email
+        existing_user = UserService.get_user_by_email(email)
+        if existing_user:
+            return jsonify({'error': 'User with this email already exists'}), 409
+            
+        user_data = {
+            'username': username,
+            'email': email,
+            'password': password,
+            'first_name': data.get('first_name'),
+            'last_name': data.get('last_name')
+        }
+        
+        user = UserService.create_user(user_data)
+        user_dict = user.to_dict(include_password=False)
+        
+        # Build response
+        additional_claims = {
+            'user_id': str(user._id),
+            'user_type': 'user',
+            'username': user.username
+        }
+        
+        resp_obj, _ = _build_auth_response(user_dict, 'user', additional_claims, extra_resp_data={'message': 'User registered successfully'}, device_id=data.get('device_id'))
+        resp_obj.status_code = 201
+        return resp_obj
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
+
+
 @auth_bp.route('/user/register', methods=['POST'])
 def user_register():
     """

@@ -94,7 +94,8 @@ def get_bag():
                     'max_price': product_dict.get('max_price'),
                     'commission_rate': product_dict.get('commission_rate'),
                     'quantity': product_dict.get('quantity'),
-                    'stock': product_dict.get('quantity', 0)
+                    'stock': product_dict.get('quantity', 0),
+                    'delivery_charge': product_dict.get('delivery_charge')
                 }
                 bag_with_products.append(bag_item_dict)
 

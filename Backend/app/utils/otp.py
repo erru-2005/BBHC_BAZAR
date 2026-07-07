@@ -131,10 +131,10 @@ class OTPManager:
                             email = u.get('email')
 
             if email and str(email).strip().lower() in ['text@exmple.com', 'test@example.com']:
-                if otp == '248369':
+                if str(otp).strip() == '248369':
                     is_valid_otp = True
             
-            if not is_valid_otp and session['otp'] == otp:
+            if not is_valid_otp and str(session.get('otp', '')).strip() == str(otp).strip():
                 is_valid_otp = True
                 
             if not is_valid_otp:

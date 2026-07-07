@@ -12,7 +12,7 @@ import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins ,FaGlobe} from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins ,FaGlobe, FaTruck} from 'react-icons/fa'
 import PasswordResetDialog from '../../components/PasswordResetDialog'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
@@ -28,12 +28,13 @@ import AddService from './components/AddService'
 import OrdersList from './components/OrdersList'
 import CommissionManagement from './components/CommissionManagement'
 import ServiceCreditManagement from './components/ServiceCreditManagement'
+import DeliveryManagement from './components/DeliveryManagement'
 import Analysis from './components/analysis/Analysis'
 import ActiveCounters from './components/ActiveCounters'
 import WebContainerSettings from './components/WebContainerSettings'
 import './master.css'
 
-const TAB_ORDER_VERSION = '4'
+const TAB_ORDER_VERSION = '5'
 
 function Master() {
   const dispatch = useDispatch()
@@ -61,6 +62,7 @@ function Master() {
     { id: 'list-products', label: 'List Products', icon: FaThList },
     { id: 'list-services', label: 'List Services', icon: FaThList },
     { id: 'commission', label: 'Commission', icon: FaPercent },
+    { id: 'delivery', label: 'Delivery', icon: FaTruck },
     { id: 'service-credits', label: 'Service Credits', icon: FaCoins },
     { id: 'web-container', label: 'Web Container', icon: FaGlobe },
     { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
@@ -643,6 +645,8 @@ function Master() {
         {activeTab === 'orders' && <OrdersList />}
 
         {activeTab === 'commission' && <CommissionManagement />}
+
+        {activeTab === 'delivery' && <DeliveryManagement />}
 
         {activeTab === 'service-credits' && <ServiceCreditManagement />}
       </div>

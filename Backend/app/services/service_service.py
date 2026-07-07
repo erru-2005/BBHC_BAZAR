@@ -117,7 +117,10 @@ class ServiceService:
             service_doc = mongo.db.services.find_one({'_id': ObjectId(service_id)})
             if not service_doc:
                 return None
-            return Service.from_bson(service_doc)
+            service = Service.from_bson(service_doc)
+            if service:
+                ServiceService.populate_delivery_charge(service)
+            return service
         except Exception:
             return None
 
@@ -140,7 +143,13 @@ class ServiceService:
                 .limit(limit)
             )
             
-            return [Service.from_bson(doc) for doc in services_cursor]
+            services = []
+            for doc in services_cursor:
+                service = Service.from_bson(doc)
+                if service:
+                    ServiceService.populate_delivery_charge(service)
+                services.append(service)
+            return services
         except Exception:
             return []
 
@@ -381,7 +390,13 @@ class ServiceService:
             services_cursor = mongo.db.services.find({
                 'approval_status': 'pending'
             }).sort('created_at', -1)
-            return [Service.from_bson(doc) for doc in services_cursor]
+            services = []
+            for doc in services_cursor:
+                service = Service.from_bson(doc)
+                if service:
+                    ServiceService.populate_delivery_charge(service)
+                services.append(service)
+            return services
         except Exception:
             return []
 
@@ -431,3 +446,29 @@ class ServiceService:
             return result.deleted_count > 0, None
         except Exception as e:
             return False, f"Error rejecting service: {str(e)}"
+
+    @staticmethod
+    def populate_delivery_charge(service):
+        """Populate active delivery charge based on priority hierarchy"""
+        try:
+            if service.delivery_charge is not None:
+                return service.delivery_charge
+
+            # Check category delivery rates
+            if service.categories:
+                for category in service.categories:
+                    doc = mongo.db.service_category_delivery_rates.find_one({'category': category})
+                    if doc:
+                        service.delivery_charge = float(doc.get('rate', 0))
+                        return service.delivery_charge
+
+            # Check global delivery rate
+            global_doc = mongo.db.delivery_settings.find_one({'key': 'global_service_rate'})
+            if global_doc:
+                service.delivery_charge = float(global_doc.get('rate', 0))
+            else:
+                service.delivery_charge = 0.0
+            return service.delivery_charge
+        except Exception:
+            service.delivery_charge = 0.0
+            return 0.0

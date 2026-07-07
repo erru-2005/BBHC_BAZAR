@@ -1468,6 +1468,56 @@ export const saveServiceCategoryAcceptCredits = async (categoryCredits) => {
   }
 }
 
+/**
+ * Delivery Management
+ */
+export const getDeliveryRates = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.DELIVERY_RATES)
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to get delivery rates')
+  }
+}
+
+export const applyDeliveryToAll = async (rate, type = 'product') => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.DELIVERY_APPLY_ALL, {
+      rate: Number(rate),
+      type
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to apply delivery charge')
+  }
+}
+
+export const applyDeliveryByCategory = async (category, rate, type = 'product') => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.DELIVERY_APPLY_CATEGORY, {
+      category,
+      rate: Number(rate),
+      type
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to apply category delivery charge')
+  }
+}
+
+export const applyDeliveryToItem = async (itemId, rate, type = 'product') => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.DELIVERY_APPLY_ITEM, {
+      item_id: itemId,
+      rate: Number(rate),
+      type
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to apply item delivery charge')
+  }
+}
+
 export const setServiceAcceptCredit = async (creditCount) => {
   try {
     const response = await apiClient.put(API_ENDPOINTS.API.COMMISSION_SERVICE_ACCEPT_CREDIT, {
