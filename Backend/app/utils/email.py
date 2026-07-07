@@ -50,8 +50,12 @@ class EmailService:
                 msg.attach(part2)
 
             # Connect and send
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
+            if smtp_port == 465:
+                server = smtplib.SMTP_SSL(smtp_server, smtp_port)
+            else:
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls()
+                
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
             server.quit()
