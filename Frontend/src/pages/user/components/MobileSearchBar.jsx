@@ -11,7 +11,7 @@ function MobileSearchBar() {
         <button
           type="button"
           onClick={() => setIsSearchOpen(true)}
-          className="w-full flex items-center gap-2 bg-white rounded-full px-3 py-2.5 shadow-inner cursor-text text-left"
+          className="w-full flex items-center gap-2 bg-white rounded-lg px-3.5 py-2.5 shadow-inner cursor-text text-left border border-slate-200"
           aria-label="Open search"
         >
           <FaMagnifyingGlass className="text-gray-400 w-4 h-4 flex-shrink-0" />

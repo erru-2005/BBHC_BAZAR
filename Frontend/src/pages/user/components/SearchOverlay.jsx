@@ -113,7 +113,7 @@ function SearchOverlay({ isOpen, onClose, initialQuery = '' }) {
     <div className="fixed inset-0 z-50 bg-white">
       {/* Mobile Header */}
       <div className="md:hidden bg-[#131921] text-white px-4 py-3 flex items-center gap-3">
-        <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-2 bg-white rounded-full px-3 py-2">
+        <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-2 bg-white rounded-lg px-3.5 py-2 border border-slate-200">
           <FaMagnifyingGlass className="text-gray-400 w-4 h-4 flex-shrink-0" />
           <input
             ref={mobileInputRef}
@@ -149,7 +149,7 @@ function SearchOverlay({ isOpen, onClose, initialQuery = '' }) {
       {/* Desktop Header */}
       <div className="hidden md:block bg-[#131921] text-white px-8 py-4">
         <div className="max-w-4xl mx-auto flex items-center gap-4">
-          <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-2 bg-white rounded-full px-4 py-3">
+          <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center gap-2 bg-white rounded-lg px-4 py-3 border border-slate-200">
             <FaMagnifyingGlass className="text-gray-400 w-5 h-5 flex-shrink-0" />
             <input
               ref={desktopInputRef}
