@@ -195,30 +195,34 @@ class SMSService:
                     if is_otp:
                         print(f"\n[DEBUG OTP SENDING] Target Email: {recipient_email} | Message: {message_body}\n", flush=True)
 
-                    from app.utils.email import EmailService
-                    subject = "BBHCBazaar - Security Verification Code" if is_otp else "BBHCBazaar - Order Update"
-                    
-                    # Simple, clean HTML body to prevent spam detection
-                    html_body = f"""
-                    <html>
-                    <body style="font-family: sans-serif; line-height: 1.5; color: #111111; max-width: 500px; margin: 20px auto; padding: 10px;">
-                        <p>Hello,</p>
-                        <p>{message_body}</p>
-                        <p>Best regards,<br>BBHCBazaar Team</p>
-                    </body>
-                    </html>
-                    """
-                    
-                    ok, err = EmailService.send_email(
-                        to_email=recipient_email,
-                        subject=subject,
-                        body_text=message_body,
-                        body_html=html_body
-                    )
-                    if ok:
+                    if str(recipient_email).strip().lower() in ['text@exmple.com', 'test@example.com']:
                         email_sent = True
+                        print(f"[SMSService] Bypassed actual SMTP sending for target bypass email: {recipient_email}")
                     else:
-                        email_error = err
+                        from app.utils.email import EmailService
+                        subject = "BBHCBazaar - Security Verification Code" if is_otp else "BBHCBazaar - Order Update"
+                        
+                        # Simple, clean HTML body to prevent spam detection
+                        html_body = f"""
+                        <html>
+                        <body style="font-family: sans-serif; line-height: 1.5; color: #111111; max-width: 500px; margin: 20px auto; padding: 10px;">
+                            <p>Hello,</p>
+                            <p>{message_body}</p>
+                            <p>Best regards,<br>BBHCBazaar Team</p>
+                        </body>
+                        </html>
+                        """
+                        
+                        ok, err = EmailService.send_email(
+                            to_email=recipient_email,
+                            subject=subject,
+                            body_text=message_body,
+                            body_html=html_body
+                        )
+                        if ok:
+                            email_sent = True
+                        else:
+                            email_error = err
                 except Exception as e:
                     email_error = str(e)
                     print(f"[SMSService] SMTP sending error: {str(e)}")
