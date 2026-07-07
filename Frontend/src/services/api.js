@@ -2069,8 +2069,9 @@ export const getOrder = async (orderId) => {
 
 export const sellerAcceptOrder = async (orderId, payload = null) => {
   try {
+    // Return the full response so callers can access both `credits` and `order`
     const response = await apiClient.post(API_ENDPOINTS.API.ORDER_ACCEPT(orderId), payload || {})
-    return response.order
+    return response // { message, order, credits }
   } catch (error) {
     throw new Error(error.message || 'Failed to accept order')
   }

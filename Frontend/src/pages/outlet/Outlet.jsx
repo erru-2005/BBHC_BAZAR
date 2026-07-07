@@ -68,6 +68,7 @@ function Outlet() {
   const [slots, setSlots] = useState([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState(null)
+  const [scannedSlotInfo, setScannedSlotInfo] = useState(null) // { userId, userName, order } after user-token scan
   
   const { orders, loading: loadingOrders, lastFetched } = useSelector(state => state.outlet)
 
@@ -202,12 +203,30 @@ function Outlet() {
     try {
       // Get order details IN PREVIEW MODE first
       const order = await scanOrderToken(scannedToken, true)
-      
-      // Show details popup - user must confirm to take action
-      setPendingOrder(order)
-      setShowOrderDetails(true)
-      
-      setTokenInput('')
+
+      // Detect if this is a user token (secureTokenUser)
+      const userToken = order.secureTokenUser || order.secure_token_user
+      const isUserToken = userToken && scannedToken === userToken
+
+      if (isUserToken) {
+        // Switch to Slots tab and highlight matching user slot
+        const userId = order.user_id || order.userId || (order.user && order.user.id)
+        const userName = order.user?.name ||
+          `${order.user?.first_name || ''} ${order.user?.last_name || ''}`.trim() ||
+          'Customer'
+        setScannedSlotInfo({ userId, userName, order })
+        setPendingOrder(order)
+        setPendingToken(scannedToken)
+        setActiveTab('slots')
+        setTokenInput('')
+        // Refresh slots to get fresh data
+        loadSlots()
+      } else {
+        // Seller token or other – show details popup as before
+        setPendingOrder(order)
+        setShowOrderDetails(true)
+        setTokenInput('')
+      }
     } catch (err) {
       setScanError(err.message || 'Failed to scan token')
       setScanResult({
@@ -554,14 +573,50 @@ function Outlet() {
                 <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-3">Outlet Slots</h2>
                 <p className="text-gray-500 font-medium">Manage and view items assigned to slots.</p>
               </div>
-              <button 
-                onClick={loadSlots}
-                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
-              >
-                Refresh
-              </button>
+              <div className="flex items-center gap-3">
+                {scannedSlotInfo && (
+                  <button
+                    onClick={() => {
+                      setScannedSlotInfo(null)
+                      setPendingOrder(null)
+                      setPendingToken('')
+                    }}
+                    className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 text-sm font-semibold flex items-center gap-2"
+                  >
+                    <FaTimes className="w-3.5 h-3.5" /> Clear Scan
+                  </button>
+                )}
+                <button
+                  onClick={loadSlots}
+                  className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
-            
+
+            {/* Scanned user banner */}
+            {scannedSlotInfo && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-4 p-4 bg-blue-600 text-white rounded-2xl shadow-lg"
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <FaUser className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-blue-200">Scanned User Token</p>
+                  <p className="font-bold text-lg truncate">{scannedSlotInfo.userName}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-blue-200">Order Ref</p>
+                  <p className="font-bold"># {scannedSlotInfo.order?.orderNumber?.split('-').pop() || '—'}</p>
+                </div>
+                <div className="w-2 h-2 rounded-full bg-blue-300 animate-pulse ml-2 shrink-0" />
+              </motion.div>
+            )}
+
             {loadingSlots ? (
                <div className="flex flex-col items-center py-12 gap-4">
                  <div className="w-10 h-10 border-4 border-gray-100 border-t-black rounded-full animate-spin" />
@@ -569,38 +624,80 @@ function Outlet() {
                </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                {slots.map(slot => (
-                  <div 
-                    key={slot.slot_number}
-                    onClick={() => slot.is_occupied && setSelectedSlot(slot)}
-                    className={`relative p-6 rounded-2xl border-2 transition-all cursor-pointer ${
-                      slot.is_occupied 
-                      ? 'bg-blue-50 border-blue-200 hover:border-blue-400 hover:shadow-md'
-                      : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <span className="text-2xl font-black text-gray-300">{slot.slot_number}</span>
-                      {slot.is_occupied ? (
-                         <span className="px-2 py-1 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full uppercase">Occupied</span>
-                      ) : (
-                         <span className="px-2 py-1 text-[10px] font-bold bg-gray-100 text-gray-500 rounded-full uppercase">Free</span>
+                {slots.map(slot => {
+                  // When a user token was scanned, match by user_name (since slot may not have user_id)
+                  const isMatchedSlot = scannedSlotInfo
+                    ? (slot.user_id && slot.user_id === scannedSlotInfo.userId) ||
+                      (slot.user_name && scannedSlotInfo.userName &&
+                        slot.user_name.toLowerCase().trim() === scannedSlotInfo.userName.toLowerCase().trim())
+                    : false
+                  const isDisabled = scannedSlotInfo && !isMatchedSlot
+
+                  return (
+                    <motion.div
+                      key={slot.slot_number}
+                      animate={isMatchedSlot ? { scale: [1, 1.04, 1] } : {}}
+                      transition={{ duration: 0.6, repeat: 2 }}
+                      onClick={() => {
+                        if (isDisabled) return
+                        if (!slot.is_occupied && !isMatchedSlot) return
+                        // If this is the scanned slot, open with the full scanned order
+                        if (isMatchedSlot && scannedSlotInfo?.order) {
+                          setSelectedSlot({ ...slot, _scannedOrder: scannedSlotInfo.order })
+                        } else if (slot.is_occupied) {
+                          setSelectedSlot(slot)
+                        }
+                      }}
+                      className={`relative p-6 rounded-2xl border-2 transition-all ${
+                        isDisabled
+                          ? 'opacity-30 cursor-not-allowed select-none'
+                          : isMatchedSlot
+                            ? 'bg-blue-600 border-blue-500 shadow-xl shadow-blue-500/30 cursor-pointer ring-4 ring-blue-300 ring-offset-2 animate-pulse-slow'
+                            : slot.is_occupied
+                              ? 'bg-blue-50 border-blue-200 hover:border-blue-400 hover:shadow-md cursor-pointer'
+                              : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
+                      }`}
+                    >
+                      {/* Matched glow effect */}
+                      {isMatchedSlot && (
+                        <div className="absolute inset-0 rounded-2xl bg-blue-400/20 animate-pulse pointer-events-none" />
                       )}
-                    </div>
-                    {slot.is_occupied && (
-                      <div className="space-y-2">
-                         <div className="flex items-center gap-2">
-                           <FaUser className="text-blue-400 shrink-0" />
-                           <p className="font-bold text-gray-900 truncate" title={slot.user_name}>{slot.user_name}</p>
-                         </div>
-                         <div className="flex items-center gap-2">
-                           <FaBox className="text-blue-400 shrink-0" />
-                           <p className="text-sm font-medium text-gray-700">{slot.item_count} items</p>
-                         </div>
+
+                      <div className="flex justify-between items-start mb-4">
+                        <span className={`text-2xl font-black ${
+                          isMatchedSlot ? 'text-white/80' : 'text-gray-300'
+                        }`}>{slot.slot_number}</span>
+                        {isMatchedSlot ? (
+                          <span className="px-2 py-1 text-[10px] font-bold bg-white/20 text-white rounded-full uppercase">Your Slot</span>
+                        ) : slot.is_occupied ? (
+                          <span className="px-2 py-1 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full uppercase">Occupied</span>
+                        ) : (
+                          <span className="px-2 py-1 text-[10px] font-bold bg-gray-100 text-gray-500 rounded-full uppercase">Free</span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {(slot.is_occupied || isMatchedSlot) && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <FaUser className={isMatchedSlot ? 'text-white/70 shrink-0' : 'text-blue-400 shrink-0'} />
+                            <p className={`font-bold truncate ${
+                              isMatchedSlot ? 'text-white' : 'text-gray-900'
+                            }`} title={slot.user_name || ''}>{slot.user_name || `Slot ${slot.slot_number} User`}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FaBox className={isMatchedSlot ? 'text-white/70 shrink-0' : 'text-blue-400 shrink-0'} />
+                            <p className={`text-sm font-medium ${
+                              isMatchedSlot ? 'text-white/90' : 'text-gray-700'
+                            }`}>{slot.item_count} items</p>
+                          </div>
+                          {isMatchedSlot && (
+                            <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest pt-1">↑ Tap to view details</p>
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -608,44 +705,186 @@ function Outlet() {
       </div>
 
       {/* Slot Details Modal */}
-      {selectedSlot && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-900">Slot {selectedSlot.slot_number} Details</h3>
-              <button onClick={() => setSelectedSlot(null)} className="text-gray-400 hover:text-gray-600 transition">
-                <FaTimes className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="mb-6">
-                 <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Customer</h4>
-                 <p className="text-xl font-bold text-gray-900">{selectedSlot.user_name}</p>
-              </div>
-              <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Items in Slot ({selectedSlot.item_count})</h4>
-              <div className="space-y-3">
-                {selectedSlot.items?.map((item, i) => (
-                  <div key={i} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                    <p className="font-bold text-gray-900 mb-1">
-                      {item.product_name} 
-                      <span className="ml-2 text-sm font-medium text-gray-500 bg-gray-200 px-2 py-0.5 rounded-md">
-                        Qty: {item.quantity || 1}
-                      </span>
-                    </p>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>Order: #{item.order_number}</span>
-                      <span>Seller: {item.seller_name}</span>
-                    </div>
+      {selectedSlot && (() => {
+        const scannedOrder = selectedSlot._scannedOrder || null
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[88vh] overflow-y-auto"
+            >
+              {/* Header */}
+              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm">
+                    {selectedSlot.slot_number}
                   </div>
-                ))}
-                {!selectedSlot.items?.length && (
-                  <p className="text-gray-500 italic">No detailed items found.</p>
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">Slot {selectedSlot.slot_number}</h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{selectedSlot.user_name}</p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedSlot(null)} className="text-gray-400 hover:text-gray-600 transition p-1">
+                  <FaTimes className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {scannedOrder ? (
+                  <>
+                    {/* Scanned order full details */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                      <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Order Details</p>
+                      <div className="space-y-2 mt-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Order #</span>
+                          <span className="text-sm font-bold text-gray-900">{scannedOrder.orderNumber || '—'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Status</span>
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                            scannedOrder.status === 'completed' ? 'bg-green-100 text-green-700'
+                            : scannedOrder.status === 'handed_over' ? 'bg-blue-100 text-blue-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                          }`}>{scannedOrder.status?.replace(/_/g,' ').toUpperCase()}</span>
+                        </div>
+                        {!scannedOrder.booking && (
+                          <div className="flex justify-between pt-2 border-t border-blue-100">
+                            <span className="text-sm text-gray-600">Expected Delivery</span>
+                            <span className="text-sm font-bold text-emerald-700">
+                              On/Before {calculateArrivalDate(scannedOrder.createdAt, scannedOrder.delivery_span)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2"><FaBox className="w-3 h-3" /> Product</p>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Name</span>
+                          <span className="text-sm font-bold text-gray-900">{scannedOrder.product?.name || scannedOrder.product?.product_name || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Qty</span>
+                          <span className="text-sm font-bold text-gray-900">{scannedOrder.quantity}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Unit Price</span>
+                          <span className="text-sm font-bold text-gray-900">₹{Number(scannedOrder.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between pt-2 border-t border-gray-200">
+                          <span className="text-sm font-semibold text-gray-700">Total</span>
+                          <span className="text-sm font-bold text-gray-900">₹{Number(scannedOrder.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2"><FaUser className="w-3 h-3" /> Customer</p>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Name</span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {scannedOrder.user?.name || `${scannedOrder.user?.first_name || ''} ${scannedOrder.user?.last_name || ''}`.trim() || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Phone</span>
+                          <span className="text-sm font-bold text-gray-900">{scannedOrder.user?.phone || scannedOrder.user?.phone_number || 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2"><FaStore className="w-3 h-3" /> Seller</p>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Trade ID</span>
+                          <span className="text-sm font-bold text-gray-900">{scannedOrder.seller?.trade_id || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Name</span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {`${scannedOrder.seller?.first_name || ''} ${scannedOrder.seller?.last_name || ''}`.trim() || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Phone</span>
+                          <span className="text-sm font-bold text-gray-900">{scannedOrder.seller?.phone_number || 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Confirm Scan button for user token */}
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => {
+                          setSelectedSlot(null)
+                          setScannedSlotInfo(null)
+                          setPendingOrder(null)
+                          setPendingToken('')
+                        }}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setSelectedSlot(null)
+                          setShowOrderDetails(false)
+                          await handleConfirmScan()
+                          setScannedSlotInfo(null)
+                          loadSlots()
+                        }}
+                        disabled={confirming}
+                        className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-600/20"
+                      >
+                        <FaCheck className="w-4 h-4" />
+                        {confirming ? 'Confirming...' : 'Confirm & Complete'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Regular slot details (no scan) */}
+                    <div className="mb-4">
+                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Customer</h4>
+                      <p className="text-xl font-bold text-gray-900">{selectedSlot.user_name}</p>
+                    </div>
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Items in Slot ({selectedSlot.item_count})</h4>
+                    <div className="space-y-3">
+                      {selectedSlot.items?.map((item, i) => (
+                        <div key={i} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                          <p className="font-bold text-gray-900 mb-1">
+                            {item.product_name}
+                            <span className="ml-2 text-sm font-medium text-gray-500 bg-gray-200 px-2 py-0.5 rounded-md">Qty: {item.quantity || 1}</span>
+                          </p>
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>Order: #{item.order_number}</span>
+                            <span>Seller: {item.seller_name}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {!selectedSlot.items?.length && (
+                        <p className="text-gray-500 italic">No detailed items found.</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setSelectedSlot(null)}
+                      className="w-full mt-4 px-4 py-3 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition text-sm"
+                    >
+                      Close
+                    </button>
+                  </>
                 )}
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Order Details Popup */}
       {showOrderDetails && pendingOrder && (

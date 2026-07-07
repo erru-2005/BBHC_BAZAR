@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useLocation, useOutletContext } from 'react-router-dom'
-import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiMoreHorizontal, FiEye, FiPackage, FiSearch, FiCheckCircle, FiAlertCircle, FiPlus, FiXCircle, FiFilter } from 'react-icons/fi'
+import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiMoreHorizontal, FiEye, FiPackage, FiSearch, FiCheckCircle, FiAlertCircle, FiPlus, FiXCircle, FiFilter, FiCopy, FiCheck } from 'react-icons/fi'
 import { FaQrcode } from 'react-icons/fa6'
 
 import { getSocket } from '../../utils/socket'
@@ -67,6 +67,7 @@ function Seller() {
   const [ordersError, setOrdersError] = useState(null)
   const [notificationProcessingId, setNotificationProcessingId] = useState(null)
   const [qrOrder, setQrOrder] = useState(null)
+  const [qrCodeCopied, setQrCodeCopied] = useState(false)
   const [newOrderNotification, setNewOrderNotification] = useState(null)
   const [dashboardSearch, setDashboardSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -959,7 +960,7 @@ function Seller() {
             >
               <h3 className="text-lg font-black text-slate-900 mb-6 uppercase tracking-tighter">Handover Code</h3>
 
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block mb-8">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 inline-block mb-4">
                 <QRCode
                   value={qrOrder.secureTokenSeller || qrOrder.id}
                   size={120}
@@ -967,6 +968,45 @@ function Seller() {
                   style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                 />
               </div>
+
+              {/* Token code + Copy button */}
+              {(() => {
+                const token = qrOrder.secureTokenSeller || qrOrder.id
+                const handleCopy = () => {
+                  navigator.clipboard.writeText(token).then(() => {
+                    setQrCodeCopied(true)
+                    setTimeout(() => setQrCodeCopied(false), 2000)
+                  }).catch(() => {
+                    const el = document.createElement('textarea')
+                    el.value = token
+                    document.body.appendChild(el)
+                    el.select()
+                    document.execCommand('copy')
+                    document.body.removeChild(el)
+                    setQrCodeCopied(true)
+                    setTimeout(() => setQrCodeCopied(false), 2000)
+                  })
+                }
+                return (
+                  <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-2 mb-6">
+                    <code className="flex-1 text-[10px] font-mono text-slate-600 truncate select-all">
+                      {token}
+                    </code>
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={handleCopy}
+                      className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                        qrCodeCopied
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-slate-200 text-slate-600 hover:bg-blue-100 hover:text-blue-700'
+                      }`}
+                    >
+                      {qrCodeCopied ? <FiCheck className="w-3 h-3" /> : <FiCopy className="w-3 h-3" />}
+                      {qrCodeCopied ? 'Copied!' : 'Copy'}
+                    </motion.button>
+                  </div>
+                )
+              })()}
 
               <button
                 onClick={() => setQrOrder(null)}

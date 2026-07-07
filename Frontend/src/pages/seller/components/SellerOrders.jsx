@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { motion, AnimatePresence } from 'framer-motion'
-import { FiSearch, FiPackage, FiBox, FiRefreshCw, FiXCircle, FiArrowUpRight, FiEye } from 'react-icons/fi'
+import { FiSearch, FiPackage, FiBox, FiRefreshCw, FiXCircle, FiArrowUpRight, FiEye, FiCopy, FiCheck, FiX } from 'react-icons/fi'
+import QRCode from 'react-qr-code'
 import Toast from '../../../components/Toast'
 import { getOrders, sellerAcceptOrder, sellerRejectOrder, getServiceAcceptCredit } from '../../../services/api'
 import { initSocket } from '../../../utils/socket'
@@ -57,6 +58,8 @@ function SellerOrders() {
   const [creditLoading, setCreditLoading] = useState(false)
   const [selectedSpans, setSelectedSpans] = useState({})
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
+  const [acceptedOrder, setAcceptedOrder] = useState(null) // order shown in QR modal after acceptance
+  const [codeCopied, setCodeCopied] = useState(false)
 
   useEffect(() => {
     getServiceAcceptCredit().then(setServiceAcceptCredit).catch(() => {})
@@ -123,6 +126,12 @@ function SellerOrders() {
       }
 
       setActionOrder(null)
+
+      // Show QR modal with the seller's secure token (from the returned order)
+      if (res?.order) {
+        setAcceptedOrder(res.order)
+      }
+
       setToast({
         show: true,
         message: isService ? 'Service accepted successfully!' : 'Order accepted successfully!',
@@ -539,6 +548,120 @@ function SellerOrders() {
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* QR Code Modal — shown after seller accepts an order */}
+      <AnimatePresence>
+        {acceptedOrder && (() => {
+          const token = acceptedOrder.secureTokenSeller || acceptedOrder.secure_token_seller || acceptedOrder.qrCodeData
+          const orderRef = acceptedOrder.orderNumber?.split('-').pop() || (acceptedOrder.id || acceptedOrder._id || '').toString().slice(-6).toUpperCase()
+          const productName = acceptedOrder.product?.product_name || acceptedOrder.product?.name || 'Order'
+
+          const handleCopy = () => {
+            if (!token) return
+            navigator.clipboard.writeText(token).then(() => {
+              setCodeCopied(true)
+              setTimeout(() => setCodeCopied(false), 2000)
+            }).catch(() => {
+              // fallback
+              const el = document.createElement('textarea')
+              el.value = token
+              document.body.appendChild(el)
+              el.select()
+              document.execCommand('copy')
+              document.body.removeChild(el)
+              setCodeCopied(true)
+              setTimeout(() => setCodeCopied(false), 2000)
+            })
+          }
+
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4"
+              onClick={() => setAcceptedOrder(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.85, y: 30, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.9, y: 20, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="relative bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden"
+                style={{ width: 'clamp(300px, 92vw, 400px)' }}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Header gradient strip */}
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 pt-8 pb-10 text-center">
+                  <div className="inline-flex items-center gap-2 bg-white/15 rounded-full px-4 py-1.5 mb-4">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-white text-[10px] font-black uppercase tracking-[0.2em]">Order Accepted</span>
+                  </div>
+                  <h3 className="text-white text-xl font-bold tracking-tight">{productName}</h3>
+                  <p className="text-blue-200 text-xs font-semibold mt-1">Ref: #{orderRef}</p>
+                </div>
+
+                {/* QR Code area */}
+                <div className="-mt-6 mx-8 bg-white rounded-2xl shadow-lg border border-slate-100 p-6 flex flex-col items-center gap-4">
+                  {token ? (
+                    <>
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <QRCode
+                          value={token}
+                          size={180}
+                          style={{ display: 'block' }}
+                          fgColor="#1e293b"
+                          bgColor="#f8fafc"
+                        />
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] text-center">
+                        Scan this QR at the outlet
+                      </p>
+
+                      {/* Token code display */}
+                      <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                        <code className="flex-1 text-xs font-mono text-slate-700 truncate select-all">
+                          {token}
+                        </code>
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={handleCopy}
+                          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                            codeCopied
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-slate-200 text-slate-600 hover:bg-blue-100 hover:text-blue-700'
+                          }`}
+                        >
+                          {codeCopied ? <FiCheck className="w-3 h-3" /> : <FiCopy className="w-3 h-3" />}
+                          {codeCopied ? 'Copied!' : 'Copy'}
+                        </motion.button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="py-8 text-center text-slate-400">
+                      <FiPackage className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                      <p className="text-xs font-semibold">No scan code available for this order.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-8 py-6 text-center">
+                  <p className="text-xs text-slate-400 font-medium leading-relaxed mb-4">
+                    The buyer will show their QR at the outlet to collect the product.
+                  </p>
+                  <button
+                    onClick={() => setAcceptedOrder(null)}
+                    className="flex items-center gap-2 mx-auto px-6 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold tracking-wide hover:bg-slate-800 active:scale-95 transition-all"
+                  >
+                    <FiX className="w-3.5 h-3.5" /> Close
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )
+        })()}
       </AnimatePresence>
 
       <Toast
