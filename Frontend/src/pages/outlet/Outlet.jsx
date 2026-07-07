@@ -11,9 +11,36 @@ import { disconnectSocket } from '../../utils/socket'
 import { HiHome } from 'react-icons/hi'
 import { FaShoppingBag, FaBars, FaSignOutAlt, FaSearch, FaQrcode, FaTimes, FaCheck, FaUser, FaBox, FaStore } from 'react-icons/fa'
 import OrdersList from '../master/components/OrdersList'
-import { scanOrderToken, getOrders, refreshSellerProfile, logoutUser } from '../../services/api'
+import { scanOrderToken, getOrders, refreshSellerProfile, logoutUser, getOutletSlots } from '../../services/api'
 import { setOutletOrders, setOutletLoading, updateOutletOrder } from '../../store/outletSlice'
 import { updateUserInfo } from '../../store/authSlice'
+
+const calculateArrivalDate = (createdAt, deliverySpan) => {
+  if (!createdAt) return ''
+  const span = Number(deliverySpan ?? 2)
+  if (isNaN(span) || span < 1) return ''
+
+  let daysToAdd = span - 1
+  let currentDate = new Date(createdAt)
+
+  // If today is Sunday, move to Monday (Sunday is not counted)
+  while (currentDate.getDay() === 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+
+  // Add days, skipping Sundays
+  while (daysToAdd > 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+    if (currentDate.getDay() !== 0) {
+      daysToAdd--
+    }
+  }
+
+  const dd = String(currentDate.getDate()).padStart(2, '0')
+  const mm = String(currentDate.getMonth() + 1).padStart(2, '0')
+  const yyyy = currentDate.getFullYear()
+  return `${dd}-${mm}-${yyyy}`
+}
 
 function Outlet() {
   const dispatch = useDispatch()
@@ -38,6 +65,9 @@ function Outlet() {
   const [pendingOrder, setPendingOrder] = useState(null)
   const [pendingToken, setPendingToken] = useState('')
   const [confirming, setConfirming] = useState(false)
+  const [slots, setSlots] = useState([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [selectedSlot, setSelectedSlot] = useState(null)
   
   const { orders, loading: loadingOrders, lastFetched } = useSelector(state => state.outlet)
 
@@ -110,6 +140,24 @@ function Outlet() {
       console.error('Failed to load completed orders:', err)
     } finally {
       dispatch(setOutletLoading(false))
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'slots') {
+      loadSlots()
+    }
+  }, [activeTab])
+
+  const loadSlots = async () => {
+    try {
+      setLoadingSlots(true)
+      const data = await getOutletSlots()
+      setSlots(data)
+    } catch (err) {
+      console.error('Failed to load slots:', err)
+    } finally {
+      setLoadingSlots(false)
     }
   }
 
@@ -304,6 +352,17 @@ function Outlet() {
               <FaShoppingBag className="w-4.5 h-4.5" />
               <span>Orders</span>
             </button>
+            <button
+              onClick={() => handleTabSelection('slots')}
+              className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap flex items-center gap-2 ${
+                activeTab === 'slots'
+                  ? 'bg-white text-black shadow-lg'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <FaBox className="w-4.5 h-4.5" />
+              <span>Slots</span>
+            </button>
           </div>
         </div>
       </div>
@@ -488,7 +547,100 @@ function Outlet() {
         )}
         
         {activeTab === 'orders' && <OrdersList />}
+        {activeTab === 'slots' && (
+          <div className="max-w-6xl mx-auto space-y-8">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-3">Outlet Slots</h2>
+                <p className="text-gray-500 font-medium">Manage and view items assigned to slots.</p>
+              </div>
+              <button 
+                onClick={loadSlots}
+                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800"
+              >
+                Refresh
+              </button>
+            </div>
+            
+            {loadingSlots ? (
+               <div className="flex flex-col items-center py-12 gap-4">
+                 <div className="w-10 h-10 border-4 border-gray-100 border-t-black rounded-full animate-spin" />
+                 <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Fetching slots...</p>
+               </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                {slots.map(slot => (
+                  <div 
+                    key={slot.slot_number}
+                    onClick={() => slot.is_occupied && setSelectedSlot(slot)}
+                    className={`relative p-6 rounded-2xl border-2 transition-all cursor-pointer ${
+                      slot.is_occupied 
+                      ? 'bg-blue-50 border-blue-200 hover:border-blue-400 hover:shadow-md'
+                      : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <span className="text-2xl font-black text-gray-300">{slot.slot_number}</span>
+                      {slot.is_occupied ? (
+                         <span className="px-2 py-1 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full uppercase">Occupied</span>
+                      ) : (
+                         <span className="px-2 py-1 text-[10px] font-bold bg-gray-100 text-gray-500 rounded-full uppercase">Free</span>
+                      )}
+                    </div>
+                    {slot.is_occupied && (
+                      <div className="space-y-2">
+                         <div className="flex items-center gap-2">
+                           <FaUser className="text-blue-400 shrink-0" />
+                           <p className="font-bold text-gray-900 truncate" title={slot.user_name}>{slot.user_name}</p>
+                         </div>
+                         <div className="flex items-center gap-2">
+                           <FaBox className="text-blue-400 shrink-0" />
+                           <p className="text-sm font-medium text-gray-700">{slot.item_count} items</p>
+                         </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Slot Details Modal */}
+      {selectedSlot && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">Slot {selectedSlot.slot_number} Details</h3>
+              <button onClick={() => setSelectedSlot(null)} className="text-gray-400 hover:text-gray-600 transition">
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="mb-6">
+                 <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Customer</h4>
+                 <p className="text-xl font-bold text-gray-900">{selectedSlot.user_name}</p>
+              </div>
+              <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Items in Slot ({selectedSlot.item_count})</h4>
+              <div className="space-y-3">
+                {selectedSlot.items?.map((item, i) => (
+                  <div key={i} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="font-bold text-gray-900 mb-1">{item.product_name}</p>
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Order: #{item.order_number}</span>
+                      <span>Seller: {item.seller_name}</span>
+                    </div>
+                  </div>
+                ))}
+                {!selectedSlot.items?.length && (
+                  <p className="text-gray-500 italic">No detailed items found.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Order Details Popup */}
       {showOrderDetails && pendingOrder && (
@@ -526,6 +678,14 @@ function Outlet() {
                     {pendingOrder.status?.replace('_', ' ').toUpperCase()}
                   </span>
                 </div>
+                {!pendingOrder.booking && (
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
+                    <span className="text-sm font-semibold text-gray-700">Expected Delivery</span>
+                    <span className="text-sm font-bold text-emerald-700">
+                      On or before {calculateArrivalDate(pendingOrder.createdAt || pendingOrder.created_at, pendingOrder.delivery_span)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Product Details */}
@@ -681,6 +841,19 @@ function Outlet() {
                 <div className="flex items-center gap-3">
                   <FaShoppingBag className="w-5 h-5" />
                   <span>Orders</span>
+                </div>
+              </button>
+              <button
+                onClick={() => handleTabSelection('slots')}
+                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
+                  activeTab === 'slots'
+                    ? 'bg-black text-white'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <FaBox className="w-5 h-5" />
+                  <span>Slots</span>
                 </div>
               </button>
             </div>

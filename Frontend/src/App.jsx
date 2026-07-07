@@ -34,7 +34,8 @@ import {
   SellerAddService,
   SellerSettings,
   SellerProfilePage,
-  ServiceBooking
+  ServiceBooking,
+  UserOrderDetail
 } from './pages'
 import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -335,6 +336,14 @@ function SplashWrapper() {
                 element={
                   <ProtectedRoute requiredUserType="user">
                     <UserOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/user/orders/:orderId"
+                element={
+                  <ProtectedRoute requiredUserType="user">
+                    <UserOrderDetail />
                   </ProtectedRoute>
                 }
               />

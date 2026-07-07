@@ -19,6 +19,32 @@ from app.utils.image_handler import normalize_image_reference
 orders_bp = Blueprint('orders', __name__)
 
 
+def calculate_arrival_date(created_at, delivery_span):
+    from datetime import datetime, timezone, timedelta
+    if not created_at:
+        created_at = datetime.now(timezone.utc)
+    
+    try:
+        span = int(delivery_span)
+    except (ValueError, TypeError):
+        span = 2
+        
+    days_to_add = span - 1
+    current_date = created_at
+    
+    # If today is Sunday (weekday() == 6 in Python), move to Monday
+    while current_date.weekday() == 6:
+        current_date += timedelta(days=1)
+        
+    # Add days, skipping Sundays
+    while days_to_add > 0:
+        current_date += timedelta(days=1)
+        if current_date.weekday() != 6:
+            days_to_add -= 1
+            
+    return current_date.strftime('%d-%m-%Y')
+
+
 def _validate_service_booking(service_dict, booking):
     """Return error message if booking fails validation for this service."""
     if not service_dict.get('requires_booking_date'):
@@ -91,6 +117,7 @@ def _serialize_orders(order_list):
                 'selling_price': doc.get('selling_price'),
                 'max_price': doc.get('max_price'),
                 'quantity': doc.get('quantity'),
+                'delivery_span': doc.get('delivery_span', 2),
             }
 
     users_map = {}
@@ -355,6 +382,7 @@ def get_order(order_id):
                 'selling_price': product_dict.get('selling_price'),
                 'max_price': product_dict.get('max_price'),
                 'quantity': product_dict.get('quantity'),
+                'delivery_span': product_dict.get('delivery_span', 2),
             }
     
     # Populate current user data
@@ -389,7 +417,15 @@ def seller_accept_order(order_id):
         return jsonify({'error': 'Only sellers can accept orders'}), 403
 
     seller_id = get_jwt_identity()
-    updated_order, error = OrderService.seller_accept_order(order_id, seller_id)
+    payload = request.get_json(silent=True) or {}
+    delivery_span = payload.get('delivery_span')
+    if delivery_span is not None:
+        try:
+            delivery_span = int(delivery_span)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid delivery span value'}), 400
+
+    updated_order, error = OrderService.seller_accept_order(order_id, seller_id, delivery_span)
     
     if error:
         return jsonify({'error': error}), 400
@@ -408,7 +444,12 @@ def seller_accept_order(order_id):
             product_name = product_snapshot.get('name') or 'Product'
             order_number = updated_order.order_number or order_id
             quantity = updated_order.quantity or 1
-            message = f"Order #{order_number} accepted! {product_name} (Qty: {quantity}). Visit BBHCBazaar site for details."
+            is_service = updated_order.type == 'service' or bool(updated_order.booking)
+            if not is_service:
+                arrival_date = calculate_arrival_date(updated_order.created_at, updated_order.delivery_span)
+                message = f"Order #{order_number} accepted! {product_name} (Qty: {quantity}). Expected delivery on or before {arrival_date}. Visit BBHCBazaar site for details."
+            else:
+                message = f"Order #{order_number} accepted! {product_name} (Qty: {quantity}). Visit BBHCBazaar site for details."
             SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'), email=user.email)
     except Exception as e:
         # Don't fail the request if SMS fails

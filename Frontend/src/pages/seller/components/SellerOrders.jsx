@@ -2,16 +2,43 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiSearch, FiPackage, FiBox, FiRefreshCw, FiXCircle, FiArrowUpRight, FiEye } from 'react-icons/fi'
+import Toast from '../../../components/Toast'
 import { getOrders, sellerAcceptOrder, sellerRejectOrder, getServiceAcceptCredit } from '../../../services/api'
 import { initSocket } from '../../../utils/socket'
 import { fixImageUrl, getOrderProductImage } from '../../../utils/image'
 import { updateUserInfo } from '../../../store/authSlice'
-import { getDeliveryOptionsForPromise, getExpectedDeliveryDate, formatDate } from '../../../utils/delivery'
 import {
   AcceptServiceCreditBadge,
   AcceptServiceCreditDeduction,
   getServiceCategoryFromOrder,
 } from './AcceptServiceCreditNotice'
+
+const calculateArrivalDate = (createdAt, deliverySpan) => {
+  if (!createdAt) return ''
+  const span = Number(deliverySpan ?? 2)
+  if (isNaN(span) || span < 1) return ''
+
+  let daysToAdd = span - 1
+  let currentDate = new Date(createdAt)
+
+  // If today is Sunday, move to Monday (Sunday is not counted)
+  while (currentDate.getDay() === 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+
+  // Add days, skipping Sundays
+  while (daysToAdd > 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+    if (currentDate.getDay() !== 0) {
+      daysToAdd--
+    }
+  }
+
+  const dd = String(currentDate.getDate()).padStart(2, '0')
+  const mm = String(currentDate.getMonth() + 1).padStart(2, '0')
+  const yyyy = currentDate.getFullYear()
+  return `${dd}-${mm}-${yyyy}`
+}
 
 function SellerOrders() {
   const dispatch = useDispatch()
@@ -24,12 +51,12 @@ function SellerOrders() {
   const [isSynced, setIsSynced] = useState(false)
   const [actionOrder, setActionOrder] = useState(null)
   const [rejectionReason, setRejectionReason] = useState('')
-  const [productAcceptConfirmation, setProductAcceptConfirmation] = useState(null)
-  const [chosenDeliveryPromise, setChosenDeliveryPromise] = useState('tomorrow')
   const [processingId, setProcessingId] = useState(null)
   const [serviceConfirmOrder, setServiceConfirmOrder] = useState(null)
   const [serviceAcceptCredit, setServiceAcceptCredit] = useState(25)
   const [creditLoading, setCreditLoading] = useState(false)
+  const [selectedSpans, setSelectedSpans] = useState({})
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
 
   useEffect(() => {
     getServiceAcceptCredit().then(setServiceAcceptCredit).catch(() => {})
@@ -63,25 +90,17 @@ function SellerOrders() {
     }
   }
 
-  const handleAccept = async (orderId, deliveryPromise = null) => {
-    // If it's a service, we need confirmation first
+  const handleAccept = async (orderId, deliverySpanVal = null) => {
     const order = orders.find(o => (o.id === orderId || o._id === orderId))
-    if (!order) return
     const isService = order?.booking || (order?.type === 'service')
 
-    if (isService) {
-      if (!serviceConfirmOrder) {
-        setServiceConfirmOrder(order)
-        return
-      }
-    } else {
-      if (!deliveryPromise) {
-        const options = getDeliveryOptionsForPromise(order.product?.delivery_promise || order.delivery_promise)
-        const defaultOption = options[options.length - 1]?.value || 'tomorrow'
-        setChosenDeliveryPromise(defaultOption)
-        setProductAcceptConfirmation(order)
-        return
-      }
+    if (isService && (user?.credits || 0) < serviceAcceptCredit) {
+      setToast({
+        show: true,
+        message: `Insufficient credits! You need at least ${serviceAcceptCredit} credits to accept this service.`,
+        type: 'error'
+      })
+      return
     }
 
     // OPTIMISTIC UPDATE: Instant visual deduction
@@ -95,7 +114,8 @@ function SellerOrders() {
 
     try {
       setProcessingId(orderId)
-      const res = await sellerAcceptOrder(orderId, isService ? null : deliveryPromise)
+      const payload = isService ? null : { delivery_span: deliverySpanVal }
+      const res = await sellerAcceptOrder(orderId, payload)
 
       // Sync with final balance from server
       if (res && res.credits !== undefined) {
@@ -103,11 +123,18 @@ function SellerOrders() {
       }
 
       setActionOrder(null)
-      setServiceConfirmOrder(null)
-      setProductAcceptConfirmation(null)
+      setToast({
+        show: true,
+        message: isService ? 'Service accepted successfully!' : 'Order accepted successfully!',
+        type: 'success'
+      })
     } catch (err) {
       console.error('Accept fail:', err)
-      alert('Acceptance failed: ' + err.message)
+      setToast({
+        show: true,
+        message: 'Acceptance failed: ' + err.message,
+        type: 'error'
+      })
     } finally {
       setProcessingId(null)
     }
@@ -219,7 +246,7 @@ function SellerOrders() {
             <button
               key={t.id}
               onClick={() => setTypeFilter(t.id)}
-              className={`px-6 py-2 rounded-[2px] text-[10px] font-black uppercase tracking-widest transition-all ${typeFilter === t.id
+              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${typeFilter === t.id
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
                 }`}
@@ -229,7 +256,7 @@ function SellerOrders() {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 p-1.5 bg-blue-50/30 backdrop-blur-md rounded-[4px] border border-white/60 flex-1 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 p-1.5 bg-blue-50/30 backdrop-blur-md rounded-[2rem] border border-white/60 flex-1 shadow-sm">
           {[
             { id: 'all', label: 'All Status', icon: FiBox },
             { id: 'pending', label: 'Pending', icon: FiRefreshCw },
@@ -239,7 +266,7 @@ function SellerOrders() {
             <button
               key={f.id}
               onClick={() => setStatusFilter(f.id)}
-              className={`flex items-center gap-2.5 px-5 py-2.5 rounded-[2px] transition-all duration-300 border ${statusFilter === f.id
+              className={`flex items-center gap-2.5 px-5 py-2.5 rounded-[1.5rem] transition-all duration-300 border ${statusFilter === f.id
                 ? 'bg-white text-blue-600 shadow-md border-white'
                 : 'text-slate-400 border-transparent hover:text-slate-600'
                 }`}
@@ -260,18 +287,18 @@ function SellerOrders() {
               <div key={`shimmer-${i}`} className="seller-card-premium p-8 animate-pulse">
                 <div className="flex justify-between mb-8">
                   <div className="flex gap-4">
-                    <div className="w-12 h-12 bg-slate-100 rounded-[2px]" />
+                    <div className="w-12 h-12 bg-slate-100 rounded-2xl" />
                     <div className="space-y-2">
                       <div className="w-32 h-4 bg-slate-100 rounded-full" />
                       <div className="w-20 h-3 bg-slate-50 rounded-full" />
                     </div>
                   </div>
-                  <div className="w-24 h-8 bg-slate-100 rounded-[2px]" />
+                  <div className="w-24 h-8 bg-slate-100 rounded-xl" />
                 </div>
-                <div className="w-full h-24 bg-slate-50 rounded-[4px] mb-8" />
+                <div className="w-full h-24 bg-slate-50 rounded-[2rem] mb-8" />
                 <div className="flex justify-between items-center pt-6 border-t border-slate-50">
                   <div className="w-24 h-8 bg-slate-100 rounded-full" />
-                  <div className="w-20 h-10 bg-slate-100 rounded-[2px]" />
+                  <div className="w-20 h-10 bg-slate-100 rounded-xl" />
                 </div>
               </div>
             ))
@@ -284,7 +311,7 @@ function SellerOrders() {
               <p className="text-rose-500/70 font-bold uppercase tracking-[0.2em] text-[10px] mb-8 max-w-xs">{error}</p>
               <button
                 onClick={fetchOrders}
-                className="px-8 py-3 bg-rose-600 text-white rounded-[2px] text-[10px] font-black uppercase tracking-[0.3em] shadow-lg shadow-rose-600/20 hover:bg-rose-700 transition-all active:scale-95 flex items-center gap-2"
+                className="px-8 py-3 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-lg shadow-rose-600/20 hover:bg-rose-700 transition-all active:scale-95 flex items-center gap-2"
               >
                 RETRY CONNECTION <FiTrendingUp className="w-4 h-4 rotate-90" />
               </button>
@@ -297,6 +324,15 @@ function SellerOrders() {
           ) : (
             filteredOrders.map((order) => {
               const productImg = getOrderProductImage(order)
+              const maxDays = order.product?.delivery_span || order.product_current?.delivery_span || order.delivery_span || 2
+              const currentSpan = selectedSpans[order.id] || maxDays
+
+              const options = []
+              for (let i = 1; i <= maxDays; i++) {
+                if (i === 1) options.push({ value: 1, label: 'Today' })
+                else if (i === 2) options.push({ value: 2, label: 'Tomorrow' })
+                else options.push({ value: i, label: `${i} Days` })
+              }
               return (
               <motion.div
                 key={order.id}
@@ -304,14 +340,14 @@ function SellerOrders() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="p-6 group relative overflow-hidden bg-white/40 backdrop-blur-2xl border border-white/60 rounded-[4px] shadow-[0_15px_40px_-20px_rgba(0,0,0,0.08)]"
+                className="p-6 group relative overflow-hidden bg-white/40 backdrop-blur-2xl border border-white/60 rounded-[2.5rem] shadow-[0_15px_40px_-20px_rgba(0,0,0,0.08)]"
               >
                 {/* Decorative glow */}
                 <div className={`absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-10 ${getStatusStyle(order.status).includes('emerald') ? 'bg-emerald-500' : 'bg-blue-500'}`} />
 
                 <div className="flex justify-between items-start mb-8 relative z-10">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-[2px] bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm border border-blue-100">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm border border-blue-100">
                       <FiBox className="w-6 h-6" />
                     </div>
                     <div>
@@ -324,15 +360,15 @@ function SellerOrders() {
                       </p>
                     </div>
                   </div>
-                  <span className={`px-4 py-2 rounded-[2px] text-[10px] font-bold uppercase tracking-wider shadow-sm border ${getStatusStyle(order.status, order)}`}>
+                  <span className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-sm border ${getStatusStyle(order.status, order)}`}>
                     {order.booking && (order.status === 'seller_accepted' || order.status === 'accepted')
                       ? (isServiceDatePassed(order) ? 'Completed' : 'Accepted')
                       : (order.status ? order.status.replace(/_/g, ' ') : 'Pending')}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-5 mb-8 p-5 bg-slate-50/50 backdrop-blur-sm rounded-[4px] border border-white/80 shadow-inner group-hover:bg-slate-50 transition-colors">
-                  <div className="w-16 h-16 rounded-[2px] overflow-hidden bg-white border border-slate-100 flex-shrink-0 shadow-sm transition-transform group-hover:scale-105">
+                <div className="flex items-center gap-5 mb-8 p-5 bg-slate-50/50 backdrop-blur-sm rounded-[2rem] border border-white/80 shadow-inner group-hover:bg-slate-50 transition-colors">
+                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-slate-100 flex-shrink-0 shadow-sm transition-transform group-hover:scale-105">
                     {productImg ? (
                       <img src={productImg} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                     ) : (
@@ -341,7 +377,7 @@ function SellerOrders() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h5 className="font-bold text-sm text-slate-800 truncate tracking-tight">{order.product?.product_name || order.product?.name || 'Asset Item'}</h5>
-                    <p className="text-xs text-slate-500 font-semibold mt-1 opacity-80">
+                    <div className="text-xs text-slate-500 font-semibold mt-1 opacity-80">
                       {order.booking ? (
                         <span className="text-blue-600">
                           {order.booking.type === 'single'
@@ -350,9 +386,16 @@ function SellerOrders() {
                           }
                         </span>
                       ) : (
-                        `${order.quantity} Unit(s) × ${formatCurrency(order.unitPrice || (order.total_amount / order.quantity))}`
+                        <>
+                          <div>
+                            {order.quantity} Unit(s) × {formatCurrency(order.unitPrice || (order.total_amount / order.quantity))}
+                          </div>
+                          <div className="text-[10px] text-emerald-600 font-bold mt-1">
+                            Expected Arrival: On/Before {calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span || currentSpan)}
+                          </div>
+                        </>
                       )}
-                    </p>
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valuation</p>
@@ -361,7 +404,7 @@ function SellerOrders() {
                 </div>
 
                 {(order.status === 'seller_rejected' || order.status === 'rejected' || order.status === 'cancelled') && (
-                  <div className="mx-2 mb-6 p-4 rounded-[4px] bg-rose-50/50 border border-rose-100 flex items-start gap-3">
+                  <div className="mx-2 mb-6 p-4 rounded-2xl bg-rose-50/50 border border-rose-100 flex items-start gap-3">
                     <div className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1.5 flex-shrink-0" />
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-rose-900 uppercase tracking-widest">Termination Logic</p>
@@ -374,7 +417,7 @@ function SellerOrders() {
 
                 <div className="flex items-center justify-between pt-6 border-t border-slate-100/50">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-[2px] bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 overflow-hidden border border-white shadow-sm">
+                    <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 overflow-hidden border border-white shadow-sm">
                       {order.user?.image ? (
                         <img src={fixImageUrl(order.user.image)} className="w-full h-full object-cover" />
                       ) : (
@@ -387,29 +430,48 @@ function SellerOrders() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
                     {order.status === 'pending_seller' ? (
                       <>
+                        {!order.booking && (
+                          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm shrink-0">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Delivery:</span>
+                            <select
+                              value={currentSpan}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10)
+                                setSelectedSpans(prev => ({ ...prev, [order.id]: val }))
+                              }}
+                              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                            >
+                              {options.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                         <button
                           disabled={processingId === order.id}
                           onClick={() => {
                             setRejectionReason('Service/Product not available at the moment') // Default or open modal
                             setActionOrder(order)
                           }}
-                          className="px-4 py-2 rounded-[2px] bg-slate-100 text-[10px] font-black text-slate-400 hover:text-rose-600 hover:bg-rose-50 uppercase tracking-widest transition-all"
+                          className="px-4 py-2 rounded-xl bg-slate-100 text-[10px] font-black text-slate-400 hover:text-rose-600 hover:bg-rose-50 uppercase tracking-widest transition-all"
                         >
                           REJECT
                         </button>
                         <button
                           disabled={processingId === order.id}
-                          onClick={() => handleAccept(order.id)}
-                          className="flex items-center gap-2 px-5 py-2.5 rounded-[2px] bg-blue-600 text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-blue-600/10 hover:bg-blue-700 active:scale-95 transition-all"
+                          onClick={() => handleAccept(order.id, currentSpan)}
+                          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-blue-600/10 hover:bg-blue-700 active:scale-95 transition-all"
                         >
                           {processingId === order.id ? <FiRefreshCw className="animate-spin w-3 h-3" /> : 'ACCEPT'}
                         </button>
                       </>
                     ) : (
-                      <button className="flex items-center gap-2 px-5 py-2.5 rounded-[2px] bg-slate-900 text-xs font-bold text-white tracking-normal shadow-lg shadow-slate-900/10 hover:bg-slate-800 active:scale-95 transition-all">
+                      <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-xs font-bold text-white tracking-normal shadow-lg shadow-slate-900/10 hover:bg-slate-800 active:scale-95 transition-all">
                         Details <FiEye className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -434,7 +496,7 @@ function SellerOrders() {
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white rounded-[4px] p-8 w-full shadow-2xl relative border border-slate-50 text-center"
+              className="bg-white rounded-[2rem] p-8 w-full shadow-2xl relative border border-slate-50 text-center"
               style={{ width: 'clamp(280px, 90%, 350px)' }}
               onClick={e => e.stopPropagation()}
             >
@@ -446,14 +508,14 @@ function SellerOrders() {
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="Reason for rejection (if any)..."
-                  className="w-full bg-slate-50 border border-slate-100 rounded-[2px] p-4 text-xs font-medium focus:bg-white focus:border-blue-600 outline-none transition-all min-h-[100px] resize-none"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4 text-xs font-medium focus:bg-white focus:border-blue-600 outline-none transition-all min-h-[100px] resize-none"
                 />
 
                 <div className="flex flex-col gap-3">
                   <motion.button
                     disabled={processingId === actionOrder.id}
-                    onClick={() => handleAccept(actionOrder.id)}
-                    className="w-full py-3.5 bg-blue-600 text-white rounded-[2px] font-bold text-xs shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                    onClick={() => handleAccept(actionOrder.id, selectedSpans[actionOrder.id] || (actionOrder.product?.delivery_span || 2))}
+                    className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
@@ -479,157 +541,12 @@ function SellerOrders() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {serviceConfirmOrder && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
-            onClick={() => setServiceConfirmOrder(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.8, opacity: 0, y: 20 }}
-              className="bg-white rounded-[4px] p-10 w-full text-center shadow-2xl border border-slate-50 relative"
-              style={{ width: 'clamp(320px, 90%, 420px)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="w-14 h-14 bg-blue-50 text-blue-500 rounded-[2px] flex items-center justify-center mx-auto mb-4">
-                <FiRefreshCw className="w-7 h-7" />
-              </div>
-
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Accept Service?</h3>
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <AcceptServiceCreditBadge balance={user?.credits || 0} />
-              </div>
-              <p className="text-xs text-slate-400 font-medium mb-4 leading-relaxed px-2">
-                Confirm your availability to fulfill this service request.
-                <AcceptServiceCreditDeduction amount={serviceAcceptCredit} loading={creditLoading} />
-              </p>
-
-              {user?.credits < serviceAcceptCredit && (
-                <div className="mb-6 p-4 rounded-[4px] bg-rose-50 border border-rose-100 flex flex-col items-center gap-2">
-                  <div className="flex items-center gap-2 text-rose-600 font-bold text-[10px] uppercase tracking-widest">
-                    <FiXCircle className="w-4 h-4" /> Insufficient Credits
-                  </div>
-                  <p className="text-[10px] text-rose-500 font-medium">You need at least {serviceAcceptCredit} credits to accept this service. Please recharge your wallet.</p>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-3">
-                <motion.button
-                  whileHover={user?.credits >= serviceAcceptCredit ? { scale: 1.02 } : {}}
-                  whileTap={user?.credits >= serviceAcceptCredit ? { scale: 0.98 } : {}}
-                  disabled={processingId === serviceConfirmOrder.id || creditLoading || user?.credits < serviceAcceptCredit}
-                  onClick={() => handleAccept(serviceConfirmOrder.id)}
-                  className={`w-full py-3.5 rounded-[2px] font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${user?.credits >= serviceAcceptCredit
-                      ? 'bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-700'
-                      : 'bg-slate-100 text-slate-400 cursor-not-allowed grayscale'
-                    }`}
-                >
-                  {processingId === serviceConfirmOrder.id ? <FiRefreshCw className="animate-spin w-4 h-4" /> : 'CONFIRM & ACCEPT'}
-                </motion.button>
-                <button
-                  onClick={() => setServiceConfirmOrder(null)}
-                  className="w-full py-2 text-slate-400 hover:text-slate-600 font-bold text-[10px] uppercase tracking-widest transition-colors"
-                >
-                  CANCEL
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {productAcceptConfirmation && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
-            onClick={() => setProductAcceptConfirmation(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.8, opacity: 0, y: 20 }}
-              className="bg-white rounded-[4px] p-10 w-full text-center shadow-2xl relative border border-slate-50"
-              style={{ width: 'clamp(320px, 90%, 420px)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="w-14 h-14 bg-emerald-50 text-emerald-500 rounded-[2px] flex items-center justify-center mx-auto mb-4">
-                <FiPackage className="w-7 h-7" />
-              </div>
-
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Accept Order?</h3>
-              <p className="text-xs text-slate-400 font-medium mb-6 text-center leading-relaxed">
-                Fulfill the order for <span className="font-bold text-slate-700">{productAcceptConfirmation.product?.product_name || 'this product'}</span>.
-              </p>
-
-              <div className="mb-6 text-left">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  Select Delivery Promise
-                </label>
-                <select
-                  value={chosenDeliveryPromise}
-                  onChange={(e) => setChosenDeliveryPromise(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-[2px] text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                >
-                  {getDeliveryOptionsForPromise(
-                    productAcceptConfirmation.product?.delivery_promise || productAcceptConfirmation.delivery_promise
-                  ).map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                
-                {chosenDeliveryPromise && (
-                  <p className="mt-3 text-[10px] text-emerald-700 font-bold bg-emerald-50 p-2.5 rounded-[2px] border border-emerald-100/50 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse shrink-0" />
-                    <span>
-                      Order will be delivered on or before:{' '}
-                      <span className="underline">
-                        {formatDate(getExpectedDeliveryDate(chosenDeliveryPromise))}
-                      </span>
-                    </span>
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  disabled={processingId === productAcceptConfirmation.id}
-                  onClick={() =>
-                    handleAccept(
-                      productAcceptConfirmation.id || productAcceptConfirmation._id,
-                      chosenDeliveryPromise
-                    )
-                  }
-                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2px] font-bold text-xs shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-3"
-                >
-                  {processingId === productAcceptConfirmation.id ? (
-                    <FiRefreshCw className="animate-spin w-4 h-4" />
-                  ) : (
-                    'CONFIRM & ACCEPT'
-                  )}
-                </motion.button>
-                <button
-                  onClick={() => setProductAcceptConfirmation(null)}
-                  className="w-full py-2 text-slate-400 hover:text-slate-600 font-bold text-[10px] uppercase tracking-widest transition-colors"
-                >
-                  CANCEL
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast
+        isVisible={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+      />
     </div>
   )
 }

@@ -17,7 +17,7 @@ class ProductCreationSchema(Schema):
     seller_email = fields.Email(required=False, allow_none=True)
     seller_phone = fields.Str(required=False, allow_none=True)
     commission_rate = fields.Float(required=False, allow_none=True)
-    delivery_promise = fields.Str(required=True, validate=validate.Length(min=1))
+    delivery_span = fields.Int(required=False, allow_none=True, validate=validate.Range(min=1))
 
     @pre_load
     def normalize_optional_fields(self, data, **kwargs):

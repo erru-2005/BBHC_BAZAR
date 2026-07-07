@@ -16,37 +16,8 @@ import { extractStaticPath, resolveImageUrl } from '../../../utils/image'
 
 const INITIAL_POINTS = ['', '', '']
 
-const parseDeliveryPromiseToDays = (dp) => {
-  if (!dp) return 1
-  const normalized = String(dp).toLowerCase().trim()
-  if (normalized === 'today') return 0
-  if (normalized === 'tomorrow') return 1
-  const match = normalized.match(/^(\d+)/)
-  if (match) {
-    return parseInt(match[1], 10)
-  }
-  return 1
-}
-
-const convertDaysToDeliveryPromise = (days) => {
-  const d = parseInt(days, 10)
-  if (isNaN(d) || d < 0) return 'tomorrow'
-  if (d === 0) return 'today'
-  if (d === 1) return 'tomorrow'
-  return `${d}_days`
-}
-
 function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCancelEdit = () => { } }) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState({ 
-    productName: '', 
-    specification: '', 
-    sellingPrice: '', 
-    maxPrice: '', 
-    commissionRate: '',
-    deliveryDays: '1'
-  })
+  const [form, setForm] = useState({ productName: '', specification: '', sellingPrice: '', maxPrice: '', commissionRate: '' })
   const [media, setMedia] = useState({ thumbnail: null, gallery: [] })
   const [points, setPoints] = useState(INITIAL_POINTS)
   const [status, setStatus] = useState({ type: null, message: '' })
@@ -64,6 +35,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCance
   const [showConfirmReset, setShowConfirmReset] = useState(false)
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
   const [errors, setErrors] = useState({})
+  const [deliverySpanType, setDeliverySpanType] = useState('tomorrow')
+  const [customDeliverySpan, setCustomDeliverySpan] = useState('')
 
   const nameRef = useRef(null)
   const sellerRef = useRef(null)
@@ -85,20 +58,16 @@ function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCance
       ) || null
     )
   }, [selectedSellerId, availableSellers])
+
   const resetForm = () => {
-    setForm({ 
-      productName: '', 
-      specification: '', 
-      sellingPrice: '', 
-      maxPrice: '', 
-      commissionRate: '',
-      deliveryDays: '1'
-    })
+    setForm({ productName: '', specification: '', sellingPrice: '', maxPrice: '', commissionRate: '' })
     setPoints(INITIAL_POINTS)
     setMedia({ thumbnail: null, gallery: [] })
     setSelectedCategory('')
     setSelectedSellerId('')
     setErrors({})
+    setDeliverySpanType('tomorrow')
+    setCustomDeliverySpan('')
   }
 
   // Auto-apply category commission when category is selected
@@ -221,6 +190,9 @@ function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCance
     setStatus({ type: null, message: '' })
   }
 
+  const [isEditing, setIsEditing] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+
   const normalizeImagePayload = (image) => {
     if (!image) return null
     if (typeof image === 'string') {
@@ -260,8 +232,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCance
         specification: editingProduct.specification || '',
         sellingPrice: editingProduct.selling_price || editingProduct.price || '',
         maxPrice: editingProduct.max_price || editingProduct.mrp || '',
-        commissionRate: editingProduct.commission_rate || editingProduct.commissionRate || '',
-        deliveryDays: String(parseDeliveryPromiseToDays(editingProduct.delivery_promise))
+        commissionRate: editingProduct.commission_rate || editingProduct.commissionRate || ''
       })
       setPoints(
         Array.isArray(editingProduct.points) && editingProduct.points.length
@@ -286,6 +257,18 @@ function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCance
         editingProduct.seller_id ||
         ''
       setSelectedSellerId(sellerIdFromProduct ? String(sellerIdFromProduct) : '')
+
+      const ds = editingProduct.delivery_span ?? 2
+      if (ds === 1) {
+        setDeliverySpanType('today')
+        setCustomDeliverySpan('')
+      } else if (ds === 2) {
+        setDeliverySpanType('tomorrow')
+        setCustomDeliverySpan('')
+      } else {
+        setDeliverySpanType('custom')
+        setCustomDeliverySpan(String(ds))
+      }
     } else {
       setIsEditing(false)
       setEditingId(null)
@@ -378,8 +361,11 @@ function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCance
       if (!firstErrorRef) firstErrorRef = pointRef
     }
 
-    if (form.deliveryDays === undefined || form.deliveryDays === '' || isNaN(parseInt(form.deliveryDays, 10)) || parseInt(form.deliveryDays, 10) < 0) {
-      newErrors.deliveryDays = 'Please specify a valid number of days for delivery'
+    if (deliverySpanType === 'custom') {
+      const days = parseInt(customDeliverySpan, 10)
+      if (isNaN(days) || days <= 2) {
+        newErrors.deliverySpan = 'Delivery span for custom days must be greater than 2'
+      }
     }
 
     setErrors(newErrors)
@@ -405,6 +391,8 @@ function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCance
     if (!validateForm()) return
 
     const cleanedPoints = points.map((p) => p.trim()).filter(Boolean)
+    const selling = Number(form.sellingPrice)
+    const max = Number(form.maxPrice)
 
     setIsSubmitting(true)
     try {
@@ -448,6 +436,15 @@ function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCance
         }
       }
 
+      let deliverySpanValue = 2
+      if (deliverySpanType === 'today') {
+        deliverySpanValue = 1
+      } else if (deliverySpanType === 'tomorrow') {
+        deliverySpanValue = 2
+      } else if (deliverySpanType === 'custom') {
+        deliverySpanValue = parseInt(customDeliverySpan, 10)
+      }
+
       const payload = {
         product_name: form.productName.trim(),
         specification: form.specification.trim(),
@@ -464,7 +461,7 @@ function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCance
         seller_email: selectedSeller ? selectedSeller.email || null : null,
         seller_phone: selectedSeller ? selectedSeller.phone_number || null : null,
         product_id: entityId,
-        delivery_promise: convertDaysToDeliveryPromise(form.deliveryDays),
+        delivery_span: deliverySpanValue,
       }
 
       if (isEditing && editingId) {
@@ -768,23 +765,74 @@ function AddProduct({ editingProduct = null, onProductSaved = () => { }, onCance
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Delivery Promise (Number of Days) <span className="text-red-500">*</span>
+            <label className="block text-sm font-semibold text-gray-800 mb-1">
+              Delivery Span <span className="text-red-500">*</span>
             </label>
-            <input
-              type="number"
-              name="deliveryDays"
-              min="0"
-              value={form.deliveryDays}
-              onChange={handleChange}
-              className={`w-full px-4 py-2.5 border ${errors.deliveryDays ? 'border-red-500 bg-red-50' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-medium`}
-              placeholder="e.g. 0 for today, 1 for tomorrow, 3 for 3 days"
-              required
-            />
-            {errors.deliveryDays && <p className="field-error-text text-xs mt-1 font-bold text-red-500">{errors.deliveryDays}</p>}
-            <p className="mt-1 text-xs text-gray-500">
-              Specify the number of days it will take to deliver. For example: 0 for today, 1 for tomorrow, 3 for 3 days, etc.
-            </p>
+            <p className="text-xs text-gray-500 mb-3">Select the delivery timeframe for this product.</p>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliverySpanType('today')
+                  setErrors(prev => { const newErrs = { ...prev }; delete newErrs.deliverySpan; return newErrs })
+                }}
+                className={`py-3 px-4 rounded-xl border text-center font-bold transition-all ${
+                  deliverySpanType === 'today'
+                    ? 'border-black bg-black text-white shadow-md'
+                    : 'border-gray-200 bg-white hover:border-gray-400 text-gray-700'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliverySpanType('tomorrow')
+                  setErrors(prev => { const newErrs = { ...prev }; delete newErrs.deliverySpan; return newErrs })
+                }}
+                className={`py-3 px-4 rounded-xl border text-center font-bold transition-all ${
+                  deliverySpanType === 'tomorrow'
+                    ? 'border-black bg-black text-white shadow-md'
+                    : 'border-gray-200 bg-white hover:border-gray-400 text-gray-700'
+                }`}
+              >
+                Tomorrow
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeliverySpanType('custom')
+                }}
+                className={`py-3 px-4 rounded-xl border text-center font-bold transition-all ${
+                  deliverySpanType === 'custom'
+                    ? 'border-black bg-black text-white shadow-md'
+                    : 'border-gray-200 bg-white hover:border-gray-400 text-gray-700'
+                }`}
+              >
+                Custom Days
+              </button>
+            </div>
+
+            {deliverySpanType === 'custom' && (
+              <div className="mt-2 transition-all duration-300">
+                <input
+                  type="number"
+                  min="3"
+                  value={customDeliverySpan}
+                  onChange={(e) => {
+                    setCustomDeliverySpan(e.target.value)
+                    setErrors(prev => { const newErrs = { ...prev }; delete newErrs.deliverySpan; return newErrs })
+                  }}
+                  className={`w-full px-4 py-2.5 border ${
+                    errors.deliverySpan ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  } rounded-lg focus:ring-2 focus:ring-black focus:border-black outline-none transition text-gray-900 font-semibold`}
+                  placeholder="Enter number of days (should be > 2)"
+                />
+              </div>
+            )}
+            {errors.deliverySpan && (
+              <p className="field-error-text text-xs mt-1 font-bold">{errors.deliverySpan}</p>
+            )}
           </div>
 
           <div>

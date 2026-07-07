@@ -117,6 +117,54 @@ class SlotService:
         return [Slot.from_bson(s) for s in slots]
 
     @staticmethod
+    def get_enriched_slots():
+        """Get all slots and enrich occupied ones with user and item details."""
+        from app.services.order_service import OrderService
+        from app.services.user_service import UserService
+        from app.services.seller_service import SellerService
+        
+        slots = SlotService.get_all_slots()
+        enriched_slots = []
+        
+        for slot in slots:
+            slot_data = slot.to_dict()
+            slot_data['is_occupied'] = bool(slot.user_id)
+            
+            if slot.user_id:
+                # Fetch user details
+                user = UserService.get_user_by_id(slot.user_id)
+                slot_data['user_name'] = user.name if user else "Unknown User"
+                
+                # Fetch items at outlet for this user
+                orders, _ = OrderService.get_orders_by_user(slot.user_id, page=1, limit=100)
+                items = []
+                for order in orders:
+                    if order.status == 'handed_over':
+                        seller_name = "Unknown Seller"
+                        if order.seller_id:
+                            seller = SellerService.get_seller_by_id(order.seller_id)
+                            if seller:
+                                seller_name = getattr(seller, 'name', getattr(seller, 'business_name', 'Unknown Seller'))
+                        
+                        product_name = order.product_snapshot.get('name', order.product_snapshot.get('product_name', 'Unknown Product'))
+                        
+                        items.append({
+                            'order_number': order.order_number,
+                            'product_name': product_name,
+                            'seller_name': seller_name
+                        })
+                
+                slot_data['items'] = items
+                slot_data['item_count'] = len(items) if items else slot.item_count
+            else:
+                slot_data['user_name'] = None
+                slot_data['items'] = []
+                
+            enriched_slots.append(slot_data)
+            
+        return enriched_slots
+
+    @staticmethod
     def resize_slots(new_size):
         """
         Change the total number of slots.

@@ -30,6 +30,33 @@ const TablerXCircle = ({ className = 'w-4 h-4' }) => (
   </svg>
 )
 
+const calculateArrivalDate = (createdAt, deliverySpan) => {
+  if (!createdAt) return ''
+  const span = Number(deliverySpan ?? 2)
+  if (isNaN(span) || span < 1) return ''
+
+  let daysToAdd = span - 1
+  let currentDate = new Date(createdAt)
+
+  // If today is Sunday, move to Monday (Sunday is not counted/cannot be delivery day)
+  while (currentDate.getDay() === 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+
+  // Add days, skipping Sundays
+  while (daysToAdd > 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+    if (currentDate.getDay() !== 0) {
+      daysToAdd--
+    }
+  }
+
+  const dd = String(currentDate.getDate()).padStart(2, '0')
+  const mm = String(currentDate.getMonth() + 1).padStart(2, '0')
+  const yyyy = currentDate.getFullYear()
+  return `${dd}-${mm}-${yyyy}`
+}
+
 function UserOrders() {
   const navigate = useNavigate()
   const { user, token } = useSelector((state) => state.auth)
@@ -247,7 +274,8 @@ function UserOrders() {
     return (
       <div
         key={order.id}
-        className="flex flex-col gap-3 rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden"
+        onClick={() => navigate(`/user/orders/${order.id}`)}
+        className="flex flex-col gap-3 rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden cursor-pointer hover:border-blue-200 hover:shadow-md transition-all active:scale-[0.99]"
       >
         <div className="flex items-start justify-between gap-3 p-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50">
           <div className="flex-1 min-w-0">
@@ -274,7 +302,7 @@ function UserOrders() {
         </div>
 
         <div className="flex gap-4 p-4 items-center">
-          <div className="w-20 h-20 rounded-2xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 shadow-inner flex-shrink-0">
+          <div className="w-20 h-20 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 shadow-inner flex-shrink-0">
             {productImg ? (
               <img
                 src={productImg}
@@ -296,6 +324,13 @@ function UserOrders() {
               <FaTruck className="w-3 h-3 text-slate-300" />
               <span className="truncate">{order.pickupLocation || order.pickup_location || 'BBHCBazaar outlet'}</span>
             </p>
+            {!isOrderService(order) && (
+              <div className="mt-1">
+                <span className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1.5 w-fit">
+                  🚚 Expected Arrival: On or before {calculateArrivalDate(createdAt, order.delivery_span)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -323,7 +358,7 @@ function UserOrders() {
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
-                      setActiveOrder(order)
+                      navigate(`/user/orders/${order.id}`)
                     }}
                     className="flex-shrink-0 p-1.5 rounded-md hover:bg-slate-200 text-slate-600 transition border-0 bg-transparent cursor-pointer"
                     title="View QR Code"
@@ -386,26 +421,17 @@ function UserOrders() {
 
 
         <div className="p-4 md:p-5 max-w-5xl mx-auto space-y-4">
-          <div className="text-center space-y-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="text-center space-y-2 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
             <FaBox className="w-10 h-10 text-blue-600 mx-auto" />
             <h1 className="text-2xl font-bold text-slate-900">Your Orders</h1>
             <p className="text-sm text-slate-600">
               Hi {user?.first_name || 'there'}, track your purchases and pickup instructions here.
             </p>
 
-            <button
-              type="button"
-              onClick={() => navigate('/user/orders/history')}
-              className="mt-4 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-semibold hover:bg-indigo-100 transition"
-            >
-              <FaClockRotateLeft className="w-4 h-4" />
-              View Order History
-            </button>
-
-            <div className="relative flex bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200 shadow-inner w-full max-w-[400px] mx-auto h-14 overflow-hidden mt-6">
+            <div className="relative flex bg-slate-100/80 p-1.5 rounded-xl border border-slate-200 shadow-inner w-full max-w-[400px] mx-auto h-14 overflow-hidden mt-6">
               {/* Animated Background Slider */}
               <motion.div 
-                className="absolute top-1.5 bottom-1.5 bg-white rounded-xl shadow-lg shadow-blue-500/10 border border-blue-50/50"
+                className="absolute top-1.5 bottom-1.5 bg-white rounded-lg shadow-lg shadow-blue-500/10 border border-blue-50/50"
                 initial={false}
                 animate={{ 
                   left: dashboardTypeFilter === 'product' ? '6px' : 'calc(50% + 3px)',
@@ -439,15 +465,15 @@ function UserOrders() {
           )}
 
           {loading ? (
-            <div className="text-center text-slate-600 py-10 bg-white rounded-2xl border border-slate-200 shadow-sm">Loading your orders...</div>
+            <div className="text-center text-slate-600 py-10 bg-white rounded-xl border border-slate-200 shadow-sm">Loading your orders...</div>
           ) : showEmptyState ? (
-            <div className="border border-slate-200 bg-white rounded-2xl shadow-sm p-6 text-center space-y-4">
+            <div className="border border-slate-200 bg-white rounded-xl shadow-sm p-6 text-center space-y-4">
               <p className="text-slate-600">
                 Once you place an order, it will appear here with real-time status updates.
               </p>
               <button
                 onClick={() => navigate('/')}
-                className="px-6 py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100 transition"
+                className="px-6 py-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100 transition"
               >
                 Start Shopping
               </button>
@@ -457,7 +483,7 @@ function UserOrders() {
               {filteredOrders.length > 0 ? (
                 filteredOrders.map(renderOrderCard)
               ) : (
-                <div className="py-12 text-center bg-white rounded-3xl border border-slate-100 shadow-sm">
+                <div className="py-12 text-center bg-white rounded-xl border border-slate-100 shadow-sm">
                   <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4 border border-slate-50">
                     <FaBox className="w-6 h-6 text-slate-300" />
                   </div>
@@ -466,108 +492,21 @@ function UserOrders() {
               )}
             </div>
           )}
+
+          <div className="pt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={() => navigate('/user/orders/history')}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50 active:scale-[0.98] transition shadow-sm"
+            >
+              <FaClockRotateLeft className="w-4 h-4 text-slate-400" />
+              View Order History
+            </button>
+          </div>
         </div>
       </div>
       <MobileBottomNav />
 
-      <AnimatePresence>
-        {activeOrder && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/55 backdrop-blur-sm z-50 flex items-center justify-center px-4"
-            onClick={() => setActiveOrder(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-gradient-to-b from-emerald-50 to-white border border-emerald-200 text-center space-y-4 p-5 sm:p-6 rounded-3xl shadow-2xl"
-              style={{ width: 'clamp(18rem, 92vw, 34rem)' }}
-            >
-              <h3 className="text-2xl font-bold text-emerald-900">Order Details</h3>
-              <p className="text-sm text-slate-700 leading-relaxed">{getStatusMessage(activeOrder)}</p>
-
-              {(activeOrder.status === 'cancelled' || activeOrder.status === 'cancelled_master' || activeOrder.status === 'seller_rejected') ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-slate-600">
-                    This order is no longer active. QR code is not available.
-                  </p>
-                  {(activeOrder.rejectionReason || activeOrder.rejection_reason) && (
-                    <div className="p-4 rounded-2xl bg-red-50 border border-red-100 text-left">
-                      <p className="text-[10px] font-black text-red-800 uppercase tracking-widest mb-1">Reason for Rejection</p>
-                      <p className="text-sm text-red-700 font-medium leading-relaxed">
-                        {activeOrder.rejectionReason || activeOrder.rejection_reason}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : (activeOrder.status === 'pending_seller') ? (
-                <p className="text-sm text-slate-600">
-                  Waiting for seller to accept your order. QR code will be available once accepted.
-                </p>
-              ) : (activeOrder.secureTokenUser || activeOrder.qrCodeData) ? (
-                <>
-                  <p className="text-sm text-slate-700">
-                    Show this code at the BBHCBazaar outlet to complete payment and collect your product.
-                  </p>
-                  <div className="inline-block bg-white border border-emerald-200 rounded-2xl p-4 shadow-sm" ref={qrPreviewRef}>
-                    <QRCode
-                      value={activeOrder.secureTokenUser || activeOrder.qrCodeData || activeOrder.qr_code_data || ''}
-                      size={200}
-                    />
-                  </div>
-                  {activeOrder.secureTokenUser && (
-                    <div className="flex items-center gap-2 justify-center flex-wrap bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
-                      <p className="text-xs text-emerald-900 font-mono break-all">
-                        Token: {activeOrder.secureTokenUser}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          copyToken(activeOrder.secureTokenUser)
-                        }}
-                        className="p-1.5 border border-emerald-200 rounded-md hover:bg-emerald-100 text-emerald-800 transition bg-white cursor-pointer"
-                        title="Copy token"
-                      >
-                        <FaCopy className="w-3 h-3" />
-                      </button>
-                      {copiedToken === activeOrder.secureTokenUser && (
-                        <span className="text-xs text-green-600 font-medium">✓ Copied!</span>
-                      )}
-                    </div>
-                  )}
-                  <button
-                    onClick={downloadActiveOrderQR}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-700 text-white font-semibold py-2.5 hover:bg-emerald-800 transition"
-                  >
-                    <FaDownload className="w-4 h-4" />
-                    Download QR
-                  </button>
-                </>
-              ) : (
-                <p className="text-sm text-slate-600">
-                  QR code will be available once the seller accepts your order.
-                </p>
-              )}
-
-              <p className="text-xs text-slate-500 uppercase tracking-[0.2em]">
-                Order #{activeOrder.orderNumber}
-              </p>
-              <button
-                onClick={() => setActiveOrder(null)}
-                className="w-full rounded-xl border border-emerald-200 bg-white text-emerald-800 font-semibold py-2.5 hover:bg-emerald-50 transition"
-              >
-                Close
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }

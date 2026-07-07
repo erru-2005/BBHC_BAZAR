@@ -17,7 +17,7 @@ from config import Config
 mongo = PyMongo()
 cors = CORS()
 jwt = JWTManager()
-socketio = SocketIO(cors_allowed_origins="*", transports=['polling', 'websocket'], engineio_logger=False, logger=False)
+socketio = SocketIO(cors_allowed_origins="*", engineio_logger=False, logger=False)
 
 
 def create_app(config_class=Config):
@@ -173,8 +173,7 @@ def create_app(config_class=Config):
     socketio.init_app(
         app,
         cors_allowed_origins="*", # Force wildcard to handle multiple local IPs (VirtualBox, etc.)
-        async_mode=app.config.get('SOCKETIO_ASYNC_MODE', 'threading'),
-        transports=['polling', 'websocket']
+        async_mode=app.config.get('SOCKETIO_ASYNC_MODE', 'threading')
     )
     
     # Suppress 500 errors from engineio websocket disconnections during upgrade
@@ -200,6 +199,7 @@ def create_app(config_class=Config):
     from app.routes.payment_route import payment_bp
     from app.routes.image_route import image_bp
     from app.routes.web_container import web_container_bp
+    from app.routes.slot_routes import slot_bp
     
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(image_bp, url_prefix='/api')
@@ -212,6 +212,7 @@ def create_app(config_class=Config):
     app.register_blueprint(debug_bp, url_prefix='/api/debug')
     app.register_blueprint(service_bp, url_prefix='/api')
     app.register_blueprint(payment_bp, url_prefix='/api')
+    app.register_blueprint(slot_bp, url_prefix='/api/outlet')
     
     # Simple root route for connectivity testing
     @app.route('/', methods=['GET'])

@@ -77,26 +77,6 @@ function CategoryDropdown({ categories, selected, onSelect, commissionRates }) {
   )
 }
 
-const parseDeliveryPromiseToDays = (dp) => {
-  if (!dp) return 1
-  const normalized = String(dp).toLowerCase().trim()
-  if (normalized === 'today') return 0
-  if (normalized === 'tomorrow') return 1
-  const match = normalized.match(/^(\d+)/)
-  if (match) {
-    return parseInt(match[1], 10)
-  }
-  return 1
-}
-
-const convertDaysToDeliveryPromise = (days) => {
-  const d = parseInt(days, 10)
-  if (isNaN(d) || d < 0) return 'tomorrow'
-  if (d === 0) return 'today'
-  if (d === 1) return 'tomorrow'
-  return `${d}_days`
-}
-
 const INITIAL_POINTS = ['', '', '']
 
 function SellerProductForm({ initialProduct = null }) {
@@ -108,8 +88,7 @@ function SellerProductForm({ initialProduct = null }) {
     specification: '',
     sellingPrice: '',
     maxPrice: '',
-    category: '',
-    deliveryDays: '1'
+    category: ''
   })
   const [points, setPoints] = useState(INITIAL_POINTS)
   const [thumbnail, setThumbnail] = useState(null)
@@ -118,10 +97,10 @@ function SellerProductForm({ initialProduct = null }) {
   const [categoryCommissionRates, setCategoryCommissionRates] = useState({})
   const [status, setStatus] = useState({ type: null, message: '' })
   const [submitting, setSubmitting] = useState(false)
+  const [deliverySpanType, setDeliverySpanType] = useState('tomorrow') // 'today' | 'tomorrow' | 'custom'
+  const [customDeliverySpan, setCustomDeliverySpan] = useState('')
 
   const isEditing = useMemo(() => !!initialProduct, [initialProduct])
-
-
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -148,15 +127,12 @@ function SellerProductForm({ initialProduct = null }) {
 
   useEffect(() => {
     if (initialProduct) {
-      const dp = initialProduct.delivery_promise || 'tomorrow'
-      const isCustom = !['today', 'tomorrow', '3_days', '4_days', '5_days', '6_days', '7_days'].includes(dp)
       setForm({
         productName: initialProduct.product_name || '',
         specification: initialProduct.specification || '',
         sellingPrice: initialProduct.selling_price || '',
         maxPrice: initialProduct.max_price || '',
-        category: Array.isArray(initialProduct.categories) ? initialProduct.categories[0] : initialProduct.categories || '',
-        deliveryDays: String(parseDeliveryPromiseToDays(initialProduct.delivery_promise))
+        category: Array.isArray(initialProduct.categories) ? initialProduct.categories[0] : initialProduct.categories || ''
       })
       setPoints(
         Array.isArray(initialProduct.points) && initialProduct.points.length
@@ -177,6 +153,17 @@ function SellerProductForm({ initialProduct = null }) {
           )
           : []
       )
+      const ds = initialProduct.delivery_span ?? 2
+      if (ds === 1) {
+        setDeliverySpanType('today')
+        setCustomDeliverySpan('')
+      } else if (ds === 2) {
+        setDeliverySpanType('tomorrow')
+        setCustomDeliverySpan('')
+      } else {
+        setDeliverySpanType('custom')
+        setCustomDeliverySpan(String(ds))
+      }
     }
   }, [initialProduct])
 
@@ -266,11 +253,6 @@ function SellerProductForm({ initialProduct = null }) {
       setStatus({ type: 'error', message: 'Please fill in product name, specification, and at least one highlight.' })
       return
     }
- 
-    if (form.deliveryDays === undefined || form.deliveryDays === '' || isNaN(parseInt(form.deliveryDays, 10)) || parseInt(form.deliveryDays, 10) < 0) {
-      setStatus({ type: 'error', message: 'Please specify a valid number of days for delivery.' })
-      return
-    }
 
     if (!thumbnail) {
       setStatus({ type: 'error', message: 'Please upload a thumbnail image.' })
@@ -286,6 +268,14 @@ function SellerProductForm({ initialProduct = null }) {
     if (max < selling) {
       setStatus({ type: 'error', message: 'MRP must be greater than or equal to selling price.' })
       return
+    }
+
+    if (deliverySpanType === 'custom') {
+      const days = parseInt(customDeliverySpan, 10)
+      if (isNaN(days) || days <= 2) {
+        setStatus({ type: 'error', message: 'Delivery span for custom days must be greater than 2.' })
+        return
+      }
     }
 
     setSubmitting(true)
@@ -328,6 +318,15 @@ function SellerProductForm({ initialProduct = null }) {
         }
       }
 
+      let deliverySpanValue = 2
+      if (deliverySpanType === 'today') {
+        deliverySpanValue = 1
+      } else if (deliverySpanType === 'tomorrow') {
+        deliverySpanValue = 2
+      } else if (deliverySpanType === 'custom') {
+        deliverySpanValue = parseInt(customDeliverySpan, 10)
+      }
+
       const payload = {
         product_name: form.productName.trim(),
         specification: form.specification.trim(),
@@ -338,7 +337,7 @@ function SellerProductForm({ initialProduct = null }) {
         max_price: max,
         categories: form.category ? [form.category] : [],
         product_id: entityId,
-        delivery_promise: convertDaysToDeliveryPromise(form.deliveryDays),
+        delivery_span: deliverySpanValue,
       }
 
       if (isEditing && initialProduct?.id) {
@@ -468,27 +467,6 @@ function SellerProductForm({ initialProduct = null }) {
             />
           </div>
         </div>
- 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-3">
-            <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
-              Delivery Promise (Number of Days) <span className="text-rose-600 font-semibold">*</span>
-            </label>
-            <input
-              type="number"
-              name="deliveryDays"
-              min="0"
-              value={form.deliveryDays}
-              onChange={handleChange}
-              className="w-full px-6 py-4 bg-white border border-slate-300 rounded-2xl text-slate-900 font-semibold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm group hover:border-blue-600"
-              placeholder="e.g. 0 for today, 1 for tomorrow, 3 for 3 days"
-              required
-            />
-            <p className="text-[10px] text-slate-500 font-medium ml-1">
-              Specify the number of days it will take to deliver. For example: 0 for today, 1 for tomorrow, 3 for 3 days, etc.
-            </p>
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-4">
@@ -539,6 +517,68 @@ function SellerProductForm({ initialProduct = null }) {
             />
           </div>
 
+        </div>
+
+        <div className="space-y-4">
+          <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+            Delivery Span <span className="text-rose-600">*</span>
+          </label>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+            Select the delivery timeframe for this product.
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            <button
+              type="button"
+              onClick={() => setDeliverySpanType('today')}
+              className={`py-4 px-6 rounded-2xl text-center text-xs font-bold transition-all border ${
+                deliverySpanType === 'today'
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                  : 'border-slate-300 bg-white hover:border-blue-400 text-slate-700'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeliverySpanType('tomorrow')}
+              className={`py-4 px-6 rounded-2xl text-center text-xs font-bold transition-all border ${
+                deliverySpanType === 'tomorrow'
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                  : 'border-slate-300 bg-white hover:border-blue-400 text-slate-700'
+              }`}
+            >
+              Tomorrow
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeliverySpanType('custom')}
+              className={`py-4 px-6 rounded-2xl text-center text-xs font-bold transition-all border ${
+                deliverySpanType === 'custom'
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                  : 'border-slate-300 bg-white hover:border-blue-400 text-slate-700'
+              }`}
+            >
+              Custom Days
+            </button>
+          </div>
+
+          {deliverySpanType === 'custom' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3"
+            >
+              <input
+                type="number"
+                min="3"
+                value={customDeliverySpan}
+                onChange={(e) => setCustomDeliverySpan(e.target.value)}
+                className="w-full px-6 py-4 bg-white border border-slate-300 rounded-2xl text-slate-900 font-semibold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
+                placeholder="Enter number of days (should be > 2)"
+                required
+              />
+            </motion.div>
+          )}
         </div>
 
         <div className="space-y-4">

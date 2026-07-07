@@ -10,7 +10,6 @@ from bson import ObjectId
 from app import mongo
 from app.models.order import Order
 from app.services.product_service import ProductService
-from app.services.slot_service import SlotService
 from app.services.statistics_service import StatisticsService
 from app.sockets.emitter import emit_product_event
 
@@ -39,10 +38,10 @@ class OrderService:
     @staticmethod
     def generate_secure_token(order_id, seller_id, user_id, role='user'):
         """Generate a secure token for QR code scanning."""
-        import string
-        letters = ''.join(random.choices(string.ascii_uppercase, k=3))
-        numbers = ''.join(random.choices(string.digits, k=2))
-        return f"BBHC-{letters}{numbers}"
+        # Create a unique token based on order, seller, user, and role
+        token_data = f"{order_id}|{seller_id}|{user_id}|{role}|{secrets.token_urlsafe(16)}"
+        token_hash = hashlib.sha256(token_data.encode()).hexdigest()[:32]
+        return f"BBHC-{token_hash.upper()}"
 
     @staticmethod
     def _ensure_object_id(value):
@@ -67,6 +66,13 @@ class OrderService:
         order_data['created_at'] = datetime.now(timezone.utc)
         order_data['updated_at'] = datetime.now(timezone.utc)
         order_data['status'] = order_data.get('status', 'pending_seller')
+
+        # Get product delivery span
+        product_doc = mongo.db.products.find_one({'_id': OrderService._ensure_object_id(order_data['product_id'])})
+        if product_doc:
+            order_data['delivery_span'] = product_doc.get('delivery_span', 2)
+        else:
+            order_data['delivery_span'] = 2
         
         # Detect if it's a service order
         product_snapshot = order_data.get('product_snapshot') or {}
@@ -231,7 +237,7 @@ class OrderService:
         return updated_order
 
     @staticmethod
-    def seller_accept_order(order_id, seller_id, delivery_promise=None):
+    def seller_accept_order(order_id, seller_id, delivery_span=None):
         """Seller accepts order, generates tokens and QR codes."""
         try:
             order_obj_id = ObjectId(order_id)
@@ -251,7 +257,31 @@ class OrderService:
 
         # Detect if it's a service order using explicit type field
         is_service = order.type == 'service' or bool(order.booking)
-        
+
+        if not is_service and delivery_span is not None:
+            max_days = 2
+            product_id = order.product_id
+            if product_id:
+                try:
+                    pid_obj = ObjectId(product_id) if not isinstance(product_id, ObjectId) else product_id
+                    product_doc = mongo.db.products.find_one({'_id': pid_obj})
+                    if product_doc:
+                        max_days = int(product_doc.get('delivery_span', 2))
+                except Exception:
+                    pass
+            
+            # Use order's snapshot/stored delivery_span as fallback/max limit
+            order_dict = order.to_dict() if hasattr(order, 'to_dict') else {}
+            stored_span = order_dict.get('delivery_span')
+            if stored_span:
+                try:
+                    max_days = max(max_days, int(stored_span))
+                except Exception:
+                    pass
+
+            if delivery_span <= 0 or delivery_span > max_days:
+                return None, f"Delivery span must be between 1 and {max_days} days"
+
         # Determine target collection
         collection = mongo.db.service_orders if is_service else mongo.db.orders
         
@@ -292,27 +322,25 @@ class OrderService:
             seller_token = OrderService.generate_secure_token(str(order._id), str(order.seller_id), str(order.user_id), 'seller')
             qr_data_user = f"BBHC|ORDER:{order.order_number}|TOKEN:{user_token}"
 
-            set_fields = {
+            update_set = {
                 'status': 'seller_accepted',
                 'secure_token_user': user_token,
                 'secure_token_seller': seller_token,
                 'qr_code_data': qr_data_user,
                 'updated_at': datetime.now(timezone.utc)
             }
-            note = 'Seller accepted the order'
-            if delivery_promise:
-                set_fields['delivery_promise'] = delivery_promise
-                note += f" (Expected delivery: {delivery_promise.replace('_', ' ')})"
+            if delivery_span is not None:
+                update_set['delivery_span'] = delivery_span
 
             result = collection.update_one(
                 {'_id': order_obj_id},
                 {
-                    '$set': set_fields,
+                    '$set': update_set,
                     '$push': {
                         'status_history': {
                             'status': 'seller_accepted',
                             'timestamp': datetime.now(timezone.utc),
-                            'note': note,
+                            'note': f'Seller accepted the order (delivery timeframe: {delivery_span} days)' if delivery_span else 'Seller accepted the order',
                             'updated_by': f'seller:{seller_id}'
                         }
                     }
@@ -458,12 +486,6 @@ class OrderService:
                 # Outlet can scan either token
                 if order.status == 'seller_accepted' and order.secure_token_seller == token:
                     # Outlet scanning seller token = seller handed over
-                    
-                    # Try assigning a slot first
-                    slot, error_msg = SlotService.assign_item_to_slot(order.user_id)
-                    if error_msg:
-                        return None, error_msg
-                        
                     updates['status'] = 'handed_over'
                     updates['token_used_seller'] = True
                     updates['$push'] = {
@@ -476,8 +498,6 @@ class OrderService:
                     }
                 elif order.status == 'handed_over' and order.secure_token_user == token:
                     # Outlet scanning user token = user completed
-                    SlotService.remove_item_from_slot(order.user_id)
-                    
                     updates['status'] = 'completed'
                     updates['token_used_user'] = True
                     updates['$push'] = {
@@ -512,6 +532,13 @@ class OrderService:
 
             if result.matched_count == 0:
                 return None, "Failed to update order"
+
+            from app.services.slot_service import SlotService
+            new_status = updates.get('status')
+            if new_status == 'handed_over':
+                SlotService.assign_item_to_slot(order.user_id)
+            elif new_status == 'completed':
+                SlotService.remove_item_from_slot(order.user_id)
 
             updated_order = OrderService.get_order_by_id(str(order._id))
             return updated_order, None

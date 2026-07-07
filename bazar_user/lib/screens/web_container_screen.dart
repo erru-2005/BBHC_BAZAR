@@ -486,17 +486,26 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
           },
           onPageFinished: (_) async {
             if (mounted) setState(() => _isLoading = false);
+            _dismissSplash(); // Pre-rendered, dismiss splash screen immediately!
             _hideScrollbar();
             _extractHeaderColor();
             await _injectSession();
             await _injectFCMToken();
           },
           onWebResourceError: (error) {
-            if (mounted) {
-              setState(() {
-                _isLoading = false;
-                _loadError = true;
-              });
+            // Only show the maintenance screen if the error is for the main frame (i.e. the page itself failed to load).
+            // Sub-resource failures (like images, fonts, analytics scripts) should be ignored.
+            if (error.isForMainFrame ?? true) {
+              debugPrint("[WebView] Main frame error: ${error.description} (code: ${error.errorCode}, url: ${error.url})");
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                  _loadError = true;
+                });
+              }
+              _dismissSplash(); // Dismiss splash screen so user sees error state
+            } else {
+              debugPrint("[WebView] Ignored sub-resource error: ${error.description} (url: ${error.url})");
             }
           },
           onNavigationRequest: (NavigationRequest request) {
@@ -505,8 +514,10 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
                 url.contains('maps.app.goo.gl') ||
                 url.contains('google.com/maps')) {
               debugPrint("[WebView] Intercepting maps URL and opening natively: ${request.url}");
-              const platform = MethodChannel('com.example.bazar_user/notifications');
-              platform.invokeMethod('openMap', {'url': request.url});
+              const platform = MethodChannel('com.bbhcbazaar.user/notifications');
+              platform.invokeMethod('openMap', {'url': request.url}).catchError((e) {
+                debugPrint("[WebView] Failed to open map natively: $e");
+              });
               return NavigationDecision.prevent;
             }
             return NavigationDecision.navigate;
@@ -577,30 +588,38 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
   }
 
   Future<void> _extractHeaderColor() async {
-    await _controller.runJavaScript('''
-      (function() {
-        var el = document.querySelector('header') || document.querySelector('[class*="bg-"]');
-        if (el) {
-          var rgb = getComputedStyle(el).backgroundColor;
-          var m = rgb.match(/\\d+/g);
-          if (m && m.length >= 3) {
-            var hex = '#' + ('0' + parseInt(m[0]).toString(16)).slice(-2) + ('0' + parseInt(m[1]).toString(16)).slice(-2) + ('0' + parseInt(m[2]).toString(16)).slice(-2);
-            var style = document.createElement('style');
-            style.innerHTML = 'html { background-color: ' + hex + ' !important; min-height: 100% !important; } body { background-color: ' + hex + ' !important; min-height: 100vh !important; }';
-            document.head.appendChild(style);
-            HeaderColor.postMessage(hex);
+    try {
+      await _controller.runJavaScript('''
+        (function() {
+          var el = document.querySelector('header') || document.querySelector('[class*="bg-"]');
+          if (el) {
+            var rgb = getComputedStyle(el).backgroundColor;
+            var m = rgb.match(/\\d+/g);
+            if (m && m.length >= 3) {
+              var hex = '#' + ('0' + parseInt(m[0]).toString(16)).slice(-2) + ('0' + parseInt(m[1]).toString(16)).slice(-2) + ('0' + parseInt(m[2]).toString(16)).slice(-2);
+              var style = document.createElement('style');
+              style.innerHTML = 'html { background-color: ' + hex + ' !important; min-height: 100% !important; } body { background-color: ' + hex + ' !important; min-height: 100vh !important; }';
+              document.head.appendChild(style);
+              HeaderColor.postMessage(hex);
+            }
           }
-        }
-      })();
-    ''');
+        })();
+      ''');
+    } catch (e) {
+      debugPrint("Error extracting header color: $e");
+    }
   }
 
   Future<void> _hideScrollbar() async {
-    await _controller.runJavaScript('''
-      var style = document.createElement('style');
-      style.innerHTML = '::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }';
-      document.head.appendChild(style);
-    ''');
+    try {
+      await _controller.runJavaScript('''
+        var style = document.createElement('style');
+        style.innerHTML = '::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }';
+        document.head.appendChild(style);
+      ''');
+    } catch (e) {
+      debugPrint("Error hiding scrollbar: $e");
+    }
   }
 
   Future<void> _injectSession() async {
@@ -625,14 +644,18 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
   }
 
   Future<void> _injectFCMToken() async {
-    if (_fcmToken != null && _fcmToken!.isNotEmpty) {
-      debugPrint("[WebView] Injecting FCM token natively...");
-      await _controller.runJavaScript('''
-        window.flutterFCMToken = '$_fcmToken';
-        if (typeof window.onFlutterFCMTokenReceived === 'function') {
-          window.onFlutterFCMTokenReceived('$_fcmToken');
-        }
-      ''');
+    try {
+      if (_fcmToken != null && _fcmToken!.isNotEmpty) {
+        debugPrint("[WebView] Injecting FCM token natively...");
+        await _controller.runJavaScript('''
+          window.flutterFCMToken = '$_fcmToken';
+          if (typeof window.onFlutterFCMTokenReceived === 'function') {
+            window.onFlutterFCMTokenReceived('$_fcmToken');
+          }
+        ''');
+      }
+    } catch (e) {
+      debugPrint("Error injecting FCM token: $e");
     }
   }
 
@@ -642,13 +665,14 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
       _loadError = false;
     });
     try {
-      final url = await ApiService.getWebContainerUrl();
+      final url = await ApiService.getWebContainerUrlCached();
       if (mounted) {
         if (url.isEmpty) {
           setState(() {
             _isLoading = false;
             _loadError = true;
           });
+          _dismissSplash();
           _startRetryTimer();
         } else {
           _controller.loadRequest(Uri.parse(url));
@@ -660,6 +684,7 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
           _isLoading = false;
           _loadError = true;
         });
+        _dismissSplash();
         _startRetryTimer();
       }
     } catch (_) {
@@ -668,6 +693,7 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
           _isLoading = false;
           _loadError = true;
         });
+        _dismissSplash();
         _startRetryTimer();
       }
     }
@@ -675,206 +701,234 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Widget child;
+    final List<Widget> children = [];
+
+    // 1. Keep the WebViewWidget in the tree whenever there is no terminal load error
+    // This allows it to load the page in the background under the skeleton overlay.
+    if (!_loadError) {
+      children.add(
+        SafeArea(
+          key: const ValueKey('webview'),
+          child: WebViewWidget(controller: _controller),
+        ),
+      );
+    }
+
+    // 2. Render error screen if there is a main frame loading error
     if (_loadError) {
-      child = _buildErrorScreen(key: const ValueKey('error'));
-    } else if (_isLoading) {
-      child = _buildSkeletonScreen(key: const ValueKey('skeleton'));
-    } else {
-      child = SafeArea(
-        key: const ValueKey('webview'),
-        child: WebViewWidget(controller: _controller),
+      children.add(
+        _buildErrorScreen(key: const ValueKey('error')),
+      );
+    }
+
+    // 3. Render the skeleton screen as an overlay on top of the WebView with a smooth fade animation
+    if (!_loadError) {
+      children.add(
+        IgnorePointer(
+          ignoring: !_isLoading,
+          child: AnimatedOpacity(
+            opacity: _isLoading ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+            child: _buildSkeletonScreen(key: const ValueKey('skeleton')),
+          ),
+        ),
       );
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFF131921),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeInOut,
-        switchOutCurve: Curves.easeInOut,
-        child: child,
+      body: Stack(
+        children: children,
       ),
     );
   }
 
   Widget _buildSkeletonScreen({required Key key}) {
-    return SafeArea(
-      key: key,
-      child: Column(
-        children: [
-          // Header skeleton
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const _ShimmerPlaceholder(width: 32, height: 32, borderRadius: 16),
-                Row(
-                  children: const [
-                    _ShimmerPlaceholder(width: 80, height: 16, borderRadius: 4),
-                    SizedBox(width: 8),
-                    _ShimmerPlaceholder(width: 30, height: 16, borderRadius: 4),
-                  ],
-                ),
-                const _ShimmerPlaceholder(width: 32, height: 32, borderRadius: 16),
-              ],
-            ),
-          ),
-          const Divider(color: Color(0xFF1E2633), height: 1),
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      color: const Color(0xFF131921), // Opaque background to completely cover the WebView underneath
+      child: SafeArea(
+        key: key,
+        child: Column(
+          children: [
+            // Header skeleton
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Search bar skeleton
-                  const _ShimmerPlaceholder(
-                    width: double.infinity,
-                    height: 48,
-                    borderRadius: 24,
-                  ),
-                  const SizedBox(height: 20),
-                  // Banner skeleton
-                  const _ShimmerPlaceholder(
-                    width: double.infinity,
-                    height: 160,
-                    borderRadius: 12,
-                  ),
-                  const SizedBox(height: 24),
-                  // Category row skeleton
+                  const _ShimmerPlaceholder(width: 32, height: 32, borderRadius: 16),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(4, (index) => Column(
-                      children: const [
-                        _ShimmerPlaceholder(width: 56, height: 56, borderRadius: 28),
-                        SizedBox(height: 8),
-                        _ShimmerPlaceholder(width: 48, height: 12, borderRadius: 4),
-                      ],
-                    )),
-                  ),
-                  const SizedBox(height: 28),
-                  // Section Title
-                  const _ShimmerPlaceholder(width: 120, height: 18, borderRadius: 4),
-                  const SizedBox(height: 16),
-                  // Grid of items
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            _ShimmerPlaceholder(
-                              width: double.infinity,
-                              height: 140,
-                              borderRadius: 8,
-                            ),
-                            SizedBox(height: 8),
-                            _ShimmerPlaceholder(width: 100, height: 14, borderRadius: 4),
-                            SizedBox(height: 6),
-                            _ShimmerPlaceholder(width: 60, height: 12, borderRadius: 4),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            _ShimmerPlaceholder(
-                              width: double.infinity,
-                              height: 140,
-                              borderRadius: 8,
-                            ),
-                            SizedBox(height: 8),
-                            _ShimmerPlaceholder(width: 110, height: 14, borderRadius: 4),
-                            SizedBox(height: 6),
-                            _ShimmerPlaceholder(width: 50, height: 12, borderRadius: 4),
-                          ],
-                        ),
-                      ),
+                    children: const [
+                      _ShimmerPlaceholder(width: 80, height: 16, borderRadius: 4),
+                      SizedBox(width: 8),
+                      _ShimmerPlaceholder(width: 30, height: 16, borderRadius: 4),
                     ],
                   ),
+                  const _ShimmerPlaceholder(width: 32, height: 32, borderRadius: 16),
                 ],
               ),
             ),
-          ),
-        ],
+            const Divider(color: Color(0xFF1E2633), height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Search bar skeleton
+                    const _ShimmerPlaceholder(
+                      width: double.infinity,
+                      height: 48,
+                      borderRadius: 24,
+                    ),
+                    const SizedBox(height: 20),
+                    // Banner skeleton
+                    const _ShimmerPlaceholder(
+                      width: double.infinity,
+                      height: 160,
+                      borderRadius: 12,
+                    ),
+                    const SizedBox(height: 24),
+                    // Category row skeleton
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List.generate(4, (index) => Column(
+                        children: const [
+                          _ShimmerPlaceholder(width: 56, height: 56, borderRadius: 28),
+                          SizedBox(height: 8),
+                          _ShimmerPlaceholder(width: 48, height: 12, borderRadius: 4),
+                        ],
+                      )),
+                    ),
+                    const SizedBox(height: 28),
+                    // Section Title
+                    const _ShimmerPlaceholder(width: 120, height: 18, borderRadius: 4),
+                    const SizedBox(height: 16),
+                    // Grid of items
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              _ShimmerPlaceholder(
+                                width: double.infinity,
+                                height: 140,
+                                borderRadius: 8,
+                              ),
+                              SizedBox(height: 8),
+                              _ShimmerPlaceholder(width: 100, height: 14, borderRadius: 4),
+                              SizedBox(height: 6),
+                              _ShimmerPlaceholder(width: 60, height: 12, borderRadius: 4),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              _ShimmerPlaceholder(
+                                width: double.infinity,
+                                height: 140,
+                                borderRadius: 8,
+                              ),
+                              SizedBox(height: 8),
+                              _ShimmerPlaceholder(width: 110, height: 14, borderRadius: 4),
+                              SizedBox(height: 6),
+                              _ShimmerPlaceholder(width: 50, height: 12, borderRadius: 4),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildErrorScreen({required Key key}) {
-    return SafeArea(
-      key: key,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            Icon(
-              Icons.error_outline,
-              size: 56,
-              color: Colors.red.withValues(alpha: 0.8),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Server under maintenance',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+    return Container(
+      color: const Color(0xFF131921), // Opaque background
+      alignment: Alignment.center,
+      child: SafeArea(
+        key: key,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 20),
+              Icon(
+                Icons.wifi_off_rounded,
+                size: 56,
+                color: Colors.orange.withValues(alpha: 0.8),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Please try again later',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.6),
+              const SizedBox(height: 16),
+              const Text(
+                'No Internet Connection',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Play while you wait',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.35),
-                letterSpacing: 1,
+              const SizedBox(height: 6),
+              Text(
+                'Please check your connection and try again',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            const _JumperGame(),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: 180,
-              child: TextButton.icon(
-                onPressed: () {
-                  setState(() => _loadError = false);
-                  _fetchUrl();
-                },
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Try Again'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: Colors.red.withValues(alpha: 0.2),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              const SizedBox(height: 24),
+              Text(
+                'Play while you wait',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.35),
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const _JumperGame(),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: 180,
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() => _loadError = false);
+                    _fetchUrl();
+                  },
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Try Again'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.orange.withValues(alpha: 0.2),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Auto-retrying every 12s',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withValues(alpha: 0.25),
+              const SizedBox(height: 8),
+              Text(
+                'Auto-retrying every 12s',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.25),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -979,12 +1033,19 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
   }
 
   void _requestNativeNotificationPermission() async {
-    const platform = MethodChannel('com.example.bazar_user/notifications');
+    const platform = MethodChannel('com.bbhcbazaar.user/notifications');
     try {
       await platform.invokeMethod('requestNotificationPermission');
-    } on PlatformException catch (e) {
-      debugPrint("Failed to request native notification permission: ${e.message}");
+    } catch (e) {
+      debugPrint("Failed to request native notification permission: $e");
     }
+  }
+
+  void _dismissSplash() {
+    const platform = MethodChannel('com.bbhcbazaar.user/notifications');
+    platform.invokeMethod('dismissSplash').catchError((e) {
+      debugPrint("Failed to dismiss native splash screen: $e");
+    });
   }
 
   void _showOverlayNotification({required String title, required String body, String? thumbnailUrl}) {
