@@ -18,6 +18,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { setMastersData, setMastersLoading, updateMasterSeller } from '../../../store/masterSlice'
 import { syncSellerBlacklisted, isCacheStale, CACHE_TTL } from '../../../services/cacheSync'
 import Portal from '../../../components/Portal'
+import AddSeller from './AddSeller'
 
 const CreditCoin = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -45,6 +46,7 @@ function ListSellers() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletingSeller, setDeletingSeller] = useState(null)
+  const [showAddModal, setShowAddModal] = useState(false)
   
   const [showCreditModal, setShowCreditModal] = useState(false)
   const [creditTarget, setCreditTarget] = useState(null)
@@ -373,13 +375,22 @@ function ListSellers() {
   return (
     <div className="w-full">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">List Sellers</h2>
-        <button
-          onClick={fetchSellers}
-          className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm"
-        >
-          Refresh
-        </button>
+        <h2 className="text-3xl font-bold text-gray-900">Manage Sellers</h2>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm flex items-center gap-2"
+          >
+            <FiPlusCircle className="w-4 h-4" />
+            Add New Seller
+          </button>
+          <button
+            onClick={fetchSellers}
+            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-sm"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -752,6 +763,35 @@ function ListSellers() {
         </div>
       )}
 
+      {/* Add Seller Modal */}
+      {showAddModal && (
+        <Portal>
+          <div className="master-modal-backdrop fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="master-modal-panel bg-white rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh] w-full max-w-2xl relative"
+            >
+              <button 
+                onClick={() => setShowAddModal(false)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 p-2"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <div className="p-2">
+                <AddSeller onSuccess={() => {
+                  setShowAddModal(false)
+                  fetchSellers()
+                }} />
+              </div>
+            </motion.div>
+          </div>
+        </Portal>
+      )}
+
       <AnimatePresence>
         {showCreditModal && creditTarget && (
           <Portal>
@@ -822,7 +862,7 @@ function ListSellers() {
                           className="master-credit-input w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent font-bold text-gray-900"
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          After passkey verification, a 6-digit OTP is sent to your master phone only.
+                          After passkey verification, a 6-digit OTP is sent to your master email only.
                         </p>
                       </div>
                     ) : (
@@ -831,7 +871,7 @@ function ListSellers() {
                           OTP <span className="text-red-600">*</span>
                         </label>
                         <p className="text-xs text-amber-700 mb-2 font-medium">
-                          Code sent to {otpPhoneMasked || 'your phone'}. Enter it to add credits.
+                          The OTP has been sent to your email address {otpPhoneMasked || 'your email'}. You will get the OTP in email. Enter it to add credits.
                         </p>
                         <input
                           type="text"

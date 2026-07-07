@@ -533,6 +533,13 @@ class OrderService:
             if result.matched_count == 0:
                 return None, "Failed to update order"
 
+            from app.services.slot_service import SlotService
+            new_status = updates.get('status')
+            if new_status == 'handed_over':
+                SlotService.assign_item_to_slot(order.user_id)
+            elif new_status == 'completed':
+                SlotService.remove_item_from_slot(order.user_id)
+
             updated_order = OrderService.get_order_by_id(str(order._id))
             return updated_order, None
 

@@ -18,6 +18,7 @@ import { getSocket, initSocket } from '../../utils/socket'
 import HeartBurst from '../../components/HeartBurst'
 import Toast from '../../components/Toast'
 import { getImageUrl } from '../../utils/image'
+import { getExpectedDeliveryDate, formatDate } from '../../utils/delivery'
 
 // Sub-component for animated wishlist button (Other Products)
 const WishlistActionButton = ({ productId, isWishlisted, onToggle, isAuthenticated, userType, navigate }) => {
@@ -268,6 +269,10 @@ function PublicProductDetail() {
       ? Math.round(((maxPrice - displayPrice) / maxPrice) * 100)
       : null
 
+  const expectedDeliveryDate = product?.delivery_promise 
+    ? getExpectedDeliveryDate(product.delivery_promise) 
+    : null
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900 pb-20 lg:pb-16">
       <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
@@ -404,8 +409,14 @@ function PublicProductDetail() {
                 </ul>
               </div>
             )}
-
-
+            {expectedDeliveryDate && (
+              <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-[1.25rem] flex items-center gap-3 shadow-sm">
+                <div className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                <p className="text-xs font-semibold text-slate-700">
+                  Expected Delivery: <span className="text-emerald-700 font-bold">The order will be delivered on or before {formatDate(expectedDeliveryDate)}</span>
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2 sm:gap-3 pt-2 w-full max-w-full">
               <button

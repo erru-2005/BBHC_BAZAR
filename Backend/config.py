@@ -83,21 +83,17 @@ class Config:
     # Pagination
     POSTS_PER_PAGE = 20
     
-    # Twilio SMS Configuration
-    TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
-    TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
-    TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')  # Format: +1234567890
+    # SMTP Email Configuration
+    SMTP_SERVER = os.environ.get('SMTP_SERVER') or 'smtp.gmail.com'
+    SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+    SMTP_EMAIL = os.environ.get('SMTP_EMAIL')
+    SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
     
-    # Debug: Print Twilio configuration status
-    if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER:
-        print(f"[OK] Twilio credentials loaded successfully")
-        print(f"  Account SID: {TWILIO_ACCOUNT_SID[:10]}...")
-        print(f"  Phone Number: {TWILIO_PHONE_NUMBER}")
+    # Debug: Print SMTP configuration status
+    if SMTP_EMAIL and SMTP_PASSWORD:
+        print(f"[OK] SMTP credentials loaded successfully ({SMTP_EMAIL})")
     else:
-        print("[WARN] Twilio credentials not fully configured:")
-        print(f"  TWILIO_ACCOUNT_SID: {'[OK]' if TWILIO_ACCOUNT_SID else '[MISSING]'}")
-        print(f"  TWILIO_AUTH_TOKEN: {'[OK]' if TWILIO_AUTH_TOKEN else '[MISSING]'}")
-        print(f"  TWILIO_PHONE_NUMBER: {'[OK]' if TWILIO_PHONE_NUMBER else '[MISSING]'}")
+        print("[WARN] SMTP credentials not fully configured in .env")
 
     # Razorpay (secret must stay server-side only)
     RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')

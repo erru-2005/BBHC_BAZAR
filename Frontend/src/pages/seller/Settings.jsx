@@ -108,7 +108,7 @@ export default function SellerSettings() {
               {section.title}
             </h2>
             
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[4px] border border-slate-100 shadow-sm overflow-hidden">
               {section.items.map((item, iIdx) => (
                 <div 
                   key={iIdx}
@@ -117,7 +117,7 @@ export default function SellerSettings() {
                   }`}
                 >
                   <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-600 group-hover:bg-white transition-all">
+                    <div className="w-12 h-12 rounded-[2px] bg-slate-50 flex items-center justify-center text-slate-600 group-hover:bg-white transition-all">
                       <item.icon className="w-5 h-5" />
                     </div>
                     <div>

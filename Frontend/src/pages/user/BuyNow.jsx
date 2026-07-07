@@ -11,6 +11,7 @@ import { setHomeProducts } from '../../store/dataSlice'
 import { FaArrowLeft, FaMinus, FaPlus } from 'react-icons/fa6'
 import SlideToUnlock from '../../components/SlideToUnlock'
 import OrderSuccessDialog from '../../components/OrderSuccessDialog'
+import { getExpectedDeliveryDate, formatDate } from '../../utils/delivery'
 
 function BuyNow() {
   const { productId } = useParams()
@@ -87,6 +88,11 @@ function BuyNow() {
     const price = Number(product.total_selling_price || product.selling_price || product.max_price || product.price || 0)
     return price * quantity
   }, [product, quantity])
+
+  const expectedDeliveryDate = useMemo(() => {
+    if (!product || isService) return null
+    return product.delivery_promise ? getExpectedDeliveryDate(product.delivery_promise) : null
+  }, [product, isService])
 
   const handleDecrease = () => {
     setQuantity((prev) => Math.max(1, prev - 1))
@@ -261,6 +267,12 @@ function BuyNow() {
               <div className="border border-emerald-200 rounded-2xl p-4 bg-emerald-50/60">
                 <p className="text-xs uppercase tracking-widest text-emerald-700 mb-2">Order info</p>
                 <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside">
+                  {expectedDeliveryDate && (
+                    <li className="text-emerald-800 font-bold list-none flex items-center gap-2 mb-2 p-2.5 bg-white rounded-xl border border-emerald-200 shadow-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse shrink-0" />
+                      <span>The order will be delivered on or before {formatDate(expectedDeliveryDate)}</span>
+                    </li>
+                  )}
                   <li>Collect your product at the BBHCBazaar outlet.</li>
                   <li>Scan the generated QR code at the pickup counter to pay securely.</li>
                   <li>Your Orders will be visible instantly under Menu &gt; Orders .</li>

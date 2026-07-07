@@ -37,7 +37,7 @@ const OrderStatusIcon = ({ icon: Icon, label, color, bgColor }) => (
         variants={childVariants}
         className="flex flex-col items-center gap-4 group cursor-pointer"
     >
-        <div className={`w-24 h-24 rounded-[2rem] ${bgColor} flex items-center justify-center text-4xl shadow-sm border border-white group-hover:scale-110 transition-all duration-500`}>
+        <div className={`w-24 h-24 rounded-[4px] ${bgColor} flex items-center justify-center text-4xl shadow-sm border border-white group-hover:scale-110 transition-all duration-500`}>
             <Icon className={color} />
         </div>
         <span className="text-xs font-semibold text-slate-500 text-center tracking-normal leading-tight group-hover:text-blue-600 transition-colors">
@@ -51,15 +51,15 @@ const ActionItem = ({ icon: Icon, label, onClick }) => (
         variants={childVariants}
         whileTap={{ scale: 0.98 }}
         onClick={onClick}
-        className="w-full flex items-center justify-between p-6 px-8 group rounded-[2rem] bg-white border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-500 shadow-sm hover:shadow-md"
+        className="w-full flex items-center justify-between p-6 px-8 group rounded-[4px] bg-white border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-500 shadow-sm hover:shadow-md"
     >
         <div className="flex items-center gap-6">
-            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-white transition-all shadow-inner">
+            <div className="w-12 h-12 rounded-[2px] bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-white transition-all shadow-inner">
                 <Icon className="w-6 h-6" />
             </div>
             <span className="text-base font-bold text-slate-800 group-hover:text-slate-900 transition-colors tracking-tight">{label}</span>
         </div>
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-slate-50 group-hover:bg-blue-600 group-hover:text-white transition-all">
+        <div className="w-10 h-10 rounded-[2px] flex items-center justify-center bg-slate-50 group-hover:bg-blue-600 group-hover:text-white transition-all">
             <FiChevronLeft className="w-5 h-5 transition-transform rotate-180 group-hover:translate-x-1" />
         </div>
     </motion.button>
@@ -139,7 +139,7 @@ export default function SellerProfilePage() {
                         whileHover={{ scale: 1.05, x: -5 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm text-slate-800 font-bold hover:shadow-md transition-all group"
+                        className="flex items-center gap-3 px-6 py-3 rounded-[4px] bg-white border border-slate-200 shadow-sm text-slate-800 font-bold hover:shadow-md transition-all group"
                     >
                         <FiChevronLeft className="w-5 h-5 group-hover:text-blue-600 transition-colors" strokeWidth={2.5} />
                         <span>Go Back</span>
@@ -161,7 +161,7 @@ export default function SellerProfilePage() {
                         animate="visible"
                         className="lg:col-span-5 space-y-8"
                     >
-                        <div className="bg-white rounded-[4rem] p-10 shadow-2xl shadow-blue-900/5 border border-white relative overflow-hidden group">
+                        <div className="bg-white rounded-[4px] p-10 shadow-2xl shadow-blue-900/5 border border-white relative overflow-hidden group">
                             {/* Card Background Decoration */}
                             <div className="absolute top-0 right-0 w-40 h-40 bg-blue-50 rounded-full blur-3xl -mr-20 -mt-20 opacity-50 transition-transform group-hover:scale-150 duration-1000" />
                             
@@ -204,7 +204,7 @@ export default function SellerProfilePage() {
                                     <motion.label 
                                         whileHover={{ scale: 1.1, rotate: 12 }}
                                         whileTap={{ scale: 0.9 }}
-                                        className="absolute bottom-2 right-4 w-16 h-16 rounded-[1.5rem] bg-slate-900 text-white flex items-center justify-center shadow-2xl border-4 border-white cursor-pointer z-30"
+                                        className="absolute bottom-2 right-4 w-16 h-16 rounded-[2px] bg-slate-900 text-white flex items-center justify-center shadow-2xl border-4 border-white cursor-pointer z-30"
                                     >
                                         <FiCamera className="w-7 h-7" />
                                         <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} disabled={isUploading} />
@@ -219,7 +219,7 @@ export default function SellerProfilePage() {
                                                 exit={{ opacity: 0, x: -10, scale: 0.95 }}
                                                 className="absolute -right-16 top-1/2 -translate-y-1/2 z-40"
                                             >
-                                                <div className="bg-white/95 backdrop-blur-2xl p-5 pr-10 rounded-[2.5rem] border border-emerald-100 shadow-[0_25px_60px_-15px_rgba(16,185,129,0.25)] flex items-center gap-5 min-w-[280px]">
+                                                <div className="bg-white/95 backdrop-blur-2xl p-5 pr-10 rounded-[4px] border border-emerald-100 shadow-[0_25px_60px_-15px_rgba(16,185,129,0.25)] flex items-center gap-5 min-w-[280px]">
                                                     <div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/40 relative">
                                                         <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -257,7 +257,7 @@ export default function SellerProfilePage() {
                             whileHover={{ scale: 1.02, backgroundColor: "#FFF1F2" }}
                             whileTap={{ scale: 0.98 }}
                             onClick={onLogout}
-                            className="w-full flex items-center justify-center gap-4 py-8 text-rose-600 font-bold uppercase tracking-[0.2em] text-xs bg-white rounded-[3rem] border border-rose-50 hover:border-rose-200 transition-all shadow-sm"
+                            className="w-full flex items-center justify-center gap-4 py-8 text-rose-600 font-bold uppercase tracking-[0.2em] text-xs bg-white rounded-[4px] border border-rose-50 hover:border-rose-200 transition-all shadow-sm"
                         >
                             <FiLogOut className="w-6 h-6" />
                             Terminate Session
@@ -271,10 +271,10 @@ export default function SellerProfilePage() {
                             variants={containerVariants}
                             initial="hidden"
                             animate="visible"
-                            className="bg-white rounded-[4rem] p-12 border border-white shadow-2xl shadow-blue-900/5"
+                            className="bg-white rounded-[4px] p-12 border border-white shadow-2xl shadow-blue-900/5"
                         >
                             <div className="flex items-center gap-5 mb-12">
-                                <div className="w-2 h-8 bg-blue-600 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.5)]" />
+                                <div className="w-2 h-8 bg-blue-600 rounded-none shadow-[0_0_20px_rgba(37,99,235,0.5)]" />
                                 <h3 className="text-lg font-black text-slate-900 uppercase tracking-widest">Activity Console</h3>
                             </div>
                             

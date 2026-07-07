@@ -94,12 +94,12 @@ class CreditSecurityService:
         if not CreditSecurityService.verify_master_credit_passkey(passkey):
             raise ValueError('Invalid credit passkey.')
 
-        phone = (master.phone_number or '').strip()
-        if not phone:
+        email = getattr(master, 'email', None)
+        if not email:
             raise ValueError(
-                'Your master account must have a phone number to receive the credit OTP.'
+                'Your master account must have an email address to receive the credit OTP.'
             )
-
+ 
         credit_token = CreditSecurityService.create_credit_grant_token(
             str(master._id), seller_id, amount
         )
@@ -108,7 +108,7 @@ class CreditSecurityService:
             str(master._id),
             'master',
             otp,
-            phone_number=phone,
+            phone_number=email,
             purpose=CREDIT_OTP_PURPOSE,
             metadata={
                 'seller_id': str(seller_id),
@@ -116,30 +116,28 @@ class CreditSecurityService:
                 'credit_authorization': credit_token,
             },
         )
-
+ 
         sms_sent = False
         sms_error = None
-        if SMSService.is_configured():
-            sms_sent, sms_error = SMSService.send_otp(phone, otp)
-        elif current_app.config.get('DEBUG'):
+        try:
+            sms_sent, sms_error = SMSService.send_otp(email, otp)
+        except Exception as e:
             sms_sent = False
-            sms_error = 'Twilio not configured (DEBUG: check server logs for OTP)'
-        else:
-            raise ValueError(
-                'SMS is not configured. Cannot send credit OTP. Configure Twilio in .env.'
-            )
-
+            sms_error = str(e)
+ 
         if not sms_sent and not current_app.config.get('DEBUG'):
             raise ValueError(
-                sms_error or 'Failed to send OTP to your phone. Credits were not initiated.'
+                sms_error or 'Failed to send OTP to your email. Credits were not initiated.'
             )
+
+        email_masked = email[:3] + "..." + email[email.find('@'):] if '@' in email else email
 
         return {
             'otp_session_id': session_id,
             'credit_authorization': credit_token,
             'sms_sent': sms_sent,
             'sms_error': sms_error,
-            'phone_masked': f"***{phone[-4:]}" if len(phone) >= 4 else '****',
+            'phone_masked': email_masked,
         }
 
     @staticmethod

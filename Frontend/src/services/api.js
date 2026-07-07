@@ -2318,3 +2318,9 @@ export const logoutUser = async () => {
   }
 }
 
+// Outlet Slot API
+export const getOutletSlots = async () => {
+  const response = await apiClient.get('/api/outlet/slots')
+  return response.slots
+}
+

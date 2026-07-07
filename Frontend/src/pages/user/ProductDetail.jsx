@@ -10,6 +10,7 @@ import { setHomeProducts, updateProductInCache, toggleWishlist } from '../../sto
 import { initSocket, getSocket } from '../../utils/socket'
 import ProductCard from './components/ProductCard'
 import RatingBadge from '../../components/RatingBadge'
+import { getExpectedDeliveryDate, formatDate } from '../../utils/delivery'
 
 function ProductDetail() {
   const { productId } = useParams()
@@ -133,6 +134,10 @@ function ProductDetail() {
     )
   }
 
+  const expectedDeliveryDate = product?.delivery_promise 
+    ? getExpectedDeliveryDate(product.delivery_promise) 
+    : null
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-gray-900 pb-20 lg:pb-16">
       <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
@@ -223,7 +228,14 @@ function ProductDetail() {
                   ))}
                 </div>
               </div>
-            ) : null}
+            {expectedDeliveryDate && (
+              <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-[1.25rem] flex items-center gap-3 shadow-sm mb-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                <p className="text-xs font-semibold text-slate-700">
+                  Expected Delivery: <span className="text-emerald-700 font-bold">The order will be delivered on or before {formatDate(expectedDeliveryDate)}</span>
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2 sm:gap-3 pt-2">
               <button className="w-full px-4 py-2.5 sm:py-3 bg-emerald-700 text-white text-sm sm:text-base font-semibold rounded-full shadow hover:bg-emerald-600 transition">

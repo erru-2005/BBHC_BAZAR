@@ -146,7 +146,7 @@ export default function SellerWallet() {
 
   return (
     <div className="p-4 md:p-12 max-w-7xl mx-auto w-full space-y-8">
-      <section className="relative overflow-hidden bg-slate-900 rounded-[3rem] p-8 md:p-12 text-white">
+      <section className="relative overflow-hidden bg-slate-900 rounded-[4px] p-8 md:p-12 text-white">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full blur-[120px] -mr-48 -mt-48" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#FF3399]/10 rounded-full blur-[100px] -ml-32 -mb-32" />
 
@@ -154,7 +154,7 @@ export default function SellerWallet() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-blue-400 uppercase tracking-[0.3em]">Business Wallet</h2>
             <div className="flex items-center gap-6">
-              <div className="p-4 bg-white/10 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl">
+              <div className="p-4 bg-white/10 backdrop-blur-xl rounded-[2px] border border-white/10 shadow-2xl">
                 <CreditCoin />
               </div>
               <div>
@@ -173,11 +173,11 @@ export default function SellerWallet() {
           </div>
 
           <div className="grid grid-cols-2 gap-4 md:w-auto">
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 border border-white/5">
+            <div className="bg-white/5 backdrop-blur-md rounded-[2px] p-4 border border-white/5">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lifetime Earned</p>
               <p className="text-lg font-bold">1,240</p>
             </div>
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 border border-white/5">
+            <div className="bg-white/5 backdrop-blur-md rounded-[2px] p-4 border border-white/5">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Last Recharge</p>
               <p className="text-lg font-bold">+500</p>
             </div>
@@ -187,9 +187,9 @@ export default function SellerWallet() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <section className="lg:col-span-2 space-y-6">
-          <div className="bg-blue-50/20 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl shadow-blue-900/5 border border-white/60">
+          <div className="bg-blue-50/20 backdrop-blur-xl rounded-[4px] p-8 shadow-xl shadow-blue-900/5 border border-white/60">
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+              <div className="w-10 h-10 rounded-[2px] bg-blue-50 flex items-center justify-center text-blue-600">
                 <FiPlus className="w-6 h-6" />
               </div>
               <h3 className="text-xl font-black text-slate-900 tracking-tight">Add Credits</h3>
@@ -200,7 +200,7 @@ export default function SellerWallet() {
                 <button
                   key={val}
                   onClick={() => setAmount(val)}
-                  className={`py-4 rounded-2xl font-black text-sm transition-all ${
+                  className={`py-4 rounded-[2px] font-black text-sm transition-all ${
                     amount === val
                       ? 'bg-blue-600 text-white shadow-xl shadow-blue-200 scale-[1.02]'
                       : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
@@ -220,7 +220,7 @@ export default function SellerWallet() {
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(Number(e.target.value))}
-                  className="w-full h-16 bg-white/40 border border-white/60 rounded-3xl px-8 font-black text-slate-900 text-xl outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner backdrop-blur-sm"
+                  className="w-full h-16 bg-white/40 border border-white/60 rounded-[4px] px-8 font-black text-slate-900 text-xl outline-none focus:border-blue-600 focus:bg-white transition-all shadow-inner backdrop-blur-sm"
                   placeholder="0.00"
                   min={1}
                 />
@@ -237,7 +237,7 @@ export default function SellerWallet() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`p-4 rounded-2xl text-sm font-bold ${
+                  className={`p-4 rounded-[4px] text-sm font-bold ${
                     message.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
                   }`}
                 >
@@ -248,7 +248,7 @@ export default function SellerWallet() {
               <button
                 onClick={handleProceedToRecharge}
                 disabled={loading || amount <= 0}
-                className="w-full h-16 bg-slate-900 text-white rounded-3xl font-black text-sm tracking-[0.2em] shadow-2xl shadow-slate-200 hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                className="w-full h-16 bg-slate-900 text-white rounded-[4px] font-black text-sm tracking-[0.2em] shadow-2xl shadow-slate-200 hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-3"
               >
                 {loading ? (
                   <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -265,7 +265,7 @@ export default function SellerWallet() {
         </section>
 
         <section className="space-y-6">
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-200">
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[4px] p-8 text-white shadow-xl shadow-blue-200">
             <h4 className="text-lg font-black mb-4 tracking-tight">Why use credits?</h4>
             <ul className="space-y-4">
               {[
@@ -275,7 +275,7 @@ export default function SellerWallet() {
                 'Advanced customer analytics'
               ].map((text, i) => (
                 <li key={i} className="flex gap-3 text-xs font-bold leading-relaxed opacity-90">
-                  <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                  <div className="w-5 h-5 rounded-[2px] bg-white/20 flex items-center justify-center shrink-0">
                     <FiCheckCircle className="w-3 h-3" />
                   </div>
                   {text}
@@ -283,8 +283,8 @@ export default function SellerWallet() {
               ))}
             </ul>
           </div>
-
-          <div className="bg-blue-50/20 backdrop-blur-xl rounded-[2.5rem] p-8 border border-white/60 shadow-xl shadow-blue-900/5">
+ 
+          <div className="bg-blue-50/20 backdrop-blur-xl rounded-[4px] p-8 border border-white/60 shadow-xl shadow-blue-900/5">
             <div className="flex items-center justify-between mb-6">
               <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Activity</h4>
               <FiClock className="text-slate-300" />

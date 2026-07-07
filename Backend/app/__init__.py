@@ -60,8 +60,33 @@ def create_app(config_class=Config):
         # Fallback for connection strings without @ (local MongoDB)
         if not mongodb_uri.endswith('/'):
             mongodb_uri += '/'
-        app.config['MONGO_URI'] = f"{mongodb_uri}{mongodb_db}"
     mongo.init_app(app)
+ 
+    with app.app_context():
+        try:
+            from app.services.slot_service import SlotService
+            SlotService.initialize_slots()
+        except Exception as e:
+            print(f"[Initialization] Error initializing slots: {str(e)}")
+
+        try:
+            # Migration: Update existing products missing delivery_promise to 'tomorrow'
+            result = mongo.db.products.update_many(
+                {
+                    '$or': [
+                        {'delivery_promise': {'$exists': False}},
+                        {'delivery_promise': None},
+                        {'delivery_promise': ''}
+                    ]
+                },
+                {
+                    '$set': {'delivery_promise': 'tomorrow'}
+                }
+            )
+            if result.modified_count > 0:
+                print(f"[Migration] Successfully updated {result.modified_count} existing products to have delivery_promise='tomorrow'")
+        except Exception as e:
+            print(f"[Migration] Error running delivery_promise migration: {str(e)}")
     
     # Initialize CORS with proper OPTIONS handling
     # We use a robust configuration that allows the browser to handle credentials correctly
@@ -174,6 +199,7 @@ def create_app(config_class=Config):
     from app.routes.payment_route import payment_bp
     from app.routes.image_route import image_bp
     from app.routes.web_container import web_container_bp
+    from app.routes.slot_routes import slot_bp
     
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(image_bp, url_prefix='/api')
@@ -186,6 +212,7 @@ def create_app(config_class=Config):
     app.register_blueprint(debug_bp, url_prefix='/api/debug')
     app.register_blueprint(service_bp, url_prefix='/api')
     app.register_blueprint(payment_bp, url_prefix='/api')
+    app.register_blueprint(slot_bp, url_prefix='/api/outlet')
     
     # Simple root route for connectivity testing
     @app.route('/', methods=['GET'])

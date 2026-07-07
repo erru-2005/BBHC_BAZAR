@@ -160,12 +160,12 @@ export default function SellerAnalytics() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1, type: "spring", stiffness: 100 }}
             whileHover={{ y: -8, scale: 1.02 }}
-            className={`p-8 relative overflow-hidden group border border-white/60 rounded-[2.5rem] bg-${item.color}-50/30 backdrop-blur-md shadow-xl shadow-blue-900/5`}
+            className={`p-8 relative overflow-hidden group border border-white/60 rounded-[4px] bg-${item.color}-50/30 backdrop-blur-md shadow-xl shadow-blue-900/5`}
           >
             <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full opacity-[0.2] group-hover:opacity-[0.3] group-hover:scale-150 transition-all duration-700 bg-white`} />
             
             <div className="flex items-center justify-between mb-6">
-              <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center text-${item.color}-600 bg-white shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all duration-300`}>
+              <div className={`w-14 h-14 rounded-[2px] flex items-center justify-center text-${item.color}-600 bg-white shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all duration-300`}>
                 <item.icon className="w-7 h-7" />
               </div>
               <div className="flex items-center gap-1.5 text-emerald-600 bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full text-[11px] font-bold tracking-tight shadow-sm border border-white/40">
@@ -188,14 +188,14 @@ export default function SellerAnalytics() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="lg:col-span-2 bg-blue-50/20 backdrop-blur-xl border border-white/60 rounded-[3rem] p-10 min-h-[500px] flex flex-col gap-8 shadow-xl shadow-blue-900/5"
+          className="lg:col-span-2 bg-blue-50/20 backdrop-blur-xl border border-white/60 rounded-[4px] p-10 min-h-[500px] flex flex-col gap-8 shadow-xl shadow-blue-900/5"
         >
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h3 className="text-2xl font-bold text-slate-900 tracking-tight">Top 5 Revenue Products</h3>
               <p className="text-sm text-slate-500 font-semibold tracking-normal mt-1">Market performance insights</p>
             </div>
-            <div className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-[10px] font-bold tracking-widest uppercase shadow-lg shadow-blue-500/30">
+            <div className="px-5 py-2.5 bg-blue-600 text-white rounded-[2px] text-[10px] font-bold tracking-widest uppercase shadow-lg shadow-blue-500/30">
                 Live Sync
             </div>
           </div>
@@ -223,7 +223,7 @@ export default function SellerAnalytics() {
              <div className="absolute top-0 right-0 w-40 h-40 bg-blue-600 rounded-full blur-[80px] opacity-20" />
              <div className="relative z-10 space-y-6">
                 <div className="flex items-center justify-between">
-                    <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center text-blue-400 backdrop-blur-md border border-white/10 shrink-0">
+                    <div className="w-14 h-14 rounded-[2px] bg-white/10 flex items-center justify-center text-blue-400 backdrop-blur-md border border-white/10 shrink-0">
                     <FiTrendingUp className="w-7 h-7" />
                     </div>
                     <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Operational Level</span>
@@ -247,8 +247,8 @@ export default function SellerAnalytics() {
              </div>
           </div>
 
-          <div className="bg-blue-50/30 backdrop-blur-md p-8 h-[280px] border border-white/60 rounded-[2.5rem] flex flex-col justify-center items-center gap-6 group hover:border-blue-500/40 transition-all duration-500 shadow-xl shadow-blue-900/5">
-             <div className="w-16 h-16 rounded-3xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-all duration-500 shadow-sm">
+          <div className="bg-blue-50/30 backdrop-blur-md p-8 h-[280px] border border-white/60 rounded-[4px] flex flex-col justify-center items-center gap-6 group hover:border-blue-500/40 transition-all duration-500 shadow-xl shadow-blue-900/5">
+             <div className="w-16 h-16 rounded-[2px] bg-blue-50 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-all duration-500 shadow-sm">
                 <FiPackage className="w-8 h-8" />
              </div>
              <div className="text-center space-y-1">
