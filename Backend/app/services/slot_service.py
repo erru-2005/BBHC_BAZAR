@@ -150,9 +150,32 @@ class SlotService:
                 # Fetch user details
                 user = UserService.get_user_by_id(slot.user_id)
                 if user:
-                    slot_data['user_name'] = f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip() or getattr(user, 'username', 'Unknown User')
+                    # Build a readable display name with a rich fallback chain
+                    full_name = f"{getattr(user, 'first_name', '') or ''} {getattr(user, 'last_name', '') or ''}".strip()
+                    username = getattr(user, 'username', '') or ''
+                    email = getattr(user, 'email', '') or ''
+                    phone = getattr(user, 'phone_number', '') or ''
+
+                    if full_name:
+                        display_name = full_name
+                    elif username:
+                        display_name = username
+                    elif email:
+                        # Show first part of email before @
+                        display_name = email.split('@')[0] if '@' in email else email
+                    elif phone:
+                        # Mask middle digits of phone for privacy
+                        display_name = phone[:3] + '****' + phone[-3:] if len(phone) >= 7 else phone
+                    else:
+                        # Last resort: use a short user ID suffix
+                        user_id_str = str(slot.user_id)
+                        display_name = f"User #{user_id_str[-5:].upper()}"
+
+                    slot_data['user_name'] = display_name
+                    slot_data['user_id'] = str(slot.user_id)
                 else:
-                    slot_data['user_name'] = "Unknown User"
+                    slot_data['user_name'] = f"User #{str(slot.user_id)[-5:].upper()}"
+                    slot_data['user_id'] = str(slot.user_id)
                 
                 # Fetch items at outlet for this user
                 orders, _ = OrderService.get_orders_by_user(slot.user_id, page=1, limit=100)
