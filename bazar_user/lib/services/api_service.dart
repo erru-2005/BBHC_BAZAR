@@ -12,7 +12,7 @@ class ServerNotReachableException implements Exception {
 }
 
 class ApiService {
-  static const String _baseUrl = 'http://192.168.1.2:5001';
+  static const String _baseUrl = 'http://apps.bbhegdecollege.com:9000/';
   static const String _cacheKey = 'cached_web_url';
 
   static String get baseUrl => _baseUrl;
@@ -21,8 +21,11 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
 
     try {
+      final cleanBaseUrl = _baseUrl.endsWith('/')
+          ? _baseUrl.substring(0, _baseUrl.length - 1)
+          : _baseUrl;
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/web-container/url'),
+        Uri.parse('$cleanBaseUrl/api/web-container/url'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(
         const Duration(seconds: 10),

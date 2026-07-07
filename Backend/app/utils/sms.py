@@ -166,7 +166,8 @@ class SMSService:
             
             # If it is not a security verification code or OTP, check if the recipient has notifications enabled
             is_otp = 'OTP' in message_body or 'Verification' in message_body or 'security code' in message_body.lower()
-            if not is_otp and user_doc:
+            is_order_transactional = 'order' in message_body.lower() or 'booking' in message_body.lower() or '#' in message_body or 'accepted' in message_body.lower() or 'rejected' in message_body.lower() or 'cancelled' in message_body.lower()
+            if not is_otp and not is_order_transactional and user_doc:
                 if not user_doc.get('notifications_enabled', False):
                     print(f"[SMSService] Notifications not enabled for {phone_number}. Skipping.")
                     return False, "Notifications not enabled"
@@ -244,7 +245,16 @@ class SMSService:
                         pass
                         
                     if not base_url:
-                        base_url = 'http://192.168.1.2:5001/'
+                        try:
+                            from flask import current_app
+                            base_url = current_app.config.get('BASE_URL')
+                        except Exception:
+                            pass
+                    if not base_url:
+                        import os
+                        base_url = os.environ.get('BASE_URL')
+                    if not base_url:
+                        base_url = 'http://apps.bbhegdecollege.com:9000/'
                         
                     if not base_url.endswith('/'):
                         base_url += '/'

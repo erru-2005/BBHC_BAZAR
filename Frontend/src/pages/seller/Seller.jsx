@@ -3,7 +3,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, useOutletContext } from 'react-router-dom'
 import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiMoreHorizontal, FiEye, FiPackage, FiSearch, FiCheckCircle, FiAlertCircle, FiPlus, FiXCircle, FiFilter } from 'react-icons/fi'
 import { FaQrcode } from 'react-icons/fa6'
 
@@ -13,6 +13,7 @@ import SellerOrders from './components/SellerOrders'
 import SellerNotifications from './components/SellerNotifications'
 import SellerAnalytics from './components/SellerAnalytics'
 import SellerWallet from './components/SellerWallet'
+import Toast from '../../components/Toast'
 import QRCode from 'react-qr-code'
 import { motion, AnimatePresence } from 'framer-motion'
 import { fixImageUrl, getOrderProductImage, resolveImageUrl } from '../../utils/image'
@@ -23,7 +24,32 @@ import {
   AcceptServiceCreditDeduction,
   getServiceCategoryFromOrder,
 } from './components/AcceptServiceCreditNotice'
-import { useOutletContext } from 'react-router-dom'
+const calculateArrivalDate = (createdAt, deliverySpan) => {
+  if (!createdAt) return ''
+  const span = Number(deliverySpan ?? 2)
+  if (isNaN(span) || span < 1) return ''
+
+  let daysToAdd = span - 1
+  let currentDate = new Date(createdAt)
+
+  // If today is Sunday, move to Monday (Sunday is not counted)
+  while (currentDate.getDay() === 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+
+  // Add days, skipping Sundays
+  while (daysToAdd > 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+    if (currentDate.getDay() !== 0) {
+      daysToAdd--
+    }
+  }
+
+  const dd = String(currentDate.getDate()).padStart(2, '0')
+  const mm = String(currentDate.getMonth() + 1).padStart(2, '0')
+  const yyyy = currentDate.getFullYear()
+  return `${dd}-${mm}-${yyyy}`
+}
 
 function Seller() {
   const dispatch = useDispatch()
@@ -54,9 +80,11 @@ function Seller() {
   const [serviceConfirmation, setServiceConfirmation] = useState(null)
   const [serviceAcceptCredit, setServiceAcceptCredit] = useState(25)
   const [creditLoading, setCreditLoading] = useState(false)
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
+  const [selectedSpans, setSelectedSpans] = useState({})
 
   useEffect(() => {
-    getServiceAcceptCredit().then(setServiceAcceptCredit).catch(() => {})
+    getServiceAcceptCredit().then(setServiceAcceptCredit).catch(() => { })
   }, [])
 
   useEffect(() => {
@@ -65,7 +93,7 @@ function Seller() {
     setCreditLoading(true)
     getServiceAcceptCredit(true, category)
       .then(setServiceAcceptCredit)
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setCreditLoading(false))
   }, [serviceConfirmation])
 
@@ -138,7 +166,7 @@ function Seller() {
   // Auto-refresh seller profile to keep session alive
   useEffect(() => {
     if (!user?.id) return
-    
+
     const refreshProfile = async () => {
       try {
         const data = await refreshSellerProfile()
@@ -149,13 +177,13 @@ function Seller() {
         console.warn('Failed to auto-refresh seller profile:', error.message)
       }
     }
-    
+
     // Refresh every 15 minutes (900000ms) to keep session alive
     const intervalId = setInterval(refreshProfile, 900000)
-    
+
     // Also refresh immediately on mount
     refreshProfile()
-    
+
     return () => clearInterval(intervalId)
   }, [user?.id, dispatch])
 
@@ -310,15 +338,18 @@ function Seller() {
       productCategories.some(cat => cat.includes('service') || cat.includes('creative') || cat.includes('work'))
   }
 
-  const handleLocalAccept = async (orderId) => {
-    // If it's a service, we need confirmation first
+  const handleLocalAccept = async (orderId, deliverySpanVal = null) => {
     const order = orders.find(o => (o.id === orderId || o._id === orderId))
-    if (isOrderService(order) && !serviceConfirmation) {
-      setServiceConfirmation(order)
+    const isService = isOrderService(order)
+
+    if (isService && (user?.credits || 0) < serviceAcceptCredit) {
+      setToast({
+        show: true,
+        message: `Insufficient credits! You need at least ${serviceAcceptCredit} credits to accept this service.`,
+        type: 'error'
+      })
       return
     }
-
-    const isService = isOrderService(order)
 
     // OPTIMISTIC UPDATE: subtract category credit immediately for services
     if (isService) {
@@ -331,7 +362,8 @@ function Seller() {
 
     try {
       setActionProcessingId(orderId)
-      const res = await sellerAcceptOrder(orderId)
+      const payload = isService ? null : { delivery_span: deliverySpanVal }
+      const res = await sellerAcceptOrder(orderId, payload)
       if (res) {
         dispatch(updateSellerOrder(res.order || res))
 
@@ -339,23 +371,19 @@ function Seller() {
         if (res.credits !== undefined) {
           dispatch(updateUserInfo({ credits: res.credits }))
         }
-        const isService = isOrderService(order)
-        setSuccessMessage({
-          title: isService ? 'Service Accepted!' : 'Order Accepted!',
-          message: isService
-            ? 'You have successfully accepted the service request.'
-            : 'You have successfully accepted the order. A handover code is now available.',
-          type: 'accept'
+
+        setToast({
+          show: true,
+          message: isService ? 'Service accepted successfully!' : 'Order accepted successfully!',
+          type: 'success'
         })
-        setServiceConfirmation(null)
-        // Show QR for the accepted order immediately if it's a product
-        const acceptedOrder = orders.find(o => (o.id === orderId || o._id === orderId))
-        if (acceptedOrder && !isService) {
-          setQrOrder({ ...acceptedOrder, status: 'seller_accepted' })
-        }
       }
     } catch (err) {
-      alert('Acceptance failed: ' + err.message)
+      setToast({
+        show: true,
+        message: 'Acceptance failed: ' + err.message,
+        type: 'error'
+      })
     } finally {
       setActionProcessingId(null)
     }
@@ -492,8 +520,8 @@ function Seller() {
               whileTap={{ scale: 0.95 }}
               onClick={() => setIsFilterOpen(!isFilterOpen)}
               className={`p-5 rounded-[2rem] backdrop-blur-xl border-2 transition-all duration-300 shadow-lg ${isFilterOpen
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-slate-900/20'
-                  : 'bg-white/40 text-slate-600 border-white/80 hover:bg-white hover:text-blue-600 shadow-black/5'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-slate-900/20'
+                : 'bg-white/40 text-slate-600 border-white/80 hover:bg-white hover:text-blue-600 shadow-black/5'
                 }`}
             >
               <FiFilter className={`w-5 h-5 ${isFilterOpen ? 'animate-pulse' : ''}`} />
@@ -624,6 +652,16 @@ function Seller() {
             const productName = order.product_snapshot?.name || order.product?.name || 'PRODUCT NOT FOUND'
             const productImg = getOrderProductImage(order)
 
+            const maxDays = order.product?.delivery_span || order.product_current?.delivery_span || order.delivery_span || 2
+            const currentSpan = selectedSpans[order.id] || maxDays
+
+            const options = []
+            for (let i = 1; i <= maxDays; i++) {
+              if (i === 1) options.push({ value: 1, label: 'Today' })
+              else if (i === 2) options.push({ value: 2, label: 'Tomorrow' })
+              else options.push({ value: i, label: `${i} Days` })
+            }
+
             return (
               <motion.div
                 key={order.id}
@@ -668,6 +706,30 @@ function Seller() {
                       <span className={`w-2 h-2 rounded-full ${isPending ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{status.replace('_', ' ')}</span>
                     </div>
+                    {!isOrderService(order) && (
+                      <div className="mt-1 text-[10px] font-bold text-slate-500">
+                        Arrival: On/Before {calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span || currentSpan)}
+                      </div>
+                    )}
+                    {status === 'pending_seller' && !isOrderService(order) && (
+                      <div className="flex items-center gap-1 mt-2 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 shadow-sm w-fit">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Delivery:</span>
+                        <select
+                          value={currentSpan}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10)
+                            setSelectedSpans(prev => ({ ...prev, [order.id]: val }))
+                          }}
+                          className="bg-transparent text-[10px] font-bold text-slate-800 focus:outline-none cursor-pointer"
+                        >
+                          {options.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -682,11 +744,11 @@ function Seller() {
                         REJECT
                       </button>
                       <button
-                        onClick={() => handleLocalAccept(order.id)}
+                        onClick={() => handleLocalAccept(order.id, currentSpan)}
                         disabled={actionProcessingId === order.id}
                         className="flex-[2] py-3.5 rounded-xl bg-blue-600 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-600/20 active:scale-95 transition-all"
                       >
-                        {actionProcessingId === order.id ? 'PROCESSING...' : 'ACCEPT'}
+                        {actionProcessingId === order.id ? 'PROCESSING...' : (isOrderService(order) ? 'ACCEPT SERVICE' : 'ACCEPT')}
                       </button>
                     </>
                   ) : isOrderService(order) ? (
@@ -732,6 +794,16 @@ function Seller() {
                 const productName = order.product_snapshot?.name || order.product?.name || 'PRODUCT NOT FOUND'
                 const productImg = getOrderProductImage(order)
 
+                const maxDays = order.product?.delivery_span || order.product_current?.delivery_span || order.delivery_span || 2
+                const currentSpan = selectedSpans[order.id] || maxDays
+
+                const options = []
+                for (let i = 1; i <= maxDays; i++) {
+                  if (i === 1) options.push({ value: 1, label: 'Today' })
+                  else if (i === 2) options.push({ value: 2, label: 'Tomorrow' })
+                  else options.push({ value: i, label: `${i} Days` })
+                }
+
                 return (
                   <tr key={order.id} className="group hover:bg-slate-50/50 transition-all">
                     <td className="px-4 py-5 first:rounded-l-[2rem] bg-white/30 border-y border-l border-white/40 group-hover:bg-white/50 group-hover:border-blue-200 transition-all">
@@ -755,17 +827,41 @@ function Seller() {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-sm font-bold text-slate-800 tracking-tight line-clamp-1">{productName}</span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex flex-col gap-1.5 mt-0.5">
                             {isOrderService(order) ? (
                               <div className="flex items-center gap-1.5 text-blue-600">
                                 <FiBriefcase size={10} />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Professional Service</span>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1.5 text-emerald-600">
-                                <FiPackage size={10} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Standard Delivery</span>
-                              </div>
+                              <>
+                                <div className="flex items-center gap-1.5 text-emerald-600">
+                                  <FiPackage size={10} />
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Standard Delivery</span>
+                                </div>
+                                <span className="text-[10px] font-bold text-slate-500">
+                                  Arrival: On/Before {calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span || currentSpan)}
+                                </span>
+                                {status === 'pending_seller' && (
+                                  <div className="flex items-center gap-1 mt-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 shadow-sm w-fit">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Delivery:</span>
+                                    <select
+                                      value={currentSpan}
+                                      onChange={(e) => {
+                                        const val = parseInt(e.target.value, 10)
+                                        setSelectedSpans(prev => ({ ...prev, [order.id]: val }))
+                                      }}
+                                      className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                                    >
+                                      {options.map((opt) => (
+                                        <option key={opt.value} value={opt.value}>
+                                          {opt.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
@@ -802,11 +898,11 @@ function Seller() {
                             <motion.button
                               whileHover={{ scale: 1.05, boxShadow: '0 10px 20px -5px rgba(37,99,235,0.3)' }}
                               whileTap={{ scale: 0.95 }}
-                              onClick={() => handleLocalAccept(order.id)}
+                              onClick={() => handleLocalAccept(order.id, currentSpan)}
                               disabled={actionProcessingId === order.id}
                               className="px-5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs tracking-normal transition-all disabled:opacity-50 flex items-center gap-2"
                             >
-                              {actionProcessingId === order.id ? <FiClock className="animate-spin" /> : 'ACCEPT SERVICE'}
+                              {actionProcessingId === order.id ? <FiClock className="animate-spin" /> : (isOrderService(order) ? 'ACCEPT SERVICE' : 'ACCEPT')}
                             </motion.button>
                           </div>
                         ) : isOrderService(order) ? (
@@ -883,83 +979,7 @@ function Seller() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {/* Service/Order Confirmation Popup */}
-        {serviceConfirmation && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
-            onClick={() => setServiceConfirmation(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.8, opacity: 0, y: 20 }}
-              className="bg-white rounded-[2rem] p-10 w-full text-center shadow-2xl relative border border-slate-50"
-              style={{ width: 'clamp(320px, 90%, 420px)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="w-14 h-14 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FiCheckCircle className="w-7 h-7" />
-              </div>
 
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Accept Service?</h3>
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <AcceptServiceCreditBadge balance={user?.credits || 0} />
-              </div>
-              <p className="text-xs text-slate-400 font-medium mb-4 leading-relaxed">
-                Confirm your availability to fulfill this service request.
-                <AcceptServiceCreditDeduction amount={serviceAcceptCredit} loading={creditLoading} />
-              </p>
-
-              {user?.credits < serviceAcceptCredit && (
-                <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-100 flex flex-col items-center gap-2">
-                  <div className="flex items-center gap-2 text-rose-600 font-bold text-[10px] uppercase tracking-widest">
-                    <FiAlertCircle className="w-4 h-4" /> Insufficient Credits
-                  </div>
-                  <p className="text-[10px] text-rose-500 font-medium">You need at least {serviceAcceptCredit} credits to accept this service.</p>
-                  <button
-                    onClick={() => {
-                      setActiveView('wallet')
-                      setServiceConfirmation(null)
-                    }}
-                    className="mt-1 px-4 py-2 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-600/20"
-                  >
-                    Add Credits Now
-                  </button>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-3">
-                <motion.button
-                  whileHover={user?.credits >= serviceAcceptCredit ? { scale: 1.02 } : {}}
-                  whileTap={user?.credits >= serviceAcceptCredit ? { scale: 0.98 } : {}}
-                  disabled={actionProcessingId === serviceConfirmation.id || creditLoading || user?.credits < serviceAcceptCredit}
-                  onClick={() => handleLocalAccept(serviceConfirmation.id)}
-                  className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-3 ${user?.credits >= serviceAcceptCredit
-                    ? 'bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-700'
-                    : 'bg-slate-100 text-slate-400 cursor-not-allowed grayscale'
-                    }`}
-                >
-                  {actionProcessingId === serviceConfirmation.id ? (
-                    <FiClock className="animate-spin w-4 h-4" />
-                  ) : (
-                    'CONFIRM & ACCEPT'
-                  )}
-                </motion.button>
-                <button
-                  onClick={() => setServiceConfirmation(null)}
-                  className="w-full py-2 text-slate-400 hover:text-slate-600 font-bold text-[10px] uppercase tracking-widest transition-colors"
-                >
-                  CANCEL
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* New Order Alert Popup */}
       <AnimatePresence>
@@ -1051,42 +1071,12 @@ function Seller() {
           </motion.div>
         )}
       </AnimatePresence>
-      <AnimatePresence>
-        {successMessage && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4"
-            onClick={() => setSuccessMessage(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.5, opacity: 0 }}
-              className="bg-white rounded-[2rem] p-8 w-full text-center shadow-2xl relative border border-slate-50"
-              style={{ width: 'clamp(280px, 90%, 350px)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className={`w-14 h-14 ${successMessage.type === 'accept' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'} rounded-full flex items-center justify-center mx-auto mb-4`}>
-                <FiCheckCircle className="w-7 h-7" />
-              </div>
-
-              <h3 className="text-xl font-bold text-slate-900 mb-2">{successMessage.title}</h3>
-              <p className="text-xs text-slate-400 font-medium mb-8 leading-relaxed">
-                {successMessage.message}
-              </p>
-
-              <button
-                onClick={() => setSuccessMessage(null)}
-                className={`w-full py-3.5 ${successMessage.type === 'accept' ? 'bg-emerald-600 shadow-emerald-600/20' : 'bg-slate-900 shadow-slate-900/20'} text-white rounded-xl font-bold text-xs transition-all active:scale-95`}
-              >
-                CONTINUE
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast
+        isVisible={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+      />
     </div>
   )
 }

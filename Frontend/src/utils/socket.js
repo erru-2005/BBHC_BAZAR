@@ -9,10 +9,10 @@ const getSocketUrl = () => {
   const envUrl = import.meta.env.VITE_SOCKET_URL
   if (envUrl) return envUrl
   
-  // Dynamic fallback: same host as frontend, but port 5001
+  // Dynamic fallback: same host as frontend, but port 9000
   const host = window.location.hostname
   const protocol = window.location.protocol
-  return `${protocol}//${host}:5001`
+  return `${protocol}//${host}:9000`
 }
 
 const SOCKET_URL = getSocketUrl()

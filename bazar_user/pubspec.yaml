@@ -67,6 +67,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/logo.png
     - assets/splash_bg_gradient.png
     - assets/e-commerce-service_splash-ntive.png

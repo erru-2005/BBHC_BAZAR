@@ -19,10 +19,10 @@ const getBackendUrl = () => {
   // but for now, we'll trust the env if it exists, otherwise fallback to current hostname
   if (envUrl) return envUrl
   
-  // Dynamic fallback: same host as frontend, but port 5001
+  // Dynamic fallback: same host as frontend, but port 9000
   const host = window.location.hostname
   const protocol = window.location.protocol
-  return `${protocol}//${host}:5001`
+  return `${protocol}//${host}:9000`
 }
 
 const API_BASE_URL = getBackendUrl()
@@ -2067,9 +2067,9 @@ export const getOrder = async (orderId) => {
   }
 }
 
-export const sellerAcceptOrder = async (orderId) => {
+export const sellerAcceptOrder = async (orderId, payload = null) => {
   try {
-    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_ACCEPT(orderId), {})
+    const response = await apiClient.post(API_ENDPOINTS.API.ORDER_ACCEPT(orderId), payload || {})
     return response.order
   } catch (error) {
     throw new Error(error.message || 'Failed to accept order')

@@ -17,7 +17,7 @@ from config import Config
 mongo = PyMongo()
 cors = CORS()
 jwt = JWTManager()
-socketio = SocketIO(cors_allowed_origins="*", transports=['polling', 'websocket'], engineio_logger=False, logger=False)
+socketio = SocketIO(cors_allowed_origins="*", engineio_logger=False, logger=False)
 
 
 def create_app(config_class=Config):
@@ -148,8 +148,7 @@ def create_app(config_class=Config):
     socketio.init_app(
         app,
         cors_allowed_origins="*", # Force wildcard to handle multiple local IPs (VirtualBox, etc.)
-        async_mode=app.config.get('SOCKETIO_ASYNC_MODE', 'threading'),
-        transports=['polling', 'websocket']
+        async_mode=app.config.get('SOCKETIO_ASYNC_MODE', 'threading')
     )
     
     # Suppress 500 errors from engineio websocket disconnections during upgrade

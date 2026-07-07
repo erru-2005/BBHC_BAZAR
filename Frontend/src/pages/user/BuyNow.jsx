@@ -143,6 +143,33 @@ function BuyNow() {
     return `${new Date(bookingData.startDate).toLocaleDateString()} - ${new Date(bookingData.endDate).toLocaleDateString()}`
   }, [isService, bookingData])
 
+  const expectedArrivalDateStr = useMemo(() => {
+    if (!product || isService) return ''
+    const span = Number(product.delivery_span ?? 2)
+    if (isNaN(span) || span < 1) return ''
+
+    let daysToAdd = span - 1
+    let currentDate = new Date()
+
+    // If today is Sunday, we move to Monday (Sunday is not counted/cannot be delivery day)
+    while (currentDate.getDay() === 0) {
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+
+    // Add days, skipping Sundays
+    while (daysToAdd > 0) {
+      currentDate.setDate(currentDate.getDate() + 1)
+      if (currentDate.getDay() !== 0) {
+        daysToAdd--
+      }
+    }
+
+    const dd = String(currentDate.getDate()).padStart(2, '0')
+    const mm = String(currentDate.getMonth() + 1).padStart(2, '0')
+    const yyyy = currentDate.getFullYear()
+    return `${dd}-${mm}-${yyyy}`
+  }, [product, isService])
+
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [])
@@ -242,6 +269,20 @@ function BuyNow() {
             </div>
 
             <div className="p-5 sm:p-6 lg:p-8 space-y-5">
+              {expectedArrivalDateStr && (
+                <div className="border border-emerald-200 bg-emerald-50 rounded-2xl p-4 flex items-center gap-3 shadow-sm animate-fadeIn">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-800 font-bold shrink-0">
+                    🚚
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-emerald-700 font-bold">Delivery Timeframe</p>
+                    <p className="text-sm text-slate-800 font-semibold mt-0.5">
+                      Arriving on or before <span className="font-extrabold text-emerald-900 underline decoration-2">{expectedArrivalDateStr}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="border border-slate-200 bg-slate-50 rounded-2xl p-4 space-y-2">
                 <div className="flex justify-between text-sm text-slate-700">
                   <span>Unit price</span>

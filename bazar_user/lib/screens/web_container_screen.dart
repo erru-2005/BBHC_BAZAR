@@ -505,7 +505,7 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
                 url.contains('maps.app.goo.gl') ||
                 url.contains('google.com/maps')) {
               debugPrint("[WebView] Intercepting maps URL and opening natively: ${request.url}");
-              const platform = MethodChannel('com.example.bazar_user/notifications');
+              const platform = MethodChannel('com.bbhcbazaar.user/notifications');
               platform.invokeMethod('openMap', {'url': request.url});
               return NavigationDecision.prevent;
             }
@@ -972,7 +972,7 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
   }
 
   void _requestNativeNotificationPermission() async {
-    const platform = MethodChannel('com.example.bazar_user/notifications');
+    const platform = MethodChannel('com.bbhcbazaar.user/notifications');
     try {
       await platform.invokeMethod('requestNotificationPermission');
     } on PlatformException catch (e) {

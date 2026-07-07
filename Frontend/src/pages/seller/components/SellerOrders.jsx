@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FiSearch, FiPackage, FiBox, FiRefreshCw, FiXCircle, FiArrowUpRight, FiEye } from 'react-icons/fi'
+import Toast from '../../../components/Toast'
 import { getOrders, sellerAcceptOrder, sellerRejectOrder, getServiceAcceptCredit } from '../../../services/api'
 import { initSocket } from '../../../utils/socket'
 import { fixImageUrl, getOrderProductImage } from '../../../utils/image'
@@ -11,6 +12,33 @@ import {
   AcceptServiceCreditDeduction,
   getServiceCategoryFromOrder,
 } from './AcceptServiceCreditNotice'
+
+const calculateArrivalDate = (createdAt, deliverySpan) => {
+  if (!createdAt) return ''
+  const span = Number(deliverySpan ?? 2)
+  if (isNaN(span) || span < 1) return ''
+
+  let daysToAdd = span - 1
+  let currentDate = new Date(createdAt)
+
+  // If today is Sunday, move to Monday (Sunday is not counted)
+  while (currentDate.getDay() === 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+
+  // Add days, skipping Sundays
+  while (daysToAdd > 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+    if (currentDate.getDay() !== 0) {
+      daysToAdd--
+    }
+  }
+
+  const dd = String(currentDate.getDate()).padStart(2, '0')
+  const mm = String(currentDate.getMonth() + 1).padStart(2, '0')
+  const yyyy = currentDate.getFullYear()
+  return `${dd}-${mm}-${yyyy}`
+}
 
 function SellerOrders() {
   const dispatch = useDispatch()
@@ -27,6 +55,8 @@ function SellerOrders() {
   const [serviceConfirmOrder, setServiceConfirmOrder] = useState(null)
   const [serviceAcceptCredit, setServiceAcceptCredit] = useState(25)
   const [creditLoading, setCreditLoading] = useState(false)
+  const [selectedSpans, setSelectedSpans] = useState({})
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
 
   useEffect(() => {
     getServiceAcceptCredit().then(setServiceAcceptCredit).catch(() => {})
@@ -60,13 +90,16 @@ function SellerOrders() {
     }
   }
 
-  const handleAccept = async (orderId) => {
-    // If it's a service, we need confirmation first
+  const handleAccept = async (orderId, deliverySpanVal = null) => {
     const order = orders.find(o => (o.id === orderId || o._id === orderId))
     const isService = order?.booking || (order?.type === 'service')
 
-    if (isService && !serviceConfirmOrder) {
-      setServiceConfirmOrder(order)
+    if (isService && (user?.credits || 0) < serviceAcceptCredit) {
+      setToast({
+        show: true,
+        message: `Insufficient credits! You need at least ${serviceAcceptCredit} credits to accept this service.`,
+        type: 'error'
+      })
       return
     }
 
@@ -81,7 +114,8 @@ function SellerOrders() {
 
     try {
       setProcessingId(orderId)
-      const res = await sellerAcceptOrder(orderId)
+      const payload = isService ? null : { delivery_span: deliverySpanVal }
+      const res = await sellerAcceptOrder(orderId, payload)
 
       // Sync with final balance from server
       if (res && res.credits !== undefined) {
@@ -89,10 +123,18 @@ function SellerOrders() {
       }
 
       setActionOrder(null)
-      setServiceConfirmOrder(null)
+      setToast({
+        show: true,
+        message: isService ? 'Service accepted successfully!' : 'Order accepted successfully!',
+        type: 'success'
+      })
     } catch (err) {
       console.error('Accept fail:', err)
-      alert('Acceptance failed: ' + err.message)
+      setToast({
+        show: true,
+        message: 'Acceptance failed: ' + err.message,
+        type: 'error'
+      })
     } finally {
       setProcessingId(null)
     }
@@ -282,6 +324,15 @@ function SellerOrders() {
           ) : (
             filteredOrders.map((order) => {
               const productImg = getOrderProductImage(order)
+              const maxDays = order.product?.delivery_span || order.product_current?.delivery_span || order.delivery_span || 2
+              const currentSpan = selectedSpans[order.id] || maxDays
+
+              const options = []
+              for (let i = 1; i <= maxDays; i++) {
+                if (i === 1) options.push({ value: 1, label: 'Today' })
+                else if (i === 2) options.push({ value: 2, label: 'Tomorrow' })
+                else options.push({ value: i, label: `${i} Days` })
+              }
               return (
               <motion.div
                 key={order.id}
@@ -326,7 +377,7 @@ function SellerOrders() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h5 className="font-bold text-sm text-slate-800 truncate tracking-tight">{order.product?.product_name || order.product?.name || 'Asset Item'}</h5>
-                    <p className="text-xs text-slate-500 font-semibold mt-1 opacity-80">
+                    <div className="text-xs text-slate-500 font-semibold mt-1 opacity-80">
                       {order.booking ? (
                         <span className="text-blue-600">
                           {order.booking.type === 'single'
@@ -335,9 +386,16 @@ function SellerOrders() {
                           }
                         </span>
                       ) : (
-                        `${order.quantity} Unit(s) × ${formatCurrency(order.unitPrice || (order.total_amount / order.quantity))}`
+                        <>
+                          <div>
+                            {order.quantity} Unit(s) × {formatCurrency(order.unitPrice || (order.total_amount / order.quantity))}
+                          </div>
+                          <div className="text-[10px] text-emerald-600 font-bold mt-1">
+                            Expected Arrival: On/Before {calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span || currentSpan)}
+                          </div>
+                        </>
                       )}
-                    </p>
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valuation</p>
@@ -372,9 +430,28 @@ function SellerOrders() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
                     {order.status === 'pending_seller' ? (
                       <>
+                        {!order.booking && (
+                          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm shrink-0">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Delivery:</span>
+                            <select
+                              value={currentSpan}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10)
+                                setSelectedSpans(prev => ({ ...prev, [order.id]: val }))
+                              }}
+                              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                            >
+                              {options.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                         <button
                           disabled={processingId === order.id}
                           onClick={() => {
@@ -387,7 +464,7 @@ function SellerOrders() {
                         </button>
                         <button
                           disabled={processingId === order.id}
-                          onClick={() => handleAccept(order.id)}
+                          onClick={() => handleAccept(order.id, currentSpan)}
                           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-blue-600/10 hover:bg-blue-700 active:scale-95 transition-all"
                         >
                           {processingId === order.id ? <FiRefreshCw className="animate-spin w-3 h-3" /> : 'ACCEPT'}
@@ -437,7 +514,7 @@ function SellerOrders() {
                 <div className="flex flex-col gap-3">
                   <motion.button
                     disabled={processingId === actionOrder.id}
-                    onClick={() => handleAccept(actionOrder.id)}
+                    onClick={() => handleAccept(actionOrder.id, selectedSpans[actionOrder.id] || (actionOrder.product?.delivery_span || 2))}
                     className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -464,69 +541,12 @@ function SellerOrders() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {serviceConfirmOrder && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
-            onClick={() => setServiceConfirmOrder(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.8, opacity: 0, y: 20 }}
-              className="bg-white rounded-[2rem] p-10 w-full text-center shadow-2xl border border-slate-50 relative"
-              style={{ width: 'clamp(320px, 90%, 420px)' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="w-14 h-14 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FiRefreshCw className="w-7 h-7" />
-              </div>
-
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Accept Service?</h3>
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <AcceptServiceCreditBadge balance={user?.credits || 0} />
-              </div>
-              <p className="text-xs text-slate-400 font-medium mb-4 leading-relaxed px-2">
-                Confirm your availability to fulfill this service request.
-                <AcceptServiceCreditDeduction amount={serviceAcceptCredit} loading={creditLoading} />
-              </p>
-
-              {user?.credits < serviceAcceptCredit && (
-                <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-100 flex flex-col items-center gap-2">
-                  <div className="flex items-center gap-2 text-rose-600 font-bold text-[10px] uppercase tracking-widest">
-                    <FiXCircle className="w-4 h-4" /> Insufficient Credits
-                  </div>
-                  <p className="text-[10px] text-rose-500 font-medium">You need at least {serviceAcceptCredit} credits to accept this service. Please recharge your wallet.</p>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-3">
-                <motion.button
-                  whileHover={user?.credits >= serviceAcceptCredit ? { scale: 1.02 } : {}}
-                  whileTap={user?.credits >= serviceAcceptCredit ? { scale: 0.98 } : {}}
-                  disabled={processingId === serviceConfirmOrder.id || creditLoading || user?.credits < serviceAcceptCredit}
-                  onClick={() => handleAccept(serviceConfirmOrder.id)}
-                  className={`w-full py-3.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2 ${user?.credits >= serviceAcceptCredit
-                      ? 'bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-700'
-                      : 'bg-slate-100 text-slate-400 cursor-not-allowed grayscale'
-                    }`}
-                >
-                  {processingId === serviceConfirmOrder.id ? <FiRefreshCw className="animate-spin w-4 h-4" /> : 'CONFIRM & ACCEPT'}
-                </motion.button>
-                <button
-                  onClick={() => setServiceConfirmOrder(null)}
-                  className="w-full py-2 text-slate-400 hover:text-slate-600 font-bold text-[10px] uppercase tracking-widest transition-colors"
-                >
-                  CANCEL
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast
+        isVisible={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+      />
     </div>
   )
 }

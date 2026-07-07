@@ -66,6 +66,13 @@ class OrderService:
         order_data['created_at'] = datetime.now(timezone.utc)
         order_data['updated_at'] = datetime.now(timezone.utc)
         order_data['status'] = order_data.get('status', 'pending_seller')
+
+        # Get product delivery span
+        product_doc = mongo.db.products.find_one({'_id': OrderService._ensure_object_id(order_data['product_id'])})
+        if product_doc:
+            order_data['delivery_span'] = product_doc.get('delivery_span', 2)
+        else:
+            order_data['delivery_span'] = 2
         
         # Detect if it's a service order
         product_snapshot = order_data.get('product_snapshot') or {}
@@ -230,7 +237,7 @@ class OrderService:
         return updated_order
 
     @staticmethod
-    def seller_accept_order(order_id, seller_id):
+    def seller_accept_order(order_id, seller_id, delivery_span=None):
         """Seller accepts order, generates tokens and QR codes."""
         try:
             order_obj_id = ObjectId(order_id)
@@ -250,7 +257,31 @@ class OrderService:
 
         # Detect if it's a service order using explicit type field
         is_service = order.type == 'service' or bool(order.booking)
-        
+
+        if not is_service and delivery_span is not None:
+            max_days = 2
+            product_id = order.product_id
+            if product_id:
+                try:
+                    pid_obj = ObjectId(product_id) if not isinstance(product_id, ObjectId) else product_id
+                    product_doc = mongo.db.products.find_one({'_id': pid_obj})
+                    if product_doc:
+                        max_days = int(product_doc.get('delivery_span', 2))
+                except Exception:
+                    pass
+            
+            # Use order's snapshot/stored delivery_span as fallback/max limit
+            order_dict = order.to_dict() if hasattr(order, 'to_dict') else {}
+            stored_span = order_dict.get('delivery_span')
+            if stored_span:
+                try:
+                    max_days = max(max_days, int(stored_span))
+                except Exception:
+                    pass
+
+            if delivery_span <= 0 or delivery_span > max_days:
+                return None, f"Delivery span must be between 1 and {max_days} days"
+
         # Determine target collection
         collection = mongo.db.service_orders if is_service else mongo.db.orders
         
@@ -291,21 +322,25 @@ class OrderService:
             seller_token = OrderService.generate_secure_token(str(order._id), str(order.seller_id), str(order.user_id), 'seller')
             qr_data_user = f"BBHC|ORDER:{order.order_number}|TOKEN:{user_token}"
 
+            update_set = {
+                'status': 'seller_accepted',
+                'secure_token_user': user_token,
+                'secure_token_seller': seller_token,
+                'qr_code_data': qr_data_user,
+                'updated_at': datetime.now(timezone.utc)
+            }
+            if delivery_span is not None:
+                update_set['delivery_span'] = delivery_span
+
             result = collection.update_one(
                 {'_id': order_obj_id},
                 {
-                    '$set': {
-                        'status': 'seller_accepted',
-                        'secure_token_user': user_token,
-                        'secure_token_seller': seller_token,
-                        'qr_code_data': qr_data_user,
-                        'updated_at': datetime.now(timezone.utc)
-                    },
+                    '$set': update_set,
                     '$push': {
                         'status_history': {
                             'status': 'seller_accepted',
                             'timestamp': datetime.now(timezone.utc),
-                            'note': 'Seller accepted the order',
+                            'note': f'Seller accepted the order (delivery timeframe: {delivery_span} days)' if delivery_span else 'Seller accepted the order',
                             'updated_by': f'seller:{seller_id}'
                         }
                     }

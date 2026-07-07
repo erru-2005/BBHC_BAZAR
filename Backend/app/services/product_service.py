@@ -36,6 +36,17 @@ class ProductService:
             if max_price < selling_price:
                 raise ValueError("Max price (MRP) must be greater than or equal to selling price")
 
+            delivery_span = product_data.get('delivery_span')
+            if delivery_span is not None:
+                try:
+                    delivery_span = int(delivery_span)
+                    if delivery_span < 1:
+                        raise ValueError("Delivery span must be greater than or equal to 1")
+                except (ValueError, TypeError):
+                    raise ValueError("Delivery span must be a valid integer")
+            else:
+                delivery_span = 2
+
 
 
             categories = product_data.get('categories', [])
@@ -102,7 +113,8 @@ class ProductService:
                 created_at=product_data.get('created_at') or datetime.now(timezone.utc),
                 updated_at=product_data.get('updated_at') or datetime.now(timezone.utc),
                 registration_ip=product_data.get('registration_ip'),
-                registration_user_agent=product_data.get('registration_user_agent')
+                registration_user_agent=product_data.get('registration_user_agent'),
+                delivery_span=delivery_span
             )
             product._id = product_id
 
@@ -267,10 +279,18 @@ class ProductService:
         try:
             update_fields = {}
 
-            for field in ['product_name', 'specification', 'thumbnail', 'selling_price', 'max_price', 'seller_trade_id', 'seller_name', 'seller_email', 'seller_phone', 'commission_rate']:
+            for field in ['product_name', 'specification', 'thumbnail', 'selling_price', 'max_price', 'seller_trade_id', 'seller_name', 'seller_email', 'seller_phone', 'commission_rate', 'delivery_span']:
                 if field in product_data and product_data[field] not in (None, ''):
                     if field in ['selling_price', 'max_price', 'commission_rate']:
                         update_fields[field] = float(product_data[field])
+                    elif field == 'delivery_span':
+                        try:
+                            ds_val = int(product_data['delivery_span'])
+                            if ds_val < 1:
+                                raise ValueError("Delivery span must be greater than or equal to 1")
+                            update_fields['delivery_span'] = ds_val
+                        except (ValueError, TypeError):
+                            raise ValueError("Delivery span must be a valid integer")
                     else:
                         update_fields[field] = product_data[field]
             

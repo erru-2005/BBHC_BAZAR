@@ -987,6 +987,7 @@ def create_product():
             'updated_at': datetime.now(timezone.utc),
             'registration_ip': request.remote_addr,
             'registration_user_agent': request.headers.get('User-Agent'),
+            'delivery_span': data.get('delivery_span'),
         }
         if data.get('commission_rate') is not None:
             product_data['commission_rate'] = data['commission_rate']
@@ -1221,6 +1222,7 @@ def seller_update_product(product_id):
         data['max_price'] = data.get('max_price', existing_product.max_price)
         data['quantity'] = data.get('quantity', existing_product.quantity)
         data['categories'] = data.get('categories', existing_product.categories)
+        data['delivery_span'] = data.get('delivery_span', getattr(existing_product, 'delivery_span', 2))
 
         # Create pending edit request
         edit_request = ProductService.create_product(data)

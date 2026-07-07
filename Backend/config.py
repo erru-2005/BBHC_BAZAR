@@ -29,6 +29,7 @@ class Config:
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     HOST = os.environ.get('FLASK_HOST', '0.0.0.0')
     PORT = int(os.environ.get('FLASK_PORT', 5001))
+    BASE_URL = os.environ.get('BASE_URL') or 'http://apps.bbhegdecollege.com:9000/'
     
     # MongoDB Configuration
     MONGODB_URI = os.environ.get('MONGODB_URI') or \

@@ -97,6 +97,8 @@ function SellerProductForm({ initialProduct = null }) {
   const [categoryCommissionRates, setCategoryCommissionRates] = useState({})
   const [status, setStatus] = useState({ type: null, message: '' })
   const [submitting, setSubmitting] = useState(false)
+  const [deliverySpanType, setDeliverySpanType] = useState('tomorrow') // 'today' | 'tomorrow' | 'custom'
+  const [customDeliverySpan, setCustomDeliverySpan] = useState('')
 
   const isEditing = useMemo(() => !!initialProduct, [initialProduct])
 
@@ -151,6 +153,17 @@ function SellerProductForm({ initialProduct = null }) {
           )
           : []
       )
+      const ds = initialProduct.delivery_span ?? 2
+      if (ds === 1) {
+        setDeliverySpanType('today')
+        setCustomDeliverySpan('')
+      } else if (ds === 2) {
+        setDeliverySpanType('tomorrow')
+        setCustomDeliverySpan('')
+      } else {
+        setDeliverySpanType('custom')
+        setCustomDeliverySpan(String(ds))
+      }
     }
   }, [initialProduct])
 
@@ -257,6 +270,14 @@ function SellerProductForm({ initialProduct = null }) {
       return
     }
 
+    if (deliverySpanType === 'custom') {
+      const days = parseInt(customDeliverySpan, 10)
+      if (isNaN(days) || days <= 2) {
+        setStatus({ type: 'error', message: 'Delivery span for custom days must be greater than 2.' })
+        return
+      }
+    }
+
     setSubmitting(true)
     try {
       let entityId = initialProduct?.id || initialProduct?._id
@@ -297,6 +318,15 @@ function SellerProductForm({ initialProduct = null }) {
         }
       }
 
+      let deliverySpanValue = 2
+      if (deliverySpanType === 'today') {
+        deliverySpanValue = 1
+      } else if (deliverySpanType === 'tomorrow') {
+        deliverySpanValue = 2
+      } else if (deliverySpanType === 'custom') {
+        deliverySpanValue = parseInt(customDeliverySpan, 10)
+      }
+
       const payload = {
         product_name: form.productName.trim(),
         specification: form.specification.trim(),
@@ -307,6 +337,7 @@ function SellerProductForm({ initialProduct = null }) {
         max_price: max,
         categories: form.category ? [form.category] : [],
         product_id: entityId,
+        delivery_span: deliverySpanValue,
       }
 
       if (isEditing && initialProduct?.id) {
@@ -486,6 +517,68 @@ function SellerProductForm({ initialProduct = null }) {
             />
           </div>
 
+        </div>
+
+        <div className="space-y-4">
+          <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-widest ml-1">
+            Delivery Span <span className="text-rose-600">*</span>
+          </label>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+            Select the delivery timeframe for this product.
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            <button
+              type="button"
+              onClick={() => setDeliverySpanType('today')}
+              className={`py-4 px-6 rounded-2xl text-center text-xs font-bold transition-all border ${
+                deliverySpanType === 'today'
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                  : 'border-slate-300 bg-white hover:border-blue-400 text-slate-700'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeliverySpanType('tomorrow')}
+              className={`py-4 px-6 rounded-2xl text-center text-xs font-bold transition-all border ${
+                deliverySpanType === 'tomorrow'
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                  : 'border-slate-300 bg-white hover:border-blue-400 text-slate-700'
+              }`}
+            >
+              Tomorrow
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeliverySpanType('custom')}
+              className={`py-4 px-6 rounded-2xl text-center text-xs font-bold transition-all border ${
+                deliverySpanType === 'custom'
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                  : 'border-slate-300 bg-white hover:border-blue-400 text-slate-700'
+              }`}
+            >
+              Custom Days
+            </button>
+          </div>
+
+          {deliverySpanType === 'custom' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3"
+            >
+              <input
+                type="number"
+                min="3"
+                value={customDeliverySpan}
+                onChange={(e) => setCustomDeliverySpan(e.target.value)}
+                className="w-full px-6 py-4 bg-white border border-slate-300 rounded-2xl text-slate-900 font-semibold placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
+                placeholder="Enter number of days (should be > 2)"
+                required
+              />
+            </motion.div>
+          )}
         </div>
 
         <div className="space-y-4">

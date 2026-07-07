@@ -15,6 +15,33 @@ import { scanOrderToken, getOrders, refreshSellerProfile, logoutUser } from '../
 import { setOutletOrders, setOutletLoading, updateOutletOrder } from '../../store/outletSlice'
 import { updateUserInfo } from '../../store/authSlice'
 
+const calculateArrivalDate = (createdAt, deliverySpan) => {
+  if (!createdAt) return ''
+  const span = Number(deliverySpan ?? 2)
+  if (isNaN(span) || span < 1) return ''
+
+  let daysToAdd = span - 1
+  let currentDate = new Date(createdAt)
+
+  // If today is Sunday, move to Monday (Sunday is not counted)
+  while (currentDate.getDay() === 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+
+  // Add days, skipping Sundays
+  while (daysToAdd > 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+    if (currentDate.getDay() !== 0) {
+      daysToAdd--
+    }
+  }
+
+  const dd = String(currentDate.getDate()).padStart(2, '0')
+  const mm = String(currentDate.getMonth() + 1).padStart(2, '0')
+  const yyyy = currentDate.getFullYear()
+  return `${dd}-${mm}-${yyyy}`
+}
+
 function Outlet() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
@@ -526,6 +553,14 @@ function Outlet() {
                     {pendingOrder.status?.replace('_', ' ').toUpperCase()}
                   </span>
                 </div>
+                {!pendingOrder.booking && (
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
+                    <span className="text-sm font-semibold text-gray-700">Expected Delivery</span>
+                    <span className="text-sm font-bold text-emerald-700">
+                      On or before {calculateArrivalDate(pendingOrder.createdAt || pendingOrder.created_at, pendingOrder.delivery_span)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Product Details */}
