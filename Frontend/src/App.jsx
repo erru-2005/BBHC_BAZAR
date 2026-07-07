@@ -40,7 +40,6 @@ import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Footer from './components/Footer'
 import { useEffect, useRef } from 'react'
-import NotificationPrompt from './components/NotificationPrompt'
 import { useDispatch, useSelector } from 'react-redux'
 import { setHomeProducts, setHomeWishlist, setCategories, setLoading } from './store/dataSlice'
 import { setSellerProducts, setSellerOrders } from './store/sellerSlice'
@@ -275,7 +274,7 @@ function SplashWrapper() {
       socket.on('connect', onConnect)
       socket.on('app_notification', onAppNotification)
 
-      // Automatically sync FCM token if running inside Flutter app shell
+      // Automatically sync FCM token if running inside Flutter app shell and already present
       if (window.flutterFCMToken) {
         enableNotifications(window.flutterFCMToken).catch(err => {
           console.error('[App] Failed to auto-sync FCM token:', err)
@@ -287,9 +286,21 @@ function SplashWrapper() {
       socket.on('app_notification', onAppNotification)
     }
 
+    // Callback listener for Flutter webview container token injection
+    window.onFlutterFCMTokenReceived = (tokenVal) => {
+      console.log('[App] Received FCM Token callback from Flutter container:', tokenVal)
+      window.flutterFCMToken = tokenVal
+      if (isAuthenticated && token) {
+        enableNotifications(tokenVal).catch(err => {
+          console.error('[App] Failed to auto-sync received FCM token:', err)
+        })
+      }
+    }
+
     return () => {
       socket?.off('connect', onConnect)
       socket?.off('app_notification', onAppNotification)
+      delete window.onFlutterFCMTokenReceived
     }
   }, [isAuthenticated, token, userType])
 
@@ -402,7 +413,6 @@ function SplashWrapper() {
             </Routes>
           </main>
         </div>
-        <NotificationPrompt />
     </>
   )
 }

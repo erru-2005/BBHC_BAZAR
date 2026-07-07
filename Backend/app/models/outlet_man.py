@@ -11,7 +11,7 @@ class OutletMan:
     
     def __init__(self, outlet_access_code, email, password_hash, phone_number=None,
                  first_name=None, last_name=None, is_active=False, created_by="system",
-                 notifications_enabled=False, created_at=None, _id=None):
+                 notifications_enabled=True, created_at=None, _id=None):
         self._id = _id or ObjectId()
         self.outlet_access_code = outlet_access_code
         self.email = email
@@ -95,7 +95,7 @@ class OutletMan:
             last_name=bson_doc.get('last_name'),
             is_active=bson_doc.get('is_active', False),
             created_by=bson_doc.get('created_by', 'system'),
-            notifications_enabled=bson_doc.get('notifications_enabled', False),
+            notifications_enabled=bson_doc.get('notifications_enabled', True),
             created_at=bson_doc.get('created_at')
         )
     

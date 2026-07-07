@@ -9,10 +9,8 @@ from app.services.product_service import ProductService
 from app.services.order_service import OrderService
 from app.services.user_service import UserService
 from app.services.seller_service import SellerService
-from app.services.slot_service import SlotService
 from app.sockets.emitter import emit_order_event
 from app.utils.sms import SMSService
-from app.utils.email import send_email
 from app import mongo
 from app.models.service import Service
 from bson import ObjectId
@@ -228,7 +226,6 @@ def create_order():
             'delivery_address': delivery_address or user_snapshot.get('address'),
             'pickup_location': pickup_location,
             'pickup_instructions': pickup_instructions,
-            'delivery_promise': product_dict.get('delivery_promise') or 'tomorrow',
             'product_snapshot': {
                 'id': product_dict.get('id'),
                 'name': product_dict.get('product_name'),
@@ -260,39 +257,26 @@ def create_order():
         # Emit real-time events to user, seller, and master
         emit_order_event('new_order', order_dict, target_user_id=user_id, target_seller_id=seller_id)
 
-        # Notify seller via SMS and Email (best-effort)
+        # Notify seller via SMS (best-effort)
         try:
-            if seller_id and seller_snapshot:
-                seller_phone = seller_snapshot.get('phone_number')
-                seller_email = seller_snapshot.get('email')
+            if seller_id and seller_phone and SMSService.is_configured():
+                seller = SellerService.get_seller_by_id(seller_id)
+                seller_email = seller.email if seller else None
+                # Use product_dict directly for accurate data
                 product_name = product_dict.get('product_name') or 'Product'
                 qty = quantity
                 order_no = order_dict.get('orderNumber') or order_dict.get('order_number') or order_dict.get('id')
+                # Use the calculated values from order creation
                 unit_price_val = float(unit_price or 0)
                 total_amount_val = float(total_amount or 0)
-                
-                if seller_phone and SMSService.is_configured():
-                    message_body = (
-                        f"New order #{order_no}: {product_name} (Qty: {qty}, ₹{total_amount_val:.2f}). "
-                        "Visit BBHCBazaar seller dashboard to accept/reject."
-                    )
-                    SMSService.send_message(seller_phone, message_body, product_thumbnail=product_dict.get('thumbnail'))
-                    
-                if seller_email:
-                    subject = f"New Order Received: {product_name}"
-                    body = (
-                        f"Hello,\n\n"
-                        f"You have received a new order for {product_name}.\n"
-                        f"Order Number: {order_no}\n"
-                        f"Quantity: {qty}\n"
-                        f"Total Amount: ₹{total_amount_val:.2f}\n\n"
-                        f"Please log in to your BBHCBazaar seller dashboard to view the details and accept or reject the order.\n\n"
-                        f"Thank you!"
-                    )
-                    send_email(seller_email, subject, body)
+                message_body = (
+                    f"New order #{order_no}: {product_name} (Qty: {qty}, ₹{total_amount_val:.2f}). "
+                    "Visit BBHCBazaar seller dashboard to accept/reject."
+                )
+                SMSService.send_message(seller_phone, message_body, product_thumbnail=product_dict.get('thumbnail'), email=seller_email)
         except Exception as e:
-            # Don't block order creation on notification failure
-            print(f"Failed to send notification to seller: {str(e)}")
+            # Don't block order creation on SMS failure
+            print(f"Failed to send SMS notification to seller: {str(e)}")
 
         return jsonify({
             'message': 'Order placed successfully',
@@ -405,9 +389,7 @@ def seller_accept_order(order_id):
         return jsonify({'error': 'Only sellers can accept orders'}), 403
 
     seller_id = get_jwt_identity()
-    payload = request.get_json(silent=True) or {}
-    delivery_promise = payload.get('delivery_promise')
-    updated_order, error = OrderService.seller_accept_order(order_id, seller_id, delivery_promise)
+    updated_order, error = OrderService.seller_accept_order(order_id, seller_id)
     
     if error:
         return jsonify({'error': error}), 400
@@ -427,13 +409,12 @@ def seller_accept_order(order_id):
             order_number = updated_order.order_number or order_id
             quantity = updated_order.quantity or 1
             message = f"Order #{order_number} accepted! {product_name} (Qty: {quantity}). Visit BBHCBazaar site for details."
-            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'), email=user.email)
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification to user: {str(e)}")
 
     # Get updated seller info for live credit sync
-    from app.services.seller_service import SellerService
     seller = SellerService.get_seller_by_id(seller_id)
     updated_credits = seller.credits if seller else 0
 
@@ -480,7 +461,7 @@ def seller_reject_order(order_id):
             quantity = updated_order.quantity or 1
             rejection_reason = updated_order.rejection_reason or reason
             message = f"Order #{order_number} rejected: {product_name} (Qty: {quantity}). Reason: {rejection_reason}. Visit BBHCBazaar site for details."
-            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'), email=user.email)
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification to user: {str(e)}")
@@ -526,56 +507,38 @@ def scan_order_token():
 
     order_dict = updated_order.to_dict()
     order_status = order_dict.get('status')
+    emit_order_event('order_updated', order_dict, target_user_id=str(updated_order.user_id), target_seller_id=str(updated_order.seller_id))
 
-    # Skip side-effects (SMS/events) during preview
-    if not preview:
-        emit_order_event('order_updated', order_dict, target_user_id=str(updated_order.user_id), target_seller_id=str(updated_order.seller_id))
+    # Send SMS notifications based on status change
+    try:
+        # Use order object directly for accurate data (more reliable than order_dict)
+        product_snapshot = updated_order.product_snapshot or {}
+        product_name = product_snapshot.get('name') or 'Product'
+        order_number = updated_order.order_number or str(updated_order._id)
+        quantity = updated_order.quantity or 1
+        total_amount = float(updated_order.total_amount or 0)
 
-        # Send SMS notifications based on status change
-        try:
-            product_snapshot = updated_order.product_snapshot or {}
-            product_name = product_snapshot.get('name') or 'Product'
-            order_number = updated_order.order_number or str(updated_order._id)
-            quantity = updated_order.quantity or 1
-            total_amount = float(updated_order.total_amount or 0)
-            
+        if order_status == 'handed_over':
+            # Seller handed over product - notify user to collect
             user = UserService.get_user_by_id(str(updated_order.user_id))
+            if user and user.phone_number:
+                pickup_location = updated_order.pickup_location or 'BBHCBazaar Experience Outlet'
+                message = f"Order #{order_number}: {product_name} (Qty: {quantity}) ready for pickup at {pickup_location}. Visit BBHCBazaar outlet with your QR code to collect."
+                SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'), email=user.email)
 
-            if order_status == 'handed_over':
-                slot = SlotService.get_user_slot(updated_order.user_id)
-                slot_info = f" in Slot #{slot.slot_number}" if slot else ""
-                
-                if user and user.phone_number:
-                    pickup_location = updated_order.pickup_location or 'BBHCBazaar Experience Outlet'
-                    message = f"Order #{order_number}: {product_name} (Qty: {quantity}) ready for pickup{slot_info} at {pickup_location}. Visit BBHCBazaar outlet with your QR code to collect."
-                    SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
-                    
-                # Send Email Notification
-                if user and user.email:
-                    subject = f"Your item is ready for pickup at BBHCBazaar Outlet!"
-                    body = f"Hello {user.first_name or 'User'},\n\nYour item '{product_name}' (Order #{order_number}) has arrived at the outlet and is stored{slot_info}.\n\nPlease show your QR code token at the outlet to collect it.\n\nThank you for using BBHCBazaar!"
-                    send_email(user.email, subject, body)
-
-            elif order_status == 'completed':
-                # User collected product - notify seller
-                seller = SellerService.get_seller_by_id(str(updated_order.seller_id))
-                if seller and seller.phone_number:
-                    message = f"Order #{order_number} completed! {product_name} (Qty: {quantity}) collected. Total: ₹{total_amount:.2f}. Thanks!"
-                    SMSService.send_message(seller.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
-        except Exception as e:
-            # Don't fail the request if SMS fails
-            print(f"Failed to send SMS/Email notification: {str(e)}")
-
-    # Always include slot info in response (useful for preview and real scan)
-    slot = SlotService.get_user_slot(updated_order.user_id)
-    slot_number = slot.slot_number if slot else None
-    if slot_number is not None:
-        order_dict['slot_number'] = slot_number
+        elif order_status == 'completed':
+            # User collected product - notify seller
+            seller = SellerService.get_seller_by_id(str(updated_order.seller_id))
+            if seller and seller.phone_number:
+                message = f"Order #{order_number} completed! {product_name} (Qty: {quantity}) collected. Total: ₹{total_amount:.2f}. Thanks!"
+                SMSService.send_message(seller.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'), email=seller.email)
+    except Exception as e:
+        # Don't fail the request if SMS fails
+        print(f"Failed to send SMS notification: {str(e)}")
 
     return jsonify({
         'message': 'Token scanned successfully',
-        'order': order_dict,
-        'slot_number': slot_number
+        'order': order_dict
     }), 200
 
 
@@ -620,14 +583,14 @@ def master_cancel_order(order_id):
         user = UserService.get_user_by_id(str(updated_order.user_id))
         if user and user.phone_number:
             message = f"Order #{order_number} cancelled: {product_name} (Qty: {quantity}). Reason: {rejection_reason}. Visit BBHCBazaar site for details."
-            SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+            SMSService.send_message(user.phone_number, message, email=user.email)
 
         # Notify seller
         if updated_order.seller_id:
             seller = SellerService.get_seller_by_id(str(updated_order.seller_id))
             if seller and seller.phone_number:
                 message = f"Order #{order_number} cancelled by admin: {product_name} (Qty: {quantity}). Reason: {rejection_reason}."
-                SMSService.send_message(seller.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+                SMSService.send_message(seller.phone_number, message, email=seller.email)
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification: {str(e)}")
@@ -668,7 +631,7 @@ def cancel_order(order_id):
             quantity = updated_order.quantity or 1
             rejection_reason = updated_order.rejection_reason or reason
             message = f"Order #{order_number} cancelled by user: {product_name} (Qty: {quantity}). Reason: {rejection_reason}. Contact user for details."
-            SMSService.send_message(seller.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+            SMSService.send_message(seller.phone_number, message, email=seller.email)
     except Exception as e:
         # Don't fail the request if SMS fails
         print(f"Failed to send SMS notification to seller: {str(e)}")
@@ -716,14 +679,14 @@ def update_order_status(order_id):
             user = UserService.get_user_by_id(str(updated_order.user_id))
             if user and user.phone_number:
                 message = f"Order #{order_number} rejected by admin: {product_name} (Qty: {quantity}). Reason: {note_text}."
-                SMSService.send_message(user.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+                SMSService.send_message(user.phone_number, message, email=user.email)
 
         # Notify seller when order is rejected or cancelled
         if status in ['rejected', 'seller_rejected', 'cancelled'] and user_type == 'master':
             seller = SellerService.get_seller_by_id(str(updated_order.seller_id))
             if seller and seller.phone_number:
                 message = f"Order #{order_number} rejected/cancelled by admin: {product_name} (Qty: {quantity}). Reason: {note_text}."
-                SMSService.send_message(seller.phone_number, message, product_thumbnail=product_snapshot.get('thumbnail'))
+                SMSService.send_message(seller.phone_number, message, email=seller.email)
 
     except Exception as e:
         # Don't fail the request if SMS fails
@@ -733,51 +696,3 @@ def update_order_status(order_id):
         'message': 'Order status updated',
         'order': order_dict
     }), 200
-
-@orders_bp.route('/outlet/slots', methods=['GET'])
-@jwt_required()
-def get_outlet_slots():
-    """Get all outlet slots (Requires outlet_man role)"""
-    claims = get_jwt()
-    if claims.get('user_type') != 'outlet_man':
-        return jsonify({'error': 'Only outlet staff can view slots'}), 403
-
-    try:
-        from app.services.slot_service import SlotService
-        slots = SlotService.get_all_slots()
-        return jsonify({
-            'slots': [slot.to_dict() for slot in slots],
-            'count': len(slots)
-        }), 200
-    except Exception as e:
-        return jsonify({'error': f'Failed to fetch slots: {str(e)}'}), 500
-
-@orders_bp.route('/outlet/slots/resize', methods=['POST'])
-@jwt_required()
-def resize_outlet_slots():
-    """Change the total number of slots in the outlet (Requires outlet_man role)"""
-    claims = get_jwt()
-    if claims.get('user_type') != 'outlet_man':
-        return jsonify({'error': 'Only outlet staff can resize slots'}), 403
-
-    payload = request.get_json() or {}
-    new_size = payload.get('size')
-    
-    if new_size is None or not isinstance(new_size, int) or new_size < 1:
-        return jsonify({'error': 'Valid size parameter (integer >= 1) is required'}), 400
-
-    try:
-        from app.services.slot_service import SlotService
-        success, error = SlotService.resize_slots(new_size)
-        
-        if not success:
-            return jsonify({'error': error}), 400
-            
-        slots = SlotService.get_all_slots()
-        return jsonify({
-            'message': f'Slots resized to {new_size} successfully',
-            'slots': [slot.to_dict() for slot in slots],
-            'count': len(slots)
-        }), 200
-    except Exception as e:
-        return jsonify({'error': f'Failed to resize slots: {str(e)}'}), 500

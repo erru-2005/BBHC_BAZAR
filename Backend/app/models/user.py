@@ -12,7 +12,7 @@ class User:
     def __init__(self, username, email, password_hash, first_name=None, 
                  last_name=None, phone_number=None, address=None, 
                  date_of_birth=None, is_active=True, is_admin=False, 
-                 notifications_enabled=False, created_at=None, updated_at=None, _id=None):
+                 notifications_enabled=True, created_at=None, updated_at=None, _id=None):
         self._id = _id or ObjectId()
         self.username = username
         self.email = email
@@ -107,7 +107,7 @@ class User:
             date_of_birth=bson_doc.get('date_of_birth'),
             is_active=bson_doc.get('is_active', True),
             is_admin=bson_doc.get('is_admin', False),
-            notifications_enabled=bson_doc.get('notifications_enabled', False),
+            notifications_enabled=bson_doc.get('notifications_enabled', True),
             created_at=bson_doc.get('created_at'),
             updated_at=bson_doc.get('updated_at')
         )

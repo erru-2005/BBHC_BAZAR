@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { FaLocationDot, FaCalendarDays, FaBoxOpen, FaArrowLeft } from 'react-icons/fa6'
 import { FaUserCircle, FaPhone, FaEnvelope, FaRegSave, FaSignOutAlt } from 'react-icons/fa'
-import { getUserProfile, updateUserProfile } from '../../services/api'
+import { getUserProfile, updateUserProfile, logoutUser } from '../../services/api'
 import { setUser, logout } from '../../store/authSlice'
 import MainHeader from './components/MainHeader'
 import MobileMenu from './components/MobileMenu'
@@ -63,9 +63,15 @@ function UserProfile() {
     fetchProfile()
   }, [dispatch])
 
-  const handleLogout = () => {
-    dispatch(logout())
-    navigate('/')
+  const handleLogout = async () => {
+    try {
+      await logoutUser()
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      dispatch(logout())
+      navigate('/')
+    }
   }
 
   const startEditing = (field) => {
@@ -86,9 +92,43 @@ function UserProfile() {
       return
     }
 
-    setSavingField(field)
     setError(null)
     setMessage(null)
+
+    // Frontend validations
+    if (field === 'phone_number') {
+      if (!pendingValue || pendingValue.trim().length < 10) {
+        setError('A valid phone number (at least 10 digits) is required')
+        return
+      }
+    }
+
+    if (field === 'date_of_birth') {
+      const dateRegex = /^(\d{2})-(\d{2})-(\d{4})$/
+      if (!dateRegex.test(pendingValue)) {
+        setError('Date of birth must be in DD-MM-YYYY format')
+        return
+      }
+      const [day, month, year] = pendingValue.split('-').map(Number)
+      const date = new Date(year, month - 1, day)
+      if (date.getDate() !== day || date.getMonth() !== month - 1 || date.getFullYear() !== year) {
+        setError('Please enter a valid date')
+        return
+      }
+      // Calculate age internally
+      const today = new Date()
+      let age = today.getFullYear() - date.getFullYear()
+      const m = today.getMonth() - date.getMonth()
+      if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
+        age--
+      }
+      if (age < 15) {
+        setError('Invalid DOB. Please enter your correct DOB.')
+        return
+      }
+    }
+
+    setSavingField(field)
     try {
       const payload = { [field]: pendingValue }
       const response = await updateUserProfile(payload)
@@ -238,8 +278,8 @@ function UserProfile() {
             {[
               { key: 'first_name', label: 'First Name', icon: FaUserCircle, editable: true },
               { key: 'last_name', label: 'Last Name', icon: FaUserCircle, editable: true },
-              { key: 'email', label: 'Email', icon: FaEnvelope, editable: true, type: 'email' },
-              { key: 'phone_number', label: 'Phone Number', icon: FaPhone, editable: false },
+              { key: 'email', label: 'Email', icon: FaEnvelope, editable: false, type: 'email' },
+              { key: 'phone_number', label: 'Phone Number', icon: FaPhone, editable: true },
               { key: 'address', label: 'Address', icon: FaLocationDot, editable: true, textarea: true },
               { key: 'date_of_birth', label: 'Date of Birth (DD-MM-YYYY)', icon: FaCalendarDays, editable: true }
             ].map((field) => {
@@ -271,15 +311,19 @@ function UserProfile() {
                           <input
                             type={field.type || 'text'}
                             value={pendingValue}
-                            onChange={(e) => setPendingValue(e.target.value)}
+                            onChange={(e) => {
+                              // If editing phone number, only allow digits
+                              const val = field.key === 'phone_number' ? e.target.value.replace(/\D/g, '') : e.target.value
+                              setPendingValue(val)
+                            }}
                             className="w-full border border-gray-300 rounded-xl px-4 py-2 mt-1 bg-white text-black focus:outline-none focus:ring-2 focus:ring-amber-400"
-                            maxLength={field.key === 'date_of_birth' ? 10 : undefined}
-                            placeholder={field.key === 'date_of_birth' ? 'DD-MM-YYYY' : undefined}
+                            maxLength={field.key === 'date_of_birth' ? 10 : (field.key === 'phone_number' ? 15 : undefined)}
+                            placeholder={field.key === 'date_of_birth' ? 'DD-MM-YYYY' : (field.key === 'phone_number' ? 'Enter phone number' : undefined)}
                           />
                         )}
 
-                        {field.key === 'phone_number' && (
-                          <p className="text-xs text-gray-500 mt-1">Phone number cannot be changed.</p>
+                        {field.key === 'email' && (
+                          <p className="text-xs text-gray-500 mt-1">Email address cannot be changed.</p>
                         )}
                       </div>
                     </div>

@@ -103,16 +103,9 @@ class UserService:
                 created_at=user_data.get('created_at')
             )
             
-            # Check if email or username already exists (only if provided)
+            # Check if email already exists (only if provided)
             if user.email and UserService.get_user_by_email(user.email):
                 raise ValueError("User with this email already exists")
-            
-            if user.username and UserService.get_user_by_username(user.username):
-                raise ValueError("User with this username already exists")
-            
-            # Check if phone number already exists
-            if user.phone_number and UserService.get_user_by_phone_number(user.phone_number):
-                raise ValueError("User with this phone number already exists")
             
             # Store additional metadata in BSON
             user_bson = user.to_bson()

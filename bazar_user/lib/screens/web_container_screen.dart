@@ -5,7 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+
+typedef WebViewMessageCallback = void Function(JavaScriptMessage message);
+
+class WebViewChannelManager {
+  static WebViewMessageCallback? onAppNotification;
+}
 
 class _ShimmerPlaceholder extends StatefulWidget {
   final double width;
@@ -430,18 +437,7 @@ class _JumperGameState extends State<_JumperGame> {
 }
 
 class WebContainerScreen extends StatefulWidget {
-  final WebViewController controller;
-  final Future<String> urlFuture;
-  final bool initialIsPageLoaded;
-  final bool initialHasError;
-
-  const WebContainerScreen({
-    super.key,
-    required this.controller,
-    required this.urlFuture,
-    required this.initialIsPageLoaded,
-    required this.initialHasError,
-  });
+  const WebContainerScreen({super.key});
 
   @override
   State<WebContainerScreen> createState() => _WebContainerScreenState();
@@ -459,89 +455,71 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller;
 
-    // Remove splash screen stub and register active callback for notifications
-    _controller.removeJavaScriptChannel('AppNotifications').then((_) {
-      _controller.addJavaScriptChannel('AppNotifications', onMessageReceived: _handleAppNotification);
-    }).catchError((_) {});
+    // Register dynamic notifications handler (keeps window.AppNotifications alive)
+    WebViewChannelManager.onAppNotification = _handleAppNotification;
 
-    _isLoading = !widget.initialIsPageLoaded;
-    _loadError = widget.initialHasError;
+    _isLoading = true;
+    _loadError = false;
 
     // Request notification permission and print FCM token after entering the screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _requestFirebaseMessagingPermission();
     });
 
-    // Attach navigation delegate to handle subsequent updates
-    _controller.setNavigationDelegate(
-      NavigationDelegate(
-        onPageStarted: (_) {
-          if (mounted) setState(() => _isLoading = true);
-        },
-        onPageFinished: (_) {
-          if (mounted) setState(() => _isLoading = false);
-          _hideScrollbar();
-          _extractHeaderColor();
-          if (_fcmToken != null) {
-            _controller.runJavaScript("window.flutterFCMToken = '$_fcmToken';");
-          }
-        },
-        onWebResourceError: (error) {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-              _loadError = true;
-            });
-          }
-        },
-      ),
-    );
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel('HeaderColor', onMessageReceived: _onHeaderColor)
+      ..addJavaScriptChannel('AppNotifications', onMessageReceived: (message) {
+        if (WebViewChannelManager.onAppNotification != null) {
+          WebViewChannelManager.onAppNotification!(message);
+        } else {
+          _handleAppNotification(message);
+        }
+      })
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (_) async {
+            if (mounted) setState(() => _isLoading = true);
+            await _injectSession();
+            await _injectFCMToken();
+          },
+          onPageFinished: (_) async {
+            if (mounted) setState(() => _isLoading = false);
+            _hideScrollbar();
+            _extractHeaderColor();
+            await _injectSession();
+            await _injectFCMToken();
+          },
+          onWebResourceError: (error) {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _loadError = true;
+              });
+            }
+          },
+          onNavigationRequest: (NavigationRequest request) {
+            final url = request.url.toLowerCase();
+            if (url.contains('maps.google.com') ||
+                url.contains('maps.app.goo.gl') ||
+                url.contains('google.com/maps')) {
+              debugPrint("[WebView] Intercepting maps URL and opening natively: ${request.url}");
+              const platform = MethodChannel('com.example.bazar_user/notifications');
+              platform.invokeMethod('openMap', {'url': request.url});
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
+        ),
+      );
 
-    if (_loadError) {
-      _startRetryTimer();
-    } else if (_isLoading) {
-      // In case the URL fetch is still resolving
-      widget.urlFuture.then((url) {
-        if (mounted) {
-          if (url.isEmpty) {
-            setState(() {
-              _isLoading = false;
-              _loadError = true;
-            });
-            _startRetryTimer();
-          }
-        }
-      }).catchError((_) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _loadError = true;
-          });
-          _startRetryTimer();
-        }
-      });
-
-      // Guard against race conditions if page loads during screen transition
-      _controller.runJavaScriptReturningResult("document.readyState").then((result) {
-        if (result == '"complete"' || result == 'complete') {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-          }
-        }
-      }).catchError((_) {});
-    } else {
-      // Already preloaded, perform initial configurations immediately
-      _hideScrollbar();
-      _extractHeaderColor();
-    }
+    _fetchUrl();
   }
 
   @override
   void dispose() {
+    WebViewChannelManager.onAppNotification = null;
     _retryTimer?.cancel();
     _notificationDismissTimer?.cancel();
     _notificationOverlayEntry?.remove();
@@ -572,6 +550,32 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
     } catch (_) {}
   }
 
+  void _onHeaderColor(JavaScriptMessage message) {
+    final colorStr = message.message.trim();
+    if (colorStr.isNotEmpty && colorStr.startsWith('#')) {
+      final color = Color(
+        int.parse(colorStr.substring(1), radix: 16) | 0xFF000000,
+      );
+      final isLight = _isLightColor(color);
+      SystemChrome.setSystemUIOverlayStyle(
+        SystemUiOverlayStyle(
+          statusBarColor: color,
+          statusBarIconBrightness: isLight ? Brightness.dark : Brightness.light,
+          systemNavigationBarColor: color,
+          systemNavigationBarDividerColor: color,
+          systemNavigationBarIconBrightness: isLight
+              ? Brightness.dark
+              : Brightness.light,
+        ),
+      );
+    }
+  }
+
+  bool _isLightColor(Color color) {
+    final luminance = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+    return luminance > 0.5;
+  }
+
   Future<void> _extractHeaderColor() async {
     await _controller.runJavaScript('''
       (function() {
@@ -597,6 +601,39 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
       style.innerHTML = '::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }';
       document.head.appendChild(style);
     ''');
+  }
+
+  Future<void> _injectSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('cached_token');
+      final refreshToken = prefs.getString('cached_refresh_token');
+      if (token != null && token.isNotEmpty) {
+        debugPrint("[WebView] Injecting cached session token natively...");
+        await _controller.runJavaScript('''
+          localStorage.setItem('token', '$token');
+          localStorage.setItem('bbhc_user_token', '$token');
+          if ('$refreshToken' != 'null' && '$refreshToken' != '') {
+            localStorage.setItem('refresh_token', '$refreshToken');
+            localStorage.setItem('bbhc_user_refresh_token', '$refreshToken');
+          }
+        ''');
+      }
+    } catch (e) {
+      debugPrint("Error injecting session: \$e");
+    }
+  }
+
+  Future<void> _injectFCMToken() async {
+    if (_fcmToken != null && _fcmToken!.isNotEmpty) {
+      debugPrint("[WebView] Injecting FCM token natively...");
+      await _controller.runJavaScript('''
+        window.flutterFCMToken = '$_fcmToken';
+        if (typeof window.onFlutterFCMTokenReceived === 'function') {
+          window.onFlutterFCMTokenReceived('$_fcmToken');
+        }
+      ''');
+    }
   }
 
   Future<void> _fetchUrl() async {
@@ -843,7 +880,7 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
     );
   }
 
-  void _handleAppNotification(JavaScriptMessage message) {
+  void _handleAppNotification(JavaScriptMessage message) async {
     try {
       final data = jsonDecode(message.message);
       final type = data['type'];
@@ -851,6 +888,44 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
       if (type == 'permission_granted') {
         _requestFirebaseMessagingPermission();
         _requestNativeNotificationPermission();
+        return;
+      }
+      
+      if (type == 'session_sync') {
+        final token = data['token'];
+        final refreshToken = data['refresh_token'];
+        debugPrint("[WebView] Syncing session token natively...");
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          if (token != null && token.toString().isNotEmpty) {
+            await prefs.setString('cached_token', token.toString());
+          }
+          if (refreshToken != null && refreshToken.toString().isNotEmpty) {
+            await prefs.setString('cached_refresh_token', refreshToken.toString());
+          }
+        } catch (e) {
+          debugPrint("Error saving session natively: $e");
+        }
+        return;
+      }
+      
+      if (type == 'logout') {
+        debugPrint("[WebView] Intercepted logout command from web app. Resetting storage...");
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('cached_token');
+          await prefs.remove('cached_refresh_token');
+          await prefs.remove('cached_user');
+          
+          final cookieManager = WebViewCookieManager();
+          await cookieManager.clearCookies();
+          await _controller.clearCache();
+          await _controller.runJavaScript("window.localStorage.clear(); window.sessionStorage.clear();");
+        } catch (e) {
+          debugPrint("Error clearing WebView storage/cookies: $e");
+        }
+        debugPrint("[WebView] Reset complete. Reloading URL...");
+        _fetchUrl();
         return;
       }
       
@@ -894,6 +969,7 @@ class _WebContainerScreenState extends State<WebContainerScreen> {
           });
           if (_fcmToken != null) {
             _controller.runJavaScript("window.flutterFCMToken = '$_fcmToken';");
+            _controller.runJavaScript("if (typeof window.onFlutterFCMTokenReceived === 'function') { window.onFlutterFCMTokenReceived('$_fcmToken'); }");
           }
         }
       }
@@ -1037,20 +1113,30 @@ class _NotificationBannerState extends State<_NotificationBanner>
                 children: [
                   // Icon or Product Thumbnail
                   if (widget.thumbnailUrl != null && widget.thumbnailUrl!.isNotEmpty)
-                    Container(
-                      width: 48,
-                      height: 48,
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: NetworkImage(widget.thumbnailUrl!),
-                          fit: BoxFit.cover,
-                          onError: (err, stack) {
-                            // Handled internally
-                          },
-                        ),
-                      ),
+                    Builder(
+                      builder: (context) {
+                        String fullUrl = widget.thumbnailUrl!;
+                        if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
+                          final base = ApiService.baseUrl;
+                          final cleanPath = fullUrl.startsWith('/') ? fullUrl.substring(1) : fullUrl;
+                          fullUrl = base.endsWith('/') ? '$base$cleanPath' : '$base/$cleanPath';
+                        }
+                        return Container(
+                          width: 48,
+                          height: 48,
+                          margin: const EdgeInsets.only(right: 12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            image: DecorationImage(
+                              image: NetworkImage(fullUrl),
+                              fit: BoxFit.cover,
+                              onError: (err, stack) {
+                                // Handled internally
+                              },
+                            ),
+                          ),
+                        );
+                      }
                     )
                   else
                     Container(

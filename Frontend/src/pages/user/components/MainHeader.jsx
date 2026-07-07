@@ -169,14 +169,6 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
               </SparklesText>
             </a>
             <button
-              onClick={() => alert('Mobile app download coming soon!')}
-              className={headerDesktopAction}
-              aria-label="Download mobile app"
-            >
-              <span>APP</span>
-              <FaMobileScreenButton className={headerDesktopIcon} />
-            </button>
-            <button
               onClick={() => {
                 if (!isAuthenticated || userType !== 'user') {
                   navigate('/user/phone-entry', {
@@ -213,13 +205,6 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
                 <FaMapLocationDot className={headerMobileIcon} />
               </SparklesText>
             </a>
-            <button
-              onClick={() => alert('Mobile app download coming soon!')}
-              className={headerMobileIconBtn}
-              aria-label="Download mobile app"
-            >
-              <FaMobileScreenButton className={headerMobileIcon} />
-            </button>
             <button
               onClick={() => {
                 if (!isAuthenticated || userType !== 'user') {

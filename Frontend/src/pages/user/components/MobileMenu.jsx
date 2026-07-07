@@ -40,11 +40,20 @@ function MobileMenu({ open, onClose }) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden'
+      document.body.style.height = '100vh'
+      document.documentElement.style.overflow = 'hidden'
+      document.documentElement.style.height = '100vh'
     } else {
       document.body.style.overflow = ''
+      document.body.style.height = ''
+      document.documentElement.style.overflow = ''
+      document.documentElement.style.height = ''
     }
     return () => {
       document.body.style.overflow = ''
+      document.body.style.height = ''
+      document.documentElement.style.overflow = ''
+      document.documentElement.style.height = ''
     }
   }, [open])
 
@@ -130,7 +139,7 @@ function MobileMenu({ open, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[100]">
       <div
         className="absolute inset-0 bg-black/50 transition-opacity duration-300"
         onClick={onClose}

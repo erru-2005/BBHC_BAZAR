@@ -9,7 +9,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { logout } from '../../../store/authSlice'
 import { clearDeviceToken } from '../../../utils/device'
 import { getSocket, disconnectSocket } from '../../../utils/socket'
-import { bindPortalRealtimeSync, refreshSellerProfile } from '../../../services/api'
+import { bindPortalRealtimeSync, refreshSellerProfile, logoutUser } from '../../../services/api'
 import PasswordResetDialog from '../../../components/PasswordResetDialog'
 import SellerEditProfile from '../../../components/SellerEditProfile'
 
@@ -52,7 +52,12 @@ export default function SellerLayout() {
         }
     }
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await logoutUser()
+        } catch (e) {
+            console.error(e)
+        }
         const socket = getSocket()
         if (socket && socket.connected && user) {
             socket.emit('user_logout', {

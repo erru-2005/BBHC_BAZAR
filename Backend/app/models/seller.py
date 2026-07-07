@@ -11,7 +11,7 @@ class Seller:
     
     def __init__(self, trade_id, email, password_hash, phone_number=None,
                  first_name=None, last_name=None, image_url=None, is_active=False, 
-                 credits=30, created_by="system", notifications_enabled=False, created_at=None, _id=None):
+                 credits=30, created_by="system", notifications_enabled=True, created_at=None, _id=None):
         self._id = _id or ObjectId()
         self.trade_id = trade_id
         self.email = email
@@ -103,7 +103,7 @@ class Seller:
             is_active=bson_doc.get('is_active', False),
             credits=bson_doc.get('credits', 30),
             created_by=bson_doc.get('created_by', 'system'),
-            notifications_enabled=bson_doc.get('notifications_enabled', False),
+            notifications_enabled=bson_doc.get('notifications_enabled', True),
             created_at=bson_doc.get('created_at')
         )
     

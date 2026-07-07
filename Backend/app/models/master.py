@@ -11,7 +11,7 @@ class Master:
     
     def __init__(self, name, username, email, password_hash, phone_number, 
                  address=None, image_url=None, status="active", created_by="bazar@bbhc",
-                 notifications_enabled=False, created_at=None, _id=None):
+                 notifications_enabled=True, created_at=None, _id=None):
         self._id = _id or ObjectId()
         self.name = name
         self.username = username
@@ -99,7 +99,7 @@ class Master:
             image_url=bson_doc.get('image_url'),
             status=bson_doc.get('status', 'active'),
             created_by=bson_doc.get('created_by', 'bazar@bbhc'),
-            notifications_enabled=bson_doc.get('notifications_enabled', False),
+            notifications_enabled=bson_doc.get('notifications_enabled', True),
             created_at=bson_doc.get('created_at')
         )
     

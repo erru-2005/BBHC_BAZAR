@@ -9,10 +9,9 @@ import { logout } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { disconnectSocket } from '../../utils/socket'
 import { HiHome } from 'react-icons/hi'
-import { FaShoppingBag, FaBars, FaSignOutAlt, FaSearch, FaQrcode, FaTimes, FaCheck, FaUser, FaBox, FaStore, FaLayerGroup } from 'react-icons/fa'
-import { FiMinus, FiPlus, FiAlertCircle } from 'react-icons/fi'
+import { FaShoppingBag, FaBars, FaSignOutAlt, FaSearch, FaQrcode, FaTimes, FaCheck, FaUser, FaBox, FaStore } from 'react-icons/fa'
 import OrdersList from '../master/components/OrdersList'
-import { scanOrderToken, getOrders, refreshSellerProfile, getOutletSlots, resizeOutletSlots } from '../../services/api'
+import { scanOrderToken, getOrders, refreshSellerProfile, logoutUser } from '../../services/api'
 import { setOutletOrders, setOutletLoading, updateOutletOrder } from '../../store/outletSlice'
 import { updateUserInfo } from '../../store/authSlice'
 
@@ -39,11 +38,7 @@ function Outlet() {
   const [pendingOrder, setPendingOrder] = useState(null)
   const [pendingToken, setPendingToken] = useState('')
   const [confirming, setConfirming] = useState(false)
-  const [slots, setSlots] = useState([])
-  const [slotsLoading, setSlotsLoading] = useState(false)
-  const [slotsError, setSlotsError] = useState(null)
-  const [resizing, setResizing] = useState(false)
-
+  
   const { orders, loading: loadingOrders, lastFetched } = useSelector(state => state.outlet)
 
   const isToday = (dateString) => {
@@ -103,38 +98,7 @@ function Outlet() {
     if (activeTab === 'home' && (!lastFetched || orders.length === 0)) {
       loadCompletedOrders()
     }
-    if (activeTab === 'slots') {
-      loadSlots()
-    }
-  }, [activeTab])
-
-  const loadSlots = async () => {
-    setSlotsLoading(true)
-    setSlotsError(null)
-    try {
-      const data = await getOutletSlots()
-      setSlots(data.slots || [])
-    } catch (err) {
-      setSlotsError(err.message || 'Failed to load slots')
-    } finally {
-      setSlotsLoading(false)
-    }
-  }
-
-  const handleResizeSlots = async (delta) => {
-    const currentSize = slots.length
-    const newSize = currentSize + delta
-    if (newSize < 1) return
-    setResizing(true)
-    try {
-      const data = await resizeOutletSlots(newSize)
-      setSlots(data.slots || [])
-    } catch (err) {
-      setSlotsError(err.message || 'Failed to resize slots')
-    } finally {
-      setResizing(false)
-    }
-  }
+  }, [activeTab, orders.length, lastFetched])
 
   const loadCompletedOrders = async () => {
     try {
@@ -149,7 +113,12 @@ function Outlet() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutUser()
+    } catch (e) {
+      console.error(e)
+    }
     dispatch(logout())
     clearDeviceToken()
     disconnectSocket()
@@ -184,8 +153,7 @@ function Outlet() {
 
     try {
       // Get order details IN PREVIEW MODE first
-      const response = await scanOrderToken(scannedToken, true)
-      const order = response.order || response
+      const order = await scanOrderToken(scannedToken, true)
       
       // Show details popup - user must confirm to take action
       setPendingOrder(order)
@@ -209,9 +177,7 @@ function Outlet() {
     setConfirming(true)
     try {
       // PERFORM ACTUAL ACTION NOW (preview = false)
-      const response = await scanOrderToken(pendingToken, false)
-      const updatedOrder = response.order || response
-      const slotNumber = response.slot_number ?? updatedOrder.slot_number ?? null
+      const updatedOrder = await scanOrderToken(pendingToken, false)
       
       await loadCompletedOrders()
       setShowOrderDetails(false)
@@ -219,8 +185,7 @@ function Outlet() {
       setScanResult({
         success: true,
         message: getScanMessage(updatedOrder, pendingToken),
-        order: updatedOrder,
-        slotNumber
+        order: updatedOrder
       })
       
       setPendingOrder(null)
@@ -339,18 +304,6 @@ function Outlet() {
               <FaShoppingBag className="w-4.5 h-4.5" />
               <span>Orders</span>
             </button>
-
-            <button
-              onClick={() => handleTabSelection('slots')}
-              className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap flex items-center gap-2 ${
-                activeTab === 'slots'
-                  ? 'bg-white text-black shadow-lg'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              <FaLayerGroup className="w-4 h-4" />
-              <span>Slots</span>
-            </button>
           </div>
         </div>
       </div>
@@ -406,33 +359,22 @@ function Outlet() {
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className={`mt-6 rounded-2xl border overflow-hidden ${
+                  className={`mt-6 p-5 rounded-2xl border ${
                   scanResult.success 
-                    ? 'bg-green-50 border-green-100' 
-                    : 'bg-red-50 border-red-100'
+                    ? 'bg-green-50 border-green-100 text-green-700' 
+                    : 'bg-red-50 border-red-100 text-red-700'
                 }`}>
-                  {/* Slot number banner — shown prominently when a slot is assigned */}
-                  {scanResult.success && scanResult.slotNumber != null && (
-                    <div className="bg-emerald-600 text-white px-5 py-3 flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-widest opacity-80">Slot Assigned</span>
-                      <span className="text-3xl font-black">#{scanResult.slotNumber}</span>
+                  <div className="flex items-center gap-2 mb-2">
+                    {scanResult.success ? <FaCheck /> : <FaTimes />}
+                    <p className="font-bold uppercase tracking-wider text-xs">{scanResult.success ? 'Action Successful' : 'Action Failed'}</p>
+                  </div>
+                  <p className="font-medium">{scanResult.message}</p>
+                  {scanResult.order && (
+                    <div className="mt-3 pt-3 border-t border-current/10 flex justify-between items-center">
+                      <span className="text-xs font-bold uppercase opacity-70">Order #{scanResult.order.orderNumber}</span>
+                      <span className="text-xs font-bold uppercase px-2 py-1 bg-current/10 rounded-lg">{scanResult.order.status}</span>
                     </div>
                   )}
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                      {scanResult.success ? <FaCheck className={scanResult.success ? 'text-green-600' : 'text-red-600'} /> : <FaTimes />}
-                      <p className={`font-bold uppercase tracking-wider text-xs ${scanResult.success ? 'text-green-700' : 'text-red-700'}`}>
-                        {scanResult.success ? 'Action Successful' : 'Action Failed'}
-                      </p>
-                    </div>
-                    <p className={`font-medium ${scanResult.success ? 'text-green-700' : 'text-red-700'}`}>{scanResult.message}</p>
-                    {scanResult.order && (
-                      <div className="mt-3 pt-3 border-t border-current/10 flex justify-between items-center">
-                        <span className="text-xs font-bold uppercase opacity-70 text-green-700">Order #{scanResult.order.orderNumber}</span>
-                        <span className="text-xs font-bold uppercase px-2 py-1 bg-current/10 rounded-lg text-green-700">{scanResult.order.status}</span>
-                      </div>
-                    )}
-                  </div>
                 </motion.div>
               )}
             </div>
@@ -544,116 +486,8 @@ function Outlet() {
             </div>
           </div>
         )}
-
+        
         {activeTab === 'orders' && <OrdersList />}
-
-        {activeTab === 'slots' && (
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-2">Outlet Slots</h2>
-              <p className="text-gray-500 font-medium">Manage and monitor item storage slots</p>
-            </div>
-
-            {/* Slot Size Controls */}
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Total Capacity</p>
-                  <p className="text-3xl font-black text-gray-900">{slots.length} <span className="text-lg text-gray-400 font-medium">slots</span></p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleResizeSlots(-1)}
-                    disabled={resizing || slots.length <= 1}
-                    className="w-11 h-11 flex items-center justify-center rounded-xl bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 font-bold text-lg"
-                    title="Remove one slot"
-                  >
-                    <FiMinus />
-                  </button>
-                  <span className="text-2xl font-black text-gray-900 min-w-[2.5rem] text-center">{slots.length}</span>
-                  <button
-                    onClick={() => handleResizeSlots(1)}
-                    disabled={resizing}
-                    className="w-11 h-11 flex items-center justify-center rounded-xl bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 font-bold text-lg"
-                    title="Add one slot"
-                  >
-                    <FiPlus />
-                  </button>
-                </div>
-              </div>
-              {slotsError && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2 text-red-600 text-sm font-medium">
-                  <FiAlertCircle /> {slotsError}
-                </div>
-              )}
-            </div>
-
-            {/* Slot Stats */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {[
-                { label: 'Total', value: slots.length, color: 'bg-gray-900 text-white' },
-                { label: 'Occupied', value: slots.filter(s => s.user_id || s.userId).length, color: 'bg-rose-500 text-white' },
-                { label: 'Free', value: slots.filter(s => !s.user_id && !s.userId).length, color: 'bg-emerald-500 text-white' },
-              ].map(stat => (
-                <div key={stat.label} className={`${stat.color} rounded-2xl p-4 text-center shadow-sm`}>
-                  <p className="text-2xl font-black">{stat.value}</p>
-                  <p className="text-xs font-bold uppercase tracking-widest opacity-80 mt-1">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Slot Grid */}
-            {slotsLoading ? (
-              <div className="text-center py-16 text-gray-400 font-medium">Loading slots...</div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {slots.map(slot => {
-                  const occupied = !!(slot.user_id || slot.userId)
-                  const itemCount = slot.item_count || slot.itemCount || 0
-                  const slotNum = slot.slot_number || slot.slotNumber
-                  return (
-                    <motion.div
-                      key={slotNum}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className={`rounded-2xl border-2 p-4 flex flex-col items-center gap-2 transition-all ${
-                        occupied
-                          ? 'border-rose-200 bg-rose-50'
-                          : 'border-emerald-200 bg-emerald-50'
-                      }`}
-                    >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${
-                        occupied ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
-                      }`}>
-                        {slotNum}
-                      </div>
-                      <p className={`text-xs font-bold uppercase tracking-wider ${
-                        occupied ? 'text-rose-600' : 'text-emerald-600'
-                      }`}>
-                        {occupied ? 'Occupied' : 'Free'}
-                      </p>
-                      {occupied && (
-                        <p className="text-[10px] font-semibold text-gray-500 text-center">
-                          {itemCount} item{itemCount !== 1 ? 's' : ''}
-                        </p>
-                      )}
-                    </motion.div>
-                  )
-                })}
-              </div>
-            )}
-
-            <div className="mt-6 text-center">
-              <button
-                onClick={loadSlots}
-                disabled={slotsLoading}
-                className="px-6 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-all disabled:opacity-50 active:scale-95"
-              >
-                ↻ Refresh
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Order Details Popup */}
@@ -674,17 +508,6 @@ function Outlet() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Slot Badge — show slot number if the order is handed_over (user coming to collect) */}
-              {pendingOrder.status === 'handed_over' && pendingOrder.slot_number != null && (
-                <div className="flex items-center justify-between bg-emerald-600 text-white rounded-xl px-5 py-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest opacity-70">Item is in Slot</p>
-                    <p className="text-4xl font-black leading-none mt-0.5">#{pendingOrder.slot_number}</p>
-                  </div>
-                  <FaLayerGroup className="w-10 h-10 opacity-30" />
-                </div>
-              )}
-
               {/* Order Info */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
@@ -858,19 +681,6 @@ function Outlet() {
                 <div className="flex items-center gap-3">
                   <FaShoppingBag className="w-5 h-5" />
                   <span>Orders</span>
-                </div>
-              </button>
-              <button
-                onClick={() => handleTabSelection('slots')}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                  activeTab === 'slots'
-                    ? 'bg-black text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <FaLayerGroup className="w-5 h-5" />
-                  <span>Slots</span>
                 </div>
               </button>
             </div>

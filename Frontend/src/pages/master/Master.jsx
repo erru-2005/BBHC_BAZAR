@@ -1,22 +1,18 @@
 /**
- * Master Dashboard Page Component - Clean Redesign
+ * Master Dashboard Page Component
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { logout } from '../../store/authSlice'
+import { logout, loginSuccess } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
-import { bindPortalRealtimeSync } from '../../services/api'
+import { bindPortalRealtimeSync, logoutUser } from '../../services/api'
 import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
-import {
-  HiHome, HiOfficeBuilding, HiMenuAlt2, HiX, HiLogout,
-  HiChevronRight, HiViewGrid, HiGlobe, HiUsers
-} from 'react-icons/hi'
-import {
-  FaBox, FaPercent, FaCoins, FaShoppingBag, FaStore, FaUserPlus, FaList, FaBan
-} from 'react-icons/fa'
-import { motion, AnimatePresence } from 'framer-motion'
+import { HiHome } from 'react-icons/hi'
+import { IoMdPersonAdd } from 'react-icons/io'
+import { MdList, MdBlock } from 'react-icons/md'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins ,FaGlobe} from 'react-icons/fa'
 import PasswordResetDialog from '../../components/PasswordResetDialog'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
@@ -35,40 +31,9 @@ import ServiceCreditManagement from './components/ServiceCreditManagement'
 import Analysis from './components/analysis/Analysis'
 import ActiveCounters from './components/ActiveCounters'
 import WebContainerSettings from './components/WebContainerSettings'
+import './master.css'
 
-const NAV = [
-  {
-    section: 'Overview',
-    items: [
-      { id: 'home', label: 'Dashboard', icon: HiHome },
-      { id: 'orders', label: 'Orders', icon: FaShoppingBag },
-    ]
-  },
-  {
-    section: 'Sellers',
-    items: [
-      { id: 'list-sellers', label: 'Seller List', icon: FaList },
-      { id: 'add-seller', label: 'Add Seller', icon: FaUserPlus },
-      { id: 'blacklisted-sellers', label: 'Blacklisted', icon: FaBan },
-    ]
-  },
-  {
-    section: 'Outlet',
-    items: [
-      { id: 'list-outlet-men', label: 'Outlet Staff', icon: FaStore },
-      { id: 'add-outlet-man', label: 'Add Outlet Man', icon: FaUserPlus },
-    ]
-  },
-  {
-    section: 'Products & Services',
-    items: [
-      { id: 'list-products', label: 'Products', icon: FaBox },
-      { id: 'add-product', label: 'Add Product', icon: FaBox },
-      { id: 'list-services', label: 'Services', icon: HiViewGrid },
-      { id: 'add-service', label: 'Add Service', icon: HiViewGrid },
-    ]
-  }
-]
+const TAB_ORDER_VERSION = '4'
 
 function Master() {
   const dispatch = useDispatch()
@@ -80,355 +45,517 @@ function Master() {
   const [productsRefreshKey, setProductsRefreshKey] = useState(0)
   const [servicesRefreshKey, setServicesRefreshKey] = useState(0)
   const [activeTab, setActiveTab] = useState('home')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false)
 
+  // Master: live seller credit updates on list / wallet views
   useEffect(() => {
     if (!token) return
     bindPortalRealtimeSync()
   }, [token])
+  const defaultTabs = [
+    { id: 'home', label: 'Home', icon: HiHome },
+    { id: 'orders', label: 'Orders', icon: FaShoppingBag },
+    { id: 'add-product', label: 'Add Product', icon: FaBox },
+    { id: 'add-service', label: 'Add Service', icon: FaBox },
+    { id: 'list-products', label: 'List Products', icon: FaThList },
+    { id: 'list-services', label: 'List Services', icon: FaThList },
+    { id: 'commission', label: 'Commission', icon: FaPercent },
+    { id: 'service-credits', label: 'Service Credits', icon: FaCoins },
+    { id: 'web-container', label: 'Web Container', icon: FaGlobe },
+    { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
+    { id: 'list-sellers', label: 'List Sellers', icon: MdList },
+    { id: 'add-outlet-man', label: 'Add Outlet Man', icon: IoMdPersonAdd },
+    { id: 'list-outlet-men', label: 'List Outlet Men', icon: MdList },
+    { id: 'add-master', label: 'Add Master', icon: IoMdPersonAdd },
+    { id: 'list-masters', label: 'List Masters', icon: MdList },
+    { id: 'blacklisted-sellers', label: 'Blacklisted', icon: MdBlock }
+  ]
+
+  // Initialize tab order from localStorage or use default
+  const [tabs, setTabs] = useState(() => {
+    const savedOrder = localStorage.getItem('master_tab_order')
+    const savedVersion = localStorage.getItem('master_tab_order_version')
+
+    if (savedOrder && savedVersion === TAB_ORDER_VERSION) {
+      try {
+        const order = JSON.parse(savedOrder)
+        const homeTab = defaultTabs.find(t => t.id === 'home')
+        const otherTabs = defaultTabs.filter(t => t.id !== 'home')
+
+        const orderedOtherTabs = order
+          .filter(id => id !== 'home')
+          .map(id => otherTabs.find(t => t.id === id))
+          .filter(Boolean)
+
+        otherTabs.forEach(tab => {
+          if (!orderedOtherTabs.find(t => t.id === tab.id)) {
+            orderedOtherTabs.push(tab)
+          }
+        })
+
+        return [homeTab, ...orderedOtherTabs]
+      } catch (e) {
+        // fall through to default order
+      }
+    }
+
+    localStorage.setItem('master_tab_order_version', TAB_ORDER_VERSION)
+    localStorage.setItem(
+      'master_tab_order',
+      JSON.stringify(defaultTabs.map(tab => tab.id))
+    )
+    return defaultTabs
+  })
+
+  // Drag and drop handlers
+  const [draggedTab, setDraggedTab] = useState(null)
+  const [dragOverIndex, setDragOverIndex] = useState(null)
+  
+  // Touch handlers for mobile
+  const [touchStartPos, setTouchStartPos] = useState(null)
+  const [longPressTimer, setLongPressTimer] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [touchCurrentIndex, setTouchCurrentIndex] = useState(null)
+  const touchTargetRef = useRef(null)
+  const tabsContainerRef = useRef(null)
+
+  // Save tab order to localStorage whenever it changes
+  useEffect(() => {
+    const order = tabs.map(tab => tab.id)
+    localStorage.setItem('master_tab_order', JSON.stringify(order))
+    localStorage.setItem('master_tab_order_version', TAB_ORDER_VERSION)
+  }, [tabs])
 
   useEffect(() => {
     if (location.state?.tab) {
       setActiveTab(location.state.tab)
       navigate(location.pathname, { replace: true, state: {} })
     }
-  }, [location.state?.tab])
+  }, [location.state?.tab, location.pathname, navigate])
 
-  const handleLogout = () => {
-    const socket = getSocket()
-    if (socket?.connected && user) {
-      socket.emit('user_logout', { user_id: user.id, user_type: 'master' })
+  // Cleanup long press timer on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer)
+      }
     }
+  }, [longPressTimer])
+
+  // Attach non-passive touch listeners when dragging
+  useEffect(() => {
+    if (!isDragging || !touchTargetRef.current) return
+
+    const element = touchTargetRef.current
+    const handleTouchMoveNative = (e) => {
+      // Only prevent default if the event is cancelable
+      // This avoids warnings when scrolling has already started
+      if (e.cancelable) {
+        e.preventDefault()
+      }
+    }
+
+    // Attach non-passive listener to prevent scrolling during drag
+    element.addEventListener('touchmove', handleTouchMoveNative, { passive: false })
+
+    return () => {
+      element.removeEventListener('touchmove', handleTouchMoveNative)
+    }
+  }, [isDragging])
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser()
+    } catch (e) {
+      console.error(e)
+    }
+    // Notify server about logout via socket
+    const socket = getSocket()
+    if (socket && socket.connected && user) {
+      socket.emit('user_logout', {
+        user_id: user.id,
+        user_type: 'master'
+      })
+    }
+    
+    // Disconnect socket
     disconnectSocket()
+    
+    // Clear device token
     clearDeviceToken()
+    // Dispatch logout action
     dispatch(logout())
+    // Navigate to login page
     navigate('/master/login')
   }
 
+  // Initialize socket connection on component mount
   useEffect(() => {
-    if (!user?.id || !token) return
+    // User data should be in Redux state from login
+    if (!user || !user.id || !token) {
+      // If no user or token in Redux, ProtectedRoute will handle redirect
+      return
+    }
+    
+    // Initialize socket connection
     const socket = initSocket(token)
     socket.on('connect', () => {
-      socket.emit('user_authenticated', { user_id: user.id, user_type: 'master' })
+      socket.emit('user_authenticated', {
+        user_id: user.id,
+        user_type: 'master'
+      })
     })
+    
     return () => {
-      const s = getSocket()
-      if (s?.connected && user) s.emit('user_logout', { user_id: user.id, user_type: 'master' })
+      // Cleanup on unmount
+      const socket = getSocket()
+      if (socket && socket.connected && user) {
+        socket.emit('user_logout', {
+          user_id: user.id,
+          user_type: 'master'
+        })
+      }
     }
   }, [user, token, navigate])
 
-  const handleTabSelection = (tabId) => {
-    setActiveTab(tabId)
-    setSidebarOpen(false)
+  // Desktop drag handlers
+  const handleDragStart = (e, index) => {
+    // Don't allow dragging Home tab
+    if (tabs[index].id === 'home') {
+      e.preventDefault()
+      return
+    }
+    setDraggedTab(index)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/html', e.target)
   }
 
-  const activeLabel = NAV.flatMap(g => g.items).find(i => i.id === activeTab)?.label || 'Dashboard'
-  const activeSection = NAV.find(g => g.items.find(i => i.id === activeTab))?.section || ''
-  const masterName = user?.name || user?.first_name || user?.username || 'Master'
+  const handleDragOver = (e, index) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    
+    // Don't allow dropping over Home tab
+    if (tabs[index].id === 'home') {
+      return
+    }
+    
+    setDragOverIndex(index)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null)
+  }
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault()
+    performDrop(draggedTab, dropIndex)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTab(null)
+    setDragOverIndex(null)
+  }
+
+  // Mobile touch handlers
+  const handleTouchStart = (e, index) => {
+    // Don't allow dragging Home tab
+    if (tabs[index].id === 'home') {
+      return
+    }
+
+    const touch = e.touches[0]
+    setTouchStartPos({ x: touch.clientX, y: touch.clientY })
+    setTouchCurrentIndex(index)
+    touchTargetRef.current = e.currentTarget
+
+    // Start long press timer (500ms)
+    const timer = setTimeout(() => {
+      setIsDragging(true)
+      setDraggedTab(index)
+      // Add haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50)
+      }
+      // Prevent click event
+      if (touchTargetRef.current) {
+        touchTargetRef.current.style.pointerEvents = 'none'
+      }
+    }, 500)
+
+    setLongPressTimer(timer)
+  }
+
+  const handleTouchMove = (e) => {
+    if (!isDragging && !longPressTimer) return
+
+    const touch = e.touches[0]
+    
+    // If long press hasn't triggered yet, check if moved too much
+    if (longPressTimer && touchStartPos) {
+      const deltaX = Math.abs(touch.clientX - touchStartPos.x)
+      const deltaY = Math.abs(touch.clientY - touchStartPos.y)
+      
+      // If moved more than 10px, cancel long press
+      if (deltaX > 10 || deltaY > 10) {
+        clearTimeout(longPressTimer)
+        setLongPressTimer(null)
+        setTouchStartPos(null)
+        return
+      }
+    }
+
+    if (!isDragging) return
+
+    // Find which tab we're over
+    const touchX = touch.clientX
+    const elements = document.elementsFromPoint(touchX, touch.clientY)
+    const tabButton = elements.find(el => 
+      el.classList.contains('tab-button') && 
+      el.dataset.tabIndex !== undefined
+    )
+
+    if (tabButton) {
+      const overIndex = parseInt(tabButton.dataset.tabIndex)
+      if (overIndex !== dragOverIndex && tabs[overIndex].id !== 'home') {
+        setDragOverIndex(overIndex)
+      }
+    }
+  }
+
+  const handleTouchEnd = (e) => {
+    // Clear long press timer if it hasn't fired
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      setLongPressTimer(null)
+    }
+
+    // Restore pointer events
+    if (touchTargetRef.current) {
+      touchTargetRef.current.style.pointerEvents = ''
+    }
+
+    if (!isDragging) {
+      setTouchStartPos(null)
+      setTouchCurrentIndex(null)
+      touchTargetRef.current = null
+      return
+    }
+
+    // Find drop target
+    const touch = e.changedTouches[0]
+    const elements = document.elementsFromPoint(touch.clientX, touch.clientY)
+    const tabButton = elements.find(el => 
+      el.classList.contains('tab-button') && 
+      el.dataset.tabIndex !== undefined
+    )
+
+    if (tabButton) {
+      const dropIndex = parseInt(tabButton.dataset.tabIndex)
+      performDrop(draggedTab, dropIndex)
+    } else {
+      // If no valid drop target, reset
+      setDraggedTab(null)
+      setDragOverIndex(null)
+    }
+
+    // Reset touch state
+    setIsDragging(false)
+    setTouchStartPos(null)
+    setTouchCurrentIndex(null)
+    touchTargetRef.current = null
+    
+    // Prevent click event from firing after drag (only if cancelable)
+    if (e.cancelable) {
+      e.preventDefault()
+    }
+  }
+
+  const handleTouchCancel = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      setLongPressTimer(null)
+    }
+    setIsDragging(false)
+    setDraggedTab(null)
+    setDragOverIndex(null)
+    setTouchStartPos(null)
+    setTouchCurrentIndex(null)
+    
+    // Restore pointer events
+    if (touchTargetRef.current) {
+      touchTargetRef.current.style.pointerEvents = ''
+    }
+    touchTargetRef.current = null
+  }
+
+  // Common drop logic for both desktop and mobile
+  const performDrop = (sourceIndex, dropIndex) => {
+    if (sourceIndex === null || dropIndex === null) {
+      setDraggedTab(null)
+      setDragOverIndex(null)
+      return
+    }
+
+    // Don't allow dropping on Home tab or if no tab is being dragged
+    if (tabs[dropIndex].id === 'home') {
+      setDraggedTab(null)
+      setDragOverIndex(null)
+      return
+    }
+
+    // Don't allow moving Home tab
+    if (tabs[sourceIndex].id === 'home') {
+      setDraggedTab(null)
+      setDragOverIndex(null)
+      return
+    }
+
+    // If dropping on the same position, do nothing
+    if (sourceIndex === dropIndex) {
+      setDraggedTab(null)
+      setDragOverIndex(null)
+      return
+    }
+
+    // Reorder tabs
+    const newTabs = [...tabs]
+    const draggedTabData = newTabs[sourceIndex]
+    
+    // Remove dragged tab from its current position
+    newTabs.splice(sourceIndex, 1)
+    
+    // Calculate new insert index (accounting for the removed item)
+    let insertIndex = dropIndex
+    if (sourceIndex < dropIndex) {
+      insertIndex = dropIndex - 1
+    }
+    
+    // Insert at new position (ensure it's after Home which is at index 0)
+    insertIndex = Math.max(1, insertIndex)
+    newTabs.splice(insertIndex, 0, draggedTabData)
+    
+    // Ensure Home is always first (should already be, but double-check)
+    const homeIndex = newTabs.findIndex(t => t.id === 'home')
+    if (homeIndex !== 0) {
+      const homeTab = newTabs.splice(homeIndex, 1)[0]
+      newTabs.unshift(homeTab)
+    }
+    
+    setTabs(newTabs)
+    setDraggedTab(null)
+    setDragOverIndex(null)
+  }
+
+  const handleTabSelection = (tabId) => {
+    setActiveTab(tabId)
+    setIsMenuOpen(false)
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-
-      {/* Mobile sidebar overlay */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* SIDEBAR */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 text-white flex flex-col transition-transform duration-300
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:z-auto`}
-      >
-        {/* Brand */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-gray-700/60">
-          <img src={logoImage} alt="Logo" className="h-8 w-8 object-contain" />
-          <div>
-            <p className="font-black text-white text-base leading-tight">BBHCBazaar</p>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Master Portal</p>
-          </div>
-          <button onClick={() => setSidebarOpen(false)} className="ml-auto text-gray-400 hover:text-white lg:hidden">
-            <HiX className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
-          {NAV.map(group => (
-            <div key={group.section}>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 px-3 mb-2">
-                {group.section}
-              </p>
-              <div className="space-y-0.5">
-                {group.items.map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleTabSelection(item.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
-                      ${activeTab === item.id
-                        ? 'bg-white text-gray-900 shadow-sm font-bold'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                      }`}
-                  >
-                    <item.icon className="w-4 h-4 flex-shrink-0" />
-                    <span>{item.label}</span>
-                    {activeTab === item.id && <HiChevronRight className="w-4 h-4 ml-auto text-gray-500" />}
-                  </button>
-                ))}
-              </div>
+    <div className="min-h-screen bg-gray-50 text-gray-900 master-dashboard">
+      {/* Header with Integrated Tabs */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header Row */}
+          <div className="flex justify-between items-end py-4">
+            {/* Logo and Brand Name */}
+            <div className="flex items-center gap-3">
+              <img 
+                src={logoImage} 
+                alt="BBHCBazaar Logo" 
+                className="h-10 w-10 object-contain"
+              />
+              <h1 className="text-2xl font-bold text-gray-900">BBHCBazaar</h1>
             </div>
-          ))}
-        </nav>
-
-        {/* Footer */}
-        <div className="px-3 py-4 border-t border-gray-700/60 space-y-2">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-lg bg-gray-700 flex items-center justify-center font-bold text-white text-sm">
-              {masterName.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{masterName}</p>
-              <p className="text-[10px] text-gray-400">Master Admin</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setResetPasswordOpen(true)}
-            className="w-full text-left px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition"
-          >
-            Reset Password
-          </button>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 text-sm font-semibold transition-all"
-          >
-            <HiLogout className="w-4 h-4" />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* MAIN */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex items-center gap-4">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600"
-          >
-            <HiMenuAlt2 className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-base font-bold text-gray-900">{activeLabel}</h1>
-            <p className="text-xs text-gray-400 font-medium">
-              {activeSection ? `Master → ${activeSection} → ${activeLabel}` : 'Master Dashboard'}
-            </p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {[
-              { label: 'Orders', id: 'orders', icon: FaShoppingBag },
-              { label: 'Sellers', id: 'list-sellers', icon: FaStore },
-              { label: 'Outlet', id: 'list-outlet-men', icon: HiOfficeBuilding },
-            ].map(btn => (
+            <div className="flex items-end">
               <button
-                key={btn.id}
-                onClick={() => handleTabSelection(btn.id)}
-                className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                  ${activeTab === btn.id ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                type="button"
+                className="text-sm font-semibold text-gray-700 underline underline-offset-4 hover:text-gray-900"
+                onClick={() => setResetPasswordOpen(true)}
               >
-                <btn.icon className="w-3.5 h-3.5" /> {btn.label}
+                Reset password
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs Navigation - Integrated with Header */}
+          <div 
+            ref={tabsContainerRef}
+            className="flex items-center gap-2 overflow-x-auto pb-3 relative"
+            style={{ 
+              WebkitOverflowScrolling: 'touch',
+              overflowY: 'hidden'
+            }}
+            onWheel={(e) => {
+              if (tabsContainerRef.current) {
+                tabsContainerRef.current.scrollLeft += e.deltaY
+              }
+            }}
+          >
+            <button
+              onClick={() => setIsMenuOpen(true)}
+              className="tab-button px-3 sm:px-4 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center justify-center gap-2 select-none bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 flex-shrink-0 z-10 min-w-[44px] min-h-[44px]"
+              title="Open menu"
+              aria-label="Open tab menu"
+            >
+              <FaBars className="w-5 h-5 flex-shrink-0 text-gray-700" />
+            </button>
+
+            {tabs.map((tab, index) => (
+              <button
+                key={tab.id}
+                data-tab-index={index}
+                draggable={tab.id !== 'home' && !isDragging}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                onTouchStart={(e) => handleTouchStart(e, index)}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchCancel}
+                onClick={() => {
+                  if (!isDragging && !longPressTimer) {
+                    handleTabSelection(tab.id)
+                  }
+                }}
+                className={`tab-button px-5 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 select-none ${
+                  activeTab === tab.id
+                    ? 'bg-black text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                } ${
+                  tab.id === 'home' 
+                    ? 'cursor-default' 
+                    : 'cursor-move'
+                } ${
+                  (draggedTab === index || touchCurrentIndex === index) && isDragging
+                    ? 'opacity-50 scale-95' 
+                    : ''
+                } ${
+                  dragOverIndex === index && tab.id !== 'home'
+                    ? 'ring-2 ring-black ring-offset-2 scale-105'
+                    : ''
+                } ${
+                  isDragging && tab.id !== 'home'
+                    ? 'transition-transform'
+                    : ''
+                }`}
+                title={tab.id === 'home' ? 'Home (Fixed)' : 'Long press and drag to reorder'}
+              >
+                {tab.id === 'home' ? (
+                  <tab.icon className="w-5 h-5 flex-shrink-0" />
+                ) : (
+                  <>
+                    <tab.icon className="w-5 h-5 flex-shrink-0" />
+                    <span>{tab.label}</span>
+                  </>
+                )}
               </button>
             ))}
           </div>
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-8 overflow-auto">
-
-          {/* HOME / DASHBOARD */}
-          {activeTab === 'home' && (
-            <div className="space-y-6">
-              {/* Welcome Section */}
-              <div className="bg-gray-900 rounded-3xl p-8 sm:p-10 text-white relative overflow-hidden shadow-2xl">
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Welcome back</p>
-                <h2 className="text-2xl font-black mb-1">{masterName} 👋</h2>
-                <p className="text-gray-300 text-sm">Here is what is happening across BBHCBazaar today.</p>
-                <div className="flex flex-wrap gap-3 mt-4">
-                  {[
-                    { label: 'View Orders', id: 'orders', icon: FaShoppingBag },
-                    { label: 'Sellers', id: 'list-sellers', icon: FaStore },
-                    { label: 'Outlet Staff', id: 'list-outlet-men', icon: HiOfficeBuilding },
-                    { label: 'Products', id: 'list-products', icon: FaBox },
-                  ].map(btn => (
-                    <button
-                      key={btn.id}
-                      onClick={() => handleTabSelection(btn.id)}
-                      className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-semibold text-white transition-all border border-white/10"
-                    >
-                      <btn.icon className="w-4 h-4" />
-                      {btn.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-gray-900 mb-4 uppercase tracking-tight">Analytics</h3>
-                <Analysis />
-              </div>
-            </div>
-          )}
-
-          {/* ORDERS */}
-          {activeTab === 'orders' && (
-            <div className="max-w-7xl mx-auto">
-              <OrdersList />
-            </div>
-          )}
-
-          {/* SELLERS */}
-          {activeTab === 'list-sellers' && (
-            <div className="max-w-7xl mx-auto space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-black text-gray-900">Seller List</h2>
-                  <p className="text-sm text-gray-500">All registered sellers on BBHCBazaar</p>
-                </div>
-                <button
-                  onClick={() => handleTabSelection('add-seller')}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-700 transition-all"
-                >
-                  <FaUserPlus className="w-4 h-4" /> Add New Seller
-                </button>
-              </div>
-              <ListSellers />
-            </div>
-          )}
-          {activeTab === 'add-seller' && (
-            <div className="max-w-2xl mx-auto">
-              <div className="mb-6">
-                <h2 className="text-xl font-black text-gray-900">Add New Seller</h2>
-                <p className="text-sm text-gray-500">Register a new seller account</p>
-              </div>
-              <AddSeller />
-            </div>
-          )}
-          {activeTab === 'blacklisted-sellers' && (
-            <div className="max-w-7xl mx-auto">
-              <div className="mb-4">
-                <h2 className="text-xl font-black text-gray-900">Blacklisted Sellers</h2>
-                <p className="text-sm text-gray-500">Sellers blocked from the platform</p>
-              </div>
-              <BlacklistedSellers />
-            </div>
-          )}
-
-          {/* OUTLET */}
-          {activeTab === 'list-outlet-men' && (
-            <div className="max-w-7xl mx-auto space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-black text-gray-900">Outlet Staff</h2>
-                  <p className="text-sm text-gray-500">All outlet managers on the platform</p>
-                </div>
-                <button
-                  onClick={() => handleTabSelection('add-outlet-man')}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-700 transition-all"
-                >
-                  <FaUserPlus className="w-4 h-4" /> Add Outlet Man
-                </button>
-              </div>
-              <ListOutletMan />
-            </div>
-          )}
-          {activeTab === 'add-outlet-man' && (
-            <div className="max-w-2xl mx-auto">
-              <div className="mb-6">
-                <h2 className="text-xl font-black text-gray-900">Add Outlet Man</h2>
-                <p className="text-sm text-gray-500">Register a new outlet staff member</p>
-              </div>
-              <AddOutletMan />
-            </div>
-          )}
-
-          {/* PRODUCTS */}
-          <div className={activeTab === 'add-product' ? '' : 'hidden'} aria-hidden={activeTab !== 'add-product'}>
-            <div className="max-w-4xl mx-auto">
-              <div className="mb-6">
-                <h2 className="text-xl font-black text-gray-900">{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
-                <p className="text-sm text-gray-500">{editingProduct ? 'Update' : 'Create'} a product listing</p>
-              </div>
-              <AddProduct
-                editingProduct={editingProduct}
-                onProductSaved={() => { setEditingProduct(null); setProductsRefreshKey(p => p + 1) }}
-                onCancelEdit={() => setEditingProduct(null)}
-              />
-            </div>
-          </div>
-
-          <div className={activeTab === 'add-service' ? '' : 'hidden'} aria-hidden={activeTab !== 'add-service'}>
-            <div className="max-w-4xl mx-auto">
-              <div className="mb-6">
-                <h2 className="text-xl font-black text-gray-900">{editingService ? 'Edit Service' : 'Add Service'}</h2>
-                <p className="text-sm text-gray-500">{editingService ? 'Update' : 'Create'} a service listing</p>
-              </div>
-              <AddService
-                editingService={editingService}
-                onServiceSaved={() => { setEditingService(null); setServicesRefreshKey(p => p + 1); setActiveTab('list-services') }}
-                onCancelEdit={() => setEditingService(null)}
-              />
-            </div>
-          </div>
-
-          {activeTab === 'list-products' && (
-            <div className="max-w-7xl mx-auto space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-black text-gray-900">Product List</h2>
-                  <p className="text-sm text-gray-500">All listed products</p>
-                </div>
-                <button
-                  onClick={() => handleTabSelection('add-product')}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-700 transition-all"
-                >
-                  <FaBox className="w-4 h-4" /> Add Product
-                </button>
-              </div>
-              <ListProducts
-                refreshSignal={productsRefreshKey}
-                onEditProduct={(product) => { setActiveTab('add-product'); setEditingProduct(product) }}
-              />
-            </div>
-          )}
-
-          {activeTab === 'list-services' && (
-            <div className="max-w-7xl mx-auto space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-black text-gray-900">Service List</h2>
-                  <p className="text-sm text-gray-500">All listed services</p>
-                </div>
-                <button
-                  onClick={() => handleTabSelection('add-service')}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-700 transition-all"
-                >
-                  <HiViewGrid className="w-4 h-4" /> Add Service
-                </button>
-              </div>
-              <ListServices
-                refreshSignal={servicesRefreshKey}
-                onEditService={(service) => { setEditingService(service); setActiveTab('add-service') }}
-              />
-            </div>
-          )}
-
-
-
-        </main>
+        </div>
       </div>
 
       <PasswordResetDialog
@@ -438,8 +565,148 @@ function Master() {
         identifier={user?.username}
         displayLabel="Master"
       />
+
+      {/* Tab Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {activeTab === 'home' && (
+          <div className="space-y-6">
+            {/* Master Dashboard Title */}
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Master Dashboard</h2>
+              <p className="text-base sm:text-lg lg:text-xl text-gray-600">Comprehensive Analytics & Insights</p>
+            </div>
+            <ActiveCounters />
+            <Analysis />
+          </div>
+        )}
+        
+        {activeTab === 'web-container' && <WebContainerSettings />}
+        
+        {activeTab === 'add-seller' && <AddSeller />}
+        
+        {activeTab === 'add-outlet-man' && <AddOutletMan />}
+        
+        {activeTab === 'add-master' && <AddMaster />}
+        
+        {/* Keep Add Product / Add Service mounted so form data survives tab switches */}
+        <div className={activeTab === 'add-product' ? '' : 'hidden'} aria-hidden={activeTab !== 'add-product'}>
+          <AddProduct
+            editingProduct={editingProduct}
+            onProductSaved={() => {
+              setEditingProduct(null)
+              setProductsRefreshKey((prev) => prev + 1)
+            }}
+            onCancelEdit={() => setEditingProduct(null)}
+          />
+        </div>
+
+        <div className={activeTab === 'add-service' ? '' : 'hidden'} aria-hidden={activeTab !== 'add-service'}>
+          <AddService
+            editingService={editingService}
+            onServiceSaved={() => {
+              setEditingService(null)
+              setServicesRefreshKey((prev) => prev + 1)
+              setActiveTab('list-services')
+            }}
+            onCancelEdit={() => setEditingService(null)}
+          />
+        </div>
+        
+        {activeTab === 'list-sellers' && <ListSellers />}
+        
+        {activeTab === 'list-outlet-men' && <ListOutletMan />}
+        
+        {activeTab === 'list-masters' && <ListMasters />}
+
+        {activeTab === 'blacklisted-sellers' && <BlacklistedSellers />}
+
+        {activeTab === 'list-products' && (
+          <ListProducts
+            refreshSignal={productsRefreshKey}
+            onEditProduct={(product) => {
+              setActiveTab('add-product')
+              setEditingProduct(product)
+            }}
+          />
+        )}
+
+        {activeTab === 'list-services' && (
+          <ListServices
+            refreshSignal={servicesRefreshKey}
+            onEditService={(service) => {
+              setEditingService(service)
+              setActiveTab('add-service')
+            }}
+          />
+        )}
+
+        {activeTab === 'orders' && <OrdersList />}
+
+        {activeTab === 'commission' && <CommissionManagement />}
+
+        {activeTab === 'service-credits' && <ServiceCreditManagement />}
+      </div>
+
+      {/* Right-side Menu */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIsMenuOpen(false)}
+          />
+          <div className="absolute inset-y-0 right-0 w-80 max-w-full bg-white shadow-2xl p-6 flex flex-col gap-4 transform transition-transform duration-300 translate-x-0 text-gray-900">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Quick Navigation</h3>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="p-2 rounded-full hover:bg-gray-100"
+                aria-label="Close menu"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 text-gray-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 overflow-y-auto">
+              {tabs.map((tab) => (
+                <button
+                  key={`menu-${tab.id}`}
+                  onClick={() => handleTabSelection(tab.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-left transition ${
+                    activeTab === tab.id
+                      ? 'bg-gray-900 text-white shadow'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <tab.icon className="w-5 h-5" />
+                  <span className="font-medium">{tab.label}</span>
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false)
+                  handleLogout()
+                }}
+                className="mt-2 flex items-center gap-3 px-4 py-3 rounded-lg text-left transition bg-red-50 text-red-600 hover:bg-red-100 font-semibold"
+              >
+                <FaSignOutAlt className="w-5 h-5" />
+                <span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
 
 export default Master
+
