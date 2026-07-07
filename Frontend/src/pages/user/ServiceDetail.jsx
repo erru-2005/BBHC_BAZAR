@@ -22,6 +22,7 @@ function ServiceDetail() {
   const [loading, setLoading] = useState(!location.state?.service)
   const [ratingStats, setRatingStats] = useState(null)
   const { home } = useSelector((state) => state.data)
+  const { isAuthenticated, userType } = useSelector((state) => state.auth)
 
   const { thumbnail, gallery } = useMemo(() => {
     if (!service) return { thumbnail: null, gallery: [] }
@@ -139,7 +140,15 @@ function ServiceDetail() {
         )}
 
         <button
-          onClick={() => navigate(`/service/${service.id || service._id}/book`, { state: { product: service } })}
+          onClick={() => {
+            if (!isAuthenticated || userType !== 'user') {
+              navigate('/user/phone-entry', {
+                state: { returnTo: `/service/${service.id || service._id}/book` }
+              })
+            } else {
+              navigate(`/service/${service.id || service._id}/book`, { state: { product: service } })
+            }
+          }}
           className="w-full py-3.5 bg-indigo-600 text-white text-sm sm:text-base font-black rounded-xl lg:rounded-2xl shadow-lg shadow-indigo-200/60 hover:bg-indigo-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
         >
           Book Now <FiChevronRight className="w-5 h-5" />
