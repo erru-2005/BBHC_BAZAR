@@ -232,7 +232,7 @@ function BuyNow() {
                       {isService ? 'Schedule' : 'Quantity'}
                     </p>
                     {isService ? (
-                      <p className="text-sm font-bold text-blue-600 mt-1">
+                      <p className="text-sm font-bold text-blue-600 mt-1 whitespace-nowrap">
                         {bookingData.type === 'single' 
                           ? `On ${new Date(bookingData.startDate).toLocaleDateString()}` 
                           : `${new Date(bookingData.startDate).toLocaleDateString()} - ${new Date(bookingData.endDate).toLocaleDateString()}`
@@ -270,7 +270,7 @@ function BuyNow() {
                   {expectedDeliveryDate && (
                     <li className="text-emerald-800 font-bold list-none flex items-center gap-2 mb-2 p-2.5 bg-white rounded-xl border border-emerald-200 shadow-sm">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse shrink-0" />
-                      <span>The order will be delivered on or before {formatDate(expectedDeliveryDate)}</span>
+                      <span>The order will be delivered on or before <span className="whitespace-nowrap">{formatDate(expectedDeliveryDate)}</span></span>
                     </li>
                   )}
                   <li>Collect your product at the BBHCBazaar outlet.</li>
@@ -289,7 +289,7 @@ function BuyNow() {
                   <div>
                     <p className="text-xs uppercase tracking-wider text-emerald-700 font-bold">Delivery Timeframe</p>
                     <p className="text-sm text-slate-800 font-semibold mt-0.5">
-                      Arriving on or before <span className="font-extrabold text-emerald-900 underline decoration-2">{expectedArrivalDateStr}</span>
+                      Arriving on or before <span className="font-extrabold text-emerald-900 underline decoration-2 whitespace-nowrap">{expectedArrivalDateStr}</span>
                     </p>
                   </div>
                 </div>
