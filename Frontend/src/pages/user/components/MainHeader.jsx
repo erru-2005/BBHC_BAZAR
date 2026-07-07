@@ -231,13 +231,13 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
           </div>
         </div>
 
-        <div className="hidden md:block -mx-4 lg:-mx-8">
+        <div className="hidden md:block -mx-2 lg:-mx-5">
           <CategoryNavRow {...categoryNavProps} />
         </div>
 
         {children}
 
-        <div className="md:hidden -mx-4">
+        <div className="md:hidden -mx-2">
           <CategoryNavRow {...categoryNavProps} className="mt-1" />
         </div>
       </div>
