@@ -626,7 +626,12 @@ function Outlet() {
               <div className="space-y-3">
                 {selectedSlot.items?.map((item, i) => (
                   <div key={i} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                    <p className="font-bold text-gray-900 mb-1">{item.product_name}</p>
+                    <p className="font-bold text-gray-900 mb-1">
+                      {item.product_name} 
+                      <span className="ml-2 text-sm font-medium text-gray-500 bg-gray-200 px-2 py-0.5 rounded-md">
+                        Qty: {item.quantity || 1}
+                      </span>
+                    </p>
                     <div className="flex justify-between text-xs text-gray-500">
                       <span>Order: #{item.order_number}</span>
                       <span>Seller: {item.seller_name}</span>

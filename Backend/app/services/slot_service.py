@@ -58,7 +58,13 @@ class SlotService:
         )
 
         if not empty_slot_doc:
-            return None, "Outlet is full. No slots available."
+            # Dynamically create a new slot since the outlet is full
+            last_slot = mongo.db.slots.find_one(sort=[('slot_number', -1)])
+            next_slot_number = (last_slot['slot_number'] + 1) if last_slot else 1
+            
+            new_slot = Slot(slot_number=next_slot_number, user_id=user_obj_id, item_count=1)
+            mongo.db.slots.insert_one(new_slot.to_bson())
+            return SlotService.get_user_slot(user_obj_id), None
 
         # 3. Assign slot to user
         mongo.db.slots.update_one(
@@ -118,22 +124,35 @@ class SlotService:
 
     @staticmethod
     def get_enriched_slots():
-        """Get all slots and enrich occupied ones with user and item details."""
+        """Get all slots and enrich occupied ones with user and item details, hiding trailing empty slots."""
         from app.services.order_service import OrderService
         from app.services.user_service import UserService
         from app.services.seller_service import SellerService
         
         slots = SlotService.get_all_slots()
+        
+        max_occupied = 0
+        for slot in slots:
+            if slot.user_id:
+                max_occupied = max(max_occupied, slot.slot_number)
+                
         enriched_slots = []
         
         for slot in slots:
+            # Skip trailing free slots
+            if not slot.user_id and slot.slot_number > max_occupied:
+                continue
+                
             slot_data = slot.to_dict()
             slot_data['is_occupied'] = bool(slot.user_id)
             
             if slot.user_id:
                 # Fetch user details
                 user = UserService.get_user_by_id(slot.user_id)
-                slot_data['user_name'] = user.name if user else "Unknown User"
+                if user:
+                    slot_data['user_name'] = f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip() or getattr(user, 'username', 'Unknown User')
+                else:
+                    slot_data['user_name'] = "Unknown User"
                 
                 # Fetch items at outlet for this user
                 orders, _ = OrderService.get_orders_by_user(slot.user_id, page=1, limit=100)
@@ -144,14 +163,15 @@ class SlotService:
                         if order.seller_id:
                             seller = SellerService.get_seller_by_id(order.seller_id)
                             if seller:
-                                seller_name = getattr(seller, 'name', getattr(seller, 'business_name', 'Unknown Seller'))
+                                seller_name = f"{getattr(seller, 'first_name', '')} {getattr(seller, 'last_name', '')}".strip() or getattr(seller, 'trade_id', 'Unknown Seller')
                         
                         product_name = order.product_snapshot.get('name', order.product_snapshot.get('product_name', 'Unknown Product'))
                         
                         items.append({
                             'order_number': order.order_number,
                             'product_name': product_name,
-                            'seller_name': seller_name
+                            'seller_name': seller_name,
+                            'quantity': getattr(order, 'quantity', 1)
                         })
                 
                 slot_data['items'] = items
