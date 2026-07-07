@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,8 +15,20 @@ class ServerNotReachableException implements Exception {
 class ApiService {
   static const String _baseUrl = 'http://apps.bbhegdecollege.com:9000/';
   static const String _cacheKey = 'cached_web_url';
+  static Future<String>? _preFetchedUrlFuture;
 
   static String get baseUrl => _baseUrl;
+
+  static void preFetchWebContainerUrl() {
+    _preFetchedUrlFuture = getWebContainerUrl().catchError((e) {
+      debugPrint("Pre-fetching web container URL failed: $e");
+      return "";
+    });
+  }
+
+  static Future<String> getWebContainerUrlCached() {
+    return _preFetchedUrlFuture ?? getWebContainerUrl();
+  }
 
   static Future<String> getWebContainerUrl() async {
     final prefs = await SharedPreferences.getInstance();

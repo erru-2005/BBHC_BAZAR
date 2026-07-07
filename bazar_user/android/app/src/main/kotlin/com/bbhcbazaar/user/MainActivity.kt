@@ -14,9 +14,34 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.bbhcbazaar.user/notifications"
     private val NOTIFICATION_PERMISSION_CODE = 1001
 
+    private var splashView: android.widget.RelativeLayout? = null
+    private var splashRotateAnimator: android.animation.ObjectAnimator? = null
+    private var isSplashDismissed = false
+
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         showNativeSplash()
+    }
+
+    private fun dismissSplashNatively() {
+        if (isSplashDismissed) return
+        isSplashDismissed = true
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            val splash = splashView
+            if (splash != null) {
+                splash.animate()
+                    .alpha(0f)
+                    .setDuration(250)
+                    .setListener(object : android.animation.AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: android.animation.Animator) {
+                            splashRotateAnimator?.cancel()
+                            val parent = splash.parent as? android.view.ViewGroup
+                            parent?.removeView(splash)
+                            splashView = null
+                        }
+                    })
+            }
+        }
     }
 
     private fun showNativeSplash() {
@@ -33,6 +58,7 @@ class MainActivity : FlutterActivity() {
             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
             android.view.ViewGroup.LayoutParams.MATCH_PARENT
         )
+        this.splashView = splashContainer
 
         // Vertical sky-blue-to-white gradient background matching design system
         val colors = intArrayOf(0xFF79B4FC.toInt(), 0xFFFFFFFF.toInt())
@@ -78,6 +104,7 @@ class MainActivity : FlutterActivity() {
             interpolator = android.view.animation.LinearInterpolator()
             start()
         }
+        this.splashRotateAnimator = rotateAnimator
 
         val contentLayout = android.widget.LinearLayout(this)
         contentLayout.orientation = android.widget.LinearLayout.VERTICAL
@@ -150,19 +177,10 @@ class MainActivity : FlutterActivity() {
             override fun onPreDraw(): Boolean {
                 splashContainer.viewTreeObserver.removeOnPreDrawListener(this)
                 
-                // Fade out and remove custom native splash screen after 4.0 seconds of actual visibility
+                // Safety fallback: dismiss native splash screen after 6.0 seconds of actual visibility in case loading hangs
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    splashContainer.animate()
-                        .alpha(0f)
-                        .setDuration(300)
-                        .setListener(object : android.animation.AnimatorListenerAdapter() {
-                            override fun onAnimationEnd(animation: android.animation.Animator) {
-                                rotateAnimator?.cancel()
-                                val parent = splashContainer.parent as? android.view.ViewGroup
-                                parent?.removeView(splashContainer)
-                            }
-                        })
-                }, 4000)
+                    dismissSplashNatively()
+                }, 6000)
                 
                 return true
             }
@@ -175,6 +193,9 @@ class MainActivity : FlutterActivity() {
             if (call.method == "requestNotificationPermission") {
                 val granted = requestNotificationPermission()
                 result.success(granted)
+            } else if (call.method == "dismissSplash") {
+                dismissSplashNatively()
+                result.success(true)
             } else if (call.method == "openMap") {
                 val url = call.argument<String>("url")
                 if (url != null) {
