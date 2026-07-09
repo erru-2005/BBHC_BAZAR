@@ -14,7 +14,7 @@ class MasterService:
     def get_master_by_id(master_id):
         """Get master by ID"""
         try:
-            master_doc = mongo.db.masters.find_one({'_id': ObjectId(master_id)})
+            master_doc = mongo.db.master.find_one({'_id': ObjectId(master_id)})
             return Master.from_bson(master_doc) if master_doc else None
         except Exception:
             return None
@@ -23,7 +23,7 @@ class MasterService:
     def get_master_by_email(email):
         """Get master by email"""
         try:
-            master_doc = mongo.db.masters.find_one({'email': email})
+            master_doc = mongo.db.master.find_one({'email': email})
             return Master.from_bson(master_doc) if master_doc else None
         except Exception:
             return None
@@ -32,7 +32,7 @@ class MasterService:
     def get_master_by_username(username):
         """Get master by username"""
         try:
-            master_doc = mongo.db.masters.find_one({'username': username})
+            master_doc = mongo.db.master.find_one({'username': username})
             return Master.from_bson(master_doc) if master_doc else None
         except Exception:
             return None
@@ -92,7 +92,7 @@ class MasterService:
                 raise ValueError("Master with this username already exists")
             
             # Insert into MongoDB
-            result = mongo.db.masters.insert_one(master_bson)
+            result = mongo.db.master.insert_one(master_bson)
             master._id = result.inserted_id
             
             return master
@@ -117,7 +117,7 @@ class MasterService:
                 raise ValueError("Status must be 'active' or 'not_active'")
             
             # Update in MongoDB
-            result = mongo.db.masters.update_one(
+            result = mongo.db.master.update_one(
                 {'_id': ObjectId(master_id)},
                 {'$set': update_data}
             )
@@ -136,7 +136,7 @@ class MasterService:
     def get_all_masters(skip=0, limit=20):
         """Get all masters with pagination"""
         try:
-            masters = mongo.db.masters.find().skip(skip).limit(limit)
+            masters = mongo.db.master.find().skip(skip).limit(limit)
             return [Master.from_bson(master_doc) for master_doc in masters]
         except Exception:
             return []

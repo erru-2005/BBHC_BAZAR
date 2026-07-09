@@ -9,7 +9,7 @@ from app.services.user_service import UserService
 @pytest.fixture
 def app():
     """Create test app"""
-    app = create_app()
+    app, _ = create_app()
     app.config['TESTING'] = True
     app.config['MONGODB_DB'] = 'bbhc_bazar_test'
     app.config['MONGODB_URI'] = 'mongodb://localhost:27017/'

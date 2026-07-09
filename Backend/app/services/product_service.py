@@ -134,6 +134,8 @@ class ProductService:
                 return None
             
             product = Product.from_bson(product_doc)
+            if product:
+                ProductService.populate_delivery_charge(product)
             
             # Ensure total_selling_price is calculated if missing
             if product and product.selling_price and (not product.total_selling_price or product.total_selling_price == 0):
@@ -200,6 +202,7 @@ class ProductService:
             category_commissions = ProductService.get_all_category_commissions()
             for product_doc in products_cursor:
                 product = Product.from_bson(product_doc)
+                ProductService.populate_delivery_charge(product)
                 # Ensure total_selling_price is calculated if missing
                 if product.selling_price and (not product.total_selling_price or product.total_selling_price == 0):
                     commission_rate = product.commission_rate
@@ -247,6 +250,7 @@ class ProductService:
             
             for product_doc in products_cursor:
                 product = Product.from_bson(product_doc)
+                ProductService.populate_delivery_charge(product)
                 
                 # Ensure total_selling_price is calculated if missing
                 if product.selling_price and (not product.total_selling_price or product.total_selling_price == 0):
@@ -434,6 +438,7 @@ class ProductService:
             
             for product_doc in products_cursor:
                 product = Product.from_bson(product_doc)
+                ProductService.populate_delivery_charge(product)
                 
                 # Ensure total_selling_price is calculated if missing
                 if product.selling_price and (not product.total_selling_price or product.total_selling_price == 0):
@@ -649,4 +654,30 @@ class ProductService:
             return updated_count
         except Exception as e:
             raise Exception(f"Error applying commission to all: {str(e)}")
+
+    @staticmethod
+    def populate_delivery_charge(product):
+        """Populate active delivery charge based on priority hierarchy"""
+        try:
+            if product.delivery_charge is not None:
+                return product.delivery_charge
+
+            # Check category delivery rates
+            if product.categories:
+                for category in product.categories:
+                    doc = mongo.db.product_category_delivery_rates.find_one({'category': category})
+                    if doc:
+                        product.delivery_charge = float(doc.get('rate', 0))
+                        return product.delivery_charge
+
+            # Check global delivery rate
+            global_doc = mongo.db.delivery_settings.find_one({'key': 'global_product_rate'})
+            if global_doc:
+                product.delivery_charge = float(global_doc.get('rate', 0))
+            else:
+                product.delivery_charge = 0.0
+            return product.delivery_charge
+        except Exception:
+            product.delivery_charge = 0.0
+            return 0.0
 

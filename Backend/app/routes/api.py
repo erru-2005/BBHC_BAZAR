@@ -89,6 +89,14 @@ def welcome():
     }), 200
 
 
+@api_bp.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy'
+    }), 200
+
+
 @api_bp.route('/register_master', methods=['POST'])
 @jwt_required()
 def register_master():
@@ -1910,6 +1918,179 @@ def upload_file():
             
     except Exception as e:
         return jsonify({'error': f'Upload failed: {str(e)}'}), 500
+
+
+@api_bp.route('/delivery/rates', methods=['GET'])
+def get_delivery_rates():
+    """Retrieve all active delivery rates configuration"""
+    try:
+        # Global rates
+        global_prod = mongo.db.delivery_settings.find_one({'key': 'global_product_rate'})
+        global_product_rate = float(global_prod.get('rate', 0)) if global_prod else 0.0
+
+        global_serv = mongo.db.delivery_settings.find_one({'key': 'global_service_rate'})
+        global_service_rate = float(global_serv.get('rate', 0)) if global_serv else 0.0
+
+        # Category rates
+        cat_prod_docs = mongo.db.product_category_delivery_rates.find()
+        category_product_rates = {doc['category']: float(doc.get('rate', 0)) for doc in cat_prod_docs}
+
+        cat_serv_docs = mongo.db.service_category_delivery_rates.find()
+        category_service_rates = {doc['category']: float(doc.get('rate', 0)) for doc in cat_serv_docs}
+
+        # Product specific rates
+        prod_docs = mongo.db.products.find({'delivery_charge': {'$ne': None}})
+        product_rates = {str(doc['_id']): float(doc.get('delivery_charge', 0)) for doc in prod_docs}
+
+        # Service specific rates
+        serv_docs = mongo.db.services.find({'delivery_charge': {'$ne': None}})
+        service_rates = {str(doc['_id']): float(doc.get('delivery_charge', 0)) for doc in serv_docs}
+
+        return jsonify({
+            'global_product_rate': global_product_rate,
+            'global_service_rate': global_service_rate,
+            'category_product_rates': category_product_rates,
+            'category_service_rates': category_service_rates,
+            'product_rates': product_rates,
+            'service_rates': service_rates
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/delivery/apply-all', methods=['POST'])
+@jwt_required()
+def apply_delivery_to_all():
+    """Apply global delivery charge rate to all items of specified type"""
+    try:
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can configure delivery charges'}), 403
+
+        data = request.get_json() or {}
+        rate = float(data.get('rate', 0))
+        rate_type = data.get('type', 'product') # 'product' or 'service'
+
+        # Store global rate
+        mongo.db.delivery_settings.update_one(
+            {'key': f'global_{rate_type}_rate'},
+            {'$set': {'key': f'global_{rate_type}_rate', 'rate': rate, 'updated_at': datetime.now(timezone.utc)}},
+            upsert=True
+        )
+
+        # Also apply to all products/services that do not have category-specific or item-specific delivery charges
+        if rate_type == 'product':
+            cat_rates = {doc['category'] for doc in mongo.db.product_category_delivery_rates.find()}
+            query = {
+                'delivery_charge': None,
+                'categories': {'$nin': list(cat_rates)} if cat_rates else {'$exists': True}
+            }
+            result = mongo.db.products.update_many(
+                query,
+                {'$set': {'delivery_charge': rate, 'updated_at': datetime.now(timezone.utc)}}
+            )
+            updated_count = result.modified_count
+        else:
+            cat_rates = {doc['category'] for doc in mongo.db.service_category_delivery_rates.find()}
+            query = {
+                'delivery_charge': None,
+                'categories': {'$nin': list(cat_rates)} if cat_rates else {'$exists': True}
+            }
+            result = mongo.db.services.update_many(
+                query,
+                {'$set': {'delivery_charge': rate, 'updated_at': datetime.now(timezone.utc)}}
+            )
+            updated_count = result.modified_count
+
+        return jsonify({
+            'message': f'Global delivery rate set to {rate} and applied to {updated_count} {rate_type}s',
+            'updated_count': updated_count
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/delivery/apply-category', methods=['POST'])
+@jwt_required()
+def apply_delivery_by_category():
+    """Apply category delivery charge rate"""
+    try:
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can configure delivery charges'}), 403
+
+        data = request.get_json() or {}
+        category = data.get('category')
+        rate = float(data.get('rate', 0))
+        rate_type = data.get('type', 'product') # 'product' or 'service'
+
+        if not category:
+            return jsonify({'error': 'Category is required'}), 400
+
+        collection_name = f"{rate_type}_category_delivery_rates"
+        mongo.db[collection_name].update_one(
+            {'category': category},
+            {'$set': {'category': category, 'rate': rate, 'updated_at': datetime.now(timezone.utc)}},
+            upsert=True
+        )
+
+        # Apply to all items in this category that don't have item-specific rate
+        if rate_type == 'product':
+            result = mongo.db.products.update_many(
+                {'categories': category, 'delivery_charge': None},
+                {'$set': {'delivery_charge': rate, 'updated_at': datetime.now(timezone.utc)}}
+            )
+        else:
+            result = mongo.db.services.update_many(
+                {'categories': category, 'delivery_charge': None},
+                {'$set': {'delivery_charge': rate, 'updated_at': datetime.now(timezone.utc)}}
+            )
+
+        return jsonify({
+            'message': f'Delivery rate set to {rate} for category "{category}"',
+            'updated_count': result.modified_count
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/delivery/apply-item', methods=['POST'])
+@jwt_required()
+def apply_delivery_to_item():
+    """Apply product-specific or service-specific delivery charge"""
+    try:
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Only masters can configure delivery charges'}), 403
+
+        data = request.get_json() or {}
+        item_id = data.get('item_id')
+        rate = float(data.get('rate', 0))
+        rate_type = data.get('type', 'product') # 'product' or 'service'
+
+        if not item_id:
+            return jsonify({'error': 'item_id is required'}), 400
+
+        from bson import ObjectId
+        if rate_type == 'product':
+            result = mongo.db.products.update_one(
+                {'_id': ObjectId(item_id)},
+                {'$set': {'delivery_charge': rate, 'updated_at': datetime.now(timezone.utc)}}
+            )
+        else:
+            result = mongo.db.services.update_one(
+                {'_id': ObjectId(item_id)},
+                {'$set': {'delivery_charge': rate, 'updated_at': datetime.now(timezone.utc)}}
+            )
+
+        if result.matched_count == 0:
+            return jsonify({'error': f'{rate_type.capitalize()} not found'}), 404
+
+        return jsonify({
+            'message': f'Delivery charge of {rate} applied to {rate_type}'
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @api_bp.route('/uploads/<filename>', methods=['GET'])

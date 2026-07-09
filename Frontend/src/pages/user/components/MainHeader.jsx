@@ -140,7 +140,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
             <button
               type="button"
               onClick={() => setIsSearchOpen(true)}
-              className="w-full max-w-md flex items-center gap-2 bg-white rounded-full px-3 py-2 shadow-inner cursor-text text-left"
+              className="w-full max-w-md flex items-center gap-2 bg-white rounded-lg px-3.5 py-2 shadow-inner cursor-text text-left border border-slate-200"
               aria-label="Open search"
             >
               <FaMagnifyingGlass className="text-gray-400 w-4 h-4 flex-shrink-0" />
@@ -231,13 +231,13 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
           </div>
         </div>
 
-        <div className="hidden md:block -mx-4 lg:-mx-8">
+        <div className="hidden md:block -mx-2 lg:-mx-5">
           <CategoryNavRow {...categoryNavProps} />
         </div>
 
         {children}
 
-        <div className="md:hidden -mx-4">
+        <div className="md:hidden -mx-2">
           <CategoryNavRow {...categoryNavProps} className="mt-1" />
         </div>
       </div>
