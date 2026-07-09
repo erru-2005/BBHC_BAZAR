@@ -35,6 +35,7 @@ class Product:
         registration_ip=None,
         registration_user_agent=None,
         delivery_span=2,
+        is_spotlight=False,
         _id=None
     ):
         self._id = _id or ObjectId()
@@ -61,6 +62,7 @@ class Product:
         self.registration_ip = registration_ip
         self.registration_user_agent = registration_user_agent
         self.delivery_span = delivery_span
+        self.is_spotlight = is_spotlight
         self.created_at = created_at or datetime.now(timezone.utc)
         self.updated_at = updated_at or datetime.now(timezone.utc)
 
@@ -90,6 +92,7 @@ class Product:
             'registration_ip': self.registration_ip,
             'registration_user_agent': self.registration_user_agent,
             'delivery_span': self.delivery_span,
+            'is_spotlight': self.is_spotlight,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at
         }
@@ -120,6 +123,7 @@ class Product:
             'registration_ip': self.registration_ip,
             'registration_user_agent': self.registration_user_agent,
             'delivery_span': self.delivery_span,
+            'is_spotlight': self.is_spotlight,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
@@ -154,6 +158,7 @@ class Product:
             registration_ip=bson_doc.get('registration_ip'),
             registration_user_agent=bson_doc.get('registration_user_agent'),
             delivery_span=bson_doc.get('delivery_span', 2),
+            is_spotlight=bson_doc.get('is_spotlight', False),
             created_at=bson_doc.get('created_at'),
             updated_at=bson_doc.get('updated_at')
         )

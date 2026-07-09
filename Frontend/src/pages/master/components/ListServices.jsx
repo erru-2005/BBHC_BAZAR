@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { FiSearch, FiRefreshCw, FiCheckCircle, FiXCircle, FiEye, FiTrash2, FiEdit2 } from 'react-icons/fi'
-import { getServices, getPendingServices, acceptService, rejectService, deleteService } from '../../../services/api'
+import { FaStar, FaRegStar } from 'react-icons/fa'
+import { getServices, getPendingServices, acceptService, rejectService, deleteService, toggleServiceSpotlight } from '../../../services/api'
 import { getImageUrl } from '../../../utils/image'
 
 function ListServices({ refreshSignal = 0, onEditService = () => {} }) {
@@ -62,6 +63,20 @@ function ListServices({ refreshSignal = 0, onEditService = () => {} }) {
       alert(err.message)
     } finally {
       setProcessingId(null)
+    }
+  }
+
+  const handleToggleSpotlight = async (id, currentSpotlight) => {
+    try {
+      await toggleServiceSpotlight(id, !currentSpotlight)
+      setData(data.map(s => {
+        if ((s.id || s._id) === id) {
+          return { ...s, is_spotlight: !currentSpotlight }
+        }
+        return s
+      }))
+    } catch (err) {
+      alert(err.message || 'Failed to toggle spotlight')
     }
   }
 
@@ -176,6 +191,13 @@ function ListServices({ refreshSignal = 0, onEditService = () => {} }) {
                       </>
                     ) : (
                       <>
+                        <button
+                          onClick={() => handleToggleSpotlight(sId, s.is_spotlight)}
+                          className="p-2 rounded-lg hover:bg-yellow-50 transition-all text-yellow-500 border border-transparent hover:border-yellow-100"
+                          title={s.is_spotlight ? 'Remove from Spotlight' : 'Add to Spotlight'}
+                        >
+                          {s.is_spotlight ? <FaStar className="w-4 h-4" /> : <FaRegStar className="w-4 h-4" />}
+                        </button>
                         <button 
                           onClick={() => onEditService(s)}
                           className="p-2 rounded-lg text-blue-500 hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-all"

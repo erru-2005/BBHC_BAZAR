@@ -12,7 +12,7 @@ import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins ,FaGlobe} from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins ,FaGlobe, FaStar} from 'react-icons/fa'
 import PasswordResetDialog from '../../components/PasswordResetDialog'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
@@ -31,6 +31,7 @@ import ServiceCreditManagement from './components/ServiceCreditManagement'
 import Analysis from './components/analysis/Analysis'
 import ActiveCounters from './components/ActiveCounters'
 import WebContainerSettings from './components/WebContainerSettings'
+import MasterReviews from './components/MasterReviews'
 import './master.css'
 
 const TAB_ORDER_VERSION = '4'
@@ -69,6 +70,7 @@ function Master() {
     { id: 'list-outlet-men', label: 'List Outlet Men', icon: MdList },
     { id: 'add-master', label: 'Add Master', icon: IoMdPersonAdd },
     { id: 'list-masters', label: 'List Masters', icon: MdList },
+    { id: 'reviews', label: 'System Reviews', icon: FaStar },
     { id: 'blacklisted-sellers', label: 'Blacklisted', icon: MdBlock }
   ]
 
@@ -579,6 +581,8 @@ function Master() {
             <Analysis />
           </div>
         )}
+        
+        {activeTab === 'reviews' && <MasterReviews />}
         
         {activeTab === 'web-container' && <WebContainerSettings />}
         

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocation } from 'react-router-dom'
 import MainHeader from './components/MainHeader'
@@ -12,8 +12,9 @@ import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
 import ProductShowcase from './components/ProductShowcase'
 import LogoAnimation from '../../components/LogoAnimation'
-import { setHomeProducts, setHomeWishlist, setError, setLoading, setRefreshing, updateProductInCache } from '../../store/dataSlice'
+import { setHomeProducts, setHomeServices, setHomeWishlist, setError, setLoading, setRefreshing, updateProductInCache } from '../../store/dataSlice'
 import { getProducts, getWishlist, getServices } from '../../services/api'
+import { getImageUrl } from '../../utils/image'
 import { initSocket, getSocket } from '../../utils/socket'
 import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
 
@@ -22,7 +23,6 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
   const dispatch = useDispatch()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [services, setServices] = useState([])
   const [showLogoAnimation, setShowLogoAnimation] = useState(false)
   const internalHeaderLogoRef = useRef(null)
   const headerLogoRef = externalHeaderLogoRef || internalHeaderLogoRef
@@ -39,8 +39,47 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
     mobileQuickLinks,
     bottomNavItems,
     products,
+    services,
     isRefreshing
   } = homeData
+
+  // Build dynamic spotlight slides from both products and services marked as spotlight
+  const combinedSpotlightSlides = useMemo(() => {
+    const slides = []
+
+    // Add product spotlights
+    if (products && products.length > 0) {
+      const spotlighted = products.filter((p) => p.is_spotlight)
+      slides.push(...spotlighted.map((p) => ({
+        id: `prod-${p.id || p._id}`,
+        title: p.product_name || p.productName || 'Featured Product',
+        subtitle: p.selling_price ? `₹${Number(p.selling_price).toLocaleString('en-IN')}` : 'Shop Now',
+        cta: 'View Product',
+        link: `/product/public/${p.id || p._id}`,
+        image: getImageUrl(p.thumbnail)
+      })))
+    }
+
+    // Add service spotlights
+    if (services && services.length > 0) {
+      const spotlighted = services.filter((s) => s.is_spotlight)
+      slides.push(...spotlighted.map((s) => ({
+        id: `serv-${s.id || s._id}`,
+        title: s.service_name || 'Featured Service',
+        subtitle: s.service_charge ? `₹${Number(s.service_charge).toLocaleString('en-IN')}` : 'Book Now',
+        cta: 'View Service',
+        link: `/service/public/${s.id || s._id}`,
+        image: getImageUrl(s.thumbnail)
+      })))
+    }
+
+    // Fallback to static slides if no dynamic spotlights exist
+    if (slides.length === 0) {
+      return spotlightProducts
+    }
+
+    return slides
+  }, [products, services, spotlightProducts])
 
   // Detect navigation to home from another page
   useEffect(() => {
@@ -63,7 +102,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
       const isCacheStale = !cacheTimestamp || (Date.now() - cacheTimestamp) > cacheMaxAge
       
       // If we have cached data and it's not stale, show it immediately
-      if (!forceRefresh && !isCacheStale && products && products.length > 0) {
+      if (!forceRefresh && !isCacheStale && products && products.length > 0 && services && services.length > 0) {
         // Data is fresh, no need to reload products
         // Optionally refresh in background if cache is getting old (> 80% of max age)
         const cacheAge = Date.now() - cacheTimestamp
@@ -71,8 +110,12 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
           // Background refresh - don't block UI
           dispatch(setRefreshing(true))
           try {
-            const backendProducts = await getProducts()
+            const [backendProducts, backendServices] = await Promise.all([
+              getProducts(),
+              getServices()
+            ])
             dispatch(setHomeProducts(backendProducts))
+            dispatch(setHomeServices(backendServices))
           } catch (err) {
             // Silently fail background refresh - keep showing cached data
             dispatch(setRefreshing(false))
@@ -110,7 +153,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
         ])
         
         dispatch(setHomeProducts(backendProducts))
-        setServices(backendServices)
+        dispatch(setHomeServices(backendServices))
 
         // Load wishlist only for logged-in users
         if (isAuthenticated && userType === 'user') {
@@ -164,12 +207,16 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
     
     // If cache exists and is fresh, no action needed (data already shown)
     // If cache is stale, trigger background refresh
-    if (products && products.length > 0 && isCacheStale) {
+    if (products && products.length > 0 && services && services.length > 0 && isCacheStale) {
       const refresh = async () => {
         dispatch(setRefreshing(true))
         try {
-          const backendProducts = await getProducts()
+          const [backendProducts, backendServices] = await Promise.all([
+            getProducts(),
+            getServices()
+          ])
           dispatch(setHomeProducts(backendProducts))
+          dispatch(setHomeServices(backendServices))
         } catch (err) {
           dispatch(setRefreshing(false))
         }
@@ -275,12 +322,20 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
         onClose={() => setMobileMenuOpen(false)}
       />
 
-      <main className="max-w-7xl mx-auto px-4 lg:px-8 pb-4 lg:pb-0">
-        <SpotlightSlider slides={spotlightProducts} />
-        {recommendationRows.map((row) => (
-          <RecommendationRow key={row.id} title={row.title} products={row.products} />
-        ))}
-        <ProductShowcase products={products} services={services} loading={loading} error={error} />
+      <main className="pt-24 pb-20 lg:pt-24 lg:pb-0 min-h-screen">
+        <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 space-y-8 md:space-y-12 pb-12">
+            
+          {/* Spotlight Banner - Full width with rounded corners */}
+          <div className="w-full">
+            <h3 className="text-xl font-bold text-slate-800 mb-4 px-2">Spotlights</h3>
+            <SpotlightSlider slides={combinedSpotlightSlides} />
+          </div>
+          
+          {recommendationRows.map((row) => (
+            <RecommendationRow key={row.id} title={row.title} products={row.products} />
+          ))}
+          <ProductShowcase products={products} services={services} loading={loading} error={error} />
+        </div>
       </main>
 
       <SiteFooter />

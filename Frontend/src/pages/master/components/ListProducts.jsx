@@ -2,8 +2,8 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Skeleton from 'react-loading-skeleton'
 import 'react-loading-skeleton/dist/skeleton.css'
-import { deleteProduct, getProducts, getPendingProducts, approveProduct, rejectProduct, getCategories } from '../../../services/api'
-import { FaSyncAlt, FaTag, FaCheck, FaTimes, FaSearch } from 'react-icons/fa'
+import { deleteProduct, getProducts, getPendingProducts, approveProduct, rejectProduct, getCategories, toggleProductSpotlight } from '../../../services/api'
+import { FaSyncAlt, FaTag, FaCheck, FaTimes, FaSearch, FaStar, FaRegStar } from 'react-icons/fa'
 import { FiEdit, FiTrash2 } from 'react-icons/fi'
 import useProductSocket from '../../../hooks/useProductSocket'
 import { getImageUrl } from '../../../utils/image'
@@ -98,6 +98,27 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
       await fetchPendingProducts()
     } catch (err) {
       setError(err.message || 'Failed to reject product')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleToggleSpotlight = async (event, product) => {
+    event.stopPropagation()
+    const productId = product.id || product._id
+    const currentSpotlight = !!product.is_spotlight
+    setProcessingId(productId)
+    try {
+      await toggleProductSpotlight(productId, !currentSpotlight)
+      setProducts((prev) =>
+        prev.map((p) =>
+          String(p.id || p._id) === String(productId)
+            ? { ...p, is_spotlight: !currentSpotlight }
+            : p
+        )
+      )
+    } catch (err) {
+      setError(err.message || 'Failed to toggle product spotlight')
     } finally {
       setProcessingId(null)
     }
@@ -310,6 +331,18 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
               </div>
               {!isPending && (
                 <div className="flex items-center gap-2 self-start">
+                  <button
+                    className={`p-2 rounded-lg transition-colors ${product.is_spotlight ? 'bg-yellow-100 hover:bg-yellow-200' : 'bg-gray-100 hover:bg-yellow-50'}`}
+                    onClick={(event) => handleToggleSpotlight(event, product)}
+                    disabled={isProcessing}
+                    aria-label={product.is_spotlight ? `Remove ${productName} from spotlight` : `Add ${productName} to spotlight`}
+                    title={product.is_spotlight ? 'Remove from Spotlight' : 'Add to Spotlight'}
+                  >
+                    {product.is_spotlight
+                      ? <FaStar className="w-4 h-4 text-yellow-500" />
+                      : <FaRegStar className="w-4 h-4 text-gray-500" />
+                    }
+                  </button>
                   <button
                     className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"
                     onClick={(event) => {

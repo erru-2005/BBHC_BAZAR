@@ -1,25 +1,24 @@
 import { createSlice } from '@reduxjs/toolkit'
 
-// Load cached products from localStorage on initialization
-const loadCachedProducts = () => {
-  try {
-    const cached = localStorage.getItem('bbhc_home_products_cache')
-    if (cached) {
-      const parsed = JSON.parse(cached)
-      // CACHE DISABLED FOR DEVELOPMENT: Always return null so it fetches fresh products
-      return null
+// Load cached products and services from localStorage on initialization
+let cachedData = null
+try {
+  const cached = localStorage.getItem('bbhc_home_products_cache')
+  if (cached) {
+    const parsed = JSON.parse(cached)
+    // Only use cache if it's less than 5 minutes old
+    if (Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+      cachedData = parsed
     }
-  } catch (e) {
-    // Ignore localStorage errors
   }
-  return null
+} catch (e) {
+  // Ignore localStorage errors
 }
-
-const cachedData = loadCachedProducts()
 
 const initialState = {
   loading: false,
   error: null,
+  data: null,
   home: {
     // Cache metadata
     productsCacheTimestamp: cachedData?.timestamp || null,
@@ -140,6 +139,7 @@ const initialState = {
     ],
     // Products from backend and wishlist
     products: cachedData?.products || [],
+    services: cachedData?.services || [],
     categories: [],
     wishlist: []
   }
@@ -169,10 +169,27 @@ const dataSlice = createSlice({
       try {
         localStorage.setItem('bbhc_home_products_cache', JSON.stringify({
           products,
+          services: state.home.services, // Keep existing services in cache
           timestamp
         }))
       } catch (e) {
         // Ignore localStorage errors (quota exceeded, etc.)
+      }
+    },
+    setHomeServices(state, action) {
+      const services = Array.isArray(action.payload) ? action.payload : []
+      state.home.services = services
+      
+      // Persist to localStorage along with products
+      try {
+        const timestamp = state.home.productsCacheTimestamp || Date.now()
+        localStorage.setItem('bbhc_home_products_cache', JSON.stringify({
+          products: state.home.products,
+          services,
+          timestamp
+        }))
+      } catch (e) {
+        // Ignore
       }
     },
     setHomeWishlist(state, action) {
@@ -222,5 +239,5 @@ const dataSlice = createSlice({
   }
 })
 
-export const { setData, setLoading, setError, setHomeProducts, setHomeWishlist, setCategories, setRefreshing, updateProductInCache, toggleWishlist, invalidateHomeCache } = dataSlice.actions
+export const { setData, setLoading, setError, setHomeProducts, setHomeServices, setHomeWishlist, setCategories, setRefreshing, updateProductInCache, toggleWishlist, invalidateHomeCache } = dataSlice.actions
 export default dataSlice.reducer

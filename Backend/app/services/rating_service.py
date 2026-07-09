@@ -253,3 +253,76 @@ class RatingService:
         except Exception as e:
             raise Exception(f"Error deleting rating: {str(e)}")
 
+    @staticmethod
+    def get_seller_ratings(seller_id, limit=None, skip=0):
+        """Get all ratings for a seller's products, enriched with product and user details."""
+        try:
+            seller_id = ObjectId(seller_id)
+            query = {'seller_id': seller_id}
+            cursor = mongo.db.ratings.find(query).sort('created_at', -1)
+
+            if skip:
+                cursor = cursor.skip(skip)
+            if limit:
+                cursor = cursor.limit(limit)
+            
+            ratings = [Rating.from_bson(doc) for doc in cursor]
+            
+            # Enrich with product name and user name
+            from app.services.product_service import ProductService
+            from app.services.service_service import ServiceService
+            from app.services.user_service import UserService
+            
+            enriched_ratings = []
+            for r in ratings:
+                r_dict = r.to_dict()
+                product = ProductService.get_product_by_id(r.product_id)
+                if not product:
+                    product = ServiceService.get_service_by_id(r.product_id)
+                user = UserService.get_user_by_id(r.user_id)
+                
+                r_dict['product_name'] = getattr(product, 'product_name', getattr(product, 'service_name', 'Unknown Item'))
+                r_dict['user_name'] = f"{getattr(user, 'first_name', '') or ''} {getattr(user, 'last_name', '') or ''}".strip() or getattr(user, 'username', 'Unknown User') if user else 'Unknown User'
+                enriched_ratings.append(r_dict)
+                
+            return enriched_ratings
+        except Exception as e:
+            raise Exception(f"Error fetching seller ratings: {str(e)}")
+
+    @staticmethod
+    def get_all_ratings(limit=None, skip=0):
+        """Get all ratings system-wide, enriched with product, seller, and user details."""
+        try:
+            cursor = mongo.db.ratings.find({}).sort('created_at', -1)
+            if skip:
+                cursor = cursor.skip(skip)
+            if limit:
+                cursor = cursor.limit(limit)
+                
+            ratings = [Rating.from_bson(doc) for doc in cursor]
+            
+            from app.services.product_service import ProductService
+            from app.services.service_service import ServiceService
+            from app.services.user_service import UserService
+            from app.services.seller_service import SellerService
+            
+            enriched_ratings = []
+            for r in ratings:
+                r_dict = r.to_dict()
+                product = ProductService.get_product_by_id(r.product_id)
+                if not product:
+                    product = ServiceService.get_service_by_id(r.product_id)
+                user = UserService.get_user_by_id(r.user_id)
+                seller = SellerService.get_seller_by_id(r.seller_id) if r.seller_id else None
+                
+                r_dict['product_name'] = getattr(product, 'product_name', getattr(product, 'service_name', 'Unknown Item'))
+                r_dict['user_name'] = f"{getattr(user, 'first_name', '') or ''} {getattr(user, 'last_name', '') or ''}".strip() or getattr(user, 'username', 'Unknown User') if user else 'Unknown User'
+                r_dict['seller_name'] = f"{getattr(seller, 'first_name', '') or ''} {getattr(seller, 'last_name', '') or ''}".strip() or getattr(seller, 'trade_id', 'Unknown Seller') if seller else 'No Seller'
+                
+                enriched_ratings.append(r_dict)
+                
+            return enriched_ratings
+        except Exception as e:
+            raise Exception(f"Error fetching all ratings: {str(e)}")
+
+

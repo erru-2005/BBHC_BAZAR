@@ -19,6 +19,7 @@ import HeartBurst from '../../components/HeartBurst'
 import Toast from '../../components/Toast'
 import { getImageUrl } from '../../utils/image'
 import { getExpectedDeliveryDate, formatDate } from '../../utils/delivery'
+import PublicReviews from '../../components/PublicReviews'
 
 // Sub-component for animated wishlist button (Other Products)
 const WishlistActionButton = ({ productId, isWishlisted, onToggle, isAuthenticated, userType, navigate }) => {
@@ -495,6 +496,12 @@ function PublicProductDetail() {
                   size="md"
                   showStats={true}
                 />
+              </div>
+
+              {/* Customer Reviews Section */}
+              <div className="pt-5 sm:pt-6 border-t border-gray-200">
+                <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Customer Reviews</h2>
+                <PublicReviews itemId={productId} label="Product" />
               </div>
 
               {/* Other Products Section */}

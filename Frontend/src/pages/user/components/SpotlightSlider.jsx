@@ -2,15 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PropTypes from 'prop-types'
 import { getImageUrl } from '../../../utils/image'
 
+import { Link } from 'react-router-dom'
+
 function SpotlightSlide({ slide, className = '' }) {
   return (
-    <div
-      className={`relative overflow-hidden rounded-xl bg-slate-900 aspect-[16/9] lg:aspect-[2/1] ${className}`}
+    <Link
+      to={slide.link || '#'}
+      className={`relative overflow-hidden rounded-xl bg-slate-900 aspect-[16/9] lg:aspect-[2/1] block group ${className}`}
     >
       <img
         src={getImageUrl(slide.image)}
         alt={slide.title}
-        className="h-full w-full object-cover"
+        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-700"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 lg:p-5 text-white">
@@ -22,7 +25,7 @@ function SpotlightSlide({ slide, className = '' }) {
         </p>
         <p className="mt-1 text-[11px] text-gray-200 sm:text-xs lg:text-sm">{slide.cta}</p>
       </div>
-    </div>
+    </Link>
   )
 }
 
