@@ -12,6 +12,7 @@ import { FiArrowLeft, FiCheckCircle, FiChevronRight } from 'react-icons/fi'
 import { motion } from 'framer-motion'
 import RatingBadge from '../../components/RatingBadge'
 import DetailSkeleton from './components/DetailSkeleton'
+import PublicReviews from '../../components/PublicReviews'
 
 function ServiceDetail() {
   const { serviceId } = useParams()
@@ -211,8 +212,16 @@ function ServiceDetail() {
           </section>
 
           {/* Description — below info on mobile, under gallery on desktop */}
-          <section className="order-3 w-full lg:col-span-7">
+          <section className="order-3 w-full lg:col-span-7 space-y-4">
             {descriptionCard}
+            {/* Customer Reviews */}
+            <div className="bg-white rounded-2xl lg:rounded-[32px] p-4 sm:p-5 lg:p-8 shadow-sm border border-slate-100">
+              <h2 className="text-base sm:text-lg lg:text-2xl font-black text-slate-900 mb-4 flex items-center gap-2">
+                <span className="w-1 h-5 sm:h-6 bg-indigo-600 rounded-full" />
+                Customer Reviews
+              </h2>
+              <PublicReviews itemId={serviceId} label="Service" />
+            </div>
           </section>
         </div>
       </main>

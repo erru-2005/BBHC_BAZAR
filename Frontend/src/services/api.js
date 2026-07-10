@@ -1560,6 +1560,34 @@ export const approveProduct = async (productId) => {
 }
 
 /**
+ * Toggle product spotlight status (masters only)
+ */
+export const toggleProductSpotlight = async (productId, isSpotlight) => {
+  try {
+    const response = await apiClient.put(API_ENDPOINTS.API.TOGGLE_PRODUCT_SPOTLIGHT(productId), {
+      is_spotlight: isSpotlight
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to toggle product spotlight status')
+  }
+}
+
+/**
+ * Toggle service spotlight status (masters only)
+ */
+export const toggleServiceSpotlight = async (serviceId, isSpotlight) => {
+  try {
+    const response = await apiClient.put(API_ENDPOINTS.API.TOGGLE_SERVICE_SPOTLIGHT(serviceId), {
+      is_spotlight: isSpotlight
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to toggle service spotlight status')
+  }
+}
+
+/**
  * Reject a pending product (masters only)
  */
 export const rejectProduct = async (productId, moveToBin = true) => {
@@ -1793,7 +1821,8 @@ export const getMyRating = async (productId) => {
     const response = await apiClient.get(API_ENDPOINTS.API.MY_RATING(productId))
     return response.rating
   } catch (error) {
-    throw new Error(error.message || 'Failed to fetch rating')
+    // Return null for any error (404 = not rated yet, 401 = not logged in, etc.)
+    return null
   }
 }
 
@@ -2375,3 +2404,21 @@ export const getOutletSlots = async () => {
   return response.slots
 }
 
+// Ratings API
+export const getSellerRatings = async (sellerId, limit, skip) => {
+  const params = new URLSearchParams()
+  if (limit) params.append('limit', limit)
+  if (skip) params.append('skip', skip)
+  const queryString = params.toString() ? `?${params.toString()}` : ''
+  const response = await apiClient.get(`/api/sellers/${sellerId}/ratings${queryString}`)
+  return response
+}
+
+export const getAllRatings = async (limit, skip) => {
+  const params = new URLSearchParams()
+  if (limit) params.append('limit', limit)
+  if (skip) params.append('skip', skip)
+  const queryString = params.toString() ? `?${params.toString()}` : ''
+  const response = await apiClient.get(`/api/ratings/all${queryString}`)
+  return response
+}

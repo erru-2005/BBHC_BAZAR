@@ -21,10 +21,13 @@ def create_or_update_rating(product_id):
         claims = get_jwt()
         current_user_type = claims.get('user_type')
 
-        # Validate product exists
+        # Validate product or service exists
         product = ProductService.get_product_by_id(product_id)
         if not product:
-            return jsonify({'error': 'Product not found'}), 404
+            from app.services.service_service import ServiceService
+            product = ServiceService.get_service_by_id(product_id)
+            if not product:
+                return jsonify({'error': 'Product or Service not found'}), 404
 
         data = request.get_json() or {}
         
@@ -206,3 +209,40 @@ def delete_rating(rating_id):
     except Exception as e:
         return jsonify({'error': f'Error deleting rating: {str(e)}'}), 500
 
+@ratings_bp.route('/sellers/<seller_id>/ratings', methods=['GET'])
+def get_seller_ratings(seller_id):
+    """Get all ratings for a seller's products (public endpoint)"""
+    try:
+        limit = request.args.get('limit', type=int)
+        skip = request.args.get('skip', type=int, default=0)
+
+        ratings = RatingService.get_seller_ratings(seller_id, limit=limit, skip=skip)
+        
+        return jsonify({
+            'ratings': ratings,
+            'total': len(ratings)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Error fetching seller ratings: {str(e)}'}), 500
+
+@ratings_bp.route('/ratings/all', methods=['GET'])
+@jwt_required()
+def get_all_ratings():
+    """Get all ratings across the system (Master only)"""
+    try:
+        # Verify master
+        claims = get_jwt()
+        if claims.get('user_type') != 'master':
+            return jsonify({'error': 'Unauthorized. Master access required.'}), 403
+            
+        limit = request.args.get('limit', type=int)
+        skip = request.args.get('skip', type=int, default=0)
+
+        ratings = RatingService.get_all_ratings(limit=limit, skip=skip)
+        
+        return jsonify({
+            'ratings': ratings,
+            'total': len(ratings)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Error fetching all ratings: {str(e)}'}), 500

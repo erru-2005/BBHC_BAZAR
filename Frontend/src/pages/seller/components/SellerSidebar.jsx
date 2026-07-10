@@ -6,7 +6,8 @@ import {
   FiBarChart2, 
   FiSettings,
   FiPlus,
-  FiDollarSign
+  FiDollarSign,
+  FiStar
 } from 'react-icons/fi'
 import { motion } from 'framer-motion'
 import { useSelector } from 'react-redux'
@@ -24,11 +25,12 @@ export default function SellerSidebar({ onOpenAddProduct }) {
     { label: 'Wallet', icon: FiDollarSign, path: '/seller/dashboard', state: { view: 'wallet' } },
     { label: 'Products', icon: FiBox, path: '/seller/products' },
     { label: 'Analytics', icon: FiBarChart2, path: '/seller/dashboard', state: { view: 'analytics' } },
+    { label: 'Reviews', icon: FiStar, path: '/seller/dashboard', state: { view: 'reviews' } },
     { label: 'Settings', icon: FiSettings, path: '/seller/settings' },
   ]
 
   const isActive = (item) => {
-    if (item.label === 'Orders' || item.label === 'Dashboard' || item.label === 'Analytics' || item.label === 'Wallet') {
+    if (['Orders', 'Dashboard', 'Analytics', 'Wallet', 'Reviews'].includes(item.label)) {
         const viewOverride = item.state?.view || 'dashboard'
         return location.pathname === '/seller/dashboard' && (location.state?.view === viewOverride || (!location.state?.view && viewOverride === 'dashboard'))
     }

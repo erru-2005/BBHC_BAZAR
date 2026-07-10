@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useLocation, useOutletContext } from 'react-router-dom'
-import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiMoreHorizontal, FiEye, FiPackage, FiSearch, FiCheckCircle, FiAlertCircle, FiPlus, FiXCircle, FiFilter, FiCopy, FiCheck } from 'react-icons/fi'
+import { FiBox, FiClock, FiTrendingUp, FiBriefcase, FiUsers, FiArrowUpRight, FiMoreHorizontal, FiEye, FiPackage, FiSearch, FiCheckCircle, FiAlertCircle, FiPlus, FiXCircle, FiFilter, FiCopy, FiCheck, FiStar } from 'react-icons/fi'
 import { FaQrcode } from 'react-icons/fa6'
 
 import { getSocket } from '../../utils/socket'
@@ -13,6 +13,7 @@ import SellerOrders from './components/SellerOrders'
 import SellerNotifications from './components/SellerNotifications'
 import SellerAnalytics from './components/SellerAnalytics'
 import SellerWallet from './components/SellerWallet'
+import SellerReviews from './components/SellerReviews'
 import Toast from '../../components/Toast'
 import QRCode from 'react-qr-code'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -413,6 +414,7 @@ function Seller() {
   if (activeView === 'notifications') return <SellerNotifications />
   if (activeView === 'analytics') return <SellerAnalytics />
   if (activeView === 'wallet') return <SellerWallet />
+  if (activeView === 'reviews') return <SellerReviews />
 
   return (
     <div className="p-4 md:p-8 flex flex-col gap-4 max-w-7xl mx-auto w-full">
@@ -447,7 +449,7 @@ function Seller() {
       </section>
 
       {/* Quick Stats Grid - Mobile & Desktop Visibility */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mt-2">
+      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6 mt-2">
         {[
           {
             label: 'Revenue', value: formatCurrency(stats.totalRevenue), icon: FiTrendingUp, color: 'blue',
@@ -464,6 +466,11 @@ function Seller() {
           {
             label: 'Orders', value: stats.totalOrders, icon: FiPackage, color: 'rose',
             bg: 'bg-rose-500/10', text: 'text-rose-600', hoverBg: 'group-hover:bg-rose-600', border: 'border-rose-200/50'
+          },
+          {
+            label: 'Reviews', value: 'View', icon: FiStar, color: 'yellow',
+            bg: 'bg-yellow-500/10', text: 'text-yellow-600', hoverBg: 'group-hover:bg-yellow-600', border: 'border-yellow-200/50',
+            action: () => setActiveView('reviews')
           }
         ].map((item, idx) => (
           <motion.div
@@ -471,7 +478,8 @@ function Seller() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: idx * 0.05 }}
-            className={`p-4 lg:p-6 flex flex-col gap-2 md:gap-4 relative overflow-hidden group shadow-[0_20px_60px_-12px_rgba(0,0,0,0.25)] border-2 ${item.border} rounded-[2.5rem] ${item.bg} backdrop-blur-xl`}
+            className={`p-4 lg:p-6 flex flex-col gap-2 md:gap-4 relative overflow-hidden group shadow-[0_20px_60px_-12px_rgba(0,0,0,0.25)] border-2 ${item.border} rounded-[2.5rem] ${item.bg} backdrop-blur-xl ${item.action ? 'cursor-pointer hover:shadow-lg' : ''}`}
+            onClick={item.action}
           >
             <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-white opacity-[0.3] group-hover:opacity-[0.4] group-hover:scale-125 transition-all duration-700" />
             <div className="flex items-center justify-between">

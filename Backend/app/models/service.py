@@ -35,6 +35,7 @@ class Service:
         updated_at=None,
         registration_ip=None,
         registration_user_agent=None,
+        is_spotlight=False,
         delivery_charge=None,
         _id=None
     ):
@@ -62,6 +63,7 @@ class Service:
         self.original_service_id = original_service_id  # For edit requests
         self.registration_ip = registration_ip
         self.registration_user_agent = registration_user_agent
+        self.is_spotlight = bool(is_spotlight)
         self.delivery_charge = delivery_charge
         self.created_at = created_at or datetime.now(timezone.utc)
         self.updated_at = updated_at or datetime.now(timezone.utc)
@@ -92,6 +94,7 @@ class Service:
             'original_service_id': self.original_service_id,
             'registration_ip': self.registration_ip,
             'registration_user_agent': self.registration_user_agent,
+            'is_spotlight': self.is_spotlight,
             'delivery_charge': self.delivery_charge,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at
@@ -123,6 +126,7 @@ class Service:
             'original_service_id': self.original_service_id,
             'registration_ip': self.registration_ip,
             'registration_user_agent': self.registration_user_agent,
+            'is_spotlight': self.is_spotlight,
             'delivery_charge': self.delivery_charge,
             'created_at': self.created_at,
             'updated_at': self.updated_at
@@ -158,6 +162,7 @@ class Service:
             original_service_id=bson_doc.get('original_service_id'),
             registration_ip=bson_doc.get('registration_ip'),
             registration_user_agent=bson_doc.get('registration_user_agent'),
+            is_spotlight=bson_doc.get('is_spotlight', False),
             delivery_charge=bson_doc.get('delivery_charge'),
             created_at=bson_doc.get('created_at'),
             updated_at=bson_doc.get('updated_at')

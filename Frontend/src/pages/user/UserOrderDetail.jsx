@@ -15,12 +15,13 @@ import {
   FaCircleCheck, 
   FaCircleXmark,
   FaStore,
-  FaCalendarDays
+  FaCalendarDays,
+  FaStar
 } from 'react-icons/fa6'
 import MainHeader from './components/MainHeader'
 import MobileMenu from './components/MobileMenu'
 import MobileBottomNav from './components/MobileBottomNav'
-import { getOrder, cancelOrder } from '../../services/api'
+import { getOrder, cancelOrder, createOrUpdateRating, getMyRating } from '../../services/api'
 import { getSocket } from '../../utils/socket'
 
 const calculateArrivalDate = (createdAt, deliverySpan) => {
@@ -207,11 +208,41 @@ function UserOrderDetail() {
   const [copied, setCopied] = useState(false)
   const qrPreviewRef = useRef(null)
 
+  const [rating, setRating] = useState(0)
+  const [reviewText, setReviewText] = useState('')
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [reviewMessage, setReviewMessage] = useState('')
+  const [hasRated, setHasRated] = useState(false)
+
   const fetchOrderDetails = async () => {
     try {
       setLoading(true)
       const data = await getOrder(orderId)
       setOrder(data)
+      
+      // Fetch user's rating if order is completed
+      if (data.status === 'completed') {
+        // order.to_dict() puts the snapshot under 'product' key (not 'product_snapshot')
+        // and the ID is stored as 'id', not '_id'. 'product_id' is always a direct field.
+        const productId =
+          data.product_id ||
+          data.product?.id ||
+          data.product?._id ||
+          data.booking?.service_id ||
+          data.service_id
+        if (productId) {
+          try {
+            const ratingRes = await getMyRating(productId)
+            if (ratingRes) {
+              setRating(ratingRes.rating)
+              setReviewText(ratingRes.review_text || '')
+              setHasRated(true)
+            }
+          } catch (e) {
+            console.error('Failed to fetch rating', e)
+          }
+        }
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -251,6 +282,37 @@ function UserOrderDetail() {
       } finally {
         setCanceling(false)
       }
+    }
+  }
+
+  const handleSubmitReview = async () => {
+    if (rating === 0) {
+      setReviewMessage('Please select a star rating.')
+      return
+    }
+    // order.to_dict() stores the product snapshot under 'product' (not 'product_snapshot')
+    // with the ID as 'id'. 'product_id' is always present as a direct top-level field.
+    const productId =
+      order?.product_id ||
+      order?.product?.id ||
+      order?.product?._id ||
+      order?.booking?.service_id ||
+      order?.service_id
+    if (!productId) {
+      setReviewMessage('Could not identify the item to review.')
+      return
+    }
+
+    try {
+      setIsSubmittingReview(true)
+      setReviewMessage('')
+      await createOrUpdateRating(productId, rating, reviewText)
+      setReviewMessage('Review saved successfully!')
+      setHasRated(true)
+    } catch (e) {
+      setReviewMessage(e.message || 'Failed to save review.')
+    } finally {
+      setIsSubmittingReview(false)
     }
   }
 
@@ -487,6 +549,49 @@ function UserOrderDetail() {
             >
               {canceling ? 'Cancelling Order...' : 'Cancel Order'}
             </button>
+          </div>
+        )}
+
+        {/* Leave a Review Area */}
+        {order.status === 'completed' && (
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-slate-800">
+              <FaStar className="w-4 h-4 text-yellow-400" />
+              <h3 className="text-sm font-black uppercase tracking-wider">{hasRated ? 'Your Review' : 'Leave a Review'}</h3>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex gap-2 justify-center py-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setRating(star)}
+                    className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+                  >
+                    <FaStar className={`w-8 h-8 ${star <= rating ? 'text-yellow-400' : 'text-slate-200'} transition-colors`} />
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                placeholder="What did you think about this item? (Optional)"
+                className="w-full text-sm text-slate-900 bg-white border border-slate-200 rounded-lg p-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[80px]"
+              />
+              {reviewMessage && (
+                <p className={`text-xs font-semibold ${reviewMessage.includes('successfully') ? 'text-green-600' : 'text-red-500'}`}>
+                  {reviewMessage}
+                </p>
+              )}
+              <button
+                onClick={handleSubmitReview}
+                disabled={isSubmittingReview || rating === 0}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50"
+              >
+                {isSubmittingReview ? 'Saving...' : (hasRated ? 'Update Review' : 'Submit Review')}
+              </button>
+            </div>
           </div>
         )}
       </div>

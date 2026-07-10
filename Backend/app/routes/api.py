@@ -1331,6 +1331,77 @@ def reject_product(product_id):
         return jsonify({'error': f'Failed to reject product: {str(e)}'}), 500
 
 
+@api_bp.route('/products/<product_id>/spotlight', methods=['PUT'])
+@jwt_required()
+def toggle_product_spotlight(product_id):
+    """Toggle product spotlight status (masters only)"""
+    try:
+        if not _is_master_request():
+            return jsonify({'error': 'Unauthorized: Only masters can toggle spotlight'}), 403
+
+        data = request.get_json() or {}
+        is_spotlight = data.get('is_spotlight', False)
+        
+        from bson import ObjectId
+        try:
+            obj_id = ObjectId(product_id)
+        except:
+            return jsonify({'error': 'Invalid product ID'}), 400
+
+        result = mongo.db.products.update_one(
+            {'_id': obj_id},
+            {'$set': {'is_spotlight': is_spotlight}}
+        )
+
+        if result.matched_count == 0:
+            return jsonify({'error': 'Product not found'}), 404
+
+        product_doc = mongo.db.products.find_one({'_id': obj_id})
+        if product_doc:
+            from app.models.product import Product
+            product = Product.from_bson(product_doc)
+            emit_product_event('product_updated', product.to_dict())
+
+        return jsonify({'message': 'Spotlight status updated', 'is_spotlight': is_spotlight}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to update spotlight status: {str(e)}'}), 500
+@api_bp.route('/services/<service_id>/spotlight', methods=['PUT'])
+@jwt_required()
+def toggle_service_spotlight(service_id):
+    """Toggle service spotlight status (masters only)"""
+    try:
+        if not _is_master_request():
+            return jsonify({'error': 'Unauthorized: Only masters can toggle spotlight'}), 403
+
+        data = request.get_json() or {}
+        is_spotlight = data.get('is_spotlight', False)
+        
+        from bson import ObjectId
+        try:
+            obj_id = ObjectId(service_id)
+        except:
+            return jsonify({'error': 'Invalid service ID'}), 400
+
+        result = mongo.db.services.update_one(
+            {'_id': obj_id},
+            {'$set': {'is_spotlight': is_spotlight}}
+        )
+
+        if result.matched_count == 0:
+            return jsonify({'error': 'Service not found'}), 404
+
+        service_doc = mongo.db.services.find_one({'_id': obj_id})
+        if service_doc:
+            from app.models.service import Service
+            service = Service.from_bson(service_doc)
+            emit_product_event('service_updated', service.to_dict())
+
+        return jsonify({'message': 'Spotlight status updated', 'is_spotlight': is_spotlight}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to update spotlight status: {str(e)}'}), 500
+
+
+
 @api_bp.route('/products/<product_id>', methods=['DELETE'])
 @jwt_required()
 def delete_product(product_id):

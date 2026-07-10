@@ -80,6 +80,8 @@ export const API_ENDPOINTS = {
     PENDING_PRODUCTS: `${API_BASE_URL}/api/products/pending`,
     APPROVE_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/approve`,
     REJECT_PRODUCT: (productId) => `${API_BASE_URL}/api/products/${productId}/reject`,
+    TOGGLE_PRODUCT_SPOTLIGHT: (productId) => `${API_BASE_URL}/api/products/${productId}/spotlight`,
+    TOGGLE_SERVICE_SPOTLIGHT: (serviceId) => `${API_BASE_URL}/api/services/${serviceId}/spotlight`,
     SERVICES: `${API_BASE_URL}/api/services`,
     SELLER_SERVICES: `${API_BASE_URL}/api/seller/services`,
     PENDING_SERVICES: `${API_BASE_URL}/api/services/pending`,
