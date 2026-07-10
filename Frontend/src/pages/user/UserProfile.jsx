@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { FaLocationDot, FaCalendarDays, FaBoxOpen, FaArrowLeft } from 'react-icons/fa6'
-import { FaUserCircle, FaPhone, FaEnvelope, FaRegSave, FaSignOutAlt } from 'react-icons/fa'
-import { getUserProfile, updateUserProfile, logoutUser } from '../../services/api'
+import { FaUserCircle, FaPhone, FaEnvelope, FaRegSave, FaSignOutAlt, FaCamera } from 'react-icons/fa'
+import { getUserProfile, updateUserProfile, logoutUser, uploadAvatar } from '../../services/api'
 import { setUser, logout } from '../../store/authSlice'
+import { resolveImageUrl, compressToWebP } from '../../utils/image'
+import { motion } from 'framer-motion'
 import MainHeader from './components/MainHeader'
 import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
@@ -71,6 +73,37 @@ function UserProfile() {
     } finally {
       dispatch(logout())
       navigate('/')
+    }
+  }
+
+  const [isUploading, setIsUploading] = useState(false)
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file')
+      return
+    }
+
+    setIsUploading(true)
+    setError(null)
+    setMessage(null)
+
+    try {
+      const compressedFile = await compressToWebP(file, 256, 256, 0.8)
+      const uploadRes = await uploadAvatar(compressedFile, user?.id || user?._id)
+      const imageUrl = uploadRes.url
+      const response = await updateUserProfile({ image_url: imageUrl })
+      dispatch(setUser(response.user))
+      setProfile((prev) => ({ ...prev, image_url: imageUrl }))
+      setMessage('Profile picture updated successfully')
+    } catch (err) {
+      console.error('Upload failed:', err)
+      setError(err.message || 'Failed to update profile picture')
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -148,35 +181,27 @@ function UserProfile() {
       <div className="min-h-screen bg-white py-8 px-4 pb-24 lg:pb-8">
         <div className="max-w-5xl mx-auto space-y-10">
           {/* Skeleton Header */}
-          <section className="space-y-8 border-b border-gray-200 pb-8">
-            <div className="flex flex-col lg:flex-row items-center gap-8">
-              <div className="text-center lg:text-left">
-                {/* Skeleton Profile Icon */}
-                <div className="w-24 h-24 bg-gray-200 rounded-full animate-pulse mx-auto lg:mx-0"></div>
-                {/* Skeleton Name */}
-                <div className="h-8 w-48 bg-gray-200 rounded mt-4 animate-pulse mx-auto lg:mx-0"></div>
-                {/* Skeleton Email */}
-                <div className="h-5 w-40 bg-gray-200 rounded mt-2 animate-pulse mx-auto lg:mx-0"></div>
+          <div className="relative w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg animate-pulse">
+            <div className="h-32 w-full bg-gray-200" />
+            <div className="relative p-6 pt-0">
+              <div className="relative -mt-12 flex justify-between items-end">
+                <div className="w-24 h-24 rounded-full border-4 border-white bg-gray-200" />
+                <div className="flex gap-3 mb-2">
+                  <div className="w-32 h-10 bg-gray-200 rounded-2xl" />
+                  <div className="w-24 h-10 bg-gray-200 rounded-2xl" />
+                </div>
               </div>
-              <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Skeleton Info Cards */}
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50">
-                    <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
-                    <div className="flex-1">
-                      <div className="h-3 w-16 bg-gray-200 rounded mb-2 animate-pulse"></div>
-                      <div className="h-5 w-24 bg-gray-200 rounded animate-pulse"></div>
-                    </div>
-                  </div>
-                ))}
+              <div className="mt-4 space-y-2">
+                <div className="h-6 w-48 bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+              </div>
+              <div className="mt-6 grid grid-cols-3 items-center gap-4 rounded-2xl bg-gray-50 p-4 border border-gray-100 h-20">
+                <div className="h-full w-full bg-gray-200 rounded-xl" />
+                <div className="h-full w-full bg-gray-200 rounded-xl" />
+                <div className="h-full w-full bg-gray-200 rounded-xl" />
               </div>
             </div>
-            {/* Skeleton Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 h-12 bg-gray-200 rounded-2xl animate-pulse"></div>
-              <div className="flex-1 h-12 bg-gray-200 rounded-2xl animate-pulse"></div>
-            </div>
-          </section>
+          </div>
 
           {/* Skeleton Personal Information */}
           <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8">
@@ -202,6 +227,20 @@ function UserProfile() {
     )
   }
 
+  const avatarUrl = resolveImageUrl(profile?.image_url || user?.image_url) || `https://ui-avatars.com/api/?name=${encodeURIComponent((profile?.first_name || user?.first_name || 'U') + ' ' + (profile?.last_name || user?.last_name || ''))}&background=d97706&color=fff&size=128`
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.4,
+        ease: 'easeOut'
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white text-gray-900 pb-24 lg:pb-8">
       <MainHeader onOpenMenu={() => setMobileMenuOpen(true)}>
@@ -214,57 +253,102 @@ function UserProfile() {
       />
 
       <div className="max-w-5xl mx-auto py-8 px-4 space-y-10">
-        <section className="space-y-8 border-b border-gray-200 pb-8">
-          <div className="flex flex-col lg:flex-row items-center gap-8">
-            <div className="text-center lg:text-left">
-              <FaUserCircle className="w-24 h-24 text-amber-700 mx-auto lg:mx-0" />
-              <h1 className="text-3xl font-semibold tracking-tight mt-4 text-black">
-                {profile.first_name || user?.first_name} {profile.last_name || user?.last_name}
-              </h1>
-              <p className="text-gray-600">{profile.email}</p>
-            </div>
-            <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50">
-                <FaPhone className="w-5 h-5 text-amber-700" />
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-gray-500">Phone</p>
-                  <p className="font-semibold text-black">{profile.phone_number || user?.phone_number}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50">
-                <FaCalendarDays className="w-5 h-5 text-amber-700" />
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-gray-500">Member Since</p>
-                  <p className="font-semibold text-black">{formatDate(user?.created_at)}</p>
-                </div>
-              </div>
-              <div className="sm:col-span-2 flex items-start gap-3 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50">
-                <FaLocationDot className="w-5 h-5 text-amber-700 mt-1" />
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-gray-500">Address</p>
-                  <p className="font-semibold text-black">{profile.address || 'Not provided'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+        <motion.div
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          className="relative w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg"
+        >
+          {/* Cover Image / Gradient */}
+          <div className="h-32 w-full bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500" />
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => navigate('/user/orders')}
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 border border-amber-400 text-black font-semibold py-3 hover:bg-amber-500 transition"
-            >
-              <FaBoxOpen className="text-amber-700" />
-              View Orders
-            </button>
-            <button
-              onClick={handleLogout}
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500 border border-red-500 text-white font-semibold py-3 hover:bg-red-600 transition"
-            >
-              <FaSignOutAlt className="text-white" />
-              Logout
-            </button>
+          <div className="relative p-6 pt-0">
+            {/* Avatar & Action Buttons */}
+            <div className="relative -mt-12 flex flex-col sm:flex-row justify-between items-center sm:items-end gap-4">
+              <div className="relative group cursor-pointer w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white shadow-md">
+                {isUploading ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <div className="w-6 h-6 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <img
+                    src={avatarUrl}
+                    alt={`${profile.first_name || user?.first_name || 'User'}'s avatar`}
+                    className="w-full h-full object-cover"
+                  />
+                )}
+                {/* Camera icon over profile */}
+                <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                  <FaCamera className="w-6 h-6 text-white" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
+                </label>
+              </div>
+
+              {/* Action Buttons (Orders, Logout) */}
+              <div className="flex gap-3 mb-2 w-full sm:w-auto">
+                <button
+                  onClick={() => navigate('/user/orders')}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400 border border-amber-400 text-black font-semibold px-5 py-2.5 hover:bg-amber-500 transition text-sm shadow-sm active:scale-95"
+                >
+                  <FaBoxOpen className="text-amber-700" />
+                  View Orders
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500 border border-red-500 text-white font-semibold px-5 py-2.5 hover:bg-red-600 transition text-sm shadow-sm active:scale-95"
+                >
+                  <FaSignOutAlt className="text-white" />
+                  Logout
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 text-center sm:text-left min-w-0">
+              {/* Name & Email */}
+              <h3 className="text-2xl font-bold text-black break-words">
+                {profile.first_name || user?.first_name} {profile.last_name || user?.last_name}
+              </h3>
+              <p className="text-sm text-gray-500 break-all">
+                {profile.email || user?.email}
+              </p>
+
+              {/* Stats Section / Member Info */}
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-5 items-center justify-items-center gap-4 rounded-2xl bg-gray-50 p-4 border border-gray-100">
+                <div className="flex flex-col items-center gap-1 text-center md:col-span-1">
+                  <div className="flex items-center gap-1.5">
+                    <FaPhone className="h-4 w-4 text-amber-700 flex-shrink-0" />
+                    <span className="font-semibold text-black text-sm">{profile.phone_number || user?.phone_number || 'N/A'}</span>
+                  </div>
+                  <span className="text-xs text-gray-500">Phone</span>
+                </div>
+                <div className="hidden md:block h-8 w-px bg-gray-200" />
+                <div className="flex flex-col items-center gap-1 text-center md:col-span-1">
+                  <div className="flex items-center gap-1.5">
+                    <FaCalendarDays className="h-4 w-4 text-amber-700 flex-shrink-0" />
+                    <span className="font-semibold text-black text-sm">{formatDate(user?.created_at)}</span>
+                  </div>
+                  <span className="text-xs text-gray-500">Member Since</span>
+                </div>
+                <div className="hidden md:block h-8 w-px bg-gray-200" />
+                <div className="flex flex-col items-center gap-1 text-center md:col-span-1 w-full px-2">
+                  <div className="flex items-center justify-center gap-1.5 w-full">
+                    <FaLocationDot className="h-4 w-4 text-amber-700 flex-shrink-0" />
+                    <span className="font-semibold text-black text-sm truncate max-w-[200px]" title={profile.address || 'Not provided'}>
+                      {profile.address || 'Not provided'}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500">Address</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </section>
+        </motion.div>
 
         <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-xl">
           <div className="flex items-center justify-between flex-wrap gap-2 mb-6">
@@ -291,13 +375,13 @@ function UserProfile() {
                   key={field.key}
                   className="border border-gray-200 rounded-2xl px-4 py-3 bg-gray-50"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <div className="flex items-start gap-3 flex-1">
-                      <FieldIcon className="text-amber-700 mt-1" />
-                      <div className="flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 min-w-0">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <FieldIcon className="text-amber-700 mt-1 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
                         <p className="text-xs uppercase tracking-widest text-gray-500">{field.label}</p>
                         {!isEditing ? (
-                          <p className="font-medium text-black mt-1">
+                          <p className="font-medium text-black mt-1 break-all">
                             {value || <span className="italic text-gray-400">Not provided</span>}
                           </p>
                         ) : field.textarea ? (

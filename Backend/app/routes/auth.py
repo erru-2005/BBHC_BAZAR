@@ -1192,7 +1192,7 @@ def user_profile():
         if not data:
             return jsonify({'error': 'Request body is required'}), 400
 
-        allowed_fields = ['first_name', 'last_name', 'phone_number', 'address', 'date_of_birth']
+        allowed_fields = ['first_name', 'last_name', 'phone_number', 'address', 'date_of_birth', 'image_url']
         update_data = {k: v for k, v in data.items() if k in allowed_fields}
 
         if 'phone_number' in update_data and update_data['phone_number']:

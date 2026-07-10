@@ -9,10 +9,10 @@ import { clearDeviceToken } from '../../utils/device'
 import { initSocket, getSocket, disconnectSocket } from '../../utils/socket'
 import { bindPortalRealtimeSync, logoutUser } from '../../services/api'
 import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
-import { HiHome } from 'react-icons/hi'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins ,FaGlobe, FaTruck} from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins, FaGlobe, FaTruck } from 'react-icons/fa'
+import { FaHouse } from 'react-icons/fa6'
 import PasswordResetDialog from '../../components/PasswordResetDialog'
 import AddSeller from './components/AddSeller'
 import AddMaster from './components/AddMaster'
@@ -55,7 +55,7 @@ function Master() {
     bindPortalRealtimeSync()
   }, [token])
   const defaultTabs = [
-    { id: 'home', label: 'Home', icon: HiHome },
+    { id: 'home', label: 'Home', icon: FaHouse },
     { id: 'orders', label: 'Orders', icon: FaShoppingBag },
     { id: 'add-product', label: 'Add Product', icon: FaBox },
     { id: 'add-service', label: 'Add Service', icon: FaBox },
@@ -484,7 +484,7 @@ function Master() {
           {/* Tabs Navigation - Integrated with Header */}
           <div 
             ref={tabsContainerRef}
-            className="flex items-center gap-2 overflow-x-auto pb-3 relative"
+            className="flex items-center gap-4 overflow-x-auto pb-3 relative pr-12 no-scrollbar"
             style={{ 
               WebkitOverflowScrolling: 'touch',
               overflowY: 'hidden'
@@ -504,58 +504,58 @@ function Master() {
               <FaBars className="w-5 h-5 flex-shrink-0 text-gray-700" />
             </button>
 
-            {tabs.map((tab, index) => (
-              <button
-                key={tab.id}
-                data-tab-index={index}
-                draggable={tab.id !== 'home' && !isDragging}
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-                onTouchStart={(e) => handleTouchStart(e, index)}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                onTouchCancel={handleTouchCancel}
-                onClick={() => {
-                  if (!isDragging && !longPressTimer) {
-                    handleTabSelection(tab.id)
-                  }
-                }}
-                className={`tab-button px-5 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 select-none ${
-                  activeTab === tab.id
-                    ? 'bg-black text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                } ${
-                  tab.id === 'home' 
-                    ? 'cursor-default' 
-                    : 'cursor-move'
-                } ${
-                  (draggedTab === index || touchCurrentIndex === index) && isDragging
-                    ? 'opacity-50 scale-95' 
-                    : ''
-                } ${
-                  dragOverIndex === index && tab.id !== 'home'
-                    ? 'ring-2 ring-black ring-offset-2 scale-105'
-                    : ''
-                } ${
-                  isDragging && tab.id !== 'home'
-                    ? 'transition-transform'
-                    : ''
-                }`}
-                title={tab.id === 'home' ? 'Home (Fixed)' : 'Long press and drag to reorder'}
-              >
-                {tab.id === 'home' ? (
-                  <tab.icon className="w-5 h-5 flex-shrink-0" />
-                ) : (
-                  <>
-                    <tab.icon className="w-5 h-5 flex-shrink-0" />
-                    <span>{tab.label}</span>
-                  </>
-                )}
-              </button>
-            ))}
+            {tabs.map((tab, index) => {
+              const TabIcon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  data-tab-index={index}
+                  draggable={tab.id !== 'home' && !isDragging}
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                  onTouchStart={(e) => handleTouchStart(e, index)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchCancel={handleTouchCancel}
+                  onClick={() => {
+                    if (!isDragging && !longPressTimer) {
+                      handleTabSelection(tab.id)
+                    }
+                  }}
+                  className={`tab-button px-5 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap flex items-center gap-2 select-none ${
+                    activeTab === tab.id
+                      ? 'bg-black text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } ${
+                    tab.id === 'home' 
+                      ? 'cursor-default' 
+                      : 'cursor-move'
+                  } ${
+                    (draggedTab === index || touchCurrentIndex === index) && isDragging
+                      ? 'opacity-50 scale-95' 
+                      : ''
+                  } ${
+                    dragOverIndex === index && tab.id !== 'home'
+                      ? 'ring-2 ring-black ring-offset-2 scale-105'
+                      : ''
+                  } ${
+                    isDragging && tab.id !== 'home'
+                      ? 'transition-transform'
+                      : ''
+                  }`}
+                  title={tab.id === 'home' ? 'Home (Fixed)' : 'Long press and drag to reorder'}
+                >
+                  <TabIcon className="w-5 h-5 flex-shrink-0" />
+                  {tab.id !== 'home' && <span>{tab.label}</span>}
+                </button>
+              )
+            })}
+            
+            {/* Spacer to guarantee right padding in all browsers when scrolling */}
+            <div className="w-12 flex-shrink-0" aria-hidden="true" />
           </div>
         </div>
       </div>

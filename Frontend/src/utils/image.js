@@ -95,3 +95,78 @@ export const getOrderProductImage = (order) => {
   }
   return null
 }
+
+/**
+ * Compresses an image file and converts it to WebP format on the client side
+ * @param {File} file - The original uploaded file
+ * @param {number} maxWidth - Maximum width
+ * @param {number} maxHeight - Maximum height
+ * @param {number} quality - Compression quality (0.0 to 1.0)
+ * @returns {Promise<File>} A promise that resolves to the compressed WebP File
+ */
+export const compressToWebP = (file, maxWidth = 256, maxHeight = 256, quality = 0.8) => {
+  return new Promise((resolve, reject) => {
+    // If the file is not an image, resolve with original
+    if (!file || !file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Calculate new dimensions to maintain aspect ratio
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error("Canvas 2D context not available"));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to WebP blob
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const newName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+              const webpFile = new File([blob], newName, {
+                type: "image/webp",
+                lastModified: Date.now()
+              });
+              resolve(webpFile);
+            } else {
+              // Fallback to original file on failure
+              resolve(file);
+            }
+          },
+          'image/webp',
+          quality
+        );
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};

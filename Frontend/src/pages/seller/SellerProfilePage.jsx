@@ -7,7 +7,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { uploadAvatar, updateSellerProfile } from '../../services/api'
 import { updateUserInfo } from '../../store/authSlice'
-import { fixImageUrl } from '../../utils/image'
+import { fixImageUrl, compressToWebP } from '../../utils/image'
 import Toast from '../../components/Toast'
 import { AnimatePresence, motion } from 'framer-motion'
 
@@ -93,7 +93,8 @@ export default function SellerProfilePage() {
         setIsUploading(true)
         setUploadSuccess(false)
         try {
-            const uploadRes = await uploadAvatar(file, user.id)
+            const compressedFile = await compressToWebP(file, 256, 256, 0.8)
+            const uploadRes = await uploadAvatar(compressedFile, user.id)
             const imageUrl = uploadRes.url
             await updateSellerProfile(user.id, { image_url: imageUrl })
             dispatch(updateUserInfo({ image_url: imageUrl }))

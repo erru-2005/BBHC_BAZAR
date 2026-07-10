@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { uploadAvatar, updateSellerProfile } from '../../../services/api'
 import { updateUserInfo } from '../../../store/authSlice'
-import { fixImageUrl } from '../../../utils/image'
+import { fixImageUrl, compressToWebP } from '../../../utils/image'
 import Toast from '../../../components/Toast'
 
 const backdropVariants = {
@@ -111,7 +111,8 @@ function SellerProfile({ isOpen, onClose, user, onLogout, onResetPassword, onEdi
 
         setIsUploading(true)
         try {
-            const uploadRes = await uploadAvatar(file, user.id)
+            const compressedFile = await compressToWebP(file, user.id)
+            const uploadRes = await uploadAvatar(compressedFile, user.id)
             const imageUrl = uploadRes.url
             await updateSellerProfile(user.id, { image_url: imageUrl })
             dispatch(updateUserInfo({ image_url: imageUrl }))
