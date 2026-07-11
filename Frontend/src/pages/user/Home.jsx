@@ -100,7 +100,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
       const cacheTimestamp = home.productsCacheTimestamp
       const cacheMaxAge = home.productsCacheMaxAge || 5 * 60 * 1000 // 5 minutes
       const isCacheStale = !cacheTimestamp || (Date.now() - cacheTimestamp) > cacheMaxAge
-      
+
       // If we have cached data and it's not stale, show it immediately
       if (!forceRefresh && !isCacheStale && products && products.length > 0 && services && services.length > 0) {
         // Data is fresh, no need to reload products
@@ -121,7 +121,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
             dispatch(setRefreshing(false))
           }
         }
-        
+
         // Still load wishlist if user is authenticated (wishlist changes more frequently)
         if (isAuthenticated && userType === 'user') {
           try {
@@ -146,12 +146,12 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
           // We have cached data but it's stale - refresh in background
           dispatch(setRefreshing(true))
         }
-        
+
         const [backendProducts, backendServices] = await Promise.all([
           getProducts(),
           getServices()
         ])
-        
+
         dispatch(setHomeProducts(backendProducts))
         dispatch(setHomeServices(backendServices))
 
@@ -175,10 +175,10 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
       } catch (err) {
         console.error('Home load error:', err)
         // Differentiate between auth errors and connectivity issues
-        const isAuthError = err.message?.toLowerCase().includes('authorization') || 
-                           err.message?.toLowerCase().includes('login') ||
-                           err.message?.toLowerCase().includes('401')
-        
+        const isAuthError = err.message?.toLowerCase().includes('authorization') ||
+          err.message?.toLowerCase().includes('login') ||
+          err.message?.toLowerCase().includes('401')
+
         if (isAuthError) {
           // If it's an auth error but we thought we were authenticated, 
           // it just means the session is invalid. We can stay on home as a guest.
@@ -200,11 +200,11 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
   useEffect(() => {
     // Only check cache when navigating to home (not on initial mount)
     if (location.pathname !== '/') return
-    
+
     const cacheTimestamp = home.productsCacheTimestamp
     const cacheMaxAge = home.productsCacheMaxAge || 5 * 60 * 1000
     const isCacheStale = !cacheTimestamp || (Date.now() - cacheTimestamp) > cacheMaxAge
-    
+
     // If cache exists and is fresh, no action needed (data already shown)
     // If cache is stale, trigger background refresh
     if (products && products.length > 0 && services && services.length > 0 && isCacheStale) {
@@ -228,7 +228,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
   // Listen for real-time product updates via socket
   useEffect(() => {
     const socket = getSocket()
-    
+
     if (!socket) return
 
     const handleProductUpdate = (updatedProduct) => {
@@ -322,15 +322,15 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
         onClose={() => setMobileMenuOpen(false)}
       />
 
-      <main className="pt-24 pb-20 lg:pt-24 lg:pb-0 min-h-screen">
+      <main className="pt-4 pb-20 lg:pt-4 lg:pb-0 min-h-screen">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 space-y-8 md:space-y-12 pb-12">
-            
+
           {/* Spotlight Banner - Full width with rounded corners */}
           <div className="w-full">
-            <h3 className="text-xl font-bold text-slate-800 mb-4 px-2">Spotlights</h3>
+
             <SpotlightSlider slides={combinedSpotlightSlides} />
           </div>
-          
+
           {recommendationRows.map((row) => (
             <RecommendationRow key={row.id} title={row.title} products={row.products} />
           ))}

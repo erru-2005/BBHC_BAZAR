@@ -327,7 +327,7 @@ function UserOrders() {
             {!isOrderService(order) && (
               <div className="mt-1">
                 <span className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1.5 w-fit">
-                  🚚 Expected Arrival: On or before {calculateArrivalDate(createdAt, order.delivery_span)}
+                  🚚 Expected Arrival: On or before {order.arrivalDate || calculateArrivalDate(createdAt, order.delivery_span)}
                 </span>
               </div>
             )}

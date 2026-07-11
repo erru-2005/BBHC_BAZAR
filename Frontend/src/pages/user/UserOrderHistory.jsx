@@ -172,7 +172,7 @@ function UserOrderHistory() {
             {!isService && (
               <div className="mt-1">
                 <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1 w-fit">
-                  🚚 Expected Arrival: On or before {calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span)}
+                  🚚 Expected Arrival: On or before {order.arrivalDate || order.arrival_date || calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span)}
                 </span>
               </div>
             )}

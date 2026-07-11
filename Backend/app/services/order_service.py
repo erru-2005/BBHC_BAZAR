@@ -36,6 +36,37 @@ class OrderService:
         return f"BBHC-{timestamp}-{random_suffix}"
 
     @staticmethod
+    def calculate_arrival_date(created_at, delivery_span):
+        """Calculate arrival date skipping Sundays and converting to IST."""
+        if not created_at:
+            return None
+        try:
+            span = int(delivery_span if delivery_span is not None else 2)
+        except (ValueError, TypeError):
+            span = 2
+
+        if span < 1:
+            return None
+
+        # Convert to IST (UTC+5:30)
+        from datetime import timezone as dt_timezone, timedelta
+        ist = dt_timezone(timedelta(hours=5, minutes=30))
+        local_dt = created_at.astimezone(ist)
+
+        days_to_add = span - 1
+
+        # If it is Sunday, move to Monday (isoweekday() == 7 for Sunday)
+        while local_dt.isoweekday() == 7:
+            local_dt += timedelta(days=1)
+
+        while days_to_add > 0:
+            local_dt += timedelta(days=1)
+            if local_dt.isoweekday() != 7:
+                days_to_add -= 1
+
+        return local_dt.strftime('%d-%m-%Y')
+
+    @staticmethod
     def generate_secure_token(order_id, seller_id, user_id, role='user'):
         """Generate a secure token for QR code scanning."""
         # Create a unique token based on order, seller, user, and role
@@ -73,6 +104,12 @@ class OrderService:
             order_data['delivery_span'] = product_doc.get('delivery_span', 2)
         else:
             order_data['delivery_span'] = 2
+
+        # Calculate and store arrival date
+        order_data['arrival_date'] = OrderService.calculate_arrival_date(
+            order_data['created_at'],
+            order_data['delivery_span']
+        )
         
         # Detect if it's a service order
         product_snapshot = order_data.get('product_snapshot') or {}
@@ -98,6 +135,11 @@ class OrderService:
     @staticmethod
     def get_orders(filter_query=None, page=1, limit=10):
         """Fetch orders from both product and service collections, merged and sorted."""
+        try:
+            OrderService.check_and_cancel_expired_orders()
+        except Exception as e:
+            print(f"Error checking/cancelling expired orders: {e}")
+
         filter_query = filter_query or {}
         skip = (page - 1) * limit
         
@@ -124,6 +166,11 @@ class OrderService:
     @staticmethod
     def get_order_by_id(order_id):
         try:
+            try:
+                OrderService.check_and_cancel_expired_orders()
+            except Exception as e:
+                print(f"Error checking/cancelling expired orders: {e}")
+
             oid = ObjectId(order_id)
             # Try product orders first
             doc = mongo.db.orders.find_one({'_id': oid})
@@ -331,6 +378,10 @@ class OrderService:
             }
             if delivery_span is not None:
                 update_set['delivery_span'] = delivery_span
+                update_set['arrival_date'] = OrderService.calculate_arrival_date(
+                    order.created_at,
+                    delivery_span
+                )
 
             result = collection.update_one(
                 {'_id': order_obj_id},
@@ -646,3 +697,105 @@ class OrderService:
 
         updated_order = OrderService.get_order_by_id(order_id)
         return updated_order, None
+
+    @staticmethod
+    def _send_cancellation_notifications(order_doc):
+        """Send automatic cancellation sorry message and email to the user."""
+        from app.utils.sms import SMSService
+        
+        user_id = order_doc.get('user_id')
+        user_doc = None
+        if user_id:
+            user_doc = mongo.db.users.find_one({'_id': OrderService._ensure_object_id(user_id)})
+            
+        # Get phone and email
+        phone = None
+        email = None
+        user_name = "Customer"
+        
+        if user_doc:
+            phone = user_doc.get('phone_number')
+            email = user_doc.get('email')
+            user_name = user_doc.get('name') or "Customer"
+        else:
+            user_snapshot = order_doc.get('user_snapshot') or {}
+            phone = user_snapshot.get('phone_number')
+            email = user_snapshot.get('email')
+            user_name = user_snapshot.get('name') or "Customer"
+            
+        if not phone and not email:
+            print("[OrderService] Cannot send cancellation notification: no phone or email available.")
+            return
+            
+        order_number = order_doc.get('order_number') or order_doc.get('orderNumber') or "N/A"
+        product_snapshot = order_doc.get('product_snapshot') or order_doc.get('product') or {}
+        product_name = product_snapshot.get('name') or product_snapshot.get('product_name') or "item"
+        
+        message_body = (
+            f"Dear {user_name}, we are sorry to inform you that your order #{order_number} "
+            f"for '{product_name}' has been automatically cancelled because the seller did not "
+            f"confirm the delivery timeframe. We apologize for the inconvenience."
+        )
+        
+        # Use SMSService to deliver via SMTP email + WebSocket/FCM
+        SMSService.send_message(
+            phone_number=phone,
+            message_body=message_body,
+            product_thumbnail=product_snapshot.get('thumbnail'),
+            email=email
+        )
+
+    @staticmethod
+    def check_and_cancel_expired_orders():
+        """Find pending orders that have expired and cancel them."""
+        from datetime import datetime, timezone, timedelta
+        ist = timezone(timedelta(hours=5, minutes=30))
+        now_ist = datetime.now(timezone.utc).astimezone(ist)
+        today_date = now_ist.date()
+
+        # Let's query all pending seller orders from both collections
+        for collection in [mongo.db.orders, mongo.db.service_orders]:
+            pending_orders = list(collection.find({'status': 'pending_seller'}))
+            for doc in pending_orders:
+                created_at = doc.get('created_at')
+                if not created_at:
+                    continue
+                # Ensure created_at is timezone-aware
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+                
+                order_date = created_at.astimezone(ist).date()
+                delivery_span = int(doc.get('delivery_span', 2))
+                
+                days_passed = (today_date - order_date).days
+                if days_passed >= delivery_span:
+                    # Cancel the order!
+                    order_id = doc['_id']
+                    
+                    # Update status to cancelled
+                    status_history = doc.get('status_history', [])
+                    status_history.append({
+                        'status': 'cancelled',
+                        'timestamp': datetime.now(timezone.utc),
+                        'note': 'Order automatically cancelled: seller did not accept within delivery timeframe',
+                        'updated_by': 'system'
+                    })
+                    
+                    collection.update_one(
+                        {'_id': order_id},
+                        {
+                            '$set': {
+                                'status': 'cancelled',
+                                'rejection_reason': 'Order automatically cancelled: seller did not accept within delivery timeframe',
+                                'rejected_by': 'system',
+                                'updated_at': datetime.now(timezone.utc),
+                                'status_history': status_history
+                            }
+                        }
+                    )
+                    
+                    # Send sorry message & mail to the user
+                    try:
+                        OrderService._send_cancellation_notifications(doc)
+                    except Exception as e:
+                        print(f"Error sending cancellation notifications: {e}")

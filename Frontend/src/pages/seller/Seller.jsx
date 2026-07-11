@@ -664,11 +664,34 @@ function Seller() {
             const maxDays = order.product?.delivery_span || order.product_current?.delivery_span || order.delivery_span || 2
             const currentSpan = selectedSpans[order.id] || maxDays
 
+            const orderDate = new Date(order.createdAt || order.created_at)
+            const todayDate = new Date()
+            orderDate.setHours(0, 0, 0, 0)
+            todayDate.setHours(0, 0, 0, 0)
+            const diffTime = todayDate - orderDate
+            const daysPassed = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)))
+
             const options = []
             for (let i = 1; i <= maxDays; i++) {
-              if (i === 1) options.push({ value: 1, label: 'Today' })
-              else if (i === 2) options.push({ value: 2, label: 'Tomorrow' })
-              else options.push({ value: i, label: `${i} Days` })
+              let label = ''
+              let disabled = false
+
+              if (i < daysPassed + 1) {
+                disabled = true
+                if (i === daysPassed) {
+                  label = `${i} Day (Yesterday)`
+                } else {
+                  label = `${i} Days (Passed)`
+                }
+              } else if (i === daysPassed + 1) {
+                label = 'Today'
+              } else if (i === daysPassed + 2) {
+                label = 'Tomorrow'
+              } else {
+                label = `${i} Days`
+              }
+
+              options.push({ value: i, label, disabled })
             }
 
             return (
@@ -717,7 +740,7 @@ function Seller() {
                     </div>
                     {!isOrderService(order) && (
                       <div className="mt-1 text-[10px] font-bold text-slate-500">
-                        Arrival: On/Before {calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span || currentSpan)}
+                        Arrival: On/Before {order.arrivalDate || order.arrival_date || calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span || currentSpan)}
                       </div>
                     )}
                     {status === 'pending_seller' && !isOrderService(order) && (
@@ -732,7 +755,7 @@ function Seller() {
                           className="bg-transparent text-[10px] font-bold text-slate-800 focus:outline-none cursor-pointer"
                         >
                           {options.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
+                            <option key={opt.value} value={opt.value} disabled={opt.disabled}>
                               {opt.label}
                             </option>
                           ))}
@@ -849,7 +872,7 @@ function Seller() {
                                   <span className="text-[10px] font-black uppercase tracking-widest">Standard Delivery</span>
                                 </div>
                                 <span className="text-[10px] font-bold text-slate-500">
-                                  Arrival: On/Before {calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span || currentSpan)}
+                                  Arrival: On/Before {order.arrivalDate || order.arrival_date || calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span || currentSpan)}
                                 </span>
                                 {status === 'pending_seller' && (
                                   <div className="flex items-center gap-1 mt-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 shadow-sm w-fit">

@@ -753,7 +753,7 @@ function Outlet() {
                           <div className="flex justify-between pt-2 border-t border-blue-100">
                             <span className="text-sm text-gray-600">Expected Delivery</span>
                             <span className="text-sm font-bold text-emerald-700">
-                              On/Before {calculateArrivalDate(scannedOrder.createdAt, scannedOrder.delivery_span)}
+                              On/Before {scannedOrder.arrivalDate || scannedOrder.arrival_date || calculateArrivalDate(scannedOrder.createdAt, scannedOrder.delivery_span)}
                             </span>
                           </div>
                         )}
@@ -926,7 +926,7 @@ function Outlet() {
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
                     <span className="text-sm font-semibold text-gray-700">Expected Delivery</span>
                     <span className="text-sm font-bold text-emerald-700">
-                      On or before {calculateArrivalDate(pendingOrder.createdAt || pendingOrder.created_at, pendingOrder.delivery_span)}
+                      On or before {pendingOrder.arrivalDate || pendingOrder.arrival_date || calculateArrivalDate(pendingOrder.createdAt || pendingOrder.created_at, pendingOrder.delivery_span)}
                     </span>
                   </div>
                 )}

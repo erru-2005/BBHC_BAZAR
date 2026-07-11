@@ -42,6 +42,7 @@ class Order:
         type='product',
         delivery_span=2,
         delivery_charge=0.0,
+        arrival_date=None,
         created_at=None,
         updated_at=None,
         _id=None
@@ -82,6 +83,7 @@ class Order:
         self.metadata = metadata or {}
         self.type = type
         self.delivery_span = delivery_span
+        self.arrival_date = arrival_date
         self.created_at = created_at or datetime.now(timezone.utc)
         self.updated_at = updated_at or datetime.now(timezone.utc)
 
@@ -121,6 +123,7 @@ class Order:
             'type': self.type,
             'delivery_span': self.delivery_span,
             'deliveryCharge': self.delivery_charge,
+            'arrivalDate': self.arrival_date,
             'createdAt': self._format_datetime(self.created_at),
             'updatedAt': self._format_datetime(self.updated_at)
         }
@@ -161,6 +164,7 @@ class Order:
             'type': self.type,
             'delivery_span': self.delivery_span,
             'delivery_charge': self.delivery_charge,
+            'arrival_date': self.arrival_date,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
@@ -203,6 +207,7 @@ class Order:
             type=bson_doc.get('type', 'product'),
             delivery_span=bson_doc.get('delivery_span', 2),
             delivery_charge=bson_doc.get('delivery_charge', 0.0),
+            arrival_date=bson_doc.get('arrival_date'),
             created_at=bson_doc.get('created_at'),
             updated_at=bson_doc.get('updated_at')
         )

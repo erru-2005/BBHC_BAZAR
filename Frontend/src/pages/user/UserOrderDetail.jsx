@@ -445,7 +445,7 @@ function UserOrderDetail() {
           {!isService && (
             <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2.5 flex items-center gap-2">
               <span className="text-xs font-black text-emerald-800 uppercase tracking-wide">
-                🚚 Expected Arrival: On or before {calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span)}
+                🚚 Expected Arrival: On or before {order.arrivalDate || order.arrival_date || calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span)}
               </span>
             </div>
           )}
