@@ -9,8 +9,7 @@ import { logout } from '../../store/authSlice'
 import { clearDeviceToken } from '../../utils/device'
 import { disconnectSocket } from '../../utils/socket'
 import { HiHome } from 'react-icons/hi'
-import { FaShoppingBag, FaBars, FaSignOutAlt, FaSearch, FaQrcode, FaTimes, FaCheck, FaUser, FaBox, FaStore } from 'react-icons/fa'
-import OrdersList from '../master/components/OrdersList'
+import { FaShoppingBag, FaBars, FaSignOutAlt, FaSearch, FaQrcode, FaTimes, FaCheck, FaUser, FaBox, FaStore, FaTruck, FaCalendarAlt, FaExclamationTriangle, FaBoxOpen, FaCheckCircle, FaFilter, FaSync } from 'react-icons/fa'
 import { scanOrderToken, getOrders, refreshSellerProfile, logoutUser, getOutletSlots } from '../../services/api'
 import { setOutletOrders, setOutletLoading, updateOutletOrder } from '../../store/outletSlice'
 import { updateUserInfo } from '../../store/authSlice'
@@ -42,6 +41,156 @@ const calculateArrivalDate = (createdAt, deliverySpan) => {
   return `${dd}-${mm}-${yyyy}`
 }
 
+const SlotContent = ({ slot, isMatchedSlot }) => (
+  <>
+    {/* Matched glow effect */}
+    {isMatchedSlot && (
+      <div className="absolute inset-0 rounded-2xl bg-blue-400/20 animate-pulse pointer-events-none" />
+    )}
+
+    <div className="flex justify-between items-start mb-4">
+      <span className={`text-2xl font-black ${
+        isMatchedSlot ? 'text-white/80' : 'text-gray-300'
+      }`}>{slot.slot_number}</span>
+      {isMatchedSlot ? (
+        <span className="px-2 py-1 text-[10px] font-bold bg-white/20 text-white rounded-full uppercase">Your Slot</span>
+      ) : slot.is_occupied ? (
+        <span className="px-2 py-1 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full uppercase">Occupied</span>
+      ) : (
+        <span className="px-2 py-1 text-[10px] font-bold bg-gray-100 text-gray-500 rounded-full uppercase">Free</span>
+      )}
+    </div>
+
+    {(slot.is_occupied || isMatchedSlot) && (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <FaUser className={isMatchedSlot ? 'text-white/70 shrink-0' : 'text-blue-400 shrink-0'} />
+          <p className={`font-bold truncate ${
+            isMatchedSlot ? 'text-white' : 'text-gray-900'
+          }`} title={slot.user_name || ''}>{slot.user_name || `Slot ${slot.slot_number} User`}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <FaBox className={isMatchedSlot ? 'text-white/70 shrink-0' : 'text-blue-400 shrink-0'} />
+          <p className={`text-sm font-medium ${
+            isMatchedSlot ? 'text-white/90' : 'text-gray-700'
+          }`}>{slot.item_count} items</p>
+        </div>
+        {isMatchedSlot && (
+          <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest pt-1">↑ Tap to view details</p>
+        )}
+      </div>
+    )}
+  </>
+)
+
+const ShatteringSlot = ({ slot, isMatchedSlot }) => {
+  const [stage, setStage] = useState('cracking')
+  const [shards, setShards] = useState([])
+  
+  useEffect(() => {
+    // Generate shards on mount for real glass effect
+    const points = [];
+    const rows = 4;
+    const cols = 4;
+    for (let y = 0; y <= rows; y++) {
+      for (let x = 0; x <= cols; x++) {
+        let px = (x / cols) * 100;
+        let py = (y / rows) * 100;
+        if (x > 0 && x < cols) px += (Math.random() - 0.5) * 18;
+        if (y > 0 && y < rows) py += (Math.random() - 0.5) * 18;
+        points.push({ x: px, y: py });
+      }
+    }
+
+    const generatedShards = [];
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const p1 = points[y * (cols + 1) + x];
+        const p2 = points[y * (cols + 1) + x + 1];
+        const p3 = points[(y + 1) * (cols + 1) + x];
+        const p4 = points[(y + 1) * (cols + 1) + x + 1];
+
+        if (Math.random() > 0.5) {
+          generatedShards.push([p1, p2, p4]);
+          generatedShards.push([p1, p4, p3]);
+        } else {
+          generatedShards.push([p1, p2, p3]);
+          generatedShards.push([p2, p4, p3]);
+        }
+      }
+    }
+    
+    setShards(generatedShards.map(shard => ({
+      clipPath: `polygon(${shard.map(p => `${p.x.toFixed(2)}% ${p.y.toFixed(2)}%`).join(', ')})`,
+      cx: (shard[0].x + shard[1].x + shard[2].x) / 3,
+      cy: (shard[0].y + shard[1].y + shard[2].y) / 3,
+    })))
+
+    const t = setTimeout(() => setStage('shattered'), 300)
+    return () => clearTimeout(t)
+  }, [])
+  
+  const innerClass = `absolute inset-0 p-6 rounded-2xl border-2 ${isMatchedSlot ? 'bg-blue-600 border-blue-500 shadow-xl shadow-blue-500/30' : 'bg-blue-50 border-blue-200'} box-border`
+
+  return (
+    <div className="absolute inset-0 z-50 pointer-events-none">
+      {stage === 'cracking' && (
+        <motion.div 
+          initial={{ x: 0 }}
+          animate={{ x: [-2, 2, -2, 2, 0] }}
+          transition={{ duration: 0.3 }}
+          className="absolute inset-0"
+        >
+          {shards.map((shard, i) => (
+            <motion.div 
+              key={i} 
+              className="absolute inset-0"
+              style={{ clipPath: shard.clipPath }}
+              initial={{ scale: 1 }}
+              animate={{ scale: 0.98 }} // Simulate tiny cracks by shrinking shards slightly
+              transition={{ duration: 0.3 }}
+            >
+              <div className={innerClass}>
+                <SlotContent slot={slot} isMatchedSlot={isMatchedSlot} />
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      )}
+
+      {stage === 'shattered' && shards.map((shard, i) => {
+        // Physics logic using center of mass
+        const xDir = (shard.cx - 50) * (Math.random() * 1.5 + 0.5); // Move away from center
+        const yDir = (shard.cy - 50) * (Math.random() * 1.0 + 0.5) - 30; // Initial velocity upwards and outwards
+        
+        return (
+          <motion.div
+            key={i}
+            initial={{ x: 0, y: 0, opacity: 1, rotate: 0, scale: 0.98 }}
+            animate={{ 
+              x: xDir, 
+              y: yDir + 250 + Math.random() * 100, // fall down
+              opacity: 0,
+              rotate: (Math.random() - 0.5) * 180,
+              scale: 0.7 // Shrink slightly while falling
+            }}
+            transition={{ 
+              duration: 1.0, 
+              ease: "easeIn" 
+            }}
+            className="absolute inset-0 shadow-sm"
+            style={{ clipPath: shard.clipPath }}
+          >
+            <div className={innerClass}>
+              <SlotContent slot={slot} isMatchedSlot={isMatchedSlot} />
+            </div>
+          </motion.div>
+        )
+      })}
+    </div>
+  )
+}
+
 function Outlet() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
@@ -69,6 +218,16 @@ function Outlet() {
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [scannedSlotInfo, setScannedSlotInfo] = useState(null) // { userId, userName, order } after user-token scan
+  const [destroyingSlotNumber, setDestroyingSlotNumber] = useState(null)
+  const [creatingSlotNumber, setCreatingSlotNumber] = useState(null)
+  
+  // Coming orders: selected date for filtering
+  const todayISO = new Date().toISOString().slice(0, 10)
+  const [comingDate, setComingDate] = useState(todayISO)
+
+  // Orders tab state
+  const [orderTab,    setOrderTab]    = useState('all')
+  const [orderSearch, setOrderSearch] = useState('')
   
   const { orders, loading: loadingOrders, lastFetched } = useSelector(state => state.outlet)
 
@@ -83,6 +242,21 @@ function Outlet() {
     )
   }
   
+  // Calculate arrival date object for comparison
+  const calcArrivalDateObj = (createdAt, deliverySpan) => {
+    if (!createdAt) return null
+    const span = Number(deliverySpan ?? 2)
+    if (isNaN(span) || span < 1) return null
+    let daysToAdd = span - 1
+    let d = new Date(createdAt)
+    while (d.getDay() === 0) d.setDate(d.getDate() + 1)
+    while (daysToAdd > 0) {
+      d.setDate(d.getDate() + 1)
+      if (d.getDay() !== 0) daysToAdd--
+    }
+    return d
+  }
+
   // Today's completed orders only, newest first
   const completedOrders = orders
     .filter(order => order?.status === 'completed')
@@ -126,7 +300,7 @@ function Outlet() {
 
   // Load completed orders if missing or on tab change
   useEffect(() => {
-    if (activeTab === 'home' && (!lastFetched || orders.length === 0)) {
+    if ((activeTab === 'home' || activeTab === 'coming' || activeTab === 'orders') && (!lastFetched || orders.length === 0)) {
       loadCompletedOrders()
     }
   }, [activeTab, orders.length, lastFetched])
@@ -239,13 +413,30 @@ function Outlet() {
   }
 
   const handleConfirmScan = async () => {
-    if (!pendingOrder || !pendingToken) return
+    if (!pendingOrder || !pendingToken) return false
 
     setConfirming(true)
     try {
       // PERFORM ACTUAL ACTION NOW (preview = false)
       const updatedOrder = await scanOrderToken(pendingToken, false)
       
+      const sellerToken = pendingOrder.secureTokenSeller || pendingOrder.secure_token_seller
+      const isSellerToken = sellerToken && pendingToken === sellerToken
+
+      if (isSellerToken) {
+         await loadSlots()
+         if (updatedOrder.slot && updatedOrder.slot.slot_number) {
+             setCreatingSlotNumber(updatedOrder.slot.slot_number)
+         } else if (updatedOrder.slot_id) {
+             // Fallback if it just returns slot_id
+             setCreatingSlotNumber(updatedOrder.slot_id)
+         }
+         setActiveTab('slots')
+         setTimeout(() => {
+            setCreatingSlotNumber(null)
+         }, 1500)
+      }
+
       await loadCompletedOrders()
       setShowOrderDetails(false)
       
@@ -257,9 +448,11 @@ function Outlet() {
       
       setPendingOrder(null)
       setPendingToken('')
+      return true
     } catch (err) {
       setScanError(err.message || 'Failed to confirm')
       setShowOrderDetails(false)
+      return false
     } finally {
       setConfirming(false)
     }
@@ -370,6 +563,17 @@ function Outlet() {
             >
               <FaShoppingBag className="w-4.5 h-4.5" />
               <span>Orders</span>
+            </button>
+            <button
+              onClick={() => handleTabSelection('coming')}
+              className={`px-6 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap flex items-center gap-2 ${
+                activeTab === 'coming'
+                  ? 'bg-white text-black shadow-lg'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <FaTruck className="w-4.5 h-4.5" />
+              <span>Coming</span>
             </button>
             <button
               onClick={() => handleTabSelection('slots')}
@@ -565,7 +769,400 @@ function Outlet() {
           </div>
         )}
         
-        {activeTab === 'orders' && <OrdersList />}
+        {activeTab === 'orders' && (() => {
+          const ORDER_STATUS_TABS = [
+            { id: 'all',       label: 'All Orders' },
+            { id: 'in_slot',   label: 'In Slot' },
+            { id: 'completed', label: 'Completed' },
+            { id: 'overdue',   label: 'Overdue' },
+            { id: 'pending',   label: 'Pending Delivery' },
+          ]
+          const getOrderStatusMeta = (order) => {
+            const s = order.status
+            if (s === 'completed') return { id: 'completed', label: 'Completed', bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' }
+            if (s === 'handed_over' || s === 'ready_for_pickup') return { id: 'in_slot', label: 'In Slot', bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' }
+            const arrObj = calcArrivalDateObj(order.createdAt || order.created_at, order.delivery_span)
+            const today = new Date(); today.setHours(0,0,0,0)
+            if (arrObj) { const d = new Date(arrObj); d.setHours(0,0,0,0); if (d <= today) return { id: 'overdue', label: 'Overdue', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' } }
+            return { id: 'pending', label: 'Awaiting Delivery', bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' }
+          }
+          const q = orderSearch.trim().toLowerCase()
+          const ordersFiltered = orders
+            .filter(o => {
+              if (!o) return false
+              if (orderTab !== 'all' && getOrderStatusMeta(o).id !== orderTab) return false
+              if (!q) return true
+              return (
+                (o.product?.name || o.product_snapshot?.name || '').toLowerCase().includes(q) ||
+                (o.orderNumber || '').toLowerCase().includes(q) ||
+                (`${o.seller?.first_name || ''} ${o.seller?.last_name || ''} ${o.seller?.trade_id || ''}`).toLowerCase().includes(q) ||
+                (o.user?.name || `${o.user?.first_name || ''} ${o.user?.last_name || ''}`).toLowerCase().includes(q)
+              )
+            })
+            .sort((a, b) => new Date(b.updatedAt || b.created_at || 0) - new Date(a.updatedAt || a.created_at || 0))
+          const orderCounts = { all: orders.length, in_slot: 0, completed: 0, overdue: 0, pending: 0 }
+          orders.forEach(o => { if (o) { const m = getOrderStatusMeta(o); if (m.id in orderCounts) orderCounts[m.id]++ } })
+          return (
+            <div className="max-w-6xl mx-auto space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-1">Orders</h2>
+                  <p className="text-gray-500 font-medium">Full activity log of all outlet orders</p>
+                </div>
+                <button
+                  onClick={loadCompletedOrders}
+                  disabled={loadingOrders}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-black text-white rounded-xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-50 transition-all"
+                >
+                  <FaSync className={`w-3.5 h-3.5 ${loadingOrders ? 'animate-spin' : ''}`} />
+                  {loadingOrders ? 'Refreshing…' : 'Refresh'}
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  value={orderSearch}
+                  onChange={e => setOrderSearch(e.target.value)}
+                  placeholder="Search by order #, product, seller, or customer…"
+                  className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-all shadow-sm"
+                />
+                {orderSearch && (
+                  <button onClick={() => setOrderSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <FaTimes className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Status tab filters */}
+              <div className="flex gap-2 flex-wrap">
+                {ORDER_STATUS_TABS.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setOrderTab(t.id)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${
+                      orderTab === t.id
+                        ? 'bg-black text-white border-black shadow-lg'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                    }`}
+                  >
+                    {t.label}
+                    <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${orderTab === t.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>{orderCounts[t.id] ?? 0}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Orders list */}
+              {loadingOrders ? (
+                <div className="flex flex-col items-center py-20 gap-4">
+                  <div className="w-10 h-10 border-4 border-gray-100 border-t-black rounded-full animate-spin" />
+                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Loading orders…</p>
+                </div>
+              ) : ordersFiltered.length === 0 ? (
+                <div className="text-center py-20 border-2 border-dashed border-gray-100 rounded-2xl bg-white">
+                  <FaBox className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <p className="text-gray-500 font-semibold">No orders found</p>
+                  {orderSearch && <p className="text-gray-400 text-sm mt-1">Try clearing your search</p>}
+                </div>
+              ) : (
+                <>
+                  {/* Mobile cards */}
+                  <div className="space-y-3 md:hidden">
+                    {ordersFiltered.map(order => {
+                      const meta     = getOrderStatusMeta(order)
+                      const arrival = order.arrival_date || order.arrivalDate ||
+                        calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span)
+                      const product  = order.product?.name || order.product_snapshot?.name || 'N/A'
+                      const seller   = `${order.seller?.first_name || ''} ${order.seller?.last_name || ''}`.trim() || order.seller?.trade_id || 'N/A'
+                      const customer = order.user?.name || `${order.user?.first_name || ''} ${order.user?.last_name || ''}`.trim() || 'N/A'
+                      return (
+                        <motion.div
+                          key={order.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-white border border-gray-100 rounded-2xl p-5 space-y-3 shadow-sm"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Order</p>
+                              <p className="text-sm font-black text-gray-900">#{order.orderNumber}</p>
+                            </div>
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${meta.bg} ${meta.text}`}>
+                              <span className={`inline-block w-1.5 h-1.5 rounded-full ${meta.dot} mr-1 align-middle`} />
+                              {meta.label}
+                            </span>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl p-3">
+                            <p className="text-xs font-bold text-gray-800 uppercase truncate">{product}</p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">Qty: {order.quantity} · ₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}</p>
+                          </div>
+                          <div className="flex justify-between text-[11px] font-medium text-gray-500">
+                            <span>Seller: <strong className="text-gray-700">{seller}</strong></span>
+                            <span>Customer: <strong className="text-gray-700">{customer}</strong></span>
+                          </div>
+                          <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-wider pt-1 border-t border-gray-100">
+                            <span>Due: {arrival || '—'}</span>
+                            <span>{formatDate(order.updatedAt || order.createdAt)}</span>
+                          </div>
+                        </motion.div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Desktop table */}
+                  <div className="hidden md:block bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-100">
+                        <tr className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          <th className="px-5 py-4">Order #</th>
+                          <th className="px-5 py-4">Product</th>
+                          <th className="px-5 py-4">Seller</th>
+                          <th className="px-5 py-4">Customer</th>
+                          <th className="px-5 py-4">Due Date</th>
+                          <th className="px-5 py-4 text-right">Amount</th>
+                          <th className="px-5 py-4">Status</th>
+                          <th className="px-5 py-4">Updated</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {ordersFiltered.map((order, idx) => {
+                          const meta     = getOrderStatusMeta(order)
+                          const arrival  = order.arrival_date || order.arrivalDate ||
+                            calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span)
+                          const product  = order.product?.name || order.product_snapshot?.name || 'N/A'
+                          const seller   = `${order.seller?.first_name || ''} ${order.seller?.last_name || ''}`.trim() || order.seller?.trade_id || 'N/A'
+                          const customer = order.user?.name || `${order.user?.first_name || ''} ${order.user?.last_name || ''}`.trim() || 'N/A'
+                          return (
+                            <motion.tr
+                              key={order.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: idx * 0.02 }}
+                              className="hover:bg-gray-50/80 transition-colors"
+                            >
+                              <td className="px-5 py-4">
+                                <span className="text-xs font-black text-gray-900">#{order.orderNumber}</span>
+                              </td>
+                              <td className="px-5 py-4 max-w-[160px]">
+                                <p className="text-xs font-bold text-gray-800 uppercase truncate">{product}</p>
+                                <p className="text-[10px] text-gray-400">Qty: {order.quantity}</p>
+                              </td>
+                              <td className="px-5 py-4">
+                                <p className="text-xs font-semibold text-blue-700 truncate max-w-[120px]">{seller}</p>
+                              </td>
+                              <td className="px-5 py-4">
+                                <p className="text-xs font-semibold text-gray-700 truncate max-w-[120px]">{customer}</p>
+                              </td>
+                              <td className="px-5 py-4">
+                                <p className="text-xs font-bold text-gray-600">{arrival || '—'}</p>
+                                <p className="text-[10px] text-gray-400">{order.delivery_span ?? '—'}d span</p>
+                              </td>
+                              <td className="px-5 py-4 text-right">
+                                <span className="text-sm font-black text-gray-900">₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}</span>
+                              </td>
+                              <td className="px-5 py-4">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${meta.bg} ${meta.text}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+                                  {meta.label}
+                                </span>
+                              </td>
+                              <td className="px-5 py-4">
+                                <p className="text-[10px] font-medium text-gray-400 whitespace-nowrap">{formatDate(order.updatedAt || order.createdAt)}</p>
+                              </td>
+                            </motion.tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                    <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Showing {ordersFiltered.length} of {orders.length} orders
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        })()}
+
+        {activeTab === 'coming' && (() => {
+          // Filter orders whose expected arrival date matches the selected comingDate
+          const isSameDay = (dateObj, isoStr) => {
+            if (!dateObj || !isoStr) return false
+            const y = dateObj.getFullYear()
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0')
+            const d = String(dateObj.getDate()).padStart(2, '0')
+            return `${y}-${m}-${d}` === isoStr
+          }
+
+          // Get status tag for each order
+          // Red  = overdue: arrival date passed, seller NOT delivered (status not handed_over/completed)
+          // Orange = delivered by seller (handed_over) but not yet picked by user
+          // Green = completed (user collected)
+          const getOrderBadge = (order) => {
+            const s = order.status
+            if (s === 'completed') return 'green'
+            if (s === 'handed_over' || s === 'ready_for_pickup') return 'orange'
+            // Check if overdue: arrival date is today or past
+            const arrivalObj = calcArrivalDateObj(
+              order.createdAt || order.created_at,
+              order.delivery_span
+            )
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            if (arrivalObj) {
+              const arrD = new Date(arrivalObj)
+              arrD.setHours(0, 0, 0, 0)
+              if (arrD <= today) return 'red'
+            }
+            return 'pending'
+          }
+
+          const comingOrders = orders
+            .filter(order => {
+              if (!order || order.type === 'booking') return false
+              // Must be accepted by seller (delivery_span set)
+              const acceptedStatuses = ['seller_accepted', 'accepted', 'ready_for_pickup', 'handed_over', 'completed']
+              if (!acceptedStatuses.includes(order.status)) return false
+              // Get expected arrival date
+              const existingDate = order.arrival_date || order.arrivalDate
+              if (existingDate) {
+                // arrival_date format is DD-MM-YYYY, convert to YYYY-MM-DD for comparison
+                const parts = existingDate.split('-')
+                if (parts.length === 3) {
+                  const iso = `${parts[2]}-${parts[1]}-${parts[0]}`
+                  return iso === comingDate
+                }
+              }
+              // Fallback: calculate from delivery_span
+              const arrObj = calcArrivalDateObj(
+                order.createdAt || order.created_at,
+                order.delivery_span
+              )
+              return isSameDay(arrObj, comingDate)
+            })
+            .sort((a, b) => {
+              const priority = { red: 0, orange: 1, pending: 2, green: 3 }
+              return (priority[getOrderBadge(a)] ?? 4) - (priority[getOrderBadge(b)] ?? 4)
+            })
+
+          const badgeConfig = {
+            green:   { label: 'Picked Up',        bg: 'bg-emerald-50',  border: 'border-emerald-200',  text: 'text-emerald-700',  dot: 'bg-emerald-500',  icon: <FaCheckCircle className="w-4 h-4 text-emerald-500" /> },
+            orange:  { label: 'In Slot',           bg: 'bg-orange-50',   border: 'border-orange-200',   text: 'text-orange-700',   dot: 'bg-orange-500',   icon: <FaBoxOpen className="w-4 h-4 text-orange-500" /> },
+            red:     { label: 'Overdue',           bg: 'bg-red-50',      border: 'border-red-200',      text: 'text-red-700',      dot: 'bg-red-500',      icon: <FaExclamationTriangle className="w-4 h-4 text-red-500" /> },
+            pending: { label: 'Awaiting Delivery', bg: 'bg-slate-50',    border: 'border-slate-200',    text: 'text-slate-600',    dot: 'bg-slate-400',    icon: <FaTruck className="w-4 h-4 text-slate-400" /> },
+          }
+
+          const summaryCount = { green: 0, orange: 0, red: 0, pending: 0 }
+          comingOrders.forEach(o => { summaryCount[getOrderBadge(o)]++ })
+
+          return (
+            <div className="max-w-5xl mx-auto space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-1">Coming Orders</h2>
+                  <p className="text-gray-500 font-medium">Orders expected for delivery on a specific date</p>
+                </div>
+                <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm">
+                  <FaCalendarAlt className="text-gray-400 w-4 h-4 shrink-0" />
+                  <input
+                    type="date"
+                    value={comingDate}
+                    onChange={e => setComingDate(e.target.value)}
+                    className="text-sm font-semibold text-gray-800 bg-transparent outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Summary pills */}
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(summaryCount).map(([key, count]) => (
+                  <div key={key} className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold uppercase tracking-wider ${badgeConfig[key].bg} ${badgeConfig[key].border} ${badgeConfig[key].text}`}>
+                    <span className={`w-2 h-2 rounded-full ${badgeConfig[key].dot}`} />
+                    {badgeConfig[key].label}: {count}
+                  </div>
+                ))}
+              </div>
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-4 bg-white border border-gray-100 rounded-2xl px-5 py-3">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-2">Legend:</span>
+                <span className="flex items-center gap-1.5 text-xs font-medium text-red-600"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> Overdue — seller hasn't delivered yet</span>
+                <span className="flex items-center gap-1.5 text-xs font-medium text-orange-600"><span className="w-3 h-3 rounded-full bg-orange-500 inline-block" /> In Slot — delivered but user hasn't collected</span>
+                <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600"><span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" /> Picked Up — user collected</span>
+              </div>
+
+              {/* Orders */}
+              {loadingOrders ? (
+                <div className="flex flex-col items-center py-16 gap-4">
+                  <div className="w-10 h-10 border-4 border-gray-100 border-t-black rounded-full animate-spin" />
+                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Loading orders...</p>
+                </div>
+              ) : comingOrders.length === 0 ? (
+                <div className="text-center py-16 border-2 border-dashed border-gray-100 rounded-2xl bg-white">
+                  <FaTruck className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <p className="text-gray-500 font-semibold">No orders expected for this date</p>
+                  <p className="text-gray-400 text-sm mt-1">Try selecting a different date</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {comingOrders.map(order => {
+                    const badge = getOrderBadge(order)
+                    const cfg = badgeConfig[badge]
+                    const arrivalStr = order.arrival_date || order.arrivalDate ||
+                      calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span)
+                    const productName = order.product?.name || order.product_snapshot?.name || 'N/A'
+                    const sellerName = `${order.seller?.first_name || ''} ${order.seller?.last_name || ''}`.trim() || order.seller?.trade_id || 'N/A'
+                    const userName = order.user?.name || `${order.user?.first_name || ''} ${order.user?.last_name || ''}`.trim() || 'N/A'
+
+                    return (
+                      <motion.div
+                        key={order.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex flex-col sm:flex-row sm:items-center gap-4 p-5 rounded-2xl border-2 ${cfg.bg} ${cfg.border} transition-all`}
+                      >
+                        {/* Status Icon */}
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white shadow-sm`}>
+                          {cfg.icon}
+                        </div>
+
+                        {/* Main Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-xs font-black text-gray-800 uppercase tracking-tight">#{order.orderNumber}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${cfg.bg} ${cfg.text} border ${cfg.border}`}>{cfg.label}</span>
+                          </div>
+                          <p className="text-sm font-bold text-gray-900 truncate">{productName}</p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                            <span className="text-[11px] font-medium text-gray-500">Qty: <strong className="text-gray-700">{order.quantity}</strong></span>
+                            <span className="text-[11px] font-medium text-gray-500">Customer: <strong className="text-gray-700 truncate">{userName}</strong></span>
+                            <span className="text-[11px] font-medium text-gray-500">Seller: <strong className="text-gray-700 truncate">{sellerName}</strong></span>
+                          </div>
+                        </div>
+
+                        {/* Right side: Amount + date */}
+                        <div className="text-right shrink-0">
+                          <p className="text-base font-black text-gray-900">₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}</p>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+                            Due: {arrivalStr || 'N/A'}
+                          </p>
+                          <p className="text-[10px] font-medium text-gray-400 mt-0.5">
+                            Span: {order.delivery_span ?? '—'} day{order.delivery_span !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })()}
+
         {activeTab === 'slots' && (
           <div className="max-w-6xl mx-auto space-y-8">
             <div className="flex items-center justify-between mb-8">
@@ -625,6 +1222,8 @@ function Outlet() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                 {slots.map(slot => {
+                  const isDestroying = destroyingSlotNumber === slot.slot_number
+                  const isCreating = creatingSlotNumber === slot.slot_number
                   // When a user token was scanned, match by user_name (since slot may not have user_id)
                   const isMatchedSlot = scannedSlotInfo
                     ? (slot.user_id && slot.user_id === scannedSlotInfo.userId) ||
@@ -635,11 +1234,19 @@ function Outlet() {
 
                   return (
                     <motion.div
-                      key={slot.slot_number}
-                      animate={isMatchedSlot ? { scale: [1, 1.04, 1] } : {}}
-                      transition={{ duration: 0.6, repeat: 2 }}
+                      layout
+                      key={slot.id}
+                      initial={isCreating ? { scale: 0, opacity: 0, rotate: 180 } : false}
+                      animate={
+                        isDestroying 
+                          ? { scale: 1, opacity: 1 } // Stay fixed during animation
+                          : isCreating
+                          ? { scale: 1, opacity: 1, rotate: 0, transition: { duration: 0.8, ease: "backOut" } }
+                          : isMatchedSlot ? { scale: [1, 1.04, 1] } : { scale: 1, opacity: 1 }
+                      }
+                      transition={isCreating ? { duration: 0.8 } : { duration: 0.6, repeat: isMatchedSlot ? 2 : 0 }}
                       onClick={() => {
-                        if (isDisabled) return
+                        if (isDisabled || isDestroying) return
                         if (!slot.is_occupied && !isMatchedSlot) return
                         // If this is the scanned slot, open with the full scanned order
                         if (isMatchedSlot && scannedSlotInfo?.order) {
@@ -649,51 +1256,26 @@ function Outlet() {
                         }
                       }}
                       className={`relative p-6 rounded-2xl border-2 transition-all ${
-                        isDisabled
-                          ? 'opacity-30 cursor-not-allowed select-none'
-                          : isMatchedSlot
-                            ? 'bg-blue-600 border-blue-500 shadow-xl shadow-blue-500/30 cursor-pointer ring-4 ring-blue-300 ring-offset-2 animate-pulse-slow'
-                            : slot.is_occupied
-                              ? 'bg-blue-50 border-blue-200 hover:border-blue-400 hover:shadow-md cursor-pointer'
-                              : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
+                        isDestroying
+                          ? 'border-transparent bg-transparent shadow-none ring-0'
+                          : isDisabled
+                            ? 'opacity-30 cursor-not-allowed select-none'
+                            : isMatchedSlot
+                              ? 'bg-blue-600 border-blue-500 shadow-xl shadow-blue-500/30 cursor-pointer ring-4 ring-blue-300 ring-offset-2 animate-pulse-slow'
+                              : slot.is_occupied
+                                ? 'bg-blue-50 border-blue-200 hover:border-blue-400 hover:shadow-md cursor-pointer'
+                                : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
                       }`}
                     >
-                      {/* Matched glow effect */}
-                      {isMatchedSlot && (
-                        <div className="absolute inset-0 rounded-2xl bg-blue-400/20 animate-pulse pointer-events-none" />
-                      )}
-
-                      <div className="flex justify-between items-start mb-4">
-                        <span className={`text-2xl font-black ${
-                          isMatchedSlot ? 'text-white/80' : 'text-gray-300'
-                        }`}>{slot.slot_number}</span>
-                        {isMatchedSlot ? (
-                          <span className="px-2 py-1 text-[10px] font-bold bg-white/20 text-white rounded-full uppercase">Your Slot</span>
-                        ) : slot.is_occupied ? (
-                          <span className="px-2 py-1 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full uppercase">Occupied</span>
-                        ) : (
-                          <span className="px-2 py-1 text-[10px] font-bold bg-gray-100 text-gray-500 rounded-full uppercase">Free</span>
-                        )}
-                      </div>
-
-                      {(slot.is_occupied || isMatchedSlot) && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <FaUser className={isMatchedSlot ? 'text-white/70 shrink-0' : 'text-blue-400 shrink-0'} />
-                            <p className={`font-bold truncate ${
-                              isMatchedSlot ? 'text-white' : 'text-gray-900'
-                            }`} title={slot.user_name || ''}>{slot.user_name || `Slot ${slot.slot_number} User`}</p>
+                      {isDestroying ? (
+                        <>
+                          <div className="opacity-0 pointer-events-none">
+                            <SlotContent slot={slot} isMatchedSlot={isMatchedSlot} />
                           </div>
-                          <div className="flex items-center gap-2">
-                            <FaBox className={isMatchedSlot ? 'text-white/70 shrink-0' : 'text-blue-400 shrink-0'} />
-                            <p className={`text-sm font-medium ${
-                              isMatchedSlot ? 'text-white/90' : 'text-gray-700'
-                            }`}>{slot.item_count} items</p>
-                          </div>
-                          {isMatchedSlot && (
-                            <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest pt-1">↑ Tap to view details</p>
-                          )}
-                        </div>
+                          <ShatteringSlot slot={slot} isMatchedSlot={isMatchedSlot} />
+                        </>
+                      ) : (
+                        <SlotContent slot={slot} isMatchedSlot={isMatchedSlot} />
                       )}
                     </motion.div>
                   )
@@ -833,11 +1415,19 @@ function Outlet() {
                       </button>
                       <button
                         onClick={async () => {
-                          setSelectedSlot(null)
-                          setShowOrderDetails(false)
-                          await handleConfirmScan()
-                          setScannedSlotInfo(null)
-                          loadSlots()
+                          const slotNum = selectedSlot.slot_number
+                          const success = await handleConfirmScan()
+                          
+                          if (success) {
+                            setSelectedSlot(null)
+                            setShowOrderDetails(false)
+                            setDestroyingSlotNumber(slotNum)
+                            setTimeout(() => {
+                              setDestroyingSlotNumber(null)
+                              setScannedSlotInfo(null)
+                              loadSlots()
+                            }, 1500)
+                          }
                         }}
                         disabled={confirming}
                         className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-2 text-sm shadow-lg shadow-blue-600/20"

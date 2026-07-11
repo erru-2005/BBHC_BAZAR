@@ -17,6 +17,30 @@ import { getImageUrl } from '../../../utils/image'
 import { useDispatch, useSelector } from 'react-redux'
 import { setMastersData, setMastersLoading } from '../../../store/masterSlice'
 
+const calculateArrivalDateObj = (createdAt, deliverySpan) => {
+  if (!createdAt) return null
+  const span = Number(deliverySpan ?? 2)
+  if (isNaN(span) || span < 1) return null
+
+  let daysToAdd = span - 1
+  let currentDate = new Date(createdAt)
+
+  // If today is Sunday, move to Monday (Sunday is not counted)
+  while (currentDate.getDay() === 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+
+  // Add days, skipping Sundays
+  while (daysToAdd > 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+    if (currentDate.getDay() !== 0) {
+      daysToAdd--
+    }
+  }
+
+  return currentDate
+}
+
 function OrdersList() {
   const dispatch = useDispatch()
   const { orders, loading: masterLoading, lastFetched } = useSelector(state => state.master)
@@ -24,7 +48,8 @@ function OrdersList() {
   const loadingOrders = masterLoading.orders
   const [filteredOrders, setFilteredOrders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [dateFilter, setDateFilter] = useState(() => new Date().toISOString().split('T')[0])
+  const { userType } = useSelector(state => state.auth)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalOrders, setTotalOrders] = useState(0)
@@ -97,9 +122,33 @@ function OrdersList() {
   useEffect(() => {
     let filtered = Array.isArray(orders) ? [...orders] : []
 
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => order?.status === statusFilter)
+    // Filter for accepted orders (exclude cancelled/rejected)
+    filtered = filtered.filter(order => 
+      !['cancelled', 'cancelled_master', 'seller_rejected'].includes(order?.status)
+    )
+
+    // Date filter (by Expected Delivery Date)
+    if (dateFilter) {
+      filtered = filtered.filter(order => {
+        let orderDate = null;
+        if (order.arrivalDate || order.arrival_date) {
+            orderDate = new Date(order.arrivalDate || order.arrival_date);
+        } else {
+            const createdAt = order?.createdAt || order?.created_at || order?.orderTime;
+            if (createdAt) {
+                orderDate = calculateArrivalDateObj(createdAt, order.delivery_span);
+            }
+        }
+        
+        if (!orderDate) return false;
+        const filterDate = new Date(dateFilter);
+        
+        return (
+          orderDate.getDate() === filterDate.getDate() &&
+          orderDate.getMonth() === filterDate.getMonth() &&
+          orderDate.getFullYear() === filterDate.getFullYear()
+        );
+      });
     }
 
     // Search filter
@@ -130,7 +179,7 @@ function OrdersList() {
     filtered.sort((a, b) => new Date(b?.createdAt) - new Date(a?.createdAt))
 
     setFilteredOrders(filtered)
-  }, [orders, searchQuery, statusFilter])
+  }, [orders, searchQuery, dateFilter])
 
   // Show notification
   const showNotification = (notification) => {
@@ -481,6 +530,17 @@ function OrdersList() {
     }
   }
 
+  // Get row background color based on status
+  const getRowColor = (status) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 hover:bg-green-200'
+      case 'handed_over': return 'bg-orange-100 hover:bg-orange-200'
+      case 'pending_seller':
+      case 'seller_accepted': return 'bg-red-100 hover:bg-red-200'
+      default: return 'hover:bg-gray-50'
+    }
+  }
+
   const getStatusLabel = (status) => {
     switch (status) {
       case 'pending_seller': return 'New Order'
@@ -515,22 +575,14 @@ function OrdersList() {
 
           {/* Filters and Export Buttons */}
           <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-            {/* Status Filter */}
+            {/* Date Filter */}
             <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none pl-10 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white cursor-pointer text-black"
-              >
-                <option value="all">All Status</option>
-                <option value="pending_seller">Pending Seller</option>
-                <option value="seller_accepted">Seller Accepted</option>
-                <option value="handed_over">At Outlet (Handed Over)</option>
-                <option value="completed">Completed</option>
-                <option value="seller_rejected">Seller Rejected</option>
-                <option value="cancelled">User Cancelled</option>
-                <option value="cancelled_master">Master Cancelled</option>
-              </select>
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="appearance-none pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none bg-white cursor-pointer text-black"
+              />
               <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
             </div>
 
@@ -552,113 +604,160 @@ function OrdersList() {
         </div>
       )}
 
-      {/* Orders List */}
+      {/* Orders List Container */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full table-auto text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Order #</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Product</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Seller</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loadingOrders ? (
-                <tr>
-                  <td colSpan="7" className="px-4 py-12 text-center text-gray-500">
-                    Loading orders...
-                  </td>
-                </tr>
-              ) : filteredOrders.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="px-4 py-12 text-center text-gray-500">
-                    No orders found
-                  </td>
-                </tr>
-              ) : (
-                filteredOrders.map((order) => {
-                  const productName = order.product?.name || order.product?.product_name || 'Product'
-                  const productImage = order.product?.thumbnail || order.product?.image || 'https://via.placeholder.com/80?text=BBHC'
-                  const sellerName =
-                    order.seller?.name ||
-                    [order.seller?.first_name, order.seller?.last_name].filter(Boolean).join(' ').trim() ||
-                    '—'
-                  const sellerTrade =
-                    order.seller?.tradeId ||
-                    order.seller?.trade_id ||
-                    order.product?.sellerTradeId ||
-                    '—'
-                  const userName =
-                    order.user?.name ||
-                    [order.user?.first_name, order.user?.last_name].filter(Boolean).join(' ').trim() ||
-                    'Customer'
-                  const userEmail = order.user?.email || '—'
-                  const totalAmount = Number(order.totalAmount || order.total_amount || 0)
-                  const createdAt = order.createdAt || order.created_at || order.orderTime
+        {loadingOrders ? (
+          <div className="p-12 text-center text-gray-500">Loading orders...</div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="p-12 text-center text-gray-500">No orders found</div>
+        ) : (
+          <>
+            {/* Mobile Card Layout */}
+            <div className="grid grid-cols-1 md:hidden gap-4 p-4 bg-gray-50/50">
+              {filteredOrders.map((order) => {
+                const productName = order.product?.name || order.product?.product_name || 'Product'
+                const productImage = order.product?.thumbnail || order.product?.image || 'https://via.placeholder.com/80?text=BBHC'
+                const sellerName = order.seller?.name || [order.seller?.first_name, order.seller?.last_name].filter(Boolean).join(' ').trim() || order.seller?.trade_id || '—'
+                const userName = order.user?.name || [order.user?.first_name, order.user?.last_name].filter(Boolean).join(' ').trim() || 'Customer'
+                const totalAmount = Number(order.totalAmount || order.total_amount || 0)
+                const createdAt = order.createdAt || order.created_at || order.orderTime
 
-                  return (
-                    <tr
-                      key={order.id}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => handleOrderClick(order)}
-                    >
-                      <td className="px-4 py-4 align-top">
-                        <div className="font-medium text-gray-900 break-words leading-snug max-w-[180px]">
-                          {order.orderNumber}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-start gap-3">
-                          <img
-                            src={getImageUrl(productImage)}
-                            alt={productName}
-                            className="w-12 h-12 rounded-lg object-cover"
-                          />
-                          <div className="space-y-1">
-                            <div className="font-medium text-gray-900 leading-snug break-words max-w-[220px]">
-                              {productName}
-                            </div>
-                            <div className="text-xs text-gray-500">Qty: {order.quantity}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 align-top">
-                        <div className="text-gray-900 break-words leading-snug max-w-[200px]">
-                          {sellerName}
-                        </div>
-                        <div className="text-xs text-gray-500 break-all">{sellerTrade}</div>
-                      </td>
-                      <td className="px-4 py-4 align-top">
-                        <div className="text-gray-900 break-words leading-snug max-w-[220px]">
-                          {userName}
-                        </div>
-                        <div className="text-xs text-gray-500 break-all">{userEmail}</div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-gray-900">
-                          ₹{totalAmount.toLocaleString('en-IN')}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                return (
+                  <div 
+                    key={order.id}
+                    className={`p-4 rounded-xl border border-gray-100 shadow-sm cursor-pointer transition-colors ${getRowColor(order.status)}`}
+                    onClick={() => handleOrderClick(order)}
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Order #</div>
+                        <div className="font-bold text-gray-900 text-sm">{order.orderNumber}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Amount</div>
+                        <div className="font-bold text-gray-900">₹{totalAmount.toLocaleString('en-IN')}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-3 mb-3 bg-white/60 p-3 rounded-lg border border-black/5">
+                      <img src={getImageUrl(productImage)} alt={productName} className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-gray-900 text-sm truncate">{productName}</div>
+                        <div className="text-xs font-medium text-gray-600 mt-1">Qty: {order.quantity}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-end mt-3 pt-3 border-t border-black/5">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[11px] font-medium text-gray-600 truncate max-w-[150px]">Store: {sellerName}</span>
+                        <span className="text-[11px] font-medium text-gray-600 truncate max-w-[150px]">Cust: {userName}</span>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`inline-flex px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${getStatusColor(order.status)}`}>
                           {getStatusLabel(order.status)}
                         </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(createdAt)}
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        <span className="text-[10px] text-gray-500 font-medium">{formatDate(createdAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full table-auto text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Order #</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Product</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Seller</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">User</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Amount</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredOrders.map((order) => {
+                    const productName = order.product?.name || order.product?.product_name || 'Product'
+                    const productImage = order.product?.thumbnail || order.product?.image || 'https://via.placeholder.com/80?text=BBHC'
+                    const sellerName =
+                      order.seller?.name ||
+                      [order.seller?.first_name, order.seller?.last_name].filter(Boolean).join(' ').trim() ||
+                      '—'
+                    const sellerTrade =
+                      order.seller?.tradeId ||
+                      order.seller?.trade_id ||
+                      order.product?.sellerTradeId ||
+                      '—'
+                    const userName =
+                      order.user?.name ||
+                      [order.user?.first_name, order.user?.last_name].filter(Boolean).join(' ').trim() ||
+                      'Customer'
+                    const userEmail = order.user?.email || '—'
+                    const totalAmount = Number(order.totalAmount || order.total_amount || 0)
+                    const createdAt = order.createdAt || order.created_at || order.orderTime
+
+                    return (
+                      <tr
+                        key={order.id}
+                        className={`transition-colors cursor-pointer ${getRowColor(order.status)}`}
+                        onClick={() => handleOrderClick(order)}
+                      >
+                        <td className="px-4 py-4 align-top">
+                          <div className="font-medium text-gray-900 break-words leading-snug max-w-[180px]">
+                            {order.orderNumber}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={getImageUrl(productImage)}
+                              alt={productName}
+                              className="w-12 h-12 rounded-lg object-cover shrink-0"
+                            />
+                            <div className="space-y-1 min-w-0">
+                              <div className="font-medium text-gray-900 leading-snug break-words max-w-[220px]">
+                                {productName}
+                              </div>
+                              <div className="text-xs text-gray-500">Qty: {order.quantity}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="text-gray-900 break-words leading-snug max-w-[200px]">
+                            {sellerName}
+                          </div>
+                          <div className="text-xs text-gray-500 break-all">{sellerTrade}</div>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="text-gray-900 break-words leading-snug max-w-[220px]">
+                            {userName}
+                          </div>
+                          <div className="text-xs text-gray-500 break-all">{userEmail}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm font-semibold text-gray-900">
+                            ₹{totalAmount.toLocaleString('en-IN')}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                            {getStatusLabel(order.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(createdAt)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
