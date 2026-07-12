@@ -228,6 +228,7 @@ function Outlet() {
   // Orders tab state
   const [orderTab,    setOrderTab]    = useState('all')
   const [orderSearch, setOrderSearch] = useState('')
+  const [orderPage,   setOrderPage]   = useState(1)
   
   const { orders, loading: loadingOrders, lastFetched } = useSelector(state => state.outlet)
 
@@ -780,7 +781,13 @@ function Outlet() {
           const getOrderStatusMeta = (order) => {
             const s = order.status
             if (s === 'completed') return { id: 'completed', label: 'Completed', bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' }
-            if (s === 'handed_over' || s === 'ready_for_pickup') return { id: 'in_slot', label: 'In Slot', bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' }
+            if (s === 'handed_over') {
+              const userId = order.user_id || order.userId || order.user?._id || order.user?.id;
+              const hasPhysicalSlot = slots.some(slot => slot.is_occupied && slot.user_id === userId);
+              if (hasPhysicalSlot) {
+                return { id: 'in_slot', label: 'In Slot', bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' }
+              }
+            }
             const arrObj = calcArrivalDateObj(order.createdAt || order.created_at, order.delivery_span)
             const today = new Date(); today.setHours(0,0,0,0)
             if (arrObj) { const d = new Date(arrObj); d.setHours(0,0,0,0); if (d <= today) return { id: 'overdue', label: 'Overdue', bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500' } }
@@ -802,6 +809,24 @@ function Outlet() {
             .sort((a, b) => new Date(b.updatedAt || b.created_at || 0) - new Date(a.updatedAt || a.created_at || 0))
           const orderCounts = { all: orders.length, in_slot: 0, completed: 0, overdue: 0, pending: 0 }
           orders.forEach(o => { if (o) { const m = getOrderStatusMeta(o); if (m.id in orderCounts) orderCounts[m.id]++ } })
+
+          // Pagination
+          const ORDERS_PER_PAGE = 15
+          const totalPages = Math.max(1, Math.ceil(ordersFiltered.length / ORDERS_PER_PAGE))
+          const safePage = Math.min(orderPage, totalPages)
+          const pagedOrders = ordersFiltered.slice((safePage - 1) * ORDERS_PER_PAGE, safePage * ORDERS_PER_PAGE)
+          const startIdx = ordersFiltered.length === 0 ? 0 : (safePage - 1) * ORDERS_PER_PAGE + 1
+          const endIdx   = Math.min(safePage * ORDERS_PER_PAGE, ordersFiltered.length)
+
+          // Build page number array (max 5 visible)
+          const getPageNumbers = () => {
+            const pages = []
+            let start = Math.max(1, safePage - 2)
+            let end   = Math.min(totalPages, start + 4)
+            if (end - start < 4) start = Math.max(1, end - 4)
+            for (let i = start; i <= end; i++) pages.push(i)
+            return pages
+          }
           return (
             <div className="max-w-6xl mx-auto space-y-6">
               {/* Header */}
@@ -826,12 +851,12 @@ function Outlet() {
                 <input
                   type="text"
                   value={orderSearch}
-                  onChange={e => setOrderSearch(e.target.value)}
+                  onChange={e => { setOrderSearch(e.target.value); setOrderPage(1) }}
                   placeholder="Search by order #, product, seller, or customer…"
                   className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-all shadow-sm"
                 />
                 {orderSearch && (
-                  <button onClick={() => setOrderSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button onClick={() => { setOrderSearch(''); setOrderPage(1) }} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     <FaTimes className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -842,7 +867,7 @@ function Outlet() {
                 {ORDER_STATUS_TABS.map(t => (
                   <button
                     key={t.id}
-                    onClick={() => setOrderTab(t.id)}
+                    onClick={() => { setOrderTab(t.id); setOrderPage(1) }}
                     className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border ${
                       orderTab === t.id
                         ? 'bg-black text-white border-black shadow-lg'
@@ -871,7 +896,7 @@ function Outlet() {
                 <>
                   {/* Mobile cards */}
                   <div className="space-y-3 md:hidden">
-                    {ordersFiltered.map(order => {
+                    {pagedOrders.map(order => {
                       const meta     = getOrderStatusMeta(order)
                       const arrival = order.arrival_date || order.arrivalDate ||
                         calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span)
@@ -910,6 +935,37 @@ function Outlet() {
                         </motion.div>
                       )
                     })}
+                    {/* Mobile Pagination */}
+                    {totalPages > 1 && (
+                      <div className="flex flex-col items-center gap-3 pt-2">
+                        <p className="text-[11px] font-semibold text-gray-400">
+                          Showing {startIdx}–{endIdx} of {ordersFiltered.length} orders
+                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                          <button
+                            onClick={() => setOrderPage(p => Math.max(1, p - 1))}
+                            disabled={safePage === 1}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 bg-white text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-all"
+                          >← Prev</button>
+                          {getPageNumbers().map(n => (
+                            <button
+                              key={n}
+                              onClick={() => setOrderPage(n)}
+                              className={`w-8 h-8 rounded-lg text-xs font-bold border transition-all ${
+                                n === safePage
+                                  ? 'bg-black text-white border-black'
+                                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                              }`}
+                            >{n}</button>
+                          ))}
+                          <button
+                            onClick={() => setOrderPage(p => Math.min(totalPages, p + 1))}
+                            disabled={safePage === totalPages}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 bg-white text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-all"
+                          >Next →</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Desktop table */}
@@ -928,7 +984,7 @@ function Outlet() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
-                        {ordersFiltered.map((order, idx) => {
+                        {pagedOrders.map((order, idx) => {
                           const meta     = getOrderStatusMeta(order)
                           const arrival  = order.arrival_date || order.arrivalDate ||
                             calculateArrivalDate(order.createdAt || order.created_at, order.delivery_span)
@@ -977,8 +1033,36 @@ function Outlet() {
                         })}
                       </tbody>
                     </table>
-                    <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      Showing {ordersFiltered.length} of {orders.length} orders
+                    {/* Desktop Pagination Footer */}
+                    <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+                        Showing {startIdx}–{endIdx} of {ordersFiltered.length} orders
+                      </span>
+                      {totalPages > 1 && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setOrderPage(p => Math.max(1, p - 1))}
+                            disabled={safePage === 1}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 bg-white text-gray-600 disabled:opacity-30 hover:bg-gray-100 transition-all"
+                          >← Prev</button>
+                          {getPageNumbers().map(n => (
+                            <button
+                              key={n}
+                              onClick={() => setOrderPage(n)}
+                              className={`w-8 h-8 rounded-lg text-xs font-bold border transition-all ${
+                                n === safePage
+                                  ? 'bg-black text-white border-black shadow-md'
+                                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                              }`}
+                            >{n}</button>
+                          ))}
+                          <button
+                            onClick={() => setOrderPage(p => Math.min(totalPages, p + 1))}
+                            disabled={safePage === totalPages}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 bg-white text-gray-600 disabled:opacity-30 hover:bg-gray-100 transition-all"
+                          >Next →</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
@@ -1004,7 +1088,11 @@ function Outlet() {
           const getOrderBadge = (order) => {
             const s = order.status
             if (s === 'completed') return 'green'
-            if (s === 'handed_over' || s === 'ready_for_pickup') return 'orange'
+            if (s === 'handed_over') {
+              const userId = order.user_id || order.userId || order.user?._id || order.user?.id;
+              const hasPhysicalSlot = slots.some(slot => slot.is_occupied && slot.user_id === userId);
+              if (hasPhysicalSlot) return 'orange'
+            }
             // Check if overdue: arrival date is today or past
             const arrivalObj = calcArrivalDateObj(
               order.createdAt || order.created_at,
