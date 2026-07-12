@@ -449,7 +449,7 @@ function Seller() {
       </section>
 
       {/* Quick Stats Grid - Mobile & Desktop Visibility */}
-      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6 mt-2">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mt-2">
         {[
           {
             label: 'Revenue', value: formatCurrency(stats.totalRevenue), icon: FiTrendingUp, color: 'blue',
@@ -466,11 +466,6 @@ function Seller() {
           {
             label: 'Orders', value: stats.totalOrders, icon: FiPackage, color: 'rose',
             bg: 'bg-rose-500/10', text: 'text-rose-600', hoverBg: 'group-hover:bg-rose-600', border: 'border-rose-200/50'
-          },
-          {
-            label: 'Reviews', value: 'View', icon: FiStar, color: 'yellow',
-            bg: 'bg-yellow-500/10', text: 'text-yellow-600', hoverBg: 'group-hover:bg-yellow-600', border: 'border-yellow-200/50',
-            action: () => setActiveView('reviews')
           }
         ].map((item, idx) => (
           <motion.div

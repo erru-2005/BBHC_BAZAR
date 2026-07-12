@@ -1,4 +1,4 @@
-import { FiSearch, FiBell, FiAward, FiTrendingUp, FiZap, FiTarget, FiPlus, FiDollarSign, FiHome, FiGrid, FiBarChart2, FiSettings, FiBriefcase, FiShoppingBag } from 'react-icons/fi'
+import { FiSearch, FiBell, FiAward, FiTrendingUp, FiZap, FiTarget, FiPlus, FiDollarSign, FiHome, FiGrid, FiBarChart2, FiSettings, FiBriefcase, FiShoppingBag, FiStar } from 'react-icons/fi'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -114,6 +114,7 @@ export default function SellerHeader({ onOpenProfile }) {
     { id: 'wallet', label: 'Wallet', icon: FiDollarSign, path: '/seller/dashboard', state: { view: 'wallet' } },
     { id: 'products', label: 'Products', icon: FiGrid, path: '/seller/products' },
     { id: 'analytics', label: 'Analytics', icon: FiBarChart2, path: '/seller/dashboard', state: { view: 'analytics' } },
+    { id: 'reviews', label: 'Reviews', icon: FiStar, path: '/seller/dashboard', state: { view: 'reviews' } },
     { id: 'settings', label: 'Settings', icon: FiSettings, path: '/seller/settings' },
   ]
 
