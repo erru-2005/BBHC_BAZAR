@@ -498,12 +498,6 @@ function PublicProductDetail() {
                 />
               </div>
 
-              {/* Customer Reviews Section */}
-              <div className="pt-5 sm:pt-6 border-t border-gray-200">
-                <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-4">Customer Reviews</h2>
-                <PublicReviews itemId={productId} label="Product" />
-              </div>
-
               {/* Other Products Section */}
               {otherProducts.length > 0 && (
                 <div className="pt-6 sm:pt-8 border-t border-gray-200 mt-4 sm:mt-6 w-full max-w-full">
@@ -602,6 +596,11 @@ function PublicProductDetail() {
                   </div>
                 </div>
               )}
+
+              {/* Customer Reviews Section */}
+              <div className="pt-5 sm:pt-6 border-t border-gray-200">
+                <PublicReviews itemId={productId} label="Product" />
+              </div>
             </div>
           </div>
         </div>

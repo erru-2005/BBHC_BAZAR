@@ -112,7 +112,39 @@ class RatingService:
                 cursor = cursor.limit(limit)
 
             ratings = [Rating.from_bson(doc) for doc in cursor]
-            return ratings
+
+            enriched_ratings = []
+            for r in ratings:
+                r_dict = r.to_dict()
+                # Direct DB lookup with projection for speed & reliability
+                try:
+                    user_doc = mongo.db.users.find_one(
+                        {'_id': ObjectId(str(r.user_id))},
+                        {'first_name': 1, 'last_name': 1, 'username': 1, 'phone_number': 1, 'image_url': 1}
+                    )
+                except Exception:
+                    user_doc = None
+
+                if user_doc:
+                    first = (user_doc.get('first_name') or '').strip()
+                    last = (user_doc.get('last_name') or '').strip()
+                    full_name = f"{first} {last}".strip()
+                    if not full_name:
+                        username = user_doc.get('username') or ''
+                        # Strip auto-generated "user_<phone>" prefix to show cleaner name
+                        if username.startswith('user_'):
+                            phone = user_doc.get('phone_number', '')
+                            full_name = f"User {phone[-4:]}" if phone else 'User'
+                        else:
+                            full_name = username or 'User'
+                    r_dict['user_name'] = full_name
+                    r_dict['user_image'] = user_doc.get('image_url')
+                else:
+                    r_dict['user_name'] = 'User'
+                    r_dict['user_image'] = None
+
+                enriched_ratings.append(r_dict)
+            return enriched_ratings
 
         except Exception as e:
             raise Exception(f"Error fetching product ratings: {str(e)}")
@@ -317,6 +349,7 @@ class RatingService:
                 
                 r_dict['product_name'] = getattr(product, 'product_name', getattr(product, 'service_name', 'Unknown Item'))
                 r_dict['user_name'] = f"{getattr(user, 'first_name', '') or ''} {getattr(user, 'last_name', '') or ''}".strip() or getattr(user, 'username', 'Unknown User') if user else 'Unknown User'
+                r_dict['user_image'] = getattr(user, 'image_url', None) if user else None
                 r_dict['seller_name'] = f"{getattr(seller, 'first_name', '') or ''} {getattr(seller, 'last_name', '') or ''}".strip() or getattr(seller, 'trade_id', 'Unknown Seller') if seller else 'No Seller'
                 
                 enriched_ratings.append(r_dict)

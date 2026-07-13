@@ -110,7 +110,7 @@ def get_product_ratings(product_id):
         ratings = RatingService.get_product_ratings(product_id, limit=limit, skip=skip)
         
         return jsonify({
-            'ratings': [rating.to_dict() for rating in ratings],
+            'ratings': ratings,
             'total': len(ratings)
         }), 200
 
@@ -209,6 +209,7 @@ def delete_rating(rating_id):
     except Exception as e:
         return jsonify({'error': f'Error deleting rating: {str(e)}'}), 500
 
+
 @ratings_bp.route('/sellers/<seller_id>/ratings', methods=['GET'])
 def get_seller_ratings(seller_id):
     """Get all ratings for a seller's products (public endpoint)"""
@@ -224,6 +225,7 @@ def get_seller_ratings(seller_id):
         }), 200
     except Exception as e:
         return jsonify({'error': f'Error fetching seller ratings: {str(e)}'}), 500
+
 
 @ratings_bp.route('/ratings/all', methods=['GET'])
 @jwt_required()
@@ -246,3 +248,23 @@ def get_all_ratings():
         }), 200
     except Exception as e:
         return jsonify({'error': f'Error fetching all ratings: {str(e)}'}), 500
+
+
+@ratings_bp.route('/ratings/recent', methods=['GET'])
+def get_recent_ratings():
+    """Get recent ratings across the system (Public endpoint)"""
+    try:
+        limit = request.args.get('limit', type=int, default=10)
+        skip = request.args.get('skip', type=int, default=0)
+
+        ratings = RatingService.get_all_ratings(limit=limit, skip=skip)
+        
+        # Filter out ratings without reviews for better display
+        ratings_with_reviews = [r for r in ratings if r.get('review_text') and r.get('review_text').strip()]
+        
+        return jsonify({
+            'ratings': ratings_with_reviews,
+            'total': len(ratings_with_reviews)
+        }), 200
+    except Exception as e:
+        return jsonify({'error': f'Error fetching recent ratings: {str(e)}'}), 500

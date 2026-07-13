@@ -2423,6 +2423,15 @@ export const getAllRatings = async (limit, skip) => {
   return response
 }
 
+export const getRecentRatings = async (limit = 10, skip = 0) => {
+  const params = new URLSearchParams()
+  if (limit) params.append('limit', limit)
+  if (skip) params.append('skip', skip)
+  const queryString = params.toString() ? `?${params.toString()}` : ''
+  const response = await apiClient.get(`/api/ratings/recent${queryString}`)
+  return response
+}
+
 // Advertisements API
 export const getAdvertisements = async () => {
   try {

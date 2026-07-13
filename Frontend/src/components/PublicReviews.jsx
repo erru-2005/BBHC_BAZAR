@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
-import { FaStar } from 'react-icons/fa'
+import { useEffect, useState, useRef } from 'react'
+import { FaStar, FaUserCircle, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
 import { getProductRatings } from '../services/api'
+import { getImageUrl } from '../utils/image'
 
 /**
  * PublicReviews - Shows all reviews for a product or service to any visitor.
@@ -12,6 +13,7 @@ function PublicReviews({ itemId, label = 'Item' }) {
   const [reviews, setReviews] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const scrollContainerRef = useRef(null)
 
   useEffect(() => {
     if (!itemId) return
@@ -56,41 +58,106 @@ function PublicReviews({ itemId, label = 'Item' }) {
     )
   }
 
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -320, behavior: 'smooth' })
+    }
+  }
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 320, behavior: 'smooth' })
+    }
+  }
+
   return (
     <div className="space-y-4">
-      {reviews.map((review, idx) => (
-        <div
-          key={review.id || idx}
-          className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm space-y-2"
-        >
-          <div className="flex items-center justify-between gap-2">
-            {/* Star display */}
-            <div className="flex items-center gap-0.5">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <FaStar
-                  key={star}
-                  className={`w-3.5 h-3.5 ${star <= (review.rating || 0) ? 'text-yellow-400' : 'text-slate-200'}`}
-                />
-              ))}
-              <span className="ml-1.5 text-xs font-bold text-slate-600">{review.rating}.0</span>
-            </div>
-            {/* Date */}
-            {review.created_at && (
-              <span className="text-[10px] text-slate-400 font-medium shrink-0">
-                {new Date(review.created_at).toLocaleDateString('en-IN', {
-                  day: '2-digit', month: 'short', year: 'numeric'
-                })}
-              </span>
-            )}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-gray-900">Customer Reviews</h3>
+        {reviews.length > 0 && (
+          <div className="flex gap-2">
+            <button
+              onClick={scrollLeft}
+              className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+              aria-label="Scroll left"
+            >
+              <FaChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={scrollRight}
+              className="p-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+              aria-label="Scroll right"
+            >
+              <FaChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
-          {/* Review text */}
-          {review.review_text && (
-            <p className="text-sm text-slate-700 leading-relaxed">{review.review_text}</p>
-          )}
-          {/* Anonymous reviewer */}
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Verified Buyer</p>
-        </div>
-      ))}
+        )}
+      </div>
+
+      <div 
+        ref={scrollContainerRef}
+        className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {reviews.map((review, idx) => (
+          <div
+            key={review.id || idx}
+            className="flex-none w-[280px] sm:w-[320px] bg-white border border-slate-100 rounded-xl p-4 shadow-sm flex flex-col justify-between snap-center"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  {review.user_image ? (
+                    <img 
+                      src={getImageUrl(review.user_image)} 
+                      alt={review.user_name || 'User'} 
+                      className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                    />
+                  ) : (
+                    <FaUserCircle className="w-8 h-8 text-gray-300" />
+                  )}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 text-sm truncate max-w-[120px]">
+                      {review.user_name || 'Anonymous User'}
+                    </h4>
+                    {review.created_at && (
+                      <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                        {new Date(review.created_at).toLocaleDateString('en-IN', {
+                          day: '2-digit', month: 'short', year: 'numeric'
+                        })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {review.review_text && (
+                <p className="text-sm text-slate-700 leading-relaxed mb-4 line-clamp-4">
+                  "{review.review_text}"
+                </p>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center gap-1 pt-3 border-t border-slate-100 mb-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <FaStar
+                    key={star}
+                    className={`w-3.5 h-3.5 ${star <= (review.rating || 0) ? 'text-yellow-400' : 'text-slate-200'}`}
+                  />
+                ))}
+                <span className="ml-1.5 text-xs font-bold text-slate-600">{review.rating}.0</span>
+              </div>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Verified Buyer</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <style dangerouslySetInnerHTML={{__html: `
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}} />
     </div>
   )
 }
