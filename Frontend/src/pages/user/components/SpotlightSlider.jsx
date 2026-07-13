@@ -5,37 +5,62 @@ import { getImageUrl } from '../../../utils/image'
 import { Link } from 'react-router-dom'
 
 function SpotlightSlide({ slide, className = '' }) {
+  const isExternal = slide.link && slide.link.startsWith('http')
+  const Wrapper = isExternal ? 'a' : Link
+  const linkProps = isExternal
+    ? { href: slide.link, target: '_blank', rel: 'noopener noreferrer' }
+    : { to: slide.link || '#' }
+
   return (
-    <Link
-      to={slide.link || '#'}
+    <Wrapper
+      {...linkProps}
       className={`relative overflow-hidden rounded-xl bg-slate-900 aspect-[16/9] lg:aspect-[2/1] block group ${className}`}
     >
-      <img
-        src={getImageUrl(slide.image)}
-        alt={slide.title}
-        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-700"
-      />
+      {slide.media_type === 'video' ? (
+        <video
+          src={getImageUrl(slide.image)}
+          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-700"
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+      ) : (
+        <img
+          src={getImageUrl(slide.image)}
+          alt={slide.title}
+          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-700"
+        />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 lg:p-5 text-white">
-        <p className="text-[10px] uppercase tracking-[0.18em] text-white/80 sm:text-xs">
-          {slide.title}
-        </p>
-        <p className="mt-0.5 text-lg font-black leading-tight sm:text-xl lg:text-2xl">
-          {slide.subtitle}
-        </p>
-        <p className="mt-1 text-[11px] text-gray-200 sm:text-xs lg:text-sm">{slide.cta}</p>
+        {slide.title && (
+          <p className="text-[10px] uppercase tracking-[0.18em] text-white/80 sm:text-xs">
+            {slide.title}
+          </p>
+        )}
+        {slide.subtitle && (
+          <p className="mt-0.5 text-lg font-black leading-tight sm:text-xl lg:text-2xl">
+            {slide.subtitle}
+          </p>
+        )}
+        {slide.cta && (
+          <p className="mt-1 text-[11px] text-gray-200 sm:text-xs lg:text-sm">{slide.cta}</p>
+        )}
       </div>
-    </Link>
+    </Wrapper>
   )
 }
 
 SpotlightSlide.propTypes = {
   slide: PropTypes.shape({
     id: PropTypes.string.isRequired,
-    title: PropTypes.string.isRequired,
-    subtitle: PropTypes.string.isRequired,
-    cta: PropTypes.string.isRequired,
-    image: PropTypes.string.isRequired
+    title: PropTypes.string,
+    subtitle: PropTypes.string,
+    cta: PropTypes.string,
+    image: PropTypes.string.isRequired,
+    link: PropTypes.string,
+    media_type: PropTypes.string
   }).isRequired,
   className: PropTypes.string
 }

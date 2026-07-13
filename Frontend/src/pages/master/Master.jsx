@@ -11,7 +11,7 @@ import { bindPortalRealtimeSync, logoutUser } from '../../services/api'
 import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins, FaGlobe, FaStar, FaTruck } from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins, FaGlobe, FaStar, FaTruck, FaAd } from 'react-icons/fa'
 import { FaHouse } from 'react-icons/fa6'
 import PasswordResetDialog from '../../components/PasswordResetDialog'
 import AddSeller from './components/AddSeller'
@@ -33,6 +33,7 @@ import Analysis from './components/analysis/Analysis'
 import ActiveCounters from './components/ActiveCounters'
 import WebContainerSettings from './components/WebContainerSettings'
 import MasterReviews from './components/MasterReviews'
+import Advertisements from './components/Advertisements'
 import './master.css'
 
 const TAB_ORDER_VERSION = '5'
@@ -73,6 +74,7 @@ function Master() {
     { id: 'add-master', label: 'Add Master', icon: IoMdPersonAdd },
     { id: 'list-masters', label: 'List Masters', icon: MdList },
     { id: 'reviews', label: 'System Reviews', icon: FaStar },
+    { id: 'advertisements', label: 'Advertisements', icon: FaAd },
     { id: 'blacklisted-sellers', label: 'Blacklisted', icon: MdBlock }
   ]
 
@@ -623,6 +625,8 @@ function Master() {
         {activeTab === 'list-outlet-men' && <ListOutletMan />}
         
         {activeTab === 'list-masters' && <ListMasters />}
+
+        {activeTab === 'advertisements' && <Advertisements />}
 
         {activeTab === 'blacklisted-sellers' && <BlacklistedSellers />}
 

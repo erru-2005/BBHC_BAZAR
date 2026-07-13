@@ -106,7 +106,9 @@ export const API_ENDPOINTS = {
     WEB_CONTAINER: {
       GET_URL: `${API_BASE_URL}/api/web-container/url`,
       SET_URL: `${API_BASE_URL}/api/web-container/url`
-    }
+    },
+    ADVERTISEMENTS: `${API_BASE_URL}/api/advertisements`,
+    ADVERTISEMENT: (adId) => `${API_BASE_URL}/api/advertisements/${adId}`
   }
 }
 

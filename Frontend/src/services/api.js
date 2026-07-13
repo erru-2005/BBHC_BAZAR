@@ -2422,3 +2422,35 @@ export const getAllRatings = async (limit, skip) => {
   const response = await apiClient.get(`/api/ratings/all${queryString}`)
   return response
 }
+
+// Advertisements API
+export const getAdvertisements = async () => {
+  try {
+    const response = await apiClient.get(API_ENDPOINTS.API.ADVERTISEMENTS)
+    return response || []
+  } catch (error) {
+    throw new Error(error.message || 'Failed to fetch advertisements')
+  }
+}
+
+export const createAdvertisement = async (formData) => {
+  try {
+    const response = await apiClient.post(API_ENDPOINTS.API.ADVERTISEMENTS, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to create advertisement')
+  }
+}
+
+export const deleteAdvertisement = async (adId) => {
+  try {
+    const response = await apiClient.delete(API_ENDPOINTS.API.ADVERTISEMENT(adId))
+    return response
+  } catch (error) {
+    throw new Error(error.message || 'Failed to delete advertisement')
+  }
+}

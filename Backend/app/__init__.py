@@ -200,6 +200,7 @@ def create_app(config_class=Config):
     from app.routes.image_route import image_bp
     from app.routes.web_container import web_container_bp
     from app.routes.slot_routes import slot_bp
+    from app.routes.advertisement_route import advertisement_bp
     
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(image_bp, url_prefix='/api')
@@ -213,6 +214,7 @@ def create_app(config_class=Config):
     app.register_blueprint(service_bp, url_prefix='/api')
     app.register_blueprint(payment_bp, url_prefix='/api')
     app.register_blueprint(slot_bp, url_prefix='/api/outlet')
+    app.register_blueprint(advertisement_bp, url_prefix='/api')
     
     # Simple root route for connectivity testing
     @app.route('/', methods=['GET'])

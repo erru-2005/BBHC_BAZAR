@@ -13,7 +13,7 @@ import MobileBottomNav from './components/MobileBottomNav'
 import ProductShowcase from './components/ProductShowcase'
 import LogoAnimation from '../../components/LogoAnimation'
 import { setHomeProducts, setHomeServices, setHomeWishlist, setError, setLoading, setRefreshing, updateProductInCache } from '../../store/dataSlice'
-import { getProducts, getWishlist, getServices } from '../../services/api'
+import { getProducts, getWishlist, getServices, getAdvertisements } from '../../services/api'
 import { getImageUrl } from '../../utils/image'
 import { initSocket, getSocket } from '../../utils/socket'
 import { initActiveCounterSocket } from '../../utils/activeCounterSocket'
@@ -27,6 +27,19 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
   const internalHeaderLogoRef = useRef(null)
   const headerLogoRef = externalHeaderLogoRef || internalHeaderLogoRef
   const prevLocationRef = useRef(location.pathname)
+  const [advertisements, setAdvertisements] = useState([])
+
+  useEffect(() => {
+    const fetchAds = async () => {
+      try {
+        const ads = await getAdvertisements()
+        setAdvertisements(ads)
+      } catch (err) {
+        console.error('Failed to fetch advertisements:', err)
+      }
+    }
+    fetchAds()
+  }, [])
 
   const { home, loading, error } = useSelector((state) => state.data)
   const { isAuthenticated, userType, token } = useSelector((state) => state.auth)
@@ -73,13 +86,26 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
       })))
     }
 
+    // Add custom advertisements
+    if (advertisements && advertisements.length > 0) {
+      slides.push(...advertisements.map((ad) => ({
+        id: `ad-${ad.id || ad._id}`,
+        title: ad.title || '',
+        subtitle: '',
+        cta: 'View',
+        link: ad.link,
+        image: ad.media_url,
+        media_type: ad.media_type
+      })))
+    }
+
     // Fallback to static slides if no dynamic spotlights exist
     if (slides.length === 0) {
       return spotlightProducts
     }
 
     return slides
-  }, [products, services, spotlightProducts])
+  }, [products, services, spotlightProducts, advertisements])
 
   // Detect navigation to home from another page
   useEffect(() => {
