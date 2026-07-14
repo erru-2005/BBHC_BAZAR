@@ -255,7 +255,7 @@ function ProductShowcase({ products = [], services = [], loading, error }) {
     } catch (error) {
       // Revert on error
       dispatch({ type: 'data/toggleWishlist', payload: idStr })
-      alert(error.message || 'Failed to update wishlist')
+      console.error(error.message || 'Failed to update wishlist')
     } finally {
       setWishlistLoading((prev) => {
         const next = new Set(prev)

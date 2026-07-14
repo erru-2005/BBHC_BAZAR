@@ -145,7 +145,7 @@ function MobileBottomNav({ items = defaultItems }) {
   const activeIndex = matchedIndex >= 0 ? matchedIndex : homeIndex >= 0 ? homeIndex : 0
 
   return (
-    <div className="lg:hidden pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[max(0.05rem,env(safe-area-inset-bottom))]">
+    <div className="lg:hidden pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-3 pb-[max(0rem,env(safe-area-inset-bottom))]">
       <LimelightNav
         items={normalizedItems}
         activeIndex={activeIndex}

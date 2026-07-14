@@ -342,7 +342,7 @@ function PublicProductDetail() {
                       } catch (error) {
                         // Revert on error
                         dispatch({ type: 'data/toggleWishlist', payload: currentId })
-                        alert(error.message || 'Failed to update wishlist')
+                        showToast(error.message || 'Failed to update wishlist', 'error')
                       } finally {
                         setWishlistLoading(false)
                       }
@@ -542,13 +542,13 @@ function PublicProductDetail() {
                                   removeFromWishlist(otherProductId).then(() => {
                                     dispatch({ type: 'data/toggleWishlist', payload: otherProductId })
                                   }).catch(() => {
-                                    alert('Failed to remove from wishlist')
+                                    showToast('Failed to remove from wishlist', 'error')
                                   })
                                 } else {
                                   addToWishlist(otherProductId).then(() => {
                                     dispatch({ type: 'data/toggleWishlist', payload: otherProductId })
                                   }).catch(() => {
-                                    alert('Failed to add to wishlist')
+                                    showToast('Failed to add to wishlist', 'error')
                                   })
                                 }
                               }}
