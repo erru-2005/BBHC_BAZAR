@@ -213,6 +213,7 @@ function UserOrderDetail() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [reviewMessage, setReviewMessage] = useState('')
   const [hasRated, setHasRated] = useState(false)
+  const [editCount, setEditCount] = useState(0)
 
   const fetchOrderDetails = async () => {
     try {
@@ -236,6 +237,7 @@ function UserOrderDetail() {
             if (ratingRes) {
               setRating(ratingRes.rating)
               setReviewText(ratingRes.review_text || '')
+              setEditCount(ratingRes.edit_count || 0)
               setHasRated(true)
             }
           } catch (e) {
@@ -309,6 +311,9 @@ function UserOrderDetail() {
       await createOrUpdateRating(productId, rating, reviewText)
       setReviewMessage('Review saved successfully!')
       setHasRated(true)
+      if (hasRated) {
+        setEditCount((prev) => prev + 1)
+      }
     } catch (e) {
       setReviewMessage(e.message || 'Failed to save review.')
     } finally {
@@ -483,8 +488,8 @@ function UserOrderDetail() {
           </ul>
         </div>
 
-        {/* QR Code Token Card (Only if order is accepted or handed over) */}
-        {(order.status === 'seller_accepted' || order.status === 'handed_over') && (order.secureTokenUser || order.qrCodeData || order.qr_code_data) && (
+        {/* QR Code Token Card (Only if order is handed over or ready for pickup) */}
+        {(order.status === 'handed_over' || order.status === 'ready_for_pickup') && (order.secureTokenUser || order.qrCodeData || order.qr_code_data) && (
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm text-center space-y-4">
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Verification QR Code</h3>
             <p className="text-xs text-slate-500">Present this QR code at the counter to verify and pay.</p>
@@ -584,10 +589,20 @@ function UserOrderDetail() {
                   {reviewMessage}
                 </p>
               )}
+              {hasRated && editCount < 2 && (
+                <p className="text-xs text-slate-500 font-medium">
+                  You can edit your review {2 - editCount} more time{2 - editCount === 1 ? '' : 's'}.
+                </p>
+              )}
+              {hasRated && editCount >= 2 && (
+                <p className="text-xs text-orange-500 font-medium">
+                  You have reached the maximum number of edits for this review.
+                </p>
+              )}
               <button
                 onClick={handleSubmitReview}
-                disabled={isSubmittingReview || rating === 0}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50"
+                disabled={isSubmittingReview || rating === 0 || (hasRated && editCount >= 2)}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500"
               >
                 {isSubmittingReview ? 'Saving...' : (hasRated ? 'Update Review' : 'Submit Review')}
               </button>

@@ -647,7 +647,7 @@ function CheckoutSuccessModal({ orders, failedItems, onClose, onContinueShopping
                     ₹{Number(order.total_amount || order.totalAmount || 0).toLocaleString('en-IN')}
                   </p>
                 </div>
-                {order.status === 'seller_accepted' && order.secureTokenUser && (
+                {(order.status === 'handed_over' || order.status === 'ready_for_pickup') && order.secureTokenUser && (
                   <div className="flex-shrink-0">
                     <div className="bg-white p-2 rounded-lg border border-gray-200">
                       <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

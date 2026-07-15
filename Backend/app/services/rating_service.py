@@ -38,17 +38,38 @@ class RatingService:
             seller_id = None
             if 'seller_id' in rating_data and rating_data['seller_id']:
                 try:
-                    # Try to convert to ObjectId if it's a valid ObjectId string
                     seller_id = ObjectId(rating_data['seller_id'])
                 except Exception:
-                    # If not a valid ObjectId, skip seller_id (it might be a trade_id or invalid)
                     seller_id = None
 
+            # Determine item_type — check DB so we get it right at write time
+            item_type = rating_data.get('item_type', 'product')
+            if item_type not in ('product', 'service'):
+                # Auto-detect: try product first, then service
+                try:
+                    from app.services.product_service import ProductService
+                    from app.services.service_service import ServiceService
+                    product = ProductService.get_product_by_id(str(product_id))
+                    if product:
+                        item_type = 'product'
+                    else:
+                        svc = ServiceService.get_service_by_id(str(product_id))
+                        item_type = 'service' if svc else 'product'
+                except Exception:
+                    item_type = 'product'
+
             if existing_rating:
+                # Check edit count
+                current_edit_count = existing_rating.get('edit_count', 0)
+                if current_edit_count >= 2:
+                    raise ValueError("Maximum review edits (2) reached.")
+
                 # Update existing rating
                 update_data = {
                     'rating': rating_value,
-                    'updated_at': datetime.now(timezone.utc)
+                    'updated_at': datetime.now(timezone.utc),
+                    'edit_count': current_edit_count + 1,
+                    'item_type': item_type,
                 }
                 if 'review_text' in rating_data:
                     update_data['review_text'] = rating_data['review_text']
@@ -68,7 +89,8 @@ class RatingService:
                     user_id=user_id,
                     seller_id=seller_id,
                     rating=rating_value,
-                    review_text=rating_data.get('review_text')
+                    review_text=rating_data.get('review_text'),
+                    item_type=item_type,
                 )
 
                 result = mongo.db.ratings.insert_one(rating.to_bson())
@@ -307,15 +329,57 @@ class RatingService:
             
             enriched_ratings = []
             for r in ratings:
-                r_dict = r.to_dict()
-                product = ProductService.get_product_by_id(r.product_id)
-                if not product:
-                    product = ServiceService.get_service_by_id(r.product_id)
-                user = UserService.get_user_by_id(r.user_id)
-                
-                r_dict['product_name'] = getattr(product, 'product_name', getattr(product, 'service_name', 'Unknown Item'))
-                r_dict['user_name'] = f"{getattr(user, 'first_name', '') or ''} {getattr(user, 'last_name', '') or ''}".strip() or getattr(user, 'username', 'Unknown User') if user else 'Unknown User'
-                enriched_ratings.append(r_dict)
+                try:
+                    r_dict = r.to_dict()
+                    # Use stored item_type from DB; fall back to lookup only if not saved
+                    item_type = getattr(r, 'item_type', None) or 'product'
+                    product_name = None
+                    user_name = 'Unknown User'
+
+                    try:
+                        if item_type == 'service':
+                            svc = ServiceService.get_service_by_id(r.product_id)
+                            if svc:
+                                product_name = getattr(svc, 'service_name', None)
+                            if not product_name:
+                                # Fallback: maybe stored wrong, check product
+                                product = ProductService.get_product_by_id(r.product_id)
+                                if product:
+                                    item_type = 'product'
+                                    product_name = getattr(product, 'product_name', None)
+                        else:
+                            product = ProductService.get_product_by_id(r.product_id)
+                            if product:
+                                product_name = getattr(product, 'product_name', None)
+                            else:
+                                # item was deleted or is actually a service
+                                svc = ServiceService.get_service_by_id(r.product_id)
+                                if svc:
+                                    item_type = 'service'
+                                    product_name = getattr(svc, 'service_name', None)
+                    except Exception:
+                        pass
+
+                    # Skip orphaned reviews (item no longer exists)
+                    if not product_name:
+                        continue
+
+                    try:
+                        user = UserService.get_user_by_id(r.user_id)
+                        if user:
+                            first = getattr(user, 'first_name', '') or ''
+                            last = getattr(user, 'last_name', '') or ''
+                            user_name = (f"{first} {last}".strip()
+                                        or getattr(user, 'username', 'Unknown User'))
+                    except Exception:
+                        pass
+
+                    r_dict['item_type'] = item_type
+                    r_dict['product_name'] = product_name
+                    r_dict['user_name'] = user_name
+                    enriched_ratings.append(r_dict)
+                except Exception:
+                    pass  # skip broken records silently
                 
             return enriched_ratings
         except Exception as e:
@@ -340,19 +404,70 @@ class RatingService:
             
             enriched_ratings = []
             for r in ratings:
-                r_dict = r.to_dict()
-                product = ProductService.get_product_by_id(r.product_id)
-                if not product:
-                    product = ServiceService.get_service_by_id(r.product_id)
-                user = UserService.get_user_by_id(r.user_id)
-                seller = SellerService.get_seller_by_id(r.seller_id) if r.seller_id else None
-                
-                r_dict['product_name'] = getattr(product, 'product_name', getattr(product, 'service_name', 'Unknown Item'))
-                r_dict['user_name'] = f"{getattr(user, 'first_name', '') or ''} {getattr(user, 'last_name', '') or ''}".strip() or getattr(user, 'username', 'Unknown User') if user else 'Unknown User'
-                r_dict['user_image'] = getattr(user, 'image_url', None) if user else None
-                r_dict['seller_name'] = f"{getattr(seller, 'first_name', '') or ''} {getattr(seller, 'last_name', '') or ''}".strip() or getattr(seller, 'trade_id', 'Unknown Seller') if seller else 'No Seller'
-                
-                enriched_ratings.append(r_dict)
+                try:
+                    r_dict = r.to_dict()
+                    # Use stored item_type from DB; fall back to lookup only when missing
+                    item_type = getattr(r, 'item_type', None) or 'product'
+                    product_name = None
+                    user_name = 'Unknown User'
+                    user_image = None
+                    seller_name = 'No Seller'
+
+                    try:
+                        if item_type == 'service':
+                            svc = ServiceService.get_service_by_id(r.product_id)
+                            if svc:
+                                product_name = getattr(svc, 'service_name', None)
+                            if not product_name:
+                                product = ProductService.get_product_by_id(r.product_id)
+                                if product:
+                                    item_type = 'product'
+                                    product_name = getattr(product, 'product_name', None)
+                        else:
+                            product = ProductService.get_product_by_id(r.product_id)
+                            if product:
+                                product_name = getattr(product, 'product_name', None)
+                            else:
+                                svc = ServiceService.get_service_by_id(r.product_id)
+                                if svc:
+                                    item_type = 'service'
+                                    product_name = getattr(svc, 'service_name', None)
+                    except Exception:
+                        pass
+
+                    # Skip orphaned reviews (product/service no longer exists)
+                    if not product_name:
+                        continue
+
+                    try:
+                        user = UserService.get_user_by_id(r.user_id)
+                        if user:
+                            first = getattr(user, 'first_name', '') or ''
+                            last = getattr(user, 'last_name', '') or ''
+                            user_name = (f"{first} {last}".strip()
+                                        or getattr(user, 'username', 'Unknown User'))
+                            user_image = getattr(user, 'image_url', None)
+                    except Exception:
+                        pass
+
+                    try:
+                        seller = SellerService.get_seller_by_id(r.seller_id) if r.seller_id else None
+                        if seller:
+                            first = getattr(seller, 'first_name', '') or ''
+                            last = getattr(seller, 'last_name', '') or ''
+                            seller_name = (f"{first} {last}".strip()
+                                          or getattr(seller, 'trade_id', 'Unknown Seller'))
+                    except Exception:
+                        pass
+
+                    r_dict['item_type'] = item_type
+                    r_dict['product_name'] = product_name
+                    r_dict['user_name'] = user_name
+                    r_dict['user_image'] = user_image
+                    r_dict['seller_name'] = seller_name
+                    enriched_ratings.append(r_dict)
+                except Exception:
+                    pass  # skip broken records silently
                 
             return enriched_ratings
         except Exception as e:

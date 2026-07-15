@@ -2176,10 +2176,11 @@ export const scanOrderToken = async (token, preview = false) => {
   }
 }
 
-export const masterCancelOrder = async (orderId, confirmationCode) => {
+export const masterCancelOrder = async (orderId, confirmationCode, reason) => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.API.ORDER_CANCEL_MASTER(orderId), {
-      confirmation_code: confirmationCode
+      confirmation_code: confirmationCode,
+      reason: reason
     })
     return response.order
   } catch (error) {

@@ -58,6 +58,7 @@ function OrdersList() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelConfirmationCode, setCancelConfirmationCode] = useState('')
+  const [cancelReason, setCancelReason] = useState('')
   const [generatedCode, setGeneratedCode] = useState('')
   const [notifications, setNotifications] = useState([])
   const [fetchError, setFetchError] = useState(null)
@@ -200,7 +201,7 @@ function OrdersList() {
   // Handle accept order
   const handleAcceptOrder = async (orderId) => {
     try {
-      const updatedOrder = await updateOrderStatus(orderId, 'accepted')
+      const updatedOrder = await updateOrderStatus(orderId, 'seller_accepted')
       const updatedOrders = orders.map(order =>
         order.id === orderId ? updatedOrder : order
       )
@@ -350,8 +351,17 @@ function OrdersList() {
       return
     }
 
+    if (!cancelReason.trim()) {
+      showNotification({
+        id: Date.now(),
+        type: 'error',
+        message: 'Rejection reason is required'
+      })
+      return
+    }
+
     try {
-      const updatedOrder = await masterCancelOrder(orderId, cancelConfirmationCode)
+      const updatedOrder = await masterCancelOrder(orderId, cancelConfirmationCode, cancelReason)
       const updatedOrders = orders.map(order =>
         order.id === orderId ? updatedOrder : order
       )
@@ -359,6 +369,7 @@ function OrdersList() {
       setShowCancelModal(false)
       setShowDetailModal(false)
       setCancelConfirmationCode('')
+      setCancelReason('')
       setGeneratedCode('')
       showNotification({
         id: Date.now(),
@@ -382,6 +393,7 @@ function OrdersList() {
     setSelectedOrder(order)
     setShowCancelModal(true)
     setCancelConfirmationCode('')
+    setCancelReason('')
   }
 
   // Export to Excel
@@ -530,15 +542,9 @@ function OrdersList() {
     }
   }
 
-  // Get row background color based on status
+  // Get row background color based on status (cleaner design)
   const getRowColor = (status) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 hover:bg-green-200'
-      case 'handed_over': return 'bg-orange-100 hover:bg-orange-200'
-      case 'pending_seller':
-      case 'seller_accepted': return 'bg-red-100 hover:bg-red-200'
-      default: return 'hover:bg-gray-50'
-    }
+    return 'hover:bg-gray-50 bg-white transition-colors border-b border-gray-100 last:border-0'
   }
 
   const getStatusLabel = (status) => {
@@ -777,11 +783,8 @@ function OrdersList() {
               <div className="flex items-center gap-1">
                 {[...Array(totalPages)].map((_, i) => {
                   const pageNum = i + 1;
-                  if (
-                    pageNum === 1 || 
-                    pageNum === totalPages || 
-                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                  ) {
+                  // Only show previous, current, and next page numbers
+                  if (pageNum >= currentPage - 1 && pageNum <= currentPage + 1) {
                     return (
                       <button
                         key={pageNum}
@@ -795,11 +798,6 @@ function OrdersList() {
                         {pageNum}
                       </button>
                     );
-                  } else if (
-                    (pageNum === 2 && currentPage > 3) || 
-                    (pageNum === totalPages - 1 && currentPage < totalPages - 2)
-                  ) {
-                    return <span key={pageNum} className="px-1 text-gray-400">...</span>;
                   }
                   return null;
                 })}
@@ -824,13 +822,13 @@ function OrdersList() {
             order={selectedOrder}
             onClose={() => setShowDetailModal(false)}
             onAccept={handleAcceptOrder}
-            onReject={handleRejectOrder}
+            onReject={openRejectModal}
             onCancel={openCancelModal}
           />
         )}
       </AnimatePresence>
 
-      {/* Master Cancel Confirmation Modal */}
+      {/* Master Cancel Order Modal */}
       <AnimatePresence>
         {showCancelModal && selectedOrder && (
           <MasterCancelModal
@@ -838,11 +836,13 @@ function OrdersList() {
             confirmationCode={generatedCode}
             inputCode={cancelConfirmationCode}
             onInputChange={setCancelConfirmationCode}
+            cancelReason={cancelReason}
+            onReasonChange={setCancelReason}
             onConfirm={() => handleMasterCancel(selectedOrder.id)}
             onClose={() => {
               setShowCancelModal(false)
               setCancelConfirmationCode('')
-              setGeneratedCode('')
+              setCancelReason('')
             }}
           />
         )}
@@ -1085,7 +1085,7 @@ function OrderDetailModal({ order, onClose, onAccept, onReject, onCancel }) {
 }
 
 // Master Cancel Confirmation Modal
-function MasterCancelModal({ order, confirmationCode, inputCode, onInputChange, onConfirm, onClose }) {
+function MasterCancelModal({ order, confirmationCode, inputCode, onInputChange, cancelReason, onReasonChange, onConfirm, onClose }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -1119,7 +1119,17 @@ function MasterCancelModal({ order, confirmationCode, inputCode, onInputChange, 
             value={inputCode}
             onChange={(e) => onInputChange(e.target.value.toUpperCase())}
             placeholder="Enter code"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent font-mono text-lg"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent font-mono text-lg mb-4"
+          />
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Cancellation Reason <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            value={cancelReason}
+            onChange={(e) => onReasonChange(e.target.value)}
+            placeholder="Enter cancellation reason..."
+            rows="3"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent font-medium text-gray-900"
           />
         </div>
         <div className="flex gap-3">
@@ -1131,7 +1141,7 @@ function MasterCancelModal({ order, confirmationCode, inputCode, onInputChange, 
           </button>
           <button
             onClick={onConfirm}
-            disabled={inputCode !== confirmationCode}
+            disabled={inputCode !== confirmationCode || !cancelReason?.trim()}
             className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Confirm Cancellation

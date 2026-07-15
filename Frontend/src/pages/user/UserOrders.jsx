@@ -267,7 +267,7 @@ function UserOrders() {
     const productName = order.product?.name || order.product?.product_name || 'Product'
     const productImg = order.product?.thumbnail || order.product?.image || 'https://via.placeholder.com/120?text=BBHC'
     const canCancel = order.status === 'pending_seller'
-    const hasQR = order.status === 'seller_accepted' || order.status === 'handed_over' || order.status === 'ready_for_pickup'
+    const hasQR = order.status === 'handed_over' || order.status === 'ready_for_pickup'
     const qrValue = order.secureTokenUser || order.qrCodeData || order.qr_code_data || ''
     const token = order.secureTokenUser || order.secure_token_user || ''
 

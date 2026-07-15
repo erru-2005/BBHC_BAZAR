@@ -15,6 +15,8 @@ class Rating:
         seller_id=None,
         rating=0,  # 1-5 stars
         review_text=None,
+        item_type='product',  # 'product' or 'service'
+        edit_count=0,
         created_at=None,
         updated_at=None,
         _id=None
@@ -25,6 +27,8 @@ class Rating:
         self.seller_id = ObjectId(seller_id) if seller_id and isinstance(seller_id, str) else seller_id
         self.rating = rating  # 1-5 stars
         self.review_text = review_text
+        self.item_type = item_type or 'product'
+        self.edit_count = edit_count
         self.created_at = created_at or datetime.now(timezone.utc)
         self.updated_at = updated_at or datetime.now(timezone.utc)
 
@@ -37,6 +41,8 @@ class Rating:
             'seller_id': str(self.seller_id) if self.seller_id else None,
             'rating': self.rating,
             'review_text': self.review_text,
+            'item_type': self.item_type,
+            'edit_count': self.edit_count,
             'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
             'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at
         }
@@ -48,6 +54,8 @@ class Rating:
             'product_id': self.product_id,
             'user_id': self.user_id,
             'rating': self.rating,
+            'item_type': self.item_type,
+            'edit_count': self.edit_count,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
@@ -70,6 +78,8 @@ class Rating:
             seller_id=bson_doc.get('seller_id'),
             rating=bson_doc.get('rating', 0),
             review_text=bson_doc.get('review_text'),
+            item_type=bson_doc.get('item_type', 'product'),
+            edit_count=bson_doc.get('edit_count', 0),
             created_at=bson_doc.get('created_at'),
             updated_at=bson_doc.get('updated_at')
         )
