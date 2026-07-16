@@ -48,7 +48,7 @@ function OrdersList() {
   const loadingOrders = masterLoading.orders
   const [filteredOrders, setFilteredOrders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [dateFilter, setDateFilter] = useState(() => new Date().toISOString().split('T')[0])
+  const [dateFilter, setDateFilter] = useState('')
   const { userType } = useSelector(state => state.auth)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -62,17 +62,42 @@ function OrdersList() {
   const [generatedCode, setGeneratedCode] = useState('')
   const [notifications, setNotifications] = useState([])
   const [fetchError, setFetchError] = useState(null)
+  const [isCancelling, setIsCancelling] = useState(false)
+  const [isRejecting, setIsRejecting] = useState(false)
   const socket = getSocket()
 
-  // Initialize orders if missing or on page change
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
+
+  // Debounce search query to prevent spamming backend requests on every keystroke
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+    }, 400)
+    return () => clearTimeout(handler)
+  }, [searchQuery])
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [dateFilter, debouncedSearchQuery])
+
+  // Fetch orders when page, date, or debounced search query changes
   useEffect(() => {
     fetchOrders(currentPage)
-  }, [currentPage])
+  }, [currentPage, dateFilter, debouncedSearchQuery])
 
   const fetchOrders = async (page = 1) => {
     try {
       dispatch(setMastersLoading({ field: 'orders', loading: true }))
-      const response = await getOrders({ page, limit: ordersPerPage }, { forceRefresh: true })
+      const response = await getOrders(
+        { 
+          page, 
+          limit: ordersPerPage,
+          date: dateFilter,
+          search: debouncedSearchQuery
+        }, 
+        { forceRefresh: true }
+      )
       // getOrders returns { orders, total, page, limit, totalPages }
       const apiOrders = response.orders || []
       dispatch(setMastersData({ field: 'orders', data: apiOrders }))
@@ -128,20 +153,13 @@ function OrdersList() {
       !['cancelled', 'cancelled_master', 'seller_rejected'].includes(order?.status)
     )
 
-    // Date filter (by Expected Delivery Date)
+    // Date filter (by Creation Date of the Order)
     if (dateFilter) {
       filtered = filtered.filter(order => {
-        let orderDate = null;
-        if (order.arrivalDate || order.arrival_date) {
-            orderDate = new Date(order.arrivalDate || order.arrival_date);
-        } else {
-            const createdAt = order?.createdAt || order?.created_at || order?.orderTime;
-            if (createdAt) {
-                orderDate = calculateArrivalDateObj(createdAt, order.delivery_span);
-            }
-        }
+        const createdAt = order?.createdAt || order?.created_at || order?.orderTime;
+        if (!createdAt) return false;
         
-        if (!orderDate) return false;
+        const orderDate = new Date(createdAt);
         const filterDate = new Date(dateFilter);
         
         return (
@@ -308,6 +326,8 @@ function OrdersList() {
   }
 
   const handleRejectOrder = async (orderId) => {
+    if (isRejecting) return
+
     if (!rejectReason.trim()) {
       showNotification({
         id: Date.now(),
@@ -318,13 +338,15 @@ function OrdersList() {
     }
     
     try {
-      const updatedOrder = await updateOrderStatus(orderId, 'rejected', { rejection_reason: rejectReason })
+      setIsRejecting(true)
+      const updatedOrder = await updateOrderStatus(orderId, 'seller_rejected', { rejection_reason: rejectReason })
       const updatedOrders = orders.map(order =>
         order.id === orderId ? updatedOrder : order
       )
       dispatch(setMastersData({ field: 'orders', data: updatedOrders }))
       setShowRejectModal(false)
       setShowDetailModal(false)
+      setRejectReason('')
       showNotification({
         id: Date.now(),
         type: 'success',
@@ -335,13 +357,17 @@ function OrdersList() {
       showNotification({
         id: Date.now(),
         type: 'error',
-        message: 'Failed to reject order'
+        message: error.message || 'Failed to reject order'
       })
+    } finally {
+      setIsRejecting(false)
     }
   }
 
   // Handle master cancel order
   const handleMasterCancel = async (orderId) => {
+    if (isCancelling) return
+
     if (!cancelConfirmationCode || cancelConfirmationCode !== generatedCode) {
       showNotification({
         id: Date.now(),
@@ -361,6 +387,7 @@ function OrdersList() {
     }
 
     try {
+      setIsCancelling(true)
       const updatedOrder = await masterCancelOrder(orderId, cancelConfirmationCode, cancelReason)
       const updatedOrders = orders.map(order =>
         order.id === orderId ? updatedOrder : order
@@ -383,6 +410,8 @@ function OrdersList() {
         type: 'error',
         message: error.message || 'Failed to cancel order'
       })
+    } finally {
+      setIsCancelling(false)
     }
   }
 
@@ -839,7 +868,9 @@ function OrdersList() {
             cancelReason={cancelReason}
             onReasonChange={setCancelReason}
             onConfirm={() => handleMasterCancel(selectedOrder.id)}
+            isCancelling={isCancelling}
             onClose={() => {
+              if (isCancelling) return
               setShowCancelModal(false)
               setCancelConfirmationCode('')
               setCancelReason('')
@@ -857,6 +888,7 @@ function OrdersList() {
             exit={{ opacity: 0 }}
             className="master-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50"
             onClick={() => {
+              if (isRejecting) return
               setShowRejectModal(false)
               setRejectReason('')
             }}
@@ -879,10 +911,11 @@ function OrdersList() {
                 </label>
                 <textarea
                   value={rejectReason}
+                  disabled={isRejecting}
                   onChange={(e) => setRejectReason(e.target.value)}
                   placeholder="Enter rejection reason..."
                   rows="3"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent font-medium text-gray-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent font-medium text-gray-900 disabled:opacity-50"
                 />
                 <p className="text-xs text-gray-500 mt-1">This reason will be sent to the user and seller via SMS</p>
               </div>
@@ -897,16 +930,27 @@ function OrdersList() {
                     setShowRejectModal(false)
                     setRejectReason('')
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+                  disabled={isRejecting}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleRejectOrder(selectedOrder.id)}
-                  disabled={!rejectReason.trim()}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isRejecting || !rejectReason.trim()}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Confirm Rejection
+                  {isRejecting ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Rejecting...
+                    </>
+                  ) : (
+                    'Confirm Rejection'
+                  )}
                 </button>
               </div>
             </motion.div>
@@ -1060,7 +1104,7 @@ function OrderDetailModal({ order, onClose, onAccept, onReject, onCancel }) {
                   Accept Order
                 </button>
                 <button
-                  onClick={() => onReject(order.id)}
+                  onClick={() => onReject(order)}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold"
                 >
                   <FaTimesCircle className="w-5 h-5" />
@@ -1085,7 +1129,7 @@ function OrderDetailModal({ order, onClose, onAccept, onReject, onCancel }) {
 }
 
 // Master Cancel Confirmation Modal
-function MasterCancelModal({ order, confirmationCode, inputCode, onInputChange, cancelReason, onReasonChange, onConfirm, onClose }) {
+function MasterCancelModal({ order, confirmationCode, inputCode, onInputChange, cancelReason, onReasonChange, onConfirm, isCancelling, onClose }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -1117,34 +1161,47 @@ function MasterCancelModal({ order, confirmationCode, inputCode, onInputChange, 
           <input
             type="text"
             value={inputCode}
+            disabled={isCancelling}
             onChange={(e) => onInputChange(e.target.value.toUpperCase())}
             placeholder="Enter code"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent font-mono text-lg mb-4"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent font-mono text-lg mb-4 disabled:opacity-50"
           />
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Cancellation Reason <span className="text-red-500">*</span>
           </label>
           <textarea
             value={cancelReason}
+            disabled={isCancelling}
             onChange={(e) => onReasonChange(e.target.value)}
             placeholder="Enter cancellation reason..."
             rows="3"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent font-medium text-gray-900"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent font-medium text-gray-900 disabled:opacity-50"
           />
         </div>
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+            disabled={isCancelling}
+            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            disabled={inputCode !== confirmationCode || !cancelReason?.trim()}
-            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isCancelling || inputCode !== confirmationCode || !cancelReason?.trim()}
+            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Confirm Cancellation
+            {isCancelling ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Cancelling...
+              </>
+            ) : (
+              'Confirm Cancellation'
+            )}
           </button>
         </div>
       </motion.div>

@@ -1960,7 +1960,7 @@ export const getOrders = async (params = {}, options = {}) => {
       ...params
     }
     // For default dashboard query, prefer warm cache first.
-    const isDefaultQuery = queryParams.page === 1 && queryParams.limit === 10 && queryParams.sort === '-created_at'
+    const isDefaultQuery = queryParams.page === 1 && queryParams.limit === 10 && queryParams.sort === '-created_at' && !queryParams.date && !queryParams.search
     if (!options.forceRefresh && isDefaultQuery && isFresh(apiCache.orders)) {
       return apiCache.orders.data
     }
@@ -1974,8 +1974,8 @@ export const getOrders = async (params = {}, options = {}) => {
       totalPages: response.totalPages || Math.ceil((response.total || response.orders?.length || 0) / queryParams.limit)
     }
     
-    // Cache only the first page with default limit
-    if (queryParams.page === 1 && queryParams.limit === 10) {
+    // Cache only the first page with default limit and no active filters
+    if (isDefaultQuery) {
       apiCache.orders = { data: result, timestamp: nowTs() }
     }
     
@@ -1988,9 +1988,9 @@ export const getOrders = async (params = {}, options = {}) => {
   }
 }
 
-export const updateOrderStatus = async (orderId, status) => {
+export const updateOrderStatus = async (orderId, status, extraPayload = {}) => {
   try {
-    const response = await apiClient.put(API_ENDPOINTS.API.ORDER_STATUS(orderId), { status })
+    const response = await apiClient.put(API_ENDPOINTS.API.ORDER_STATUS(orderId), { status, ...extraPayload })
     return response.order
   } catch (error) {
     throw new Error(error.message || 'Failed to update order status')

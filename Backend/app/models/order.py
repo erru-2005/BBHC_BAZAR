@@ -215,6 +215,8 @@ class Order:
     @staticmethod
     def _format_datetime(value):
         if isinstance(value, datetime):
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=timezone.utc)
             return value.isoformat()
         return value
 
@@ -223,5 +225,8 @@ class Order:
         if isinstance(entry, dict):
             if 'timestamp' in entry and isinstance(entry['timestamp'], datetime):
                 entry = entry.copy()
-                entry['timestamp'] = entry['timestamp'].isoformat()
+                ts = entry['timestamp']
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                entry['timestamp'] = ts.isoformat()
         return entry

@@ -250,7 +250,6 @@ class SMSService:
                         
                     if not base_url:
                         try:
-                            from flask import current_app
                             base_url = current_app.config.get('BASE_URL')
                         except Exception:
                             pass

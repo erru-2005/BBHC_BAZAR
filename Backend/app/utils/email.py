@@ -49,16 +49,43 @@ class EmailService:
                 part2 = MIMEText(body_html, 'html')
                 msg.attach(part2)
 
-            # Connect and send
-            if smtp_port == 465:
-                server = smtplib.SMTP_SSL(smtp_server, smtp_port)
-            else:
-                server = smtplib.SMTP(smtp_server, smtp_port)
-                server.starttls()
-                
-            server.login(smtp_email, smtp_password)
-            server.sendmail(smtp_email, to_email, msg.as_string())
-            server.quit()
+            # Connect and send with fallback logic for resilience
+            server = None
+            last_err = None
+            ports_to_try = [smtp_port]
+            
+            # If the primary port fails, try the alternative standard port as fallback
+            alt_port = 465 if smtp_port == 587 else 587
+            ports_to_try.append(alt_port)
+
+            for port in ports_to_try:
+                try:
+                    print(f"[EmailService] Attempting connection to {smtp_server}:{port}...")
+                    if port == 465:
+                        server = smtplib.SMTP_SSL(smtp_server, port, timeout=5)
+                    else:
+                        server = smtplib.SMTP(smtp_server, port, timeout=5)
+                        server.ehlo()
+                        server.starttls()
+                        server.ehlo()
+                    
+                    server.login(smtp_email, smtp_password)
+                    server.sendmail(smtp_email, to_email, msg.as_string())
+                    server.quit()
+                    last_err = None
+                    break  # Success!
+                except Exception as e:
+                    last_err = e
+                    print(f"[EmailService] Port {port} failed: {e}")
+                    if server:
+                        try:
+                            server.close()
+                        except Exception:
+                            pass
+                        server = None
+
+            if last_err is not None:
+                raise last_err
 
             print(f"[EmailService] Email sent successfully to {to_email}")
             return True, "Email sent successfully"

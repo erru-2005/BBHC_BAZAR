@@ -332,23 +332,76 @@ def list_orders():
     page = int(request.args.get('page', 1))
     limit = int(request.args.get('limit', 10))
 
-    if user_type == 'master':
-        orders, total = OrderService.get_orders(page=page, limit=limit)
-    elif user_type == 'outlet_man':
-        orders, total = OrderService.get_orders(page=page, limit=limit)
-    elif user_type == 'seller':
-        orders, total = OrderService.get_orders_by_seller(user_id, page=page, limit=limit)
-    elif user_type == 'user':
-        orders, total = OrderService.get_orders_by_user(user_id, page=page, limit=limit)
-    else:
+    if user_type not in ['master', 'outlet_man', 'seller', 'user']:
         return jsonify({'error': f'Unauthorized to view orders. User type: {user_type}'}), 403
+
+    # Construct MongoDB filter query
+    filter_query = {}
+
+    # Status filter
+    status = request.args.get('status')
+    if status:
+        filter_query['status'] = status
+    elif user_type in ['master', 'outlet_man']:
+        # Default: exclude cancelled/rejected orders for admin dashboards
+        filter_query['status'] = {
+            '$nin': ['cancelled', 'cancelled_master', 'seller_rejected']
+        }
+
+    # Add user/seller constraints
+    if user_type == 'seller':
+        try:
+            filter_query['seller_id'] = ObjectId(user_id)
+        except Exception:
+            return jsonify({'orders': [], 'total': 0, 'page': page, 'limit': limit, 'totalPages': 0}), 200
+    elif user_type == 'user':
+        try:
+            filter_query['user_id'] = ObjectId(user_id)
+        except Exception:
+            return jsonify({'orders': [], 'total': 0, 'page': page, 'limit': limit, 'totalPages': 0}), 200
+
+    # Date filter: 'date' is format YYYY-MM-DD
+    # Match against order creation date (created_at) adjusting for IST (UTC+5:30)
+    date_param = request.args.get('date')
+    if date_param and date_param.strip():
+        try:
+            from datetime import datetime, timedelta, timezone
+            dt = datetime.strptime(date_param.strip(), '%Y-%m-%d')
+            # Local day starts at 00:00:00 local time, which is (00:00:00 - 5h30m) UTC
+            ist_offset = timedelta(hours=5, minutes=30)
+            start_utc = dt.replace(tzinfo=timezone.utc) - ist_offset
+            end_utc = start_utc + timedelta(days=1)
+            
+            filter_query['created_at'] = {
+                '$gte': start_utc,
+                '$lt': end_utc
+            }
+        except Exception as e:
+            print(f"Error parsing date filter: {e}")
+
+    # Search filter (order number, product name, seller name, user name)
+    search_param = request.args.get('search')
+    if search_param:
+        search_regex = {'$regex': search_param, '$options': 'i'}
+        filter_query['$or'] = [
+            {'order_number': search_regex},
+            {'product_snapshot.name': search_regex},
+            {'seller_snapshot.name': search_regex},
+            {'user_snapshot.name': search_regex},
+            {'seller_snapshot.first_name': search_regex},
+            {'seller_snapshot.last_name': search_regex},
+            {'user_snapshot.first_name': search_regex},
+            {'user_snapshot.last_name': search_regex}
+        ]
+
+    orders, total = OrderService.get_orders(filter_query=filter_query, page=page, limit=limit)
 
     return jsonify({
         'orders': _serialize_orders(orders),
         'total': total,
         'page': page,
         'limit': limit,
-        'totalPages': (total + limit - 1) // limit
+        'totalPages': (total + limit - 1) // limit if limit > 0 else 0
     }), 200
 
 
