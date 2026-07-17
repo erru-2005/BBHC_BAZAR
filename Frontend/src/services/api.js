@@ -1590,10 +1590,11 @@ export const toggleServiceSpotlight = async (serviceId, isSpotlight) => {
 /**
  * Reject a pending product (masters only)
  */
-export const rejectProduct = async (productId, moveToBin = true) => {
+export const rejectProduct = async (productId, moveToBin = true, reason = '') => {
   try {
     const response = await apiClient.post(API_ENDPOINTS.API.REJECT_PRODUCT(productId), {
-      move_to_bin: moveToBin
+      move_to_bin: moveToBin,
+      reason: reason
     })
     return response
   } catch (error) {
@@ -2403,6 +2404,11 @@ export const logoutUser = async () => {
 export const getOutletSlots = async () => {
   const response = await apiClient.get('/api/outlet/slots')
   return response.slots
+}
+
+export const freeOutletSlot = async (slotNumber) => {
+  const response = await apiClient.post(`/api/outlet/slots/${slotNumber}/free`)
+  return response
 }
 
 // Ratings API

@@ -11,7 +11,7 @@ import RecommendationRow from './components/RecommendationRow'
 import SiteFooter from './components/SiteFooter'
 import MobileBottomNav from './components/MobileBottomNav'
 import ProductShowcase from './components/ProductShowcase'
-import RecentReviews from './components/RecentReviews'
+
 import LogoAnimation from '../../components/LogoAnimation'
 import { setHomeProducts, setHomeServices, setHomeWishlist, setError, setLoading, setRefreshing, updateProductInCache } from '../../store/dataSlice'
 import { getProducts, getWishlist, getServices, getAdvertisements } from '../../services/api'
@@ -362,7 +362,7 @@ function Home({ headerLogoRef: externalHeaderLogoRef }) {
             <RecommendationRow key={row.id} title={row.title} products={row.products} />
           ))}
           <ProductShowcase products={products} services={services} loading={loading} error={error} />
-          <RecentReviews />
+
         </div>
       </main>
 

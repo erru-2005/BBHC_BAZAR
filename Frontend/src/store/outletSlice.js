@@ -30,6 +30,11 @@ const outletSlice = createSlice({
         state.orders[index] = updatedOrder
       }
     },
+    removeOutletOrder(state, action) {
+      // Remove a single order by id (e.g. on force-cancel by master)
+      const orderId = action.payload
+      state.orders = state.orders.filter(o => o.id !== orderId)
+    },
     clearOutletData(state) {
       return initialState
     },
@@ -47,6 +52,7 @@ export const {
   setOutletLoading,
   setOutletError,
   updateOutletOrder,
+  removeOutletOrder,
   clearOutletData,
   invalidateOutletCache
 } = outletSlice.actions

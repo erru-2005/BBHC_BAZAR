@@ -194,14 +194,17 @@ class SlotService:
                             'order_number': order.order_number,
                             'product_name': product_name,
                             'seller_name': seller_name,
-                            'quantity': getattr(order, 'quantity', 1)
+                            'quantity': getattr(order, 'quantity', 1),
+                            'status': order.status
                         })
                 
                 slot_data['items'] = items
                 slot_data['item_count'] = len(items) if items else slot.item_count
+                slot_data['has_cancelled_items'] = False
             else:
                 slot_data['user_name'] = None
                 slot_data['items'] = []
+                slot_data['has_cancelled_items'] = False
                 
             enriched_slots.append(slot_data)
             
@@ -243,3 +246,18 @@ class SlotService:
             return True, None
             
         return True, None
+
+    @staticmethod
+    def free_slot(slot_number):
+        """Free a slot completely by setting user_id = None and item_count = 0."""
+        result = mongo.db.slots.update_one(
+            {'slot_number': int(slot_number)},
+            {
+                '$set': {
+                    'user_id': None,
+                    'item_count': 0,
+                    'updated_at': datetime.now(timezone.utc)
+                }
+            }
+        )
+        return result.matched_count > 0

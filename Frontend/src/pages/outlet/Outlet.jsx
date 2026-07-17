@@ -10,9 +10,10 @@ import { clearDeviceToken } from '../../utils/device'
 import { disconnectSocket } from '../../utils/socket'
 import { HiHome } from 'react-icons/hi'
 import { FaShoppingBag, FaBars, FaSignOutAlt, FaSearch, FaQrcode, FaTimes, FaCheck, FaUser, FaBox, FaStore, FaTruck, FaCalendarAlt, FaExclamationTriangle, FaBoxOpen, FaCheckCircle, FaFilter, FaSync } from 'react-icons/fa'
-import { scanOrderToken, getOrders, refreshSellerProfile, logoutUser, getOutletSlots } from '../../services/api'
-import { setOutletOrders, setOutletLoading, updateOutletOrder } from '../../store/outletSlice'
+import { scanOrderToken, getOrders, refreshSellerProfile, logoutUser, getOutletSlots, freeOutletSlot } from '../../services/api'
+import { setOutletOrders, setOutletLoading, updateOutletOrder, removeOutletOrder } from '../../store/outletSlice'
 import { updateUserInfo } from '../../store/authSlice'
+import { getSocket } from '../../utils/socket'
 
 const calculateArrivalDate = (createdAt, deliverySpan) => {
   if (!createdAt) return ''
@@ -50,10 +51,12 @@ const SlotContent = ({ slot, isMatchedSlot }) => (
 
     <div className="flex justify-between items-start mb-4">
       <span className={`text-2xl font-black ${
-        isMatchedSlot ? 'text-white/80' : 'text-gray-300'
+        isMatchedSlot ? 'text-white/80' : slot.has_cancelled_items ? 'text-red-400/80' : 'text-gray-300'
       }`}>{slot.slot_number}</span>
       {isMatchedSlot ? (
         <span className="px-2 py-1 text-[10px] font-bold bg-white/20 text-white rounded-full uppercase">Your Slot</span>
+      ) : slot.has_cancelled_items ? (
+        <span className="px-2 py-1 text-[10px] font-bold bg-red-100 text-red-700 rounded-full uppercase">Cancelled</span>
       ) : slot.is_occupied ? (
         <span className="px-2 py-1 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full uppercase">Occupied</span>
       ) : (
@@ -61,18 +64,18 @@ const SlotContent = ({ slot, isMatchedSlot }) => (
       )}
     </div>
 
-    {(slot.is_occupied || isMatchedSlot) && (
+    {(slot.is_occupied || isMatchedSlot || slot.has_cancelled_items) && (
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <FaUser className={isMatchedSlot ? 'text-white/70 shrink-0' : 'text-blue-400 shrink-0'} />
+          <FaUser className={isMatchedSlot ? 'text-white/70 shrink-0' : slot.has_cancelled_items ? 'text-red-500 shrink-0' : 'text-blue-400 shrink-0'} />
           <p className={`font-bold truncate ${
-            isMatchedSlot ? 'text-white' : 'text-gray-900'
+            isMatchedSlot ? 'text-white' : slot.has_cancelled_items ? 'text-red-900' : 'text-gray-900'
           }`} title={slot.user_name || ''}>{slot.user_name || `Slot ${slot.slot_number} User`}</p>
         </div>
         <div className="flex items-center gap-2">
-          <FaBox className={isMatchedSlot ? 'text-white/70 shrink-0' : 'text-blue-400 shrink-0'} />
+          <FaBox className={isMatchedSlot ? 'text-white/70 shrink-0' : slot.has_cancelled_items ? 'text-red-500 shrink-0' : 'text-blue-400 shrink-0'} />
           <p className={`text-sm font-medium ${
-            isMatchedSlot ? 'text-white/90' : 'text-gray-700'
+            isMatchedSlot ? 'text-white/90' : slot.has_cancelled_items ? 'text-red-800' : 'text-gray-700'
           }`}>{slot.item_count} items</p>
         </div>
         {isMatchedSlot && (
@@ -205,6 +208,17 @@ function Outlet() {
       })
     }
   }, [token, userType])
+
+  const getScanType = (order, token) => {
+    if (!order) return null
+    const sellerToken = order.secureTokenSeller || order.secure_token_seller
+    const userToken = order.secureTokenUser || order.secure_token_user
+    if (userToken && token === userToken) return 'user'
+    if (sellerToken && token === sellerToken) return 'seller'
+    if (order.status === 'handed_over' || order.status === 'ready_for_pickup') return 'user'
+    return 'seller'
+  }
+
   const [activeTab, setActiveTab] = useState('home')
   const [tokenInput, setTokenInput] = useState('')
   const [scanning, setScanning] = useState(false)
@@ -220,6 +234,7 @@ function Outlet() {
   const [scannedSlotInfo, setScannedSlotInfo] = useState(null) // { userId, userName, order } after user-token scan
   const [destroyingSlotNumber, setDestroyingSlotNumber] = useState(null)
   const [creatingSlotNumber, setCreatingSlotNumber] = useState(null)
+  const [cancelNotification, setCancelNotification] = useState(null) // { orderNumber, userName }
   
   // Coming orders: selected date for filtering
   const todayISO = new Date().toISOString().slice(0, 10)
@@ -324,6 +339,33 @@ function Outlet() {
       loadSlots()
     }
   }, [activeTab])
+
+  // Real-time: listen for master force-cancels and remove affected orders from outlet instantly
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handleOrderUpdate = (updatedOrder) => {
+      if (!updatedOrder || updatedOrder.status !== 'cancelled_master') return
+
+      // Remove the cancelled order from outlet's list
+      dispatch(removeOutletOrder(updatedOrder.id))
+
+      // Refresh slots — the slot may now be freed or marked as having cancelled items
+      loadSlots()
+
+      // Show a brief notification for the outlet man
+      const orderNum = updatedOrder.orderNumber || updatedOrder.order_number || ''
+      const userName = updatedOrder.user?.name ||
+        `${updatedOrder.user?.first_name || ''} ${updatedOrder.user?.last_name || ''}`.trim() ||
+        'Customer'
+      setCancelNotification({ orderNumber: orderNum, userName })
+      setTimeout(() => setCancelNotification(null), 5000)
+    }
+
+    socket.on('order_status_update', handleOrderUpdate)
+    return () => socket.off('order_status_update', handleOrderUpdate)
+  }, [])
 
   const loadSlots = async () => {
     try {
@@ -490,7 +532,34 @@ function Outlet() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Force-cancel toast notification */}
+      <AnimatePresence>
+        {cancelNotification && (
+          <motion.div
+            initial={{ y: -80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -80, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-5 py-3.5 bg-red-600 text-white rounded-2xl shadow-2xl shadow-red-500/40 max-w-sm w-[calc(100vw-2rem)]"
+          >
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <FaTimes className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-red-200">Master Force Cancelled</p>
+              <p className="text-sm font-bold truncate">
+                {cancelNotification.userName}&apos;s order #{cancelNotification.orderNumber?.split('-').pop()}
+              </p>
+            </div>
+            <button onClick={() => setCancelNotification(null)} className="text-red-200 hover:text-white transition shrink-0">
+              <FaTimes className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header with Integrated Tabs - Full Black */}
+
       <div className="bg-black shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header Row */}
@@ -1335,11 +1404,11 @@ function Outlet() {
                       transition={isCreating ? { duration: 0.8 } : { duration: 0.6, repeat: isMatchedSlot ? 2 : 0 }}
                       onClick={() => {
                         if (isDisabled || isDestroying) return
-                        if (!slot.is_occupied && !isMatchedSlot) return
+                        if (!slot.is_occupied && !isMatchedSlot && !slot.has_cancelled_items) return
                         // If this is the scanned slot, open with the full scanned order
                         if (isMatchedSlot && scannedSlotInfo?.order) {
                           setSelectedSlot({ ...slot, _scannedOrder: scannedSlotInfo.order })
-                        } else if (slot.is_occupied) {
+                        } else if (slot.is_occupied || slot.has_cancelled_items) {
                           setSelectedSlot(slot)
                         }
                       }}
@@ -1350,11 +1419,32 @@ function Outlet() {
                             ? 'opacity-30 cursor-not-allowed select-none'
                             : isMatchedSlot
                               ? 'bg-blue-600 border-blue-500 shadow-xl shadow-blue-500/30 cursor-pointer ring-4 ring-blue-300 ring-offset-2 animate-pulse-slow'
-                              : slot.is_occupied
-                                ? 'bg-blue-50 border-blue-200 hover:border-blue-400 hover:shadow-md cursor-pointer'
-                                : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
+                              : slot.has_cancelled_items
+                                ? 'bg-red-50/90 border-red-500 hover:border-red-600 hover:shadow-lg shadow-red-500/20 cursor-pointer'
+                                : slot.is_occupied
+                                  ? 'bg-blue-50 border-blue-200 hover:border-blue-400 hover:shadow-md cursor-pointer'
+                                  : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-300 cursor-pointer'
                       }`}
                     >
+                      {slot.has_cancelled_items && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation() // Don't trigger the modal
+                            if (window.confirm(`Are you sure you want to free Slot ${slot.slot_number}?`)) {
+                              try {
+                                await freeOutletSlot(slot.slot_number)
+                                loadSlots()
+                              } catch (err) {
+                                alert(err.message || 'Failed to free slot')
+                              }
+                            }
+                          }}
+                          className="absolute -top-2 -right-2 w-7 h-7 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all z-20 cursor-pointer border border-white"
+                          title="Free Slot"
+                        >
+                          <FaTimes className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       {isDestroying ? (
                         <>
                           <div className="opacity-0 pointer-events-none">
@@ -1377,17 +1467,30 @@ function Outlet() {
       {/* Slot Details Modal */}
       {selectedSlot && (() => {
         const scannedOrder = selectedSlot._scannedOrder || null
+        const scanType = getScanType(scannedOrder, pendingToken)
         return (
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[88vh] overflow-y-auto"
+              className={`rounded-2xl shadow-2xl max-w-lg w-full max-h-[88vh] overflow-y-auto border-2 ${
+                scannedOrder 
+                  ? (scanType === 'user' ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-emerald-500/10' : 'bg-orange-50 border-orange-300 text-orange-950 shadow-orange-500/10') 
+                  : 'bg-white border-gray-100'
+              }`}
             >
               {/* Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
+              <div className={`sticky top-0 border-b px-6 py-4 flex items-center justify-between z-10 ${
+                scannedOrder 
+                  ? (scanType === 'user' ? 'bg-emerald-50/80 backdrop-blur border-emerald-200' : 'bg-orange-50/80 backdrop-blur border-orange-200') 
+                  : 'bg-white border-gray-100'
+              }`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-sm">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm ${
+                    scannedOrder 
+                      ? (scanType === 'user' ? 'bg-emerald-600' : 'bg-orange-600') 
+                      : 'bg-blue-600'
+                  }`}>
                     {selectedSlot.slot_number}
                   </div>
                   <div>
@@ -1404,8 +1507,12 @@ function Outlet() {
                 {scannedOrder ? (
                   <>
                     {/* Scanned order full details */}
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                      <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Order Details</p>
+                    <div className={`rounded-xl p-4 border ${
+                      scanType === 'user' ? 'bg-white/60 border-emerald-200/50' : 'bg-white/60 border-orange-200/50'
+                    }`}>
+                      <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${
+                        scanType === 'user' ? 'text-emerald-700' : 'text-orange-700'
+                      }`}>Order Details</p>
                       <div className="space-y-2 mt-2">
                         <div className="flex justify-between">
                           <span className="text-sm text-gray-600">Order #</span>
@@ -1420,7 +1527,9 @@ function Outlet() {
                           }`}>{scannedOrder.status?.replace(/_/g,' ').toUpperCase()}</span>
                         </div>
                         {!scannedOrder.booking && (
-                          <div className="flex justify-between pt-2 border-t border-blue-100">
+                          <div className={`flex justify-between pt-2 border-t ${
+                            scanType === 'user' ? 'border-emerald-200/50' : 'border-orange-200/50'
+                          }`}>
                             <span className="text-sm text-gray-600">Expected Delivery</span>
                             <span className="text-sm font-bold text-emerald-700">
                               On/Before {scannedOrder.arrivalDate || scannedOrder.arrival_date || calculateArrivalDate(scannedOrder.createdAt, scannedOrder.delivery_span)}
@@ -1430,7 +1539,9 @@ function Outlet() {
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div className={`rounded-xl p-4 border ${
+                      scanType === 'user' ? 'bg-white/60 border-emerald-200/50' : 'bg-white/60 border-orange-200/50'
+                    }`}>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2"><FaBox className="w-3 h-3" /> Product</p>
                       <div className="space-y-2">
                         <div className="flex justify-between">
@@ -1445,14 +1556,20 @@ function Outlet() {
                           <span className="text-sm text-gray-600">Unit Price</span>
                           <span className="text-sm font-bold text-gray-900">₹{Number(scannedOrder.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                         </div>
-                        <div className="flex justify-between pt-2 border-t border-gray-200">
-                          <span className="text-sm font-semibold text-gray-700">Total</span>
-                          <span className="text-sm font-bold text-gray-900">₹{Number(scannedOrder.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        <div className={`flex justify-between items-center pt-3 border-t ${
+                          scanType === 'user' ? 'border-emerald-200/50' : 'border-orange-200/50'
+                        }`}>
+                          <span className="text-sm font-bold text-gray-800">Total Amount:</span>
+                          <span className="text-xl sm:text-2xl font-black text-green-600 bg-green-100/90 border border-green-200 px-3.5 py-1 rounded-xl shadow-sm tracking-tight">
+                            ₹{Number(scannedOrder.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div className={`rounded-xl p-4 border ${
+                      scanType === 'user' ? 'bg-white/60 border-emerald-200/50' : 'bg-white/60 border-orange-200/50'
+                    }`}>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2"><FaUser className="w-3 h-3" /> Customer</p>
                       <div className="space-y-2">
                         <div className="flex justify-between">
@@ -1468,7 +1585,9 @@ function Outlet() {
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div className={`rounded-xl p-4 border ${
+                      scanType === 'user' ? 'bg-white/60 border-emerald-200/50' : 'bg-white/60 border-orange-200/50'
+                    }`}>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2"><FaStore className="w-3 h-3" /> Seller</p>
                       <div className="space-y-2">
                         <div className="flex justify-between">
@@ -1535,12 +1654,23 @@ function Outlet() {
                     <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Items in Slot ({selectedSlot.item_count})</h4>
                     <div className="space-y-3">
                       {selectedSlot.items?.map((item, i) => (
-                        <div key={i} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                          <p className="font-bold text-gray-900 mb-1">
-                            {item.product_name}
-                            <span className="ml-2 text-sm font-medium text-gray-500 bg-gray-200 px-2 py-0.5 rounded-md">Qty: {item.quantity || 1}</span>
+                        <div key={i} className={`p-4 rounded-xl border transition ${
+                          item.status === 'cancelled_master' 
+                            ? 'bg-red-50/50 border-red-200 text-red-950' 
+                            : 'bg-gray-50 border-gray-100 text-gray-900'
+                        }`}>
+                          <p className="font-bold mb-1 flex items-center justify-between">
+                            <span>
+                              {item.product_name}
+                              <span className="ml-2 text-sm font-medium text-gray-500 bg-gray-200 px-2 py-0.5 rounded-md">Qty: {item.quantity || 1}</span>
+                            </span>
+                            {item.status === 'cancelled_master' && (
+                              <span className="text-[10px] font-black text-red-700 bg-red-100/80 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Cancelled by Admin</span>
+                            )}
                           </p>
-                          <div className="flex justify-between text-xs text-gray-500">
+                          <div className={`flex justify-between text-xs ${
+                            item.status === 'cancelled_master' ? 'text-red-700' : 'text-gray-500'
+                          }`}>
                             <span>Order: #{item.order_number}</span>
                             <span>Seller: {item.seller_name}</span>
                           </div>
@@ -1564,132 +1694,149 @@ function Outlet() {
         )
       })()}
 
-      {/* Order Details Popup */}
-      {showOrderDetails && pendingOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-900">Order Details</h3>
-              <button
-                onClick={() => {
-                  setShowOrderDetails(false)
-                  setPendingOrder(null)
-                }}
-                className="text-gray-400 hover:text-gray-600 transition"
-              >
-                <FaTimes className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Order Info */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-gray-700">Order Number</span>
-                  <span className="text-sm font-bold text-gray-900">{pendingOrder.orderNumber}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-700">Status</span>
-                  <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
-                    pendingOrder.status === 'completed' 
-                      ? 'bg-green-100 text-green-700'
-                      : pendingOrder.status === 'handed_over'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {pendingOrder.status?.replace('_', ' ').toUpperCase()}
-                  </span>
-                </div>
-                {!pendingOrder.booking && (
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
-                    <span className="text-sm font-semibold text-gray-700">Expected Delivery</span>
-                    <span className="text-sm font-bold text-emerald-700">
-                      On or before {pendingOrder.arrivalDate || pendingOrder.arrival_date || calculateArrivalDate(pendingOrder.createdAt || pendingOrder.created_at, pendingOrder.delivery_span)}
-                    </span>
-                  </div>
-                )}
+      {showOrderDetails && pendingOrder && (() => {
+        const scanType = getScanType(pendingOrder, pendingToken)
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+            <div className={`rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 ${
+              scanType === 'user' ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-emerald-500/10' : 'bg-orange-50 border-orange-300 text-orange-950 shadow-orange-500/10'
+            }`}>
+              <div className={`sticky top-0 border-b px-6 py-4 flex items-center justify-between z-10 ${
+                scanType === 'user' ? 'bg-emerald-50/80 backdrop-blur border-emerald-200' : 'bg-orange-50/80 backdrop-blur border-orange-200'
+              }`}>
+                <h3 className="text-xl font-bold text-gray-900">Order Details</h3>
+                <button
+                  onClick={() => {
+                    setShowOrderDetails(false)
+                    setPendingOrder(null)
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition"
+                >
+                  <FaTimes className="w-5 h-5" />
+                </button>
               </div>
 
-              {/* Product Details */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <FaBox className="w-5 h-5 text-gray-700" />
-                  <h4 className="text-lg font-semibold text-gray-900">Product Details</h4>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Product Name:</span>
-                    <span className="text-sm font-semibold text-gray-900">{pendingOrder.product?.name || 'N/A'}</span>
+              <div className="p-6 space-y-6">
+                {/* Order Info */}
+                <div className={`rounded-xl p-4 border ${
+                  scanType === 'user' ? 'bg-white/60 border-emerald-200/50' : 'bg-white/60 border-orange-200/50'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-gray-700">Order Number</span>
+                    <span className="text-sm font-bold text-gray-900">{pendingOrder.orderNumber}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Quantity:</span>
-                    <span className="text-sm font-semibold text-gray-900">{pendingOrder.quantity}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Unit Price:</span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      ₹{Number(pendingOrder.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-700">Status</span>
+                    <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                      pendingOrder.status === 'completed' 
+                        ? 'bg-green-100 text-green-700'
+                        : pendingOrder.status === 'handed_over'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {pendingOrder.status?.replace('_', ' ').toUpperCase()}
                     </span>
                   </div>
-                  <div className="flex justify-between pt-2 border-t border-gray-200">
-                    <span className="text-sm font-semibold text-gray-700">Total Amount:</span>
-                    <span className="text-sm font-bold text-gray-900">
-                      ₹{Number(pendingOrder.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
+                  {!pendingOrder.booking && (
+                    <div className={`flex items-center justify-between mt-2 pt-2 border-t ${
+                      scanType === 'user' ? 'border-emerald-200/50' : 'border-orange-200/50'
+                    }`}>
+                      <span className="text-sm font-semibold text-gray-700">Expected Delivery</span>
+                      <span className="text-sm font-bold text-emerald-700">
+                        On or before {pendingOrder.arrivalDate || pendingOrder.arrival_date || calculateArrivalDate(pendingOrder.createdAt || pendingOrder.created_at, pendingOrder.delivery_span)}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              {/* Seller Details */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <FaStore className="w-5 h-5 text-gray-700" />
-                  <h4 className="text-lg font-semibold text-gray-900">Seller Details</h4>
+                {/* Product Details */}
+                <div className={`rounded-xl p-4 border ${
+                  scanType === 'user' ? 'bg-white/60 border-emerald-200/50' : 'bg-white/60 border-orange-200/50'
+                }`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <FaBox className="w-5 h-5 text-gray-700" />
+                    <h4 className="text-lg font-semibold text-gray-900">Product Details</h4>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Product Name:</span>
+                      <span className="text-sm font-semibold text-gray-900">{pendingOrder.product?.name || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Quantity:</span>
+                      <span className="text-sm font-semibold text-gray-900">{pendingOrder.quantity}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Unit Price:</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        ₹{Number(pendingOrder.unitPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className={`flex justify-between items-center pt-3 border-t ${
+                      scanType === 'user' ? 'border-emerald-200/50' : 'border-orange-200/50'
+                    }`}>
+                      <span className="text-sm font-bold text-gray-800">Total Amount:</span>
+                      <span className="text-xl sm:text-2xl font-black text-green-600 bg-green-100/90 border border-green-200 px-3.5 py-1 rounded-xl shadow-sm tracking-tight">
+                        ₹{Number(pendingOrder.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Trade ID:</span>
-                    <span className="text-sm font-semibold text-gray-900">{pendingOrder.seller?.trade_id || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Name:</span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {pendingOrder.seller?.first_name || ''} {pendingOrder.seller?.last_name || ''}
-                      {!pendingOrder.seller?.first_name && !pendingOrder.seller?.last_name && 'N/A'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Email:</span>
-                    <span className="text-sm font-semibold text-gray-900">{pendingOrder.seller?.email || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Phone:</span>
-                    <span className="text-sm font-semibold text-gray-900">{pendingOrder.seller?.phone_number || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
 
-              {/* User Details (Minimum) */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <FaUser className="w-5 h-5 text-gray-700" />
-                  <h4 className="text-lg font-semibold text-gray-900">Customer Details</h4>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Name:</span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {pendingOrder.user?.name || 
-                       `${pendingOrder.user?.first_name || ''} ${pendingOrder.user?.last_name || ''}`.trim() || 
-                       'N/A'}
-                    </span>
+                {/* Seller Details */}
+                <div className={`rounded-xl p-4 border ${
+                  scanType === 'user' ? 'bg-white/60 border-emerald-200/50' : 'bg-white/60 border-orange-200/50'
+                }`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <FaStore className="w-5 h-5 text-gray-700" />
+                    <h4 className="text-lg font-semibold text-gray-900">Seller Details</h4>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Phone:</span>
-                    <span className="text-sm font-semibold text-gray-900">{pendingOrder.user?.phone || pendingOrder.user?.phone_number || 'N/A'}</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Trade ID:</span>
+                      <span className="text-sm font-semibold text-gray-900">{pendingOrder.seller?.trade_id || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Name:</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {pendingOrder.seller?.first_name || ''} {pendingOrder.seller?.last_name || ''}
+                        {!pendingOrder.seller?.first_name && !pendingOrder.seller?.last_name && 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Email:</span>
+                      <span className="text-sm font-semibold text-gray-900">{pendingOrder.seller?.email || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Phone:</span>
+                      <span className="text-sm font-semibold text-gray-900">{pendingOrder.seller?.phone_number || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                {/* Customer Details (Minimum) */}
+                <div className={`rounded-xl p-4 border ${
+                  scanType === 'user' ? 'bg-white/60 border-emerald-200/50' : 'bg-white/60 border-orange-200/50'
+                }`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <FaUser className="w-5 h-5 text-gray-700" />
+                    <h4 className="text-lg font-semibold text-gray-900">Customer Details</h4>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Name:</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {pendingOrder.user?.name || 
+                         `${pendingOrder.user?.first_name || ''} ${pendingOrder.user?.last_name || ''}`.trim() || 
+                         'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Phone:</span>
+                      <span className="text-sm font-semibold text-gray-900">{pendingOrder.user?.phone || pendingOrder.user?.phone_number || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
 
               {/* Confirm Button */}
               <div className="flex gap-3 pt-4 border-t border-gray-200">
@@ -1714,7 +1861,8 @@ function Outlet() {
             </div>
           </div>
         </div>
-      )}
+      )
+    })()}
 
       {/* Menu - Visible on all screen sizes */}
       {isMenuOpen && (

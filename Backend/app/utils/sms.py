@@ -135,22 +135,27 @@ class SMSService:
             tuple: (success: bool, message: str)
         """
         message_body = f"Your BBHCBazaar OTP code is: {otp}. This code will expire in 10 minutes. Do not share this code with anyone."
-        return SMSService.send_message(phone_number, message_body, email=email)
+        # OTP must be delivered synchronously — user is waiting for it
+        return SMSService._send_message_sync(phone_number, message_body, email=email)
 
     @staticmethod
     def send_message(phone_number, message_body, product_thumbnail=None, email=None):
         """
-        Send a notification via Email (using SMTP) and Socket.IO/FCM.
-        
-        Args:
-            phone_number (str): Recipient phone number
-            message_body (str): Text message body
-            product_thumbnail (str, optional): Product thumbnail URL
-            email (str, optional): Direct recipient email
-            
-        Returns:
-            tuple: (success: bool, message: str)
+        Send a notification via Email (using SMTP) and Socket.IO/FCM in the background.
         """
+        import threading
+        
+        def run_async():
+            try:
+                SMSService._send_message_sync(phone_number, message_body, product_thumbnail, email)
+            except Exception as e:
+                print(f"[SMSService] Asynchronous send_message failed: {e}")
+
+        threading.Thread(target=run_async, name="sms_send_thread", daemon=True).start()
+        return True, "Message scheduled"
+
+    @staticmethod
+    def _send_message_sync(phone_number, message_body, product_thumbnail=None, email=None):
         try:
             print(f"[SMSService] Processing notification/email for {phone_number} (email: {email}): {message_body}")
             

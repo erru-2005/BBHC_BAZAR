@@ -24,6 +24,11 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
   const [categories, setCategories] = useState([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
 
+  // Reject modal state
+  const [rejectModal, setRejectModal] = useState({ open: false, productId: null, productName: '' })
+  const [rejectReason, setRejectReason] = useState('')
+  const [isRejecting, setIsRejecting] = useState(false)
+
   const navigate = useNavigate()
 
   const fetchProducts = async () => {
@@ -55,8 +60,7 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
     setCategoriesLoading(true)
     try {
       const data = await getCategories()
-      // Handle both array of strings and array of objects
-      const categoryList = Array.isArray(data) 
+      const categoryList = Array.isArray(data)
         ? data.map(cat => typeof cat === 'string' ? cat : (cat.name || cat.category || cat))
         : []
       setCategories(categoryList)
@@ -88,18 +92,31 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
     }
   }
 
-  const handleReject = async (productId) => {
-    if (!window.confirm('Reject this product? It will be moved to bin.')) {
-      return
-    }
-    setProcessingId(productId)
+  const openRejectModal = (productId, productName) => {
+    setRejectModal({ open: true, productId, productName })
+    setRejectReason('')
+  }
+
+  const closeRejectModal = () => {
+    if (isRejecting) return
+    setRejectModal({ open: false, productId: null, productName: '' })
+    setRejectReason('')
+  }
+
+  const handleConfirmReject = async () => {
+    if (!rejectReason.trim()) return
+    if (isRejecting) return
+    setIsRejecting(true)
+    setProcessingId(rejectModal.productId)
     try {
-      await rejectProduct(productId, true)
+      await rejectProduct(rejectModal.productId, true, rejectReason.trim())
       await fetchPendingProducts()
+      closeRejectModal()
     } catch (err) {
       setError(err.message || 'Failed to reject product')
     } finally {
       setProcessingId(null)
+      setIsRejecting(false)
     }
   }
 
@@ -155,12 +172,11 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
   const filteredProducts = useMemo(() => {
     let filtered = products
 
-    // Filter by category
     if (selectedCategory) {
       filtered = filtered.filter(product => {
         const productCategories = product.categories || []
-        const categoriesArray = Array.isArray(productCategories) 
-          ? productCategories 
+        const categoriesArray = Array.isArray(productCategories)
+          ? productCategories
           : productCategories ? [productCategories] : []
         return categoriesArray.some(cat => {
           const catName = typeof cat === 'string' ? cat : (cat.name || cat.category || cat)
@@ -169,7 +185,6 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
       })
     }
 
-    // Filter by search query (searches all fields)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim()
       filtered = filtered.filter(product => {
@@ -178,11 +193,10 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
         const sellerTradeId = (product.seller_trade_id || product.created_by_user_id || '').toLowerCase()
         const specification = (product.specification || '').toLowerCase()
         const productId = String(product.id || product._id || '').toLowerCase()
-        
-        // Search in categories
+
         const productCategories = product.categories || []
-        const categoriesArray = Array.isArray(productCategories) 
-          ? productCategories 
+        const categoriesArray = Array.isArray(productCategories)
+          ? productCategories
           : productCategories ? [productCategories] : []
         const categoryMatch = categoriesArray.some(cat => {
           const catName = typeof cat === 'string' ? cat : (cat.name || cat.category || cat)
@@ -203,7 +217,6 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
     return filtered
   }, [products, searchQuery, selectedCategory])
 
-  // Filter pending products by search query (category filter doesn't apply to pending)
   const filteredPendingProducts = useMemo(() => {
     if (!searchQuery.trim()) {
       return pendingProducts
@@ -216,11 +229,10 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
       const sellerTradeId = (product.seller_trade_id || product.created_by_user_id || '').toLowerCase()
       const specification = (product.specification || '').toLowerCase()
       const productId = String(product.id || product._id || '').toLowerCase()
-      
-      // Search in categories
+
       const productCategories = product.categories || []
-      const categoriesArray = Array.isArray(productCategories) 
-        ? productCategories 
+      const categoriesArray = Array.isArray(productCategories)
+        ? productCategories
         : productCategories ? [productCategories] : []
       const categoryMatch = categoriesArray.some(cat => {
         const catName = typeof cat === 'string' ? cat : (cat.name || cat.category || cat)
@@ -244,8 +256,6 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
     const createdAt = product.created_at || product.createdAt
     const formattedCreatedAt = createdAt ? new Date(createdAt).toLocaleString() : 'N/A'
     const thumbnail = product.thumbnail || product.media?.thumbnail
-    const gallery = product.gallery || product.media?.gallery || []
-    const points = product.points || []
     const rawCategories = product.categories ?? []
     const categories = Array.isArray(rawCategories)
       ? rawCategories
@@ -278,7 +288,7 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
         onClick={!isPending ? () => navigate(`/master/products/${productId}`, { state: { product } }) : undefined}
       >
         {isPending && (
-          <div className="flex items-center justify-between mb-2 pb-2 border-b border-yellow-200">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2 pb-2 border-b border-yellow-200">
             <span className="px-3 py-1 bg-yellow-200 text-yellow-800 text-xs font-semibold rounded-full">
               {product.original_product_id ? 'Edit Request' : 'New Product - Pending Approval'}
             </span>
@@ -292,18 +302,18 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
                 className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
               >
                 <FaCheck className="w-4 h-4" />
-                {isProcessing ? 'Processing...' : 'Accept'}
+                {isProcessing && processingId === productId ? 'Processing...' : 'Accept'}
               </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  handleReject(productId)
+                  openRejectModal(productId, productName)
                 }}
                 disabled={isProcessing}
                 className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
               >
                 <FaTimes className="w-4 h-4" />
-                {isProcessing ? 'Processing...' : 'Reject'}
+                Reject
               </button>
             </div>
           </div>
@@ -412,6 +422,68 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 sm:p-6">
+      {/* Reject Product Modal */}
+      {rejectModal.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={closeRejectModal}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Reject Product</h2>
+            <p className="text-gray-500 text-sm mb-4">
+              You are about to reject{' '}
+              <strong className="text-gray-900">{rejectModal.productName}</strong>.
+              Please provide a reason so the seller knows what to fix.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Rejection Reason <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                disabled={isRejecting}
+                placeholder="e.g. Images are not clear, price is incorrect, description missing..."
+                rows={4}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm text-gray-900 disabled:opacity-50 resize-none"
+              />
+              <p className="text-xs text-gray-400 mt-1">This reason will be shown to the seller.</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={closeRejectModal}
+                disabled={isRejecting}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmReject}
+                disabled={isRejecting || !rejectReason.trim()}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isRejecting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Rejecting...
+                  </>
+                ) : (
+                  'Confirm Rejection'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">All Products</h2>
@@ -432,7 +504,6 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
 
       {/* Search and Filter Section */}
       <div className="mb-6 flex flex-col sm:flex-row gap-3">
-        {/* Search Bar */}
         <div className="flex-1 relative">
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
@@ -443,8 +514,6 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
           />
         </div>
-
-        {/* Category Filter Dropdown */}
         <div className="w-full sm:w-64">
           <select
             value={selectedCategory}
@@ -465,7 +534,6 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
         </div>
       </div>
 
-      {/* Search Results Info */}
       {(searchQuery || selectedCategory) && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
@@ -499,66 +567,66 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
           {(searchQuery || selectedCategory) && ` (${filteredProducts.length}${searchQuery || selectedCategory ? ` of ${products.length}` : ''})`}
         </h3>
 
-      {loading && products.length === 0 ? (
-        <div className="space-y-4" role="status" aria-live="polite" aria-busy="true">
-          <p className="text-sm text-gray-500">Loading products from server...</p>
-          <div className="grid gap-5">
-            {SKELETON_PLACEHOLDERS.map((_, index) => (
-              <article
-                key={`product-skeleton-${index}`}
-                className="border border-gray-200 rounded-2xl p-4 flex flex-col gap-4"
-                aria-hidden="true"
-              >
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="w-full sm:w-32">
-                    <Skeleton height={160} borderRadius="0.75rem" />
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                      <div className="min-w-0 space-y-2">
-                        <Skeleton width={70} height={10} />
-                        <Skeleton width="60%" height={20} />
-                        <Skeleton width="40%" height={12} />
+        {loading && products.length === 0 ? (
+          <div className="space-y-4" role="status" aria-live="polite" aria-busy="true">
+            <p className="text-sm text-gray-500">Loading products from server...</p>
+            <div className="grid gap-5">
+              {SKELETON_PLACEHOLDERS.map((_, index) => (
+                <article
+                  key={`product-skeleton-${index}`}
+                  className="border border-gray-200 rounded-2xl p-4 flex flex-col gap-4"
+                  aria-hidden="true"
+                >
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="w-full sm:w-32">
+                      <Skeleton height={160} borderRadius="0.75rem" />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        <div className="min-w-0 space-y-2">
+                          <Skeleton width={70} height={10} />
+                          <Skeleton width="60%" height={20} />
+                          <Skeleton width="40%" height={12} />
+                        </div>
+                        <div className="flex items-center gap-2 self-start">
+                          <Skeleton width={40} height={40} borderRadius="0.75rem" />
+                          <Skeleton width={40} height={40} borderRadius="0.75rem" />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 self-start">
-                        <Skeleton width={40} height={40} borderRadius="0.75rem" />
-                        <Skeleton width={40} height={40} borderRadius="0.75rem" />
+                      <div className="flex items-center gap-3">
+                        <Skeleton width={32} height={32} circle />
+                        <Skeleton width="35%" height={14} />
+                        <Skeleton width="20%" height={14} />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: 3 }).map((__, chipIndex) => (
+                          <Skeleton key={`chip-${chipIndex}`} width={70} height={20} borderRadius="9999px" />
+                        ))}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Skeleton width={32} height={32} circle />
-                      <Skeleton width="35%" height={14} />
-                      <Skeleton width="20%" height={14} />
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from({ length: 3 }).map((__, chipIndex) => (
-                        <Skeleton key={`chip-${chipIndex}`} width={70} height={20} borderRadius="9999px" />
-                      ))}
-                    </div>
                   </div>
-                </div>
-                <div className="flex flex-wrap items-baseline gap-3">
-                  <Skeleton width={140} height={28} />
-                  <Skeleton width={90} height={18} />
-                  <Skeleton width={60} height={18} />
-                </div>
-              </article>
-            ))}
+                  <div className="flex flex-wrap items-baseline gap-3">
+                    <Skeleton width={140} height={28} />
+                    <Skeleton width={90} height={18} />
+                    <Skeleton width={60} height={18} />
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {!loading && products.length === 0 ? (
-        <p className="text-sm text-gray-500">No products have been added yet.</p>
-      ) : null}
+        {!loading && products.length === 0 ? (
+          <p className="text-sm text-gray-500">No products have been added yet.</p>
+        ) : null}
 
-      {!loading && products.length > 0 && filteredProducts.length === 0 ? (
-        <p className="text-sm text-gray-500">
-          No products found
-          {searchQuery && ` matching "${searchQuery}"`}
-          {selectedCategory && ` in category "${selectedCategory}"`}
-        </p>
-      ) : null}
+        {!loading && products.length > 0 && filteredProducts.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            No products found
+            {searchQuery && ` matching "${searchQuery}"`}
+            {selectedCategory && ` in category "${selectedCategory}"`}
+          </p>
+        ) : null}
 
         {filteredProducts.length > 0 && (
           <div className="grid gap-5">
@@ -571,5 +639,3 @@ function ListProducts({ onEditProduct, refreshSignal = 0 }) {
 }
 
 export default ListProducts
-
-

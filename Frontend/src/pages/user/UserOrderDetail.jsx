@@ -81,6 +81,24 @@ const getStatusAttributes = (status) => {
   }
 }
 
+const getStatusTime = (order, targetStatus) => {
+  const history = order.statusHistory || []
+  const entry = history.find(h => h.status === targetStatus)
+  if (entry && entry.timestamp) {
+    const d = new Date(entry.timestamp)
+    const datePart = d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+    const timePart = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true })
+    return `${datePart} at ${timePart}`
+  }
+  if (targetStatus === 'pending_seller' && order.createdAt) {
+    const d = new Date(order.createdAt)
+    const datePart = d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+    const timePart = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true })
+    return `${datePart} at ${timePart}`
+  }
+  return null
+}
+
 const getOrderSteps = (order) => {
   const status = order.status || 'pending_seller'
   const isService = order.booking || order.type === 'service'
@@ -108,7 +126,7 @@ const getOrderSteps = (order) => {
     {
       title: 'Order Placed',
       description: 'Your order has been recorded.',
-      date: order.createdAt ? new Date(order.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+      date: getStatusTime(order, 'pending_seller'),
       status: 'completed'
     }
   ]
@@ -131,7 +149,7 @@ const getOrderSteps = (order) => {
     return steps
   }
 
-  // Step 2: Seller Confirmation
+  // Step 2: Order Confirmed
   let step2Status = 'pending'
   let step2Desc = 'Awaiting seller confirmation.'
   if (status === 'pending_seller') {
@@ -142,54 +160,44 @@ const getOrderSteps = (order) => {
     step2Desc = 'Seller accepted your order.'
   }
   steps.push({
-    title: 'Seller Confirmed',
+    title: 'Order Confirmed',
     description: step2Desc,
+    date: getStatusTime(order, 'seller_accepted'),
     status: step2Status
   })
 
-  // Step 3: Out for Outlet
+  // Step 3: Out for Delivery
   let step3Status = 'pending'
-  let step3Desc = 'Awaiting dispatch by seller.'
+  let step3Desc = 'Awaiting dispatch to outlet.'
   if (status === 'seller_accepted') {
     step3Status = 'active'
     step3Desc = 'Product is being sent to the outlet.'
   } else if (['handed_over', 'completed'].includes(status)) {
     step3Status = 'completed'
-    step3Desc = 'Dispatched to the outlet.'
+    step3Desc = 'Product is out for delivery/at the outlet.'
   }
   steps.push({
-    title: 'Sent to Outlet',
+    title: 'Out for Delivery',
     description: step3Desc,
+    date: getStatusTime(order, 'handed_over'),
     status: step3Status
   })
 
-  // Step 4: Arrived at Outlet
+  // Step 4: Delivered
   let step4Status = 'pending'
-  let step4Desc = 'Awaiting arrival at outlet.'
+  let step4Desc = 'Awaiting delivery/collection at the outlet.'
   if (status === 'handed_over') {
     step4Status = 'active'
-    step4Desc = 'Arrived! Ready for pickup at outlet.'
+    step4Desc = 'Ready for pickup! Please collect at outlet counter.'
   } else if (status === 'completed') {
     step4Status = 'completed'
-    step4Desc = 'Arrived at the pickup outlet.'
+    step4Desc = 'Product delivered to user.'
   }
   steps.push({
-    title: 'Arrived at Outlet',
+    title: 'Delivered',
     description: step4Desc,
+    date: getStatusTime(order, 'completed'),
     status: step4Status
-  })
-
-  // Step 5: Collected
-  let step5Status = 'pending'
-  let step5Desc = 'Collect and pay at the outlet counter.'
-  if (status === 'completed') {
-    step5Status = 'completed'
-    step5Desc = 'Order verified, paid, and collected.'
-  }
-  steps.push({
-    title: 'Collected & Completed',
-    description: step5Desc,
-    status: step5Status
   })
 
   return steps

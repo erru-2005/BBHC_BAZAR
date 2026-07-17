@@ -4,6 +4,7 @@ Order service encapsulating MongoDB operations for customer orders.
 import random
 import secrets
 import hashlib
+import threading
 from datetime import datetime, timezone
 from bson import ObjectId
 
@@ -12,6 +13,11 @@ from app.models.order import Order
 from app.services.product_service import ProductService
 from app.services.statistics_service import StatisticsService
 from app.sockets.emitter import emit_product_event
+
+# Throttle: only run expiry check at most once every 5 minutes
+_last_expiry_check = None
+_EXPIRY_CHECK_INTERVAL_SECONDS = 300
+_expiry_check_lock = threading.Lock()
 
 
 class OrderService:
@@ -133,12 +139,28 @@ class OrderService:
         return order
 
     @staticmethod
+    def _schedule_expiry_check():
+        """Run expiry check in background at most once per interval."""
+        global _last_expiry_check
+        now = datetime.now(timezone.utc)
+        with _expiry_check_lock:
+            if _last_expiry_check is not None:
+                elapsed = (now - _last_expiry_check).total_seconds()
+                if elapsed < _EXPIRY_CHECK_INTERVAL_SECONDS:
+                    return  # Too soon, skip
+            _last_expiry_check = now
+
+        def run():
+            try:
+                OrderService.check_and_cancel_expired_orders()
+            except Exception as e:
+                print(f"[OrderService] Background expiry check error: {e}")
+        threading.Thread(target=run, daemon=True, name="expiry_check").start()
+
+    @staticmethod
     def get_orders(filter_query=None, page=1, limit=10):
         """Fetch orders from both product and service collections, merged and sorted."""
-        try:
-            OrderService.check_and_cancel_expired_orders()
-        except Exception as e:
-            print(f"Error checking/cancelling expired orders: {e}")
+        OrderService._schedule_expiry_check()
 
         filter_query = filter_query or {}
         skip = (page - 1) * limit
@@ -166,10 +188,7 @@ class OrderService:
     @staticmethod
     def get_order_by_id(order_id):
         try:
-            try:
-                OrderService.check_and_cancel_expired_orders()
-            except Exception as e:
-                print(f"Error checking/cancelling expired orders: {e}")
+            OrderService._schedule_expiry_check()
 
             oid = ObjectId(order_id)
             # Try product orders first
@@ -624,6 +643,8 @@ class OrderService:
         # Identify collection
         collection = mongo.db.service_orders if order.type == 'service' else mongo.db.orders
 
+        was_handed_over = (order.status == 'handed_over')
+
         result = collection.update_one(
             {'_id': order_obj_id},
             {
@@ -648,6 +669,10 @@ class OrderService:
 
         if result.matched_count == 0:
             return None, "Failed to cancel order"
+
+        if was_handed_over:
+            from app.services.slot_service import SlotService
+            SlotService.remove_item_from_slot(order.user_id)
 
         updated_order = OrderService.get_order_by_id(order_id)
         return updated_order, None
