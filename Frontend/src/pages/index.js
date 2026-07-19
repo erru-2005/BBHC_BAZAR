@@ -36,4 +36,4 @@ export { default as SellerSettings } from './seller/Settings'
 export { default as SellerProfilePage } from './seller/SellerProfilePage'
 export { default as ServiceBooking } from './user/ServiceBooking'
 export { default as UserOrderDetail } from './user/UserOrderDetail'
-
+export { default as StudentLogin } from './student/StudentLogin'

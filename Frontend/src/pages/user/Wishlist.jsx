@@ -25,7 +25,7 @@ function Wishlist({ headerLogoRef: externalHeaderLogoRef }) {
   // Redirect unauthenticated users to login
   useEffect(() => {
     if (!isAuthenticated || userType !== 'user') {
-      navigate('/user/phone-entry', {
+      navigate('/user/login', {
         state: {
           returnTo: '/wishlist',
           message: 'Please login to view your wishlist.'

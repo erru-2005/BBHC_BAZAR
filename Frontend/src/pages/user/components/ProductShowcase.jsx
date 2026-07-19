@@ -222,7 +222,7 @@ function ProductShowcase({ products = [], services = [], loading, error }) {
     if (wishlistLoading.has(idStr)) return
 
     if (!isAuthenticated || userType !== 'user') {
-      navigate('/user/phone-entry', {
+      navigate('/user/login', {
         state: {
           returnTo: `/product/public/${idStr}`,
           message: 'Please login to manage your wishlist.'
@@ -518,7 +518,7 @@ function ProductShowcase({ products = [], services = [], loading, error }) {
                           if (!effectiveId) return
 
                           if (!isAuthenticated || userType !== 'user') {
-                            navigate('/user/phone-entry', {
+                            navigate('/user/login', {
                               state: {
                                 returnTo: `/product/public/${effectiveId}`,
                                 message: 'Please login to add items to your bag.'

@@ -30,7 +30,7 @@ const WishlistActionButton = ({ productId, isWishlisted, onToggle, isAuthenticat
     e.stopPropagation()
 
     if (!isAuthenticated || userType !== 'user') {
-      navigate('/user/phone-entry', {
+      navigate('/user/login', {
         state: {
           returnTo: `/product/public/${productId}`,
           message: 'Please login to manage your wishlist.'
@@ -317,7 +317,7 @@ function PublicProductDetail() {
                       if (!product) return
                       const currentId = String(product.id || product._id)
                       if (!isAuthenticated || userType !== 'user') {
-                        navigate('/user/phone-entry', {
+                        navigate('/user/login', {
                           state: {
                             returnTo: `/product/public/${productId}`,
                             message: 'Please login to manage your wishlist.'
@@ -424,7 +424,7 @@ function PublicProductDetail() {
                 onClick={() => {
                   if (!product) return
                   if (!isAuthenticated || userType !== 'user') {
-                    navigate('/user/phone-entry', {
+                    navigate('/user/login', {
                       state: {
                         returnTo: `/product/${productId}/buy`,
                         message: 'Please login to complete your purchase.'
@@ -443,7 +443,7 @@ function PublicProductDetail() {
                 onClick={async () => {
                   if (!product) return
                   if (!isAuthenticated || userType !== 'user') {
-                    navigate('/user/phone-entry', {
+                    navigate('/user/login', {
                       state: {
                         returnTo: `/product/public/${productId}`,
                         message: 'Please login to add items to your bag.'
@@ -570,7 +570,7 @@ function PublicProductDetail() {
                                 e.stopPropagation()
                                 console.log('Add to Bag button clicked')
                                 if (!isAuthenticated || userType !== 'user') {
-                                  navigate('/user/phone-entry', {
+                                  navigate('/user/login', {
                                     state: {
                                       returnTo: `/product/public/${otherProductId}`,
                                       message: 'Please login to add items to your bag.'

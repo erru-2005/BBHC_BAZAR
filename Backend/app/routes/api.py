@@ -13,6 +13,7 @@ from app.schemas.product_service_schemas import ProductCreationSchema
 from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
 from app.services.outlet_man_service import OutletManService
+from app.services.user_service import UserService
 from app.services.blacklist_service import BlacklistService
 from app.services.category_service import CategoryService
 from app.services.product_service import ProductService
@@ -252,6 +253,65 @@ def get_sellers():
     
     except Exception as e:
         return jsonify({'error': f'Failed to get sellers: {str(e)}'}), 500
+
+
+@api_bp.route('/users', methods=['GET'])
+@jwt_required()
+def get_users():
+    """Get all users (Master only)"""
+    try:
+        current_user_type = get_jwt().get('user_type')
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can view users'}), 403
+            
+        skip = request.args.get('skip', 0, type=int)
+        limit = request.args.get('limit', 100, type=int)
+        search = request.args.get('search')
+        
+        result = UserService.get_all_users(skip=skip, limit=limit, search=search)
+        
+        return jsonify({
+            'users': [user.to_dict() for user in result['users']],
+            'count': result['total']
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to get users: {str(e)}'}), 500
+
+
+@api_bp.route('/users/<user_id>/sell-permission', methods=['PATCH'])
+@jwt_required()
+def update_user_sell_permission(user_id):
+    """Update user sell permission (Master only)"""
+    try:
+        current_user_type = get_jwt().get('user_type')
+        if current_user_type != 'master':
+            return jsonify({'error': 'Only masters can update user permissions'}), 403
+            
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+            
+        can_sell = data.get('can_sell', False)
+        # linked_seller_id is optional — the seller account will be auto-created
+        # on the user's first role switch if it does not exist yet.
+        linked_seller_id = data.get('linked_seller_id') or None
+        
+        # If a specific seller is manually linked, verify it exists
+        if can_sell and linked_seller_id:
+            seller = SellerService.get_seller_by_id(linked_seller_id)
+            if not seller:
+                return jsonify({'error': 'Linked seller account not found'}), 404
+                
+        success = UserService.set_sell_permission(user_id, can_sell, linked_seller_id)
+        if not success:
+            return jsonify({'error': 'Failed to update user or user not found'}), 404
+            
+        return jsonify({'message': 'User sell permission updated successfully'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to update sell permission: {str(e)}'}), 500
+
 
 
 @api_bp.route('/sellers/<seller_id>', methods=['PUT'])

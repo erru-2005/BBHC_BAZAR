@@ -35,7 +35,8 @@ import {
   SellerSettings,
   SellerProfilePage,
   ServiceBooking,
-  UserOrderDetail
+  UserOrderDetail,
+  StudentLogin
 } from './pages'
 import SellerLayout from './pages/seller/components/SellerLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -104,7 +105,7 @@ function SplashWrapper() {
       const roleKey = targetRole === 'user' ? 'bbhc_user_token' : `bbhc_${targetRole}_token`
       const storedToken = localStorage.getItem(roleKey) || localStorage.getItem('token')
       
-      if (storedToken && !isAuthenticated) {
+      if (storedToken && (!isAuthenticated || userType !== targetRole)) {
         try {
           // getCurrentUser in api.js is now context-aware and will use the correct token
           const data = await getCurrentUser()
@@ -125,6 +126,8 @@ function SplashWrapper() {
           dispatch(restoreUser(data))
         } catch (err) {
           console.error('[Session] Restoration failed:', err)
+          localStorage.removeItem(roleKey)
+          if (roleKey === 'bbhc_user_token') localStorage.removeItem('token')
         }
       } else if (storedToken && isAuthenticated && targetRole === 'seller' && userType === 'seller') {
         // Already restored from redux-persist — still soft-sync credits from server
@@ -320,7 +323,7 @@ function SplashWrapper() {
               <Route path="/services" element={<Services headerLogoRef={headerLogoRef} />} />
               <Route path="/wishlist" element={<Wishlist headerLogoRef={headerLogoRef} />} />
               <Route path="/search" element={<SearchResults headerLogoRef={headerLogoRef} />} />
-              <Route path="/user/phone-entry" element={<PhoneNumberEntry />} />
+              <Route path="/user/login" element={<StudentLogin />} />
               <Route path="/user/verify-otp" element={<OTPVerification />} />
               <Route path="/user/register" element={<UserRegistration />} />
               <Route

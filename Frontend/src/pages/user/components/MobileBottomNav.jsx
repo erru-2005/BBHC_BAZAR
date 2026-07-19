@@ -73,7 +73,7 @@ function MobileBottomNav({ items = defaultItems }) {
 
   const handleMeClick = () => {
     if (!isAuthenticated || !user || userType === 'seller' || userType === 'master') {
-      navigate('/user/phone-entry')
+      navigate('/user/login')
     } else {
       navigate('/user/profile')
     }
@@ -85,7 +85,7 @@ function MobileBottomNav({ items = defaultItems }) {
 
   const handleBagClick = () => {
     if (!isAuthenticated || !user || userType === 'seller' || userType === 'master') {
-      navigate('/user/phone-entry', {
+      navigate('/user/login', {
         state: {
           returnTo: '/user/bag',
           message: 'Please login to view your bag.',
@@ -98,7 +98,7 @@ function MobileBottomNav({ items = defaultItems }) {
 
   const handleOrdersClick = () => {
     if (!isAuthenticated || !user || userType === 'seller' || userType === 'master') {
-      navigate('/user/phone-entry', {
+      navigate('/user/login', {
         state: {
           returnTo: '/user/orders',
           message: 'Please login to view your orders.',

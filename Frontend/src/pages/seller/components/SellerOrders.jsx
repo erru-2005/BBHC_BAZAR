@@ -448,19 +448,7 @@ function SellerOrders() {
                 )}
 
                 <div className="flex items-center justify-between pt-6 border-t border-slate-100/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 overflow-hidden border border-white shadow-sm">
-                      {order.user?.image ? (
-                        <img src={fixImageUrl(order.user.image)} className="w-full h-full object-cover" />
-                      ) : (
-                        order.user?.name?.charAt(0) || 'C'
-                      )}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-slate-700 tracking-tight">{order.user?.name || 'Client'}</span>
-                      <span className="text-[10px] font-semibold text-slate-400">Verified User</span>
-                    </div>
-                  </div>
+                  <div></div>
 
                   <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
                     {order.status === 'pending_seller' ? (

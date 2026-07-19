@@ -32,7 +32,7 @@ function UserRegistration() {
       }))
     } else {
       // If no email, redirect back
-      navigate('/user/phone-entry')
+      navigate('/user/login')
     }
   }, [location, navigate])
 

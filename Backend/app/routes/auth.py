@@ -3,6 +3,8 @@ Authentication routes with OTP support
 """
 from flask import Blueprint, jsonify, request, current_app, make_response
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt, set_access_cookies
+from app import mongo
+from app.models.seller import Seller
 from app.services.master_service import MasterService
 from app.services.seller_service import SellerService
 from app.services.outlet_man_service import OutletManService
@@ -1275,3 +1277,206 @@ def enable_notifications():
         
     except Exception as e:
         return jsonify({'error': f'Failed to enable notifications: {str(e)}'}), 500
+
+@auth_bp.route('/user/switch-role', methods=['POST'])
+@jwt_required()
+def user_switch_role():
+    """Switch user role to seller within same session if permitted.
+    
+    If the user already has a seller account linked via source_user_id, reuse it.
+    Otherwise auto-create a seller account from the user's profile.
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        claims = get_jwt()
+        current_user_type = claims.get('user_type')
+        
+        if current_user_type != 'user':
+            return jsonify({'error': 'Only regular users can switch roles'}), 403
+            
+        data = request.get_json() or {}
+        target_role = data.get('target_role')
+        
+        if target_role != 'seller':
+            return jsonify({'error': 'Invalid target role'}), 400
+            
+        user = UserService.get_user_by_id(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        if not getattr(user, 'can_sell', False):
+            return jsonify({'error': 'You do not have permission to sell'}), 403
+        
+        # --- Try to find an existing seller account for this user ---
+        seller = None
+        
+        # 1. Check if there's an explicit linked_seller_id (legacy support)
+        if getattr(user, 'linked_seller_id', None):
+            seller = SellerService.get_seller_by_id(str(user.linked_seller_id), include_blacklisted=True)
+            if seller and BlacklistService.is_blacklisted(str(seller._id)):
+                return jsonify({'error': 'Your linked seller account has been blacklisted'}), 403
+        
+        # 2. Look up by source_user_id field (auto-provisioned sellers)
+        if not seller:
+            seller_doc = mongo.db.sellers.find_one({'source_user_id': current_user_id})
+            if seller_doc:
+                seller = Seller.from_bson(seller_doc)
+                if BlacklistService.is_blacklisted(str(seller._id)):
+                    return jsonify({'error': 'Your seller account has been blacklisted'}), 403
+        
+        # 3. Auto-create seller account from user profile
+        if not seller:
+            import random
+            import string
+            # Use roll number as trade_id base, fallback to username
+            base_id = getattr(user, 'rollNo', None) or user.username or current_user_id[:8]
+            trade_id = f"STU-{str(base_id).upper()}"
+            
+            # Ensure trade_id is unique
+            if SellerService.get_seller_by_trade_id(trade_id):
+                suffix = ''.join(random.choices(string.digits, k=4))
+                trade_id = f"STU-{str(base_id).upper()}-{suffix}"
+            
+            # Generate a random password (user doesn't need it — they always switch via token)
+            rand_password = ''.join(random.choices(string.ascii_letters + string.digits, k=24))
+            
+            seller_data = {
+                'trade_id': trade_id,
+                'email': user.email,
+                'password': rand_password,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'phone_number': user.phone_number,
+                'image_url': user.image_url,
+                'is_active': True,
+                'credits': 30,
+                'created_by': 'user_switch',
+                'source_user_id': current_user_id,
+            }
+            
+            try:
+                seller = SellerService.create_seller(seller_data)
+                # Store the auto-generated seller's ID back into user for future fast lookup
+                UserService.update_user(current_user_id, {'linked_seller_id': str(seller._id)})
+            except ValueError as e:
+                # If creation fails (e.g. email conflict), try to find by email
+                seller = SellerService.get_seller_by_email(user.email)
+                if not seller:
+                    return jsonify({'error': f'Failed to provision seller account: {str(e)}'}), 500
+        
+        if not seller:
+            return jsonify({'error': 'Could not resolve seller account'}), 500
+
+        # Create JWT for seller
+        additional_claims = {
+            'user_type': 'seller',
+            'user_id': str(seller._id),
+            'trade_id': seller.trade_id
+        }
+        
+        return _build_auth_response(
+            user_data=seller.to_dict(include_password=False),
+            user_type='seller',
+            additional_claims=additional_claims,
+            extra_resp_data={'message': 'Role switched successfully'}
+        )
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to switch role: {str(e)}'}), 500
+
+# ==========================================
+# Student Specific Routes
+# ==========================================
+
+@auth_bp.route('/student/login', methods=['POST'])
+def student_login():
+    """Login specifically for students"""
+    data = request.get_json()
+    if not data or not data.get('rollNo') or not data.get('password'):
+        return jsonify({'error': 'Roll Number and password are required'}), 400
+        
+    username = str(data.get('rollNo'))
+    password = data.get('password')
+    
+    # Check if user exists
+    user = UserService.get_user_by_username(username)
+    if not user:
+        return jsonify({'error': 'Invalid credentials'}), 401
+        
+    # Check password
+    if not user.check_password(password):
+        return jsonify({'error': 'Invalid credentials'}), 401
+        
+    if not user.is_active:
+        return jsonify({'error': 'Account is disabled'}), 403
+        
+    additional_claims = {
+        'user_type': 'user',
+        'user_id': str(user._id),
+        'email': user.email,
+        'username': user.username
+    }
+    
+    return _build_auth_response(user.to_dict(), 'user', additional_claims)
+
+
+@auth_bp.route('/student/forgot-password', methods=['POST'])
+def student_forgot_password():
+    """Request OTP for forgot password"""
+    data = request.get_json()
+    if not data or not data.get('email'):
+        return jsonify({'error': 'Email is required'}), 400
+        
+    email = data.get('email')
+    user = UserService.get_user_by_email(email)
+    
+    if not user:
+        return jsonify({'error': 'User with this email not found'}), 404
+        
+    # Generate OTP
+    otp = OTPManager.generate_otp(email, purpose='password_reset')
+    
+    # Send via Email
+    from app.utils.email import EmailService
+    subject = "Password Reset OTP"
+    body_text = f"Your OTP for password reset is {otp}. It is valid for 10 minutes."
+    success, msg = EmailService.send_email(email, subject, body_text)
+    
+    if not success:
+        return jsonify({'error': 'Failed to send OTP email', 'details': msg}), 500
+        
+    return jsonify({'message': 'OTP sent successfully to email'}), 200
+
+
+@auth_bp.route('/student/reset-password', methods=['POST'])
+def student_reset_password():
+    """Verify OTP and reset password"""
+    data = request.get_json()
+    required_fields = ['email', 'otp', 'new_password']
+    
+    if not all(field in data for field in required_fields):
+        return jsonify({'error': 'Email, OTP, and new password are required'}), 400
+        
+    email = data.get('email')
+    otp = str(data.get('otp'))
+    new_password = data.get('new_password')
+    
+    # Verify OTP
+    if not OTPManager.verify_otp(email, otp, purpose='password_reset'):
+        return jsonify({'error': 'Invalid or expired OTP'}), 400
+        
+    # Update password
+    user = UserService.get_user_by_email(email)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+        
+    from app.models.user import User
+    from app import mongo
+    
+    hashed_pwd = User.set_password(new_password)
+    mongo.db.users.update_one({'_id': user._id}, {'$set': {'password_hash': hashed_pwd}})
+    
+    # Delete OTP
+    OTPManager.delete_otp(email, purpose='password_reset')
+    
+    return jsonify({'message': 'Password reset successfully'}), 200

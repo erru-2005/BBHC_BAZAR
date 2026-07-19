@@ -37,7 +37,7 @@ function ServiceBooking() {
 
   useEffect(() => {
     if (!isAuthenticated || userType !== 'user') {
-      navigate('/user/phone-entry', {
+      navigate('/user/login', {
         state: { returnTo: `/service/${serviceId}/book` }
       })
     }
@@ -88,7 +88,7 @@ function ServiceBooking() {
       return
     }
     if (userType !== 'user') {
-      navigate('/user/phone-entry', {
+      navigate('/user/login', {
         state: { returnTo: `/service/${serviceId}/book` }
       })
       return

@@ -53,6 +53,8 @@ export default function SellerLayout() {
     }
 
     const handleLogout = async () => {
+        const hasUserToken = !!localStorage.getItem('bbhc_user_token')
+        
         try {
             await logoutUser()
         } catch (e) {
@@ -69,7 +71,12 @@ export default function SellerLayout() {
         clearDeviceToken()
         localStorage.removeItem('seller_active_tab')
         dispatch(logout())
-        navigate('/seller/login')
+        
+        if (hasUserToken) {
+            window.location.href = '/user/login'
+        } else {
+            navigate('/seller/login')
+        }
     }
 
     return (

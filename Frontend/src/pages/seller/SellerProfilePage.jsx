@@ -1,12 +1,12 @@
 import { 
     FiChevronLeft, FiCamera, FiCreditCard, FiTruck, FiRefreshCw, 
-    FiXCircle, FiHeart, FiHeadphones, FiUser, FiKey, FiLogOut 
+    FiXCircle, FiHeart, FiHeadphones, FiUser, FiKey, FiLogOut, FiShoppingBag
 } from 'react-icons/fi'
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { uploadAvatar, updateSellerProfile } from '../../services/api'
-import { updateUserInfo } from '../../store/authSlice'
+import { updateUserInfo, restoreUser } from '../../store/authSlice'
 import { fixImageUrl, compressToWebP } from '../../utils/image'
 import Toast from '../../components/Toast'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -74,6 +74,15 @@ export default function SellerProfilePage() {
     const [uploadSuccess, setUploadSuccess] = useState(false)
     const [previewUrl, setPreviewUrl] = useState(null)
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
+    const [switchingRole, setSwitchingRole] = useState(false)
+    const hasUserToken = !!localStorage.getItem('bbhc_user_token')
+
+    const handleRoleSwitch = () => {
+        setSwitchingRole(true)
+        setTimeout(() => {
+            window.location.href = '/user/profile'
+        }, 1500)
+    }
 
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type })
@@ -252,6 +261,21 @@ export default function SellerProfilePage() {
                             </div>
                         </div>
 
+                        {/* Switch to User Profile */}
+                        {hasUserToken && (
+                            <motion.button
+                                variants={childVariants}
+                                whileHover={{ scale: 1.02, backgroundColor: "#F0F9FF" }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={handleRoleSwitch}
+                                disabled={switchingRole}
+                                className="w-full flex items-center justify-center gap-4 py-8 mb-4 text-blue-600 font-bold uppercase tracking-[0.2em] text-xs bg-white rounded-[4px] border border-blue-50 hover:border-blue-200 transition-all shadow-sm disabled:opacity-75"
+                            >
+                                <FiShoppingBag className="w-6 h-6" />
+                                {switchingRole ? 'Switching...' : 'Switch to User Dashboard'}
+                            </motion.button>
+                        )}
+
                         {/* Logout Button */}
                         <motion.button
                             variants={childVariants}
@@ -309,6 +333,42 @@ export default function SellerProfilePage() {
                 isVisible={toast.show}
                 onClose={() => setToast(prev => ({ ...prev, show: false }))}
             />
+            
+            <AnimatePresence>
+                {switchingRole && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-blue-600 backdrop-blur-sm"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.5, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ type: 'spring', delay: 0.1 }}
+                            className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl"
+                        >
+                            <FiShoppingBag className="w-10 h-10 text-blue-600 animate-pulse" />
+                        </motion.div>
+                        <motion.h2 
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="text-3xl font-bold text-white mb-2 text-center px-4"
+                        >
+                            Switching to User Profile...
+                        </motion.h2>
+                        <motion.p
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="text-blue-100 text-center px-4"
+                        >
+                            Loading your user dashboard
+                        </motion.p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

@@ -165,11 +165,49 @@ class UserService:
             return False
     
     @staticmethod
-    def get_all_users(skip=0, limit=20):
-        """Get all users with pagination"""
+    def get_all_users(skip=0, limit=20, search=None):
+        """Get all users with pagination and optional search"""
         try:
-            users = mongo.db.users.find().skip(skip).limit(limit)
-            return [User.from_bson(user_doc) for user_doc in users]
-        except Exception:
-            return []
+            query = {}
+            if search:
+                search_regex = {'$regex': search, '$options': 'i'}
+                query['$or'] = [
+                    {'username': search_regex},
+                    {'email': search_regex},
+                    {'phone_number': search_regex},
+                    {'first_name': search_regex},
+                    {'last_name': search_regex}
+                ]
+            
+            total = mongo.db.users.count_documents(query)
+            users_cursor = mongo.db.users.find(query).sort('created_at', -1).skip(skip).limit(limit)
+            users = [User.from_bson(user_doc) for user_doc in users_cursor]
+            
+            return {
+                'users': users,
+                'total': total
+            }
+        except Exception as e:
+            print(f"Error getting users: {e}")
+            return {'users': [], 'total': 0}
+
+    @staticmethod
+    def set_sell_permission(user_id, can_sell, linked_seller_id=None):
+        """Set sell permission for a user and link to seller account"""
+        try:
+            update_data = {
+                'can_sell': bool(can_sell),
+                'linked_seller_id': ObjectId(linked_seller_id) if linked_seller_id else None,
+                'updated_at': datetime.now(timezone.utc)
+            }
+            
+            result = mongo.db.users.update_one(
+                {'_id': ObjectId(user_id)},
+                {'$set': update_data}
+            )
+            
+            return result.modified_count > 0 or result.matched_count > 0
+        except Exception as e:
+            print(f"Error setting sell permission: {e}")
+            return False
 

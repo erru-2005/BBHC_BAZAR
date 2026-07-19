@@ -160,7 +160,7 @@ function StarRating({
     if (!isAuthenticated || userType !== 'user') {
       // Redirect to login page with return URL
       const currentPath = window.location.pathname + window.location.search
-      navigate('/user/phone-entry', { 
+      navigate('/user/login', { 
         state: { 
           returnTo: currentPath,
           message: 'Please login to rate this product'

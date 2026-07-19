@@ -33,7 +33,7 @@ function Bag() {
 
   useEffect(() => {
     if (!isAuthenticated || userType !== 'user') {
-      navigate('/user/phone-entry', {
+      navigate('/user/login', {
         state: {
           returnTo: '/user/bag',
           message: 'Please login to view your bag.'

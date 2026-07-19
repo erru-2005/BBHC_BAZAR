@@ -143,7 +143,7 @@ function ServiceDetail() {
         <button
           onClick={() => {
             if (!isAuthenticated || userType !== 'user') {
-              navigate('/user/phone-entry', {
+              navigate('/user/login', {
                 state: { returnTo: `/service/${service.id || service._id}/book` }
               })
             } else {

@@ -11,7 +11,7 @@ import { bindPortalRealtimeSync, logoutUser } from '../../services/api'
 import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins, FaGlobe, FaStar, FaTruck, FaAd } from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins, FaGlobe, FaStar, FaTruck, FaAd, FaUsers } from 'react-icons/fa'
 import { FaHouse } from 'react-icons/fa6'
 import PasswordResetDialog from '../../components/PasswordResetDialog'
 import AddSeller from './components/AddSeller'
@@ -20,6 +20,7 @@ import AddOutletMan from './components/AddOutletMan'
 import ListSellers from './components/ListSellers'
 import ListMasters from './components/ListMasters'
 import ListOutletMan from './components/ListOutletMan'
+import ListUsers from './components/ListUsers'
 import AddProduct from './components/AddProduct'
 import BlacklistedSellers from './components/BlacklistedSellers'
 import ListProducts from './components/ListProducts'
@@ -36,7 +37,7 @@ import MasterReviews from './components/MasterReviews'
 import Advertisements from './components/Advertisements'
 import './master.css'
 
-const TAB_ORDER_VERSION = '5'
+const TAB_ORDER_VERSION = '6'
 
 function Master() {
   const dispatch = useDispatch()
@@ -69,6 +70,7 @@ function Master() {
     { id: 'web-container', label: 'Web Container', icon: FaGlobe },
     { id: 'add-seller', label: 'Add Seller', icon: IoMdPersonAdd },
     { id: 'list-sellers', label: 'List Sellers', icon: MdList },
+    { id: 'list-users', label: 'List Users', icon: FaUsers },
     { id: 'add-outlet-man', label: 'Add Outlet Man', icon: IoMdPersonAdd },
     { id: 'list-outlet-men', label: 'List Outlet Men', icon: MdList },
     { id: 'add-master', label: 'Add Master', icon: IoMdPersonAdd },
@@ -621,6 +623,8 @@ function Master() {
         </div>
         
         {activeTab === 'list-sellers' && <ListSellers />}
+        
+        {activeTab === 'list-users' && <ListUsers />}
         
         {activeTab === 'list-outlet-men' && <ListOutletMan />}
         

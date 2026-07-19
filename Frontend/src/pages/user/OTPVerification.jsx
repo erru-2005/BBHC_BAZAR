@@ -42,7 +42,7 @@ function OTPVerification() {
       setReturnTo(location.state.returnTo || '/')
     } else {
       // If no state, redirect back to phone entry
-      navigate('/user/phone-entry')
+      navigate('/user/login')
     }
   }, [location, navigate, isAuthenticated, userType])
 
@@ -121,7 +121,7 @@ function OTPVerification() {
   }
 
   const handleEditEmail = () => {
-    navigate('/user/phone-entry', {
+    navigate('/user/login', {
       state: {
         prefillEmail: email,
         returnTo,
@@ -134,7 +134,7 @@ function OTPVerification() {
     <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-gray-100 text-gray-900 flex items-center justify-center px-4 py-10">
       <div className="w-full lg:w-1/2 max-w-md lg:max-w-[420px] mx-auto">
         <button
-          onClick={() => navigate('/user/phone-entry')}
+          onClick={() => navigate('/user/login')}
           className="mb-6 flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
         >
           <FaArrowLeft className="w-4 h-4" />

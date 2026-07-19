@@ -19,7 +19,7 @@ import QRCode from 'react-qr-code'
 import { motion, AnimatePresence } from 'framer-motion'
 import { fixImageUrl, getOrderProductImage, resolveImageUrl } from '../../utils/image'
 import { setSellerProducts, setSellerOrders, updateSellerOrder, setSellerLoading } from '../../store/sellerSlice'
-import { updateUserInfo } from '../../store/authSlice'
+import { updateUserInfo, restoreUser } from '../../store/authSlice'
 import {
   AcceptServiceCreditBadge,
   AcceptServiceCreditDeduction,
@@ -84,6 +84,7 @@ function Seller() {
   const [creditLoading, setCreditLoading] = useState(false)
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
   const [selectedSpans, setSelectedSpans] = useState({})
+  const [switchingRole, setSwitchingRole] = useState(false)
 
   useEffect(() => {
     getServiceAcceptCredit().then(setServiceAcceptCredit).catch(() => { })
@@ -416,6 +417,24 @@ function Seller() {
   if (activeView === 'wallet') return <SellerWallet />
   if (activeView === 'reviews') return <SellerReviews />
 
+  const handleSwitchToUserMode = () => {
+    try {
+      const userToken = localStorage.getItem('bbhc_user_token');
+      if (!userToken) {
+        window.location.href = '/user/login';
+        return;
+      }
+      
+      setSwitchingRole(true)
+      setTimeout(() => {
+        window.location.href = '/user/profile'
+      }, 1500)
+    } catch (e) {
+      console.error("Failed to switch to user mode:", e);
+      window.location.href = '/user/login';
+    }
+  }
+
   return (
     <div className="p-4 md:p-8 flex flex-col gap-4 max-w-7xl mx-auto w-full">
       {/* Welcome Header */}
@@ -446,6 +465,25 @@ function Seller() {
             />
           </div>
         </motion.div>
+        
+        {localStorage.getItem('bbhc_user_token') && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <button
+              onClick={handleSwitchToUserMode}
+              disabled={switchingRole}
+              className="group relative px-6 py-3 bg-white text-slate-700 font-bold rounded-2xl shadow-sm border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-75"
+            >
+              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                <FiUsers className="w-4 h-4" />
+              </div>
+              {switchingRole ? 'Switching...' : 'Switch to User Mode'}
+            </button>
+          </motion.div>
+        )}
       </section>
 
       {/* Quick Stats Grid - Mobile & Desktop Visibility */}
@@ -1143,6 +1181,41 @@ function Seller() {
         type={toast.type}
         onClose={() => setToast(prev => ({ ...prev, show: false }))}
       />
+      <AnimatePresence>
+        {switchingRole && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-blue-600 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', delay: 0.1 }}
+              className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl"
+            >
+              <FiUsers className="w-10 h-10 text-blue-600 animate-pulse" />
+            </motion.div>
+            <motion.h2 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="text-3xl font-bold text-white mb-2 text-center px-4"
+            >
+              Switching to User Profile...
+            </motion.h2>
+            <motion.p
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-blue-100 text-center px-4"
+            >
+              Loading your user dashboard
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

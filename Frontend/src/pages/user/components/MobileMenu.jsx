@@ -80,13 +80,13 @@ function MobileMenu({ open, onClose }) {
       navigate('/')
     } else if (label === 'profile') {
       if (!isAuthenticated || userType !== 'user') {
-        navigate('/user/phone-entry')
+        navigate('/user/login')
       } else {
         navigate('/user/profile')
       }
     } else if (label === 'bag') {
       if (!isAuthenticated || userType !== 'user') {
-        navigate('/user/phone-entry', {
+        navigate('/user/login', {
           state: {
             returnTo: '/user/bag',
             message: 'Please login to view your bag.'
@@ -101,7 +101,7 @@ function MobileMenu({ open, onClose }) {
       navigate('/services')
     } else if (label === 'wishlist') {
       if (!isAuthenticated || userType !== 'user') {
-        navigate('/user/phone-entry', {
+        navigate('/user/login', {
           state: {
             returnTo: '/wishlist',
             message: 'Please login to view your wishlist.'
@@ -112,7 +112,7 @@ function MobileMenu({ open, onClose }) {
       }
     } else if (label === 'orders') {
       if (!isAuthenticated || userType !== 'user') {
-        navigate('/user/phone-entry', {
+        navigate('/user/login', {
           state: {
             returnTo: '/user/orders',
             message: 'Please login to view your orders.'
@@ -233,7 +233,7 @@ function MobileMenu({ open, onClose }) {
               <button
                 onClick={() => {
                   onClose()
-                  navigate('/user/phone-entry')
+                  navigate('/user/login')
                 }}
                 className="flex-1 py-2 rounded-full border border-[#131921] text-[#131921] font-semibold hover:bg-[#131921] hover:text-white transition"
               >
@@ -242,7 +242,7 @@ function MobileMenu({ open, onClose }) {
               <button
                 onClick={() => {
                   onClose()
-                  navigate('/user/phone-entry', {
+                  navigate('/user/login', {
                     state: {
                       returnTo: '/user/orders',
                       message: 'Please login to view your orders.'

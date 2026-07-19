@@ -56,7 +56,7 @@ const getContextAwareToken = (requestUrl = '', method = '') => {
   // 1. Check API URL first (direct intent - most reliable)
   
   // Master-specific endpoints & actions
-  const isMasterEndpoint = ['/api/register_master', '/api/sellers', '/api/analytics', '/api/products/pending', '/api/services/pending', '/api/masters', '/api/auth/master', '/cancel-master'].some(ep => requestUrl.includes(ep))
+  const isMasterEndpoint = ['/api/register_master', '/api/sellers', '/api/users', '/api/analytics', '/api/products/pending', '/api/services/pending', '/api/masters', '/api/auth/master', '/cancel-master'].some(ep => requestUrl.includes(ep))
   const isMasterProductWrite =
     ['post', 'put', 'delete', 'patch'].includes(httpMethod) &&
     requestUrl.includes('/api/products') &&
@@ -2469,4 +2469,26 @@ export const deleteAdvertisement = async (adId) => {
   } catch (error) {
     throw new Error(error.message || 'Failed to delete advertisement')
   }
+}
+
+// User Role Management API
+export const getUsers = async (params = {}) => {
+  const queryParams = new URLSearchParams()
+  if (params.skip !== undefined) queryParams.append('skip', params.skip)
+  if (params.limit !== undefined) queryParams.append('limit', params.limit)
+  if (params.search) queryParams.append('search', params.search)
+  
+  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : ''
+  const response = await apiClient.get(`/api/users${queryString}`)
+  return response
+}
+
+export const setUserSellPermission = async (userId, data) => {
+  const response = await apiClient.patch(`/api/users/${userId}/sell-permission`, data)
+  return response
+}
+
+export const switchUserRole = async (targetRole) => {
+  const response = await apiClient.post('/api/auth/user/switch-role', { target_role: targetRole })
+  return response
 }

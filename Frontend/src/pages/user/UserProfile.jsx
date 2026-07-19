@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { FaLocationDot, FaCalendarDays, FaBoxOpen, FaArrowLeft } from 'react-icons/fa6'
-import { FaUserCircle, FaPhone, FaEnvelope, FaRegSave, FaSignOutAlt, FaCamera } from 'react-icons/fa'
-import { getUserProfile, updateUserProfile, logoutUser, uploadAvatar } from '../../services/api'
-import { setUser, logout } from '../../store/authSlice'
+import { FaUserCircle, FaPhone, FaEnvelope, FaRegSave, FaSignOutAlt, FaCamera, FaStore } from 'react-icons/fa'
+import { getUserProfile, updateUserProfile, logoutUser, uploadAvatar, switchUserRole } from '../../services/api'
+import { setUser, logout, loginSuccess } from '../../store/authSlice'
 import { resolveImageUrl, compressToWebP } from '../../utils/image'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import MainHeader from './components/MainHeader'
 import MobileMenu from './components/MobileMenu'
 import MobileSearchBar from './components/MobileSearchBar'
@@ -43,6 +43,34 @@ function UserProfile() {
   const [error, setError] = useState(null)
   const [editingField, setEditingField] = useState(null)
   const [pendingValue, setPendingValue] = useState('')
+  const [switchingRole, setSwitchingRole] = useState(false)
+
+  const handleRoleSwitch = async () => {
+    try {
+      setSwitchingRole(true)
+      setError(null)
+      const response = await switchUserRole('seller')
+      const data = response.data || response
+
+      // Save seller credentials in their own localStorage slot so
+      // the user's session remains intact when they switch back.
+      if (data.access_token) {
+        localStorage.setItem('bbhc_seller_token', data.access_token)
+      }
+      if (data.refresh_token) {
+        localStorage.setItem('bbhc_seller_refresh_token', data.refresh_token)
+      }
+
+      // The delay allows the animation to be seen for at least 1.5 seconds 
+      // instead of instantly jumping to the seller dashboard.
+      setTimeout(() => {
+        window.location.href = '/seller/dashboard'
+      }, 1500)
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to switch role')
+      setSwitchingRole(false)
+    }
+  }
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -350,6 +378,40 @@ function UserProfile() {
           </div>
         </motion.div>
 
+        {user?.can_sell && (
+          <motion.div
+            variants={cardVariants}
+            initial="hidden"
+            animate="visible"
+            className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-3xl p-6 shadow-lg text-white flex flex-col sm:flex-row items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-full">
+                <FaStore className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">
+                  {user?.linked_seller_id ? 'Seller Dashboard' : 'Start Selling'}
+                </h3>
+                <p className="text-amber-100 text-sm mt-1">
+                  {user?.linked_seller_id
+                    ? 'Switch to your seller dashboard to manage your shop.'
+                    : 'You are authorized to sell. Your store will be created automatically.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleRoleSwitch}
+              disabled={switchingRole}
+              className="w-full sm:w-auto px-6 py-3 bg-white text-amber-600 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm whitespace-nowrap disabled:opacity-75"
+            >
+              {switchingRole
+                ? (user?.linked_seller_id ? 'Switching...' : 'Setting up store...')
+                : 'Switch to Seller Dashboard'}
+            </button>
+          </motion.div>
+        )}
+
         <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-xl">
           <div className="flex items-center justify-between flex-wrap gap-2 mb-6">
             <div>
@@ -458,6 +520,41 @@ function UserProfile() {
           )}
         </div>
       </div>
+      <AnimatePresence>
+        {switchingRole && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-amber-600 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', delay: 0.1 }}
+              className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-2xl"
+            >
+              <FaStore className="w-10 h-10 text-amber-600 animate-pulse" />
+            </motion.div>
+            <motion.h2 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="text-3xl font-bold text-white mb-2 text-center px-4"
+            >
+              Setting up your store...
+            </motion.h2>
+            <motion.p
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-amber-100 text-center px-4"
+            >
+              Transferring you to the Seller Dashboard
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <MobileBottomNav />
     </div>
   )

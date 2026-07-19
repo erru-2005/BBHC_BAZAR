@@ -171,7 +171,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
             <button
               onClick={() => {
                 if (!isAuthenticated || userType !== 'user') {
-                  navigate('/user/phone-entry', {
+                  navigate('/user/login', {
                     state: {
                       returnTo: '/user/bag',
                       message: 'Please login to view your bag.'
@@ -208,7 +208,7 @@ const MainHeader = forwardRef(function MainHeader({ onOpenMenu, children }, logo
             <button
               onClick={() => {
                 if (!isAuthenticated || userType !== 'user') {
-                  navigate('/user/phone-entry', {
+                  navigate('/user/login', {
                     state: {
                       returnTo: '/user/bag',
                       message: 'Please login to view your bag.'

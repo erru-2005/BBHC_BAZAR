@@ -40,7 +40,7 @@ function BuyNow() {
 
   useEffect(() => {
     if (!isAuthenticated || userType !== 'user') {
-      navigate('/user/phone-entry', {
+      navigate('/user/login', {
         replace: true,
         state: {
           returnTo: `/product/${productId}/buy`,
