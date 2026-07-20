@@ -1,6 +1,9 @@
 import io
 import os
 import shutil
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 from PIL import Image
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -50,33 +53,36 @@ def _prepare_image(image):
 
 
 def _save_webp(image, filepath, quality=PRODUCT_WEBP_QUALITY):
+    # Deprecated for local storage, kept for migration script
     ensure_dir(os.path.dirname(filepath))
     image = _prepare_image(image)
     image.save(filepath, 'WEBP', quality=quality, method=4)
 
 
 def save_image_file(file_storage, entity_id, index, entity_type='products'):
-    """Save an uploaded file as WebP. Returns /static/... URL."""
+    """Save an uploaded file to Cloudinary. Returns secure_url."""
     if not file_storage:
         raise ValueError('No image file provided')
 
-    image = Image.open(file_storage.stream)
-    base_dir = _entity_base_dir(entity_type)
-    target_dir = os.path.join(base_dir, str(entity_id))
-    ensure_dir(target_dir)
-
+    folder_path = f"bbhc_bazar/{entity_type}/{entity_id}"
+    
+    upload_options = {
+        'folder': folder_path,
+        'format': 'webp',
+    }
+    
     if entity_type == 'avatars':
-        filename = 'avatar.webp'
-        image.thumbnail((AVATAR_MAX_SIZE, AVATAR_MAX_SIZE), Image.Resampling.LANCZOS)
-    else:
-        filename = f'{index}.webp'
+        upload_options['transformation'] = [
+            {'width': AVATAR_MAX_SIZE, 'height': AVATAR_MAX_SIZE, 'crop': 'fill', 'gravity': 'face'}
+        ]
+        
+    try:
+        result = cloudinary.uploader.upload(file_storage, **upload_options)
+        return result.get('secure_url')
+    except Exception as e:
+        print(f"[ERROR] Cloudinary upload failed: {e}")
+        raise ValueError(f"Failed to upload image to Cloudinary: {str(e)}. Please check API credentials.")
 
-    filepath = os.path.join(target_dir, filename)
-    quality = 78 if entity_type == 'avatars' else PRODUCT_WEBP_QUALITY
-    _save_webp(image, filepath, quality=quality)
-
-    static_segment = entity_type if entity_type != 'avatars' else 'avatars'
-    return f'/static/{static_segment}/{entity_id}/{filename}'
 
 
 def save_stored_image_reference(value, entity_id, index, entity_type='products'):
@@ -100,6 +106,14 @@ def save_avatar_file(file_storage, user_id):
 
 
 def delete_entity_images(entity_id, entity_type='products'):
+    folder_path = f"bbhc_bazar/{entity_type}/{entity_id}"
+    try:
+        cloudinary.api.delete_resources_by_prefix(folder_path)
+        cloudinary.api.delete_folder(folder_path)
+    except Exception as e:
+        print(f"[WARN] Failed to delete Cloudinary folder {folder_path}: {e}")
+        
+    # Also clean up local if it exists (legacy)
     base_dir = _entity_base_dir(entity_type)
     target_dir = os.path.join(base_dir, str(entity_id))
     if os.path.exists(target_dir):

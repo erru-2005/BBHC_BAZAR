@@ -1952,29 +1952,26 @@ def upload_file():
             return jsonify({'error': 'No selected file'}), 400
         
         if file:
-            # Ensure upload folder exists
-            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-            if not os.path.exists(upload_folder):
-                os.makedirs(upload_folder)
+            import cloudinary
+            import cloudinary.uploader
             
-            # Generate unique filename
+            # Generate unique filename prefix
             filename = secure_filename(file.filename)
-            unique_filename = f"{uuid.uuid4().hex}_{filename}"
-            file_path = os.path.join(upload_folder, unique_filename)
+            upload_options = {
+                'folder': 'bbhc_bazar/general_uploads',
+            }
             
-            # Save file
-            file.save(file_path)
-            
-            # Generate URL
-            # Note: In production, this should be a full URL (e.g., S3 or absolute app URL)
-            # For local dev, we return a relative path or use a static serving route
-            file_url = f"/api/uploads/{unique_filename}"
-            
-            return jsonify({
-                'message': 'File uploaded successfully',
-                'filename': unique_filename,
-                'url': file_url
-            }), 201
+            try:
+                result = cloudinary.uploader.upload(file, **upload_options)
+                file_url = result.get('secure_url')
+                
+                return jsonify({
+                    'message': 'File uploaded successfully to Cloudinary',
+                    'filename': filename,
+                    'url': file_url
+                }), 201
+            except Exception as ce:
+                return jsonify({'error': f'Cloudinary upload failed: {str(ce)}'}), 500
             
     except Exception as e:
         return jsonify({'error': f'Upload failed: {str(e)}'}), 500

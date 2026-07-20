@@ -71,9 +71,11 @@ export const resolveImageUrl = (path) => {
   return getImageUrl(path) || fixImageUrl(path)
 }
 
-/** Extract /static/... path from a full or relative URL */
+/** Extract /static/... path or remote URL from a full or relative URL */
 export const extractStaticPath = (url) => {
   if (!url || typeof url !== 'string') return null
+  if (url.startsWith('http://') || url.startsWith('https://')) return url // Support Cloudinary/Remote
+  if (url.startsWith('/api/uploads/')) return url.split('?')[0]
   if (url.startsWith('/static/')) return url.split('?')[0]
   const match = url.match(/\/static\/[^?#]+/)
   return match ? match[0] : null

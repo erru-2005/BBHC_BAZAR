@@ -95,6 +95,23 @@ class Config:
     else:
         print("[WARN] SMTP credentials not fully configured in .env")
 
+    # Cloudinary Configuration
+    CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME')
+    CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY')
+    CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET')
+    
+    if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+        import cloudinary
+        cloudinary.config(
+            cloud_name=CLOUDINARY_CLOUD_NAME,
+            api_key=CLOUDINARY_API_KEY,
+            api_secret=CLOUDINARY_API_SECRET,
+            secure=True
+        )
+        print(f"[OK] Cloudinary configured successfully (cloud: {CLOUDINARY_CLOUD_NAME})")
+    else:
+        print("[WARN] Cloudinary credentials missing. Image uploads will fail.")
+
     # Razorpay (secret must stay server-side only)
     RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')
     RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET')
