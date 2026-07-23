@@ -45,14 +45,17 @@ function SellerMyProducts() {
     if (!matchesSeller) return
 
     setProducts((prev) => {
-      const id = String(updatedProduct.id || updatedProduct._id)
+      const targetId = String(updatedProduct.original_product_id || updatedProduct.id || updatedProduct._id)
       const existsIndex = prev.findIndex(
-        (item) => String(item.id || item._id) === id
+        (item) => String(item.id || item._id) === targetId
       )
       if (existsIndex >= 0) {
         const clone = [...prev]
-        clone[existsIndex] = { ...clone[existsIndex], ...updatedProduct }
+        clone[existsIndex] = { ...clone[existsIndex], ...updatedProduct, id: clone[existsIndex].id || clone[existsIndex]._id }
         return clone
+      }
+      if (updatedProduct.original_product_id) {
+        return prev
       }
       return [updatedProduct, ...prev]
     })

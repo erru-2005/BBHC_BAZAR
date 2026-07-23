@@ -35,6 +35,7 @@ const ServiceCard = ({ service, index }) => {
           src={getImageSrc(thumbnail)} 
           alt={service.service_name}
           className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
+          onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/400?text=No+Image' }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         
@@ -382,6 +383,7 @@ function ProductShowcase({ products = [], services = [], loading, error }) {
                       src={getImageSrc(thumbnail)}
                       alt={product.product_name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/400?text=No+Image' }}
                     />
                   ) : (
                     <div className="text-xs text-gray-400">No image</div>

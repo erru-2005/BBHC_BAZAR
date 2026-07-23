@@ -238,6 +238,7 @@ function SearchOverlay({ isOpen, onClose, initialQuery = '' }) {
                               src={getImageUrl(thumbnail?.preview || thumbnail?.data_url || thumbnail?.url || thumbnail)}
                               alt={product.product_name}
                               className="w-full h-full object-contain"
+                              onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/400?text=No+Image' }}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">

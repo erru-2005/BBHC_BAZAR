@@ -56,7 +56,7 @@ const getContextAwareToken = (requestUrl = '', method = '') => {
   // 1. Check API URL first (direct intent - most reliable)
   
   // Master-specific endpoints & actions
-  const isMasterEndpoint = ['/api/register_master', '/api/sellers', '/api/users', '/api/analytics', '/api/products/pending', '/api/services/pending', '/api/masters', '/api/auth/master', '/cancel-master'].some(ep => requestUrl.includes(ep))
+  const isMasterEndpoint = ['/api/register_master', '/api/sellers', '/api/users', '/api/analytics', '/api/products/pending', '/api/services/pending', '/api/masters', '/api/auth/master', '/cancel-master', '/api/sales-report'].some(ep => requestUrl.includes(ep))
   const isMasterProductWrite =
     ['post', 'put', 'delete', 'patch'].includes(httpMethod) &&
     requestUrl.includes('/api/products') &&
@@ -116,13 +116,19 @@ const isFresh = (cacheEntry, ttlMs = CACHE_DURATION) => (
 const toEntityId = (item) => String(item?.id || item?._id || '')
 
 const upsertEntity = (list = [], incoming) => {
-  const incomingId = toEntityId(incoming)
-  if (!incomingId) return list
-  const idx = list.findIndex((item) => toEntityId(item) === incomingId)
-  if (idx === -1) return [incoming, ...list]
-  const next = [...list]
-  next[idx] = { ...next[idx], ...incoming }
-  return next
+  const targetId = String(incoming?.original_product_id || incoming?.id || incoming?._id || '')
+  if (!targetId) return list
+  const idx = list.findIndex((item) => String(item?.id || item?._id) === targetId)
+  if (idx >= 0) {
+    const next = [...list]
+    next[idx] = { ...next[idx], ...incoming, id: next[idx].id || next[idx]._id }
+    return next
+  }
+  // If it's an edit request and original product is not in list, don't append as new item
+  if (incoming?.original_product_id) {
+    return list
+  }
+  return [incoming, ...list]
 }
 
 const removeEntity = (list = [], entity) => {
@@ -2490,5 +2496,22 @@ export const setUserSellPermission = async (userId, data) => {
 
 export const switchUserRole = async (targetRole) => {
   const response = await apiClient.post('/api/auth/user/switch-role', { target_role: targetRole })
+  return response
+}
+
+// Sales Report API
+export const getSalesReport = async (params = {}) => {
+  const queryParams = new URLSearchParams()
+  if (params.dateRange) queryParams.append('dateRange', params.dateRange)
+  if (params.startDate) queryParams.append('startDate', params.startDate)
+  if (params.endDate) queryParams.append('endDate', params.endDate)
+  if (params.status) queryParams.append('status', params.status)
+  if (params.paymentMethod) queryParams.append('paymentMethod', params.paymentMethod)
+  if (params.search) queryParams.append('search', params.search)
+  if (params.page) queryParams.append('page', params.page)
+  if (params.limit) queryParams.append('limit', params.limit)
+
+  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : ''
+  const response = await apiClient.get(`/api/sales-report/${queryString}`)
   return response
 }

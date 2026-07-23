@@ -1,7 +1,7 @@
 /**
  * Master Dashboard Page Component
  */
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense, Component } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { logout, loginSuccess } from '../../store/authSlice'
@@ -11,7 +11,7 @@ import { bindPortalRealtimeSync, logoutUser } from '../../services/api'
 import logoImage from '../../assets/External_images/IEDC-removebg-preview.png'
 import { IoMdPersonAdd } from 'react-icons/io'
 import { MdList, MdBlock } from 'react-icons/md'
-import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins, FaGlobe, FaStar, FaTruck, FaAd, FaUsers } from 'react-icons/fa'
+import { FaBox, FaThList, FaBars, FaShoppingBag, FaSignOutAlt, FaPercent, FaCoins, FaGlobe, FaStar, FaTruck, FaAd, FaUsers, FaChartBar } from 'react-icons/fa'
 import { FaHouse } from 'react-icons/fa6'
 import PasswordResetDialog from '../../components/PasswordResetDialog'
 import AddSeller from './components/AddSeller'
@@ -36,8 +36,53 @@ import WebContainerSettings from './components/WebContainerSettings'
 import MasterReviews from './components/MasterReviews'
 import Advertisements from './components/Advertisements'
 import './master.css'
+// Sales Report loaded lazily so any crash doesn't affect the rest of the admin panel
+const SalesReport = lazy(() => import('./SalesReport'))
 
-const TAB_ORDER_VERSION = '6'
+const TAB_ORDER_VERSION = '7'
+
+// Error boundary that catches sales report render errors without crashing the whole admin panel
+class SalesReportErrorBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 inline-block">
+            <p className="text-red-700 font-semibold text-lg mb-2">Sales Report Error</p>
+            <p className="text-red-600 text-sm">{this.state.error?.message || 'Unknown error'}</p>
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+// Wrapper with lazy loading + error isolation
+const SalesReportWrapper = () => (
+  <SalesReportErrorBoundary>
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-64">
+        <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    }>
+      <SalesReport />
+    </Suspense>
+  </SalesReportErrorBoundary>
+)
 
 function Master() {
   const dispatch = useDispatch()
@@ -60,6 +105,7 @@ function Master() {
   const defaultTabs = [
     { id: 'home', label: 'Home', icon: FaHouse },
     { id: 'orders', label: 'Orders', icon: FaShoppingBag },
+    { id: 'sales-report', label: 'Sales Report', icon: FaChartBar },
     { id: 'add-product', label: 'Add Product', icon: FaBox },
     { id: 'add-service', label: 'Add Service', icon: FaBox },
     { id: 'list-products', label: 'List Products', icon: FaThList },
@@ -655,6 +701,10 @@ function Master() {
         )}
 
         {activeTab === 'orders' && <OrdersList />}
+
+        {activeTab === 'sales-report' && (
+          <SalesReportWrapper />
+        )}
 
         {activeTab === 'commission' && <CommissionManagement />}
 

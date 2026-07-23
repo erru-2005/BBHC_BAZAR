@@ -9,6 +9,17 @@ export const fixImageUrl = (url) => {
   if (url.startsWith('blob:')) return url
   if (url.startsWith('data:')) return null
 
+  // Convert Google Drive "uc?export=view" URLs → embeddable thumbnail URLs
+  if (url.includes('drive.google.com/uc') && url.includes('export=view')) {
+    try {
+      const parsed = new URL(url)
+      const fileId = parsed.searchParams.get('id')
+      if (fileId) {
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w600`
+      }
+    } catch (_) {}
+  }
+
   const backendUrl = import.meta.env.VITE_BACKEND_URL
   if (!backendUrl) return url
 
@@ -51,6 +62,19 @@ export const getImageUrl = (path) => {
   if (typeof path !== 'string') return ''
   if (path.startsWith('data:')) return ''
   if (path.startsWith('blob:')) return path
+
+  // Convert Google Drive "uc?export=view" URLs → embeddable thumbnail URLs
+  // (uc?export=view is blocked by browsers; thumbnail API is publicly embeddable)
+  if (path.includes('drive.google.com/uc') && path.includes('export=view')) {
+    try {
+      const url = new URL(path)
+      const fileId = url.searchParams.get('id')
+      if (fileId) {
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w600`
+      }
+    } catch (_) {}
+  }
+
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return fixImageUrl(path) || path
   }

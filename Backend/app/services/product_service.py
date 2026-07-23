@@ -182,14 +182,22 @@ class ProductService:
             if not or_filters:
                 return []
                 
-            query = {'$or': or_filters}
+            orig_product_filter = {
+                '$or': [
+                    {'original_product_id': None},
+                    {'original_product_id': {'$exists': False}}
+                ]
+            }
             if not include_pending:
-                query = {'$and': [query, {
+                status_filter = {
                     '$or': [
                         {'approval_status': 'approved'},
                         {'approval_status': {'$exists': False}}
                     ]
-                }]}
+                }
+                query = {'$and': [{'$or': or_filters}, orig_product_filter, status_filter]}
+            else:
+                query = {'$and': [{'$or': or_filters}, orig_product_filter]}
 
             products_cursor = (
                 mongo.db.products.find(query)

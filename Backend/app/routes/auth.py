@@ -1324,45 +1324,67 @@ def user_switch_role():
                 if BlacklistService.is_blacklisted(str(seller._id)):
                     return jsonify({'error': 'Your seller account has been blacklisted'}), 403
         
-        # 3. Auto-create seller account from user profile
+        # 3. Auto-create seller account from user profile (fast path)
         if not seller:
-            import random
-            import string
+            import random, string, hashlib, threading
+            from datetime import datetime, timezone
+            from bson import ObjectId as BsonObjectId
+            
             # Use roll number as trade_id base, fallback to username
             base_id = getattr(user, 'rollNo', None) or user.username or current_user_id[:8]
             trade_id = f"STU-{str(base_id).upper()}"
             
-            # Ensure trade_id is unique
-            if SellerService.get_seller_by_trade_id(trade_id):
+            # Ensure trade_id uniqueness via a single indexed find
+            if mongo.db.sellers.find_one({'trade_id': trade_id}, {'_id': 1}):
                 suffix = ''.join(random.choices(string.digits, k=4))
                 trade_id = f"STU-{str(base_id).upper()}-{suffix}"
             
-            # Generate a random password (user doesn't need it — they always switch via token)
-            rand_password = ''.join(random.choices(string.ascii_letters + string.digits, k=24))
+            # Skip bcrypt entirely — user never logs in via password for role-switched accounts.
+            # Use a SHA-256 based placeholder which is instant (vs ~300ms for bcrypt).
+            placeholder_hash = hashlib.sha256(
+                ('role_switch_' + current_user_id).encode()
+            ).hexdigest()
             
-            seller_data = {
+            new_seller_id = BsonObjectId()
+            now = datetime.now(timezone.utc)
+            
+            seller_doc = {
+                '_id': new_seller_id,
                 'trade_id': trade_id,
                 'email': user.email,
-                'password': rand_password,
+                'password_hash': f'$sha256$role_switch${placeholder_hash}',
                 'first_name': user.first_name,
                 'last_name': user.last_name,
                 'phone_number': user.phone_number,
-                'image_url': user.image_url,
+                'image_url': getattr(user, 'image_url', None),
                 'is_active': True,
                 'credits': 30,
                 'created_by': 'user_switch',
                 'source_user_id': current_user_id,
+                'created_at': now,
+                'updated_at': now,
             }
             
             try:
-                seller = SellerService.create_seller(seller_data)
-                # Store the auto-generated seller's ID back into user for future fast lookup
-                UserService.update_user(current_user_id, {'linked_seller_id': str(seller._id)})
-            except ValueError as e:
-                # If creation fails (e.g. email conflict), try to find by email
-                seller = SellerService.get_seller_by_email(user.email)
-                if not seller:
+                mongo.db.sellers.insert_one(seller_doc)
+                seller = Seller.from_bson(seller_doc)
+                
+                # Update linked_seller_id on user in background — don't block the response
+                def _link_seller():
+                    try:
+                        UserService.update_user(current_user_id, {'linked_seller_id': str(new_seller_id)})
+                    except Exception:
+                        pass
+                threading.Thread(target=_link_seller, daemon=True).start()
+                
+            except Exception as e:
+                # Duplicate key — seller was race-created; fetch it
+                seller_doc = mongo.db.sellers.find_one({'source_user_id': current_user_id})
+                if not seller_doc:
+                    seller_doc = mongo.db.sellers.find_one({'email': user.email})
+                if not seller_doc:
                     return jsonify({'error': f'Failed to provision seller account: {str(e)}'}), 500
+                seller = Seller.from_bson(seller_doc)
         
         if not seller:
             return jsonify({'error': 'Could not resolve seller account'}), 500

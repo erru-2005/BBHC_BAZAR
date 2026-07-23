@@ -95,22 +95,22 @@ class Config:
     else:
         print("[WARN] SMTP credentials not fully configured in .env")
 
-    # Cloudinary Configuration
-    CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME')
-    CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY')
-    CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET')
-    
-    if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
-        import cloudinary
-        cloudinary.config(
-            cloud_name=CLOUDINARY_CLOUD_NAME,
-            api_key=CLOUDINARY_API_KEY,
-            api_secret=CLOUDINARY_API_SECRET,
-            secure=True
-        )
-        print(f"[OK] Cloudinary configured successfully (cloud: {CLOUDINARY_CLOUD_NAME})")
+    # Google Drive Configuration
+    GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+    GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+    GOOGLE_REFRESH_TOKEN = os.environ.get('GOOGLE_REFRESH_TOKEN')
+    GOOGLE_DRIVE_FOLDER_ID = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
+
+    if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET and GOOGLE_REFRESH_TOKEN and GOOGLE_DRIVE_FOLDER_ID:
+        print("[OK] Google Drive credentials loaded successfully")
     else:
-        print("[WARN] Cloudinary credentials missing. Image uploads will fail.")
+        missing = [k for k, v in {
+            'GOOGLE_CLIENT_ID': GOOGLE_CLIENT_ID,
+            'GOOGLE_CLIENT_SECRET': GOOGLE_CLIENT_SECRET,
+            'GOOGLE_REFRESH_TOKEN': GOOGLE_REFRESH_TOKEN,
+            'GOOGLE_DRIVE_FOLDER_ID': GOOGLE_DRIVE_FOLDER_ID,
+        }.items() if not v]
+        print(f"[WARN] Google Drive credentials missing: {missing}. Image uploads will fail.")
 
     # Razorpay (secret must stay server-side only)
     RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID')

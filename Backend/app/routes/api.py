@@ -1273,14 +1273,16 @@ def seller_update_product(product_id):
         if existing_product.seller_trade_id != seller_trade_id:
             return jsonify({'error': 'You can only edit your own products'}), 403
 
-        # For seller edits, create a pending edit request instead of updating directly
+        target_original_id = existing_product.original_product_id if getattr(existing_product, 'original_product_id', None) else product_id
+
+        # For seller edits, create or update a pending edit request instead of updating directly
         data['seller_trade_id'] = seller_trade_id
         data['created_by'] = seller_trade_id
         data['created_by_user_id'] = seller_user_id
         data['created_by_user_type'] = 'seller'
         data['approval_status'] = 'pending'
         data['pending_changes'] = data.copy()  # Store the changes
-        data['original_product_id'] = product_id  # Reference to original product
+        data['original_product_id'] = target_original_id  # Reference to original product
         data['product_name'] = data.get('product_name', existing_product.product_name)
         data['specification'] = data.get('specification', existing_product.specification)
         data['points'] = data.get('points', existing_product.points)
@@ -1288,12 +1290,28 @@ def seller_update_product(product_id):
         data['gallery'] = data.get('gallery', existing_product.gallery)
         data['selling_price'] = data.get('selling_price', existing_product.selling_price)
         data['max_price'] = data.get('max_price', existing_product.max_price)
-        data['quantity'] = data.get('quantity', existing_product.quantity)
         data['categories'] = data.get('categories', existing_product.categories)
         data['delivery_span'] = data.get('delivery_span', getattr(existing_product, 'delivery_span', 2))
 
-        # Create pending edit request
-        edit_request = ProductService.create_product(data)
+        # Remove product_id if present in body so it doesn't overwrite document keys incorrectly
+        data.pop('product_id', None)
+        data.pop('_id', None)
+
+        # Check if a pending edit request already exists for this original product
+        from bson import ObjectId
+        from datetime import datetime, timezone
+        existing_pending = mongo.db.products.find_one({
+            'original_product_id': target_original_id,
+            'approval_status': 'pending'
+        })
+
+        if existing_pending:
+            data['updated_at'] = datetime.now(timezone.utc)
+            mongo.db.products.update_one({'_id': existing_pending['_id']}, {'$set': data})
+            edit_request = ProductService.get_product_by_id(str(existing_pending['_id']))
+        else:
+            edit_request = ProductService.create_product(data)
+
         edit_request_dict = edit_request.to_dict()
         emit_product_event('product_updated', edit_request_dict)
 
@@ -1942,37 +1960,31 @@ def remove_from_wishlist(product_id):
 @api_bp.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_file():
-    """Upload a file and return its URL"""
+    """Upload a file to Google Drive and return its public URL"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file part'}), 400
-        
+
         file = request.files['file']
         if file.filename == '':
             return jsonify({'error': 'No selected file'}), 400
-        
+
         if file:
-            import cloudinary
-            import cloudinary.uploader
-            
-            # Generate unique filename prefix
+            from app.utils.image_handler import save_image_file
+            import uuid
             filename = secure_filename(file.filename)
-            upload_options = {
-                'folder': 'bbhc_bazar/general_uploads',
-            }
-            
+            unique_id = str(uuid.uuid4())
+
             try:
-                result = cloudinary.uploader.upload(file, **upload_options)
-                file_url = result.get('secure_url')
-                
+                file_url = save_image_file(file, unique_id, 0, entity_type='general_uploads')
                 return jsonify({
-                    'message': 'File uploaded successfully to Cloudinary',
+                    'message': 'File uploaded successfully to Google Drive',
                     'filename': filename,
                     'url': file_url
                 }), 201
-            except Exception as ce:
-                return jsonify({'error': f'Cloudinary upload failed: {str(ce)}'}), 500
-            
+            except Exception as ge:
+                return jsonify({'error': f'Google Drive upload failed: {str(ge)}'}), 500
+
     except Exception as e:
         return jsonify({'error': f'Upload failed: {str(e)}'}), 500
 
