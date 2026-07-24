@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { loginSuccess } from '../../store/authSlice'
 import { FaArrowLeft } from 'react-icons/fa6'
 import { FaEdit } from 'react-icons/fa'
+import BlockedTimer from '../../components/BlockedTimer'
 
 function OTPVerification() {
   const navigate = useNavigate()
@@ -180,7 +181,9 @@ function OTPVerification() {
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <p className="text-red-600 text-sm text-center">{error}</p>
+                <p className="text-red-600 text-sm text-center">
+                  <BlockedTimer errorText={error} />
+                </p>
               </div>
             )}
             {infoMessage && !error && (

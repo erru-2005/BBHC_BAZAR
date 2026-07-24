@@ -35,11 +35,12 @@ import ActiveCounters from './components/ActiveCounters'
 import WebContainerSettings from './components/WebContainerSettings'
 import MasterReviews from './components/MasterReviews'
 import Advertisements from './components/Advertisements'
+import SecurityManagement from './components/security/SecurityManagement'
 import './master.css'
 // Sales Report loaded lazily so any crash doesn't affect the rest of the admin panel
 const SalesReport = lazy(() => import('./SalesReport'))
 
-const TAB_ORDER_VERSION = '7'
+const TAB_ORDER_VERSION = '8'
 
 // Error boundary that catches sales report render errors without crashing the whole admin panel
 class SalesReportErrorBoundary extends Component {
@@ -123,7 +124,8 @@ function Master() {
     { id: 'list-masters', label: 'List Masters', icon: MdList },
     { id: 'reviews', label: 'System Reviews', icon: FaStar },
     { id: 'advertisements', label: 'Advertisements', icon: FaAd },
-    { id: 'blacklisted-sellers', label: 'Blacklisted', icon: MdBlock }
+    { id: 'blacklisted-sellers', label: 'Blacklisted', icon: MdBlock },
+    { id: 'security', label: 'Security', icon: MdBlock }
   ]
 
   // Initialize tab order from localStorage or use default
@@ -679,6 +681,7 @@ function Master() {
         {activeTab === 'advertisements' && <Advertisements />}
 
         {activeTab === 'blacklisted-sellers' && <BlacklistedSellers />}
+        {activeTab === 'security' && <SecurityManagement />}
 
         {activeTab === 'list-products' && (
           <ListProducts

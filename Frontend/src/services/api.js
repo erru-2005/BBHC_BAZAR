@@ -2515,3 +2515,37 @@ export const getSalesReport = async (params = {}) => {
   const response = await apiClient.get(`/api/sales-report/${queryString}`)
   return response
 }
+
+// ==========================================
+// Security Management (Admin)
+// ==========================================
+
+export const getBlockedUsers = async () => {
+  const response = await apiClient.get('/api/admin/security/users')
+  return response
+}
+
+export const blockUser = async (userId) => {
+  const response = await apiClient.post(`/api/admin/security/users/${userId}/block`)
+  return response
+}
+
+export const unblockUser = async (userId) => {
+  const response = await apiClient.post(`/api/admin/security/users/${userId}/unblock`)
+  return response
+}
+
+export const getBlockedIPs = async () => {
+  const response = await apiClient.get('/api/admin/security/ips')
+  return response
+}
+
+export const blockIP = async (ipAddress) => {
+  const response = await apiClient.post(`/api/admin/security/ips/${ipAddress}/block`)
+  return response
+}
+
+export const unblockIP = async (ipAddress) => {
+  const response = await apiClient.post(`/api/admin/security/ips/${ipAddress}/unblock`)
+  return response
+}

@@ -202,6 +202,7 @@ def create_app(config_class=Config):
     from app.routes.slot_routes import slot_bp
     from app.routes.advertisement_route import advertisement_bp
     from app.routes.sales_report_route import sales_report_bp
+    from app.routes.security_admin_routes import security_admin_bp
     
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(image_bp, url_prefix='/api')
@@ -217,6 +218,7 @@ def create_app(config_class=Config):
     app.register_blueprint(slot_bp, url_prefix='/api/outlet')
     app.register_blueprint(advertisement_bp, url_prefix='/api')
     app.register_blueprint(sales_report_bp)
+    app.register_blueprint(security_admin_bp, url_prefix='/api/admin/security')
     
     # Simple root route for connectivity testing
     @app.route('/', methods=['GET'])
@@ -269,6 +271,10 @@ def create_indexes():
         mongo.db.master.create_index([('email', ASCENDING)], unique=True)
         mongo.db.master.create_index([('username', ASCENDING)], unique=True)
         mongo.db.master.create_index([('created_at', ASCENDING)])
+        
+        # IP Security indexes
+        mongo.db.ip_security.create_index([('ip_address', ASCENDING)], unique=True)
+        mongo.db.ip_security.create_index([('last_failed_at', ASCENDING)])
         
         # Create indexes for device_tokens collection
         mongo.db.device_tokens.create_index([('user_id', ASCENDING), ('user_type', ASCENDING), ('device_id', ASCENDING)])

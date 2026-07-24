@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../../store/authSlice';
 import { getOrCreateDeviceId } from '../../utils/device';
+import BlockedTimer from '../../components/BlockedTimer';
 
 const StudentLogin = () => {
   const navigate = useNavigate();
@@ -126,7 +127,7 @@ const StudentLogin = () => {
           {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-red-50 text-red-600 text-sm border border-red-100 shadow-sm">
-              {error}
+              <BlockedTimer errorText={error} />
             </div>
           )}
           

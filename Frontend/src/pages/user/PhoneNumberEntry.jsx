@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { sendUserOTP } from '../../services/api'
 import { FaEnvelope, FaArrowLeft } from 'react-icons/fa6'
 import { useSelector } from 'react-redux'
+import BlockedTimer from '../../components/BlockedTimer'
 
 function PhoneNumberEntry() {
   const navigate = useNavigate()
@@ -103,8 +104,10 @@ function PhoneNumberEntry() {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <p className="text-red-600 text-sm">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                <p className="text-red-600 text-sm">
+                  <BlockedTimer errorText={error} />
+                </p>
               </div>
             )}
 

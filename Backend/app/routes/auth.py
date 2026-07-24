@@ -983,10 +983,32 @@ def user_verify_otp():
         if not session_id or not otp:
             return jsonify({'error': 'OTP session ID and OTP are required'}), 400
         
+        # Setup security check
+        from bson import ObjectId
+        from app.services.security_service import SecurityService
+        
+        email = None
+        ip_address = SecurityService.get_client_ip(request)
+        session_record = None
+        
+        try:
+            session_record = mongo.db.otp_sessions.find_one({'_id': ObjectId(session_id), 'verified': False})
+            if session_record:
+                metadata = session_record.get('metadata') or {}
+                email = metadata.get('email')
+                if email:
+                    is_allowed, error_msg = SecurityService.check_login_allowed(ip_address, 'users', 'email', email)
+                    if not is_allowed:
+                        return jsonify({'error': error_msg}), 403
+        except Exception:
+            pass
+
         # Verify OTP
         user_info, error = OTPManager.verify_otp(session_id, otp)
         
         if error:
+            if session_record and email:
+                SecurityService.record_failed_login(ip_address, 'users', 'email', email)
             return jsonify({'error': error}), 400
         
         # Get email or phone number from session
@@ -1005,6 +1027,9 @@ def user_verify_otp():
         
         if user:
             # User exists - login
+            if email:
+                SecurityService.record_successful_login(ip_address, 'users', 'email', email)
+            
             user_id = str(user._id)
             user_data = user.to_dict(include_password=False)
             
@@ -1420,17 +1445,29 @@ def student_login():
     username = str(data.get('rollNo'))
     password = data.get('password')
     
+    # Setup security check
+    from app.services.security_service import SecurityService
+    ip_address = SecurityService.get_client_ip(request)
+    
+    is_allowed, error_msg = SecurityService.check_login_allowed(ip_address, 'users', 'username', username)
+    if not is_allowed:
+        return jsonify({'error': error_msg}), 403
+    
     # Check if user exists
     user = UserService.get_user_by_username(username)
     if not user:
+        SecurityService.record_failed_login(ip_address, 'users', 'username', username)
         return jsonify({'error': 'Invalid credentials'}), 401
         
     # Check password
     if not user.check_password(password):
+        SecurityService.record_failed_login(ip_address, 'users', 'username', username)
         return jsonify({'error': 'Invalid credentials'}), 401
         
     if not user.is_active:
         return jsonify({'error': 'Account is disabled'}), 403
+        
+    SecurityService.record_successful_login(ip_address, 'users', 'username', username)
         
     additional_claims = {
         'user_type': 'user',
